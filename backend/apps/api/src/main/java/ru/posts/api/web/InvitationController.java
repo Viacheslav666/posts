@@ -6,9 +6,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,11 +21,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.auth.ClientRequestContexts;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.workspace.WorkspaceDtos;
-import ru.posts.api.web.support.ApiStub;
+import ru.posts.api.workspace.InvitationService;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @Validated
@@ -32,15 +37,22 @@ import ru.posts.api.web.support.ApiStub;
 @OpenApiResponses
 public class InvitationController {
 
+    private final InvitationService invitationService;
+
+    public InvitationController(InvitationService invitationService) {
+        this.invitationService = invitationService;
+    }
+
     @GetMapping("/workspaces/{workspaceId}/invitations")
     @Operation(operationId = "invitationsList", summary = "List pending invitations for a workspace")
     @ApiResponse(responseCode = "200", description = "Invitations page")
     public CursorPage.InvitationPage list(
             @PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
-        throw ApiStub.notImplemented("invitationsList");
+        return invitationService.list(SecurityAuthSupport.requirePrincipal().userId(), workspaceId, page);
     }
 
     @PostMapping("/workspaces/{workspaceId}/invitations")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "invitationsCreate", summary = "Invite a user by email (TTL 7 days)")
     @ApiResponse(
             responseCode = "201",
@@ -49,15 +61,21 @@ public class InvitationController {
     public WorkspaceDtos.Invitation create(
             @PathVariable UUID workspaceId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-            @Valid @RequestBody WorkspaceDtos.CreateInvitationRequest request) {
-        throw ApiStub.notImplemented("invitationsCreate");
+            @Valid @RequestBody WorkspaceDtos.CreateInvitationRequest request,
+            HttpServletRequest httpRequest) {
+        return invitationService.create(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                workspaceId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 
     @DeleteMapping("/invitations/{invitationId}")
     @Operation(operationId = "invitationsCancel", summary = "Cancel a pending invitation")
     @ApiResponse(responseCode = "200", description = "Cancelled")
-    public AuthDtos.MessageResponse cancel(@PathVariable UUID invitationId) {
-        throw ApiStub.notImplemented("invitationsCancel");
+    public AuthDtos.MessageResponse cancel(@PathVariable UUID invitationId, HttpServletRequest httpRequest) {
+        return invitationService.cancel(
+                SecurityAuthSupport.requirePrincipal().userId(), invitationId, ClientRequestContexts.from(httpRequest));
     }
 
     @PostMapping("/invitations/accept")
@@ -66,8 +84,10 @@ public class InvitationController {
             responseCode = "200",
             description = "Accepted",
             content = @Content(schema = @Schema(implementation = WorkspaceDtos.Workspace.class)))
-    public WorkspaceDtos.Workspace accept(@Valid @RequestBody WorkspaceDtos.AcceptInvitationRequest request) {
-        throw ApiStub.notImplemented("invitationsAccept");
+    public WorkspaceDtos.Workspace accept(
+            @Valid @RequestBody WorkspaceDtos.AcceptInvitationRequest request, HttpServletRequest httpRequest) {
+        return invitationService.accept(
+                SecurityAuthSupport.requirePrincipal().userId(), request, ClientRequestContexts.from(httpRequest));
     }
 
     @GetMapping("/invitations/preview")
@@ -75,6 +95,6 @@ public class InvitationController {
     @Operation(operationId = "invitationsPreview", summary = "Preview invitation metadata by token (unauthenticated)")
     @ApiResponse(responseCode = "200", description = "Invitation preview")
     public WorkspaceDtos.Invitation preview(@RequestParam String token) {
-        throw ApiStub.notImplemented("invitationsPreview");
+        return invitationService.preview(token);
     }
 }

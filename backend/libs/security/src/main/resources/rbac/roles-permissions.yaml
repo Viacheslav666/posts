@@ -1,0 +1,468 @@
+# Машиночитаемая RBAC-матрица Posts (MVP)
+# Источник правды для PermissionEvaluator (BE-6) и автогенерации TC-RBAC (QA-6).
+# Человекочитаемое описание: roles-permissions.md
+# Версия матрицы меняется при любом изменении effect/scope/conditions.
+
+version: "1.0.0"
+updated: "2026-11-17"
+task: "AN-1"
+schema: "posts.rbac.v1"
+
+# Ожидаемое поведение генератора тестов:
+# - allow + ресурс в scope → HTTP 2xx (или бизнес-код успеха)
+# - deny + свой workspace → HTTP 403
+# - любой доступ к чужому workspace_id → HTTP 404 (IDOR)
+# - conditions оцениваются после role effect=allow
+test_contract:
+  foreign_workspace_http_status: 404
+  denied_same_workspace_http_status: 403
+  id_field: action
+
+roles:
+  - id: owner
+    name: Owner
+    description: Владелец workspace; биллинг и удаление.
+  - id: admin
+    name: Admin
+    description: Администрирование участников, каналов и контента без биллинга.
+  - id: editor
+    name: Editor
+    description: Полный контент в назначенных проектах, включая публикацию.
+  - id: author
+    name: Author
+    description: Черновики и отправка на согласование; без самостоятельной публикации.
+  - id: viewer
+    name: Viewer
+    description: Наблюдатель/клиент; чтение и опциональное согласование.
+
+# Стабильные идентификаторы действий (resource.verb).
+actions:
+  - id: workspace.view
+    resource: workspace
+    description: Просмотр workspace
+  - id: workspace.update
+    resource: workspace
+    description: Изменение настроек workspace
+  - id: workspace.delete
+    resource: workspace
+    description: Удаление workspace
+  - id: workspace.transfer_ownership
+    resource: workspace
+    description: Передача владения
+  - id: billing.manage
+    resource: billing
+    description: Управление тарифом, оплатой, автопродлением
+  - id: billing.view
+    resource: billing
+    description: Просмотр статуса подписки и счетов
+  - id: billing.apply_promo
+    resource: billing
+    description: Применение промокода к workspace
+  - id: members.view
+    resource: members
+    description: Список участников
+  - id: members.invite
+    resource: members
+    description: Приглашение участника
+  - id: members.update
+    resource: members
+    description: Изменение роли и project grants
+  - id: members.remove
+    resource: members
+    description: Удаление участника
+  - id: projects.manage
+    resource: projects
+    description: Создание, изменение, архивация проектов
+  - id: projects.view
+    resource: projects
+    description: Просмотр проекта
+  - id: audit.view
+    resource: audit
+    description: Просмотр аудит-лога
+  - id: audit.export
+    resource: audit
+    description: Экспорт аудит-лога CSV
+  - id: channels.view
+    resource: channels
+    description: Просмотр каналов
+  - id: channels.manage
+    resource: channels
+    description: Подключение, отключение, переподключение каналов
+  - id: channel_sets.view
+    resource: channel_sets
+    description: Просмотр наборов каналов
+  - id: channel_sets.manage
+    resource: channel_sets
+    description: Создание и изменение наборов каналов
+  - id: posts.view
+    resource: posts
+    description: Просмотр постов
+  - id: posts.create
+    resource: posts
+    description: Создание черновика и вариантов
+  - id: posts.update
+    resource: posts
+    description: Редактирование поста
+  - id: posts.delete
+    resource: posts
+    description: Удаление поста
+  - id: posts.schedule
+    resource: posts
+    description: Планирование, публикация сейчас, снятие с расписания
+  - id: posts.bulk
+    resource: posts
+    description: Пауза, возобновление, массовый перенос/удаление
+  - id: posts.retry_publish
+    resource: posts
+    description: Повтор публикации после ошибки
+  - id: posts.comment
+    resource: posts
+    description: Внутренний комментарий к посту
+  - id: media.view
+    resource: media
+    description: Просмотр медиатеки
+  - id: media.manage
+    resource: media
+    description: Загрузка и изменение медиа
+  - id: calendar.view
+    resource: calendar
+    description: Просмотр контент-календаря
+  - id: calendar.move
+    resource: calendar
+    description: Перенос поста в календаре (drag-and-drop)
+  - id: approvals.submit
+    resource: approvals
+    description: Отправка поста на согласование
+  - id: approvals.decide
+    resource: approvals
+    description: Одобрение или отклонение
+  - id: analytics.view
+    resource: analytics
+    description: Просмотр аналитики публикаций
+  - id: notifications.manage_self
+    resource: notifications
+    description: Настройка собственных уведомлений
+
+# Эффекты: allow | deny
+# scope:
+#   workspace — весь workspace
+#   assigned_projects — только ProjectGrant (owner/admin трактуются как все проекты)
+#   own_posts — дополнительно created_by = current_user (см. conditions)
+# conditions — логические флаги для PermissionEvaluator
+matrix:
+  # --- workspace ---
+  - action: workspace.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: workspace
+
+  - action: workspace.update
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: workspace.delete
+    owner: allow
+    admin: deny
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: workspace.transfer_ownership
+    owner: allow
+    admin: deny
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  # --- billing ---
+  - action: billing.manage
+    owner: allow
+    admin: deny
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: billing
+
+  - action: billing.view
+    owner: allow
+    admin: deny
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: billing
+
+  - action: billing.apply_promo
+    owner: allow
+    admin: deny
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: billing
+
+  # --- members / projects / audit ---
+  - action: members.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: workspace
+
+  - action: members.invite
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: members.update
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: members.remove
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: projects.manage
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: projects.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: audit.view
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: audit.export
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  # --- channels ---
+  - action: channels.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: channels.manage
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: channel_sets.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: channel_sets.manage
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  # --- posts / media / calendar ---
+  - action: posts.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: posts.create
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: deny
+    scope: assigned_projects
+
+  - action: posts.update
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: deny
+    scope: assigned_projects
+    conditions:
+      author: [own_posts_only]
+
+  - action: posts.delete
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: deny
+    scope: assigned_projects
+    conditions:
+      author: [own_posts_only]
+
+  - action: posts.schedule
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  - action: posts.bulk
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  - action: posts.retry_publish
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  - action: posts.comment
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: media.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: media.manage
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: deny
+    scope: assigned_projects
+
+  - action: calendar.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: calendar.move
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  # --- approvals ---
+  - action: approvals.submit
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: deny
+    scope: assigned_projects
+
+  - action: approvals.decide
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: allow
+    scope: assigned_projects
+    conditions:
+      viewer: [client_approval_enabled]
+
+  # --- analytics / notifications ---
+  - action: analytics.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+    conditions:
+      author: [own_posts_only]
+
+  - action: notifications.manage_self
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: workspace
+
+# Явные инварианты для smoke RBAC (дублируют матрицу — удобны генератору негативных кейсов)
+invariants:
+  - id: INV-RBAC-001
+    description: Только owner управляет биллингом и удаляет workspace
+    actions: [billing.manage, billing.view, billing.apply_promo, workspace.delete, workspace.transfer_ownership]
+    allowed_roles: [owner]
+  - id: INV-RBAC-002
+    description: Author не планирует и не публикует
+    actions: [posts.schedule, posts.bulk, posts.retry_publish, calendar.move]
+    denied_roles: [author, viewer]
+  - id: INV-RBAC-003
+    description: Viewer не создаёт контент
+    actions: [posts.create, posts.update, posts.delete, media.manage]
+    denied_roles: [viewer]
+  - id: INV-RBAC-004
+    description: Каналы подключают только owner и admin
+    actions: [channels.manage]
+    allowed_roles: [owner, admin]
+  - id: INV-RBAC-005
+    description: Чужой workspace всегда 404
+    rule: foreign_workspace_http_status_404

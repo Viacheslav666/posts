@@ -1,5 +1,7 @@
 package ru.posts.api.web;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -20,7 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.posts.api.auth.AuthService;
 import ru.posts.api.error.ApiExceptionHandler;
 import ru.posts.api.web.dto.common.ApiEnums;
+import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.user.UserDtos;
+import ru.posts.api.web.dto.workspace.WorkspaceDtos;
+import ru.posts.api.workspace.WorkspaceService;
 import ru.posts.security.auth.PostsPrincipal;
 import ru.posts.security.auth.SecurityAuthSupport;
 
@@ -34,6 +39,9 @@ class CoreContractWebMvcTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private WorkspaceService workspaceService;
 
     @Test
     void meReturnsProfile() throws Exception {
@@ -65,11 +73,30 @@ class CoreContractWebMvcTest {
     }
 
     @Test
-    void workspacesReturnProblemDetail501() throws Exception {
-        mockMvc.perform(get("/api/v1/workspaces"))
-                .andExpect(status().isNotImplemented())
-                .andExpect(jsonPath("$.code").value("not_implemented"))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("workspacesList")));
+    void workspacesListReturnsPage() throws Exception {
+        UUID userId = UUID.fromString("019a0000-0002-7000-8000-000000000001");
+        UUID workspaceId = UUID.fromString("019a0000-0002-7000-8000-000000000002");
+        when(workspaceService.list(eq(userId), any()))
+                .thenReturn(new CursorPage.WorkspacePage(
+                        List.of(new WorkspaceDtos.Workspace(
+                                workspaceId,
+                                "Личное пространство",
+                                userId,
+                                "free",
+                                ApiEnums.BillingStatus.trial,
+                                Instant.parse("2026-11-24T10:00:00Z"),
+                                null,
+                                Instant.parse("2026-11-17T10:00:00Z"))),
+                        null,
+                        false));
+
+        try (MockedStatic<SecurityAuthSupport> mocked = Mockito.mockStatic(SecurityAuthSupport.class)) {
+            mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(new PostsPrincipal(userId, null));
+            mockMvc.perform(get("/api/v1/workspaces"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].name").value("Личное пространство"))
+                    .andExpect(jsonPath("$.hasMore").value(false));
+        }
     }
 
     @Test

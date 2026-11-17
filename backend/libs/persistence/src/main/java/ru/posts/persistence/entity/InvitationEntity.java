@@ -34,6 +34,9 @@ public class InvitationEntity extends BaseUuidEntity {
     @Column(name = "accepted_at")
     private Instant acceptedAt;
 
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -94,6 +97,14 @@ public class InvitationEntity extends BaseUuidEntity {
 
     public void setAcceptedAt(Instant acceptedAt) {
         this.acceptedAt = acceptedAt;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant cancelledAt) {
+        this.cancelledAt = cancelledAt;
     }
 
     public Instant getCreatedAt() {
