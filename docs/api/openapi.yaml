@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: Posts API
+  description: Posts SMM platform API (DEV-1 skeleton)
+  version: 0.1.0
+servers:
+- url: http://localhost:8080
+  description: Local API
+paths:
+  /api/v1/ping:
+    get:
+      tags:
+      - System
+      summary: Liveness ping for local and CI smoke checks
+      operationId: ping
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+components: {}

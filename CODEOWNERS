@@ -1,0 +1,26 @@
+# Default
+* @Viacheslav666
+
+# Backend
+/backend/ @Viacheslav666
+/docs/api/openapi.yaml @Viacheslav666
+
+# Frontend
+/frontend/ @Viacheslav666
+/docs/api/openapi.yaml @Viacheslav666
+
+# Devops / CI / infra
+/infra/ @Viacheslav666
+/.github/ @Viacheslav666
+/Makefile @Viacheslav666
+/CODEOWNERS @Viacheslav666
+/.cursor/ @Viacheslav666
+
+# Analyst
+/docs/product/ @Viacheslav666
+/docs/analysis.md @Viacheslav666
+/docs/specs/ @Viacheslav666
+
+# QA
+/tests/ @Viacheslav666
+/docs/qa/ @Viacheslav666
