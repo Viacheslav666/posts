@@ -60,6 +60,28 @@ jobs:
         working-directory: backend
         run: ./gradlew spotlessCheck build integrationTest
 
+  migrations:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # squawk-action@v2 passes --fail-on-violations to the root CLI; squawk 2.x
+      # only accepts that flag on upload-to-github. Run the CLI directly.
+      - name: Install squawk
+        run: npm install -g squawk-cli@2.73.0
+      - name: Squawk lint Flyway migrations
+        run: >
+          squawk check
+          --config backend/.squawk.toml
+          --pg-version 16.0
+          backend/libs/persistence/src/main/resources/db/migration/*.sql
+
   contract:
     needs: changes
     if: ${{ needs.changes.outputs.contract == 'true' || github.ref == 'refs/heads/main' }}

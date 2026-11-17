@@ -1,0 +1,12 @@
+# Squawk config for Flyway migrations (BE-2).
+# Greenfield CREATE TABLE + indexes run inside a single Flyway transaction;
+# concurrent index / lock-timeout rules apply to ALTER on live tables, not initial schema.
+# prefer-bigint-over-int: counters/dimensions/HTTP codes intentionally stay INT.
+excluded_rules = [
+  "require-concurrent-index-creation",
+  "require-concurrent-index-deletion",
+  "prefer-robust-stmts",
+  "require-statement-timeout",
+  "require-lock-timeout",
+  "prefer-bigint-over-int",
+]
