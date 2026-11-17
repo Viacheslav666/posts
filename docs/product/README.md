@@ -11,6 +11,15 @@
 | [roles-permissions.md](./roles-permissions.md) | Роли и права (человекочитаемо) |
 | [roles-permissions.yaml](./roles-permissions.yaml) | Матрица роль × действие для RBAC-тестов и `PermissionEvaluator` |
 
+## Артефакты AN-2
+
+| Файл | Назначение |
+|---|---|
+| [network-capabilities.md](./network-capabilities.md) | Матрица возможностей VK / Telegram / OK / Max / Rutube |
+| [`../api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) | Машиночитаемые лимиты для `NetworkCapabilities` и `posts.ratelimit.*` |
+| [`../api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) | JSON Schema фикстуры |
+| [`../api/fixtures/validate-network-capabilities.py`](../api/fixtures/validate-network-capabilities.py) | Проверка YAML по схеме |
+
 ## Артефакты AN-3 (stories MVP)
 
 | Файл | Назначение |
@@ -30,6 +39,5 @@
 
 ## Далее
 
-- AN-2: `network-capabilities.md` + fixtures (параллельно)
 - AN-4: ревью `openapi.yaml` против stories E1–E6
 - Фазы 2–3: `PRD-phase2.md`, `PRD-phase3.md`
