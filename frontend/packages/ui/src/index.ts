@@ -76,3 +76,6 @@ export type { SkeletonProps } from './components/skeleton';
 
 export { EmptyState } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
+
+export { PostPreview } from './components/post-preview';
+export type { PostPreviewNetwork, PostPreviewProps } from './components/post-preview';

@@ -11,6 +11,7 @@ import type {
 } from '@posts/api-client';
 import { http, HttpResponse } from 'msw';
 
+import { MOCK_NETWORK_CAPABILITIES } from '@/features/editor/api/capabilities-mock';
 import { TWO_FACTOR_REQUIRED_CODE } from '@/shared/lib/errors';
 
 const DEMO_PROFILE: UserProfile = {
@@ -181,4 +182,6 @@ export const handlers = [
     };
     return HttpResponse.json(payload);
   }),
+
+  http.get('/api/v1/networks/capabilities', () => HttpResponse.json(MOCK_NETWORK_CAPABILITIES)),
 ];
