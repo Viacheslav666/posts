@@ -21,7 +21,9 @@ public class SecurityConfig {
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName("_csrf");
 
-        http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository).csrfTokenRequestHandler(requestHandler))
+        http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
+                        .csrfTokenRequestHandler(requestHandler)
+                        .ignoringRequestMatchers("/hooks/**"))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
@@ -35,6 +37,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/oauth/*/callback",
                                 "/api/v1/auth/password/**",
                                 "/api/v1/invitations/preview",
+                                "/api/v1/networks/capabilities",
+                                "/hooks/**",
                                 "/.well-known/jwks.json",
                                 "/v3/api-docs",
                                 "/v3/api-docs.yaml",

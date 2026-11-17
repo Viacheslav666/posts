@@ -1,0 +1,581 @@
+package ru.posts.api.channel;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.posts.api.auth.ClientRequestContext;
+import ru.posts.api.error.ApiException;
+import ru.posts.api.error.ProblemCodes;
+import ru.posts.api.web.dto.auth.AuthDtos;
+import ru.posts.api.web.dto.channel.ChannelDtos;
+import ru.posts.api.web.dto.common.ApiEnums;
+import ru.posts.api.web.dto.common.CursorPage;
+import ru.posts.api.workspace.AuditRecorder;
+import ru.posts.api.workspace.WorkspaceAccessService;
+import ru.posts.api.workspace.WorkspaceMembership;
+import ru.posts.common.uuid.UuidV7;
+import ru.posts.persistence.entity.ChannelConnectStateEntity;
+import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.SocialAccountEntity;
+import ru.posts.persistence.entity.TelegramBotEntity;
+import ru.posts.persistence.repository.ChannelConnectStateRepository;
+import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.SocialAccountRepository;
+import ru.posts.persistence.repository.TelegramBotRepository;
+
+@Service
+@Profile("!openapi")
+public class ChannelServiceImpl implements ChannelService {
+
+    private final WorkspaceAccessService access;
+    private final ChannelRepository channelRepository;
+    private final SocialAccountRepository socialAccountRepository;
+    private final ChannelConnectStateRepository connectStateRepository;
+    private final TelegramBotRepository telegramBotRepository;
+    private final PlanLimitService planLimitService;
+    private final WorkspaceTokenVault tokenVault;
+    private final SocialConnectClient connectClient;
+    private final ChannelProperties properties;
+    private final AuditRecorder auditRecorder;
+
+    public ChannelServiceImpl(
+            WorkspaceAccessService access,
+            ChannelRepository channelRepository,
+            SocialAccountRepository socialAccountRepository,
+            ChannelConnectStateRepository connectStateRepository,
+            TelegramBotRepository telegramBotRepository,
+            PlanLimitService planLimitService,
+            WorkspaceTokenVault tokenVault,
+            SocialConnectClient connectClient,
+            ChannelProperties properties,
+            AuditRecorder auditRecorder) {
+        this.access = access;
+        this.channelRepository = channelRepository;
+        this.socialAccountRepository = socialAccountRepository;
+        this.connectStateRepository = connectStateRepository;
+        this.telegramBotRepository = telegramBotRepository;
+        this.planLimitService = planLimitService;
+        this.tokenVault = tokenVault;
+        this.connectClient = connectClient;
+        this.properties = properties;
+        this.auditRecorder = auditRecorder;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage.ChannelPage list(
+            UUID userId,
+            UUID workspaceId,
+            UUID projectId,
+            ApiEnums.Network network,
+            ApiEnums.ChannelStatus status,
+            CursorPage.Params page) {
+        WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "channels.view");
+        List<ChannelEntity> channels = channelRepository.findByWorkspaceIdAndDeletedAtIsNull(workspaceId).stream()
+                .filter(c -> projectId == null || projectId.equals(c.getProjectId()))
+                .filter(c -> network == null || network.name().equals(c.getNetwork()))
+                .filter(c -> status == null || status.name().equals(c.getStatus()))
+                .filter(c -> visible(membership, c))
+                .sorted(Comparator.comparing(ChannelEntity::getCreatedAt).reversed())
+                .toList();
+        int limit = page.limitOrDefault();
+        List<ChannelDtos.Channel> items =
+                channels.stream().limit(limit).map(this::toDto).toList();
+        return new CursorPage.ChannelPage(items, null, channels.size() > limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChannelDtos.Channel get(UUID userId, UUID channelId) {
+        ChannelEntity channel = requireChannel(channelId);
+        WorkspaceMembership membership = access.requirePermission(channel.getWorkspaceId(), userId, "channels.view");
+        if (!visible(membership, channel)) {
+            throw WorkspaceAccessService.notFound();
+        }
+        return toDto(channel);
+    }
+
+    @Override
+    @Transactional
+    public ChannelDtos.Channel update(
+            UUID userId, UUID channelId, ChannelDtos.UpdateChannelRequest request, ClientRequestContext ctx) {
+        ChannelEntity channel = requireChannel(channelId);
+        WorkspaceMembership membership = access.requirePermission(channel.getWorkspaceId(), userId, "channels.manage");
+        if (request.projectId() != null) {
+            access.requireVisibleProject(membership, request.projectId());
+            channel.setProjectId(request.projectId());
+        }
+        if (request.timezone() != null && !request.timezone().isBlank()) {
+            channel.setTimezone(request.timezone());
+        }
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        auditRecorder.record(
+                channel.getWorkspaceId(),
+                userId,
+                "channel.updated",
+                "channel",
+                channel.getId(),
+                Map.of("projectId", String.valueOf(channel.getProjectId())),
+                ctx.ip());
+        return toDto(channel);
+    }
+
+    @Override
+    @Transactional
+    public AuthDtos.MessageResponse delete(UUID userId, UUID channelId, ClientRequestContext ctx) {
+        ChannelEntity channel = requireChannel(channelId);
+        access.requirePermission(channel.getWorkspaceId(), userId, "channels.manage");
+        channel.setStatus("disabled");
+        channel.setStatusReason("disconnected_by_user");
+        channel.setDeletedAt(Instant.now());
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        auditRecorder.record(
+                channel.getWorkspaceId(),
+                userId,
+                "channel.disconnected",
+                "channel",
+                channel.getId(),
+                Map.of("network", channel.getNetwork(), "externalId", channel.getExternalId()),
+                ctx.ip());
+        return new AuthDtos.MessageResponse("Channel disconnected");
+    }
+
+    @Override
+    @Transactional
+    public ChannelDtos.ChannelConnectStartResponse connectStart(
+            UUID userId, ApiEnums.Network network, UUID workspaceId, UUID projectId, ClientRequestContext ctx) {
+        WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "channels.manage");
+        if (projectId != null) {
+            access.requireVisibleProject(membership, projectId);
+        }
+        planLimitService.ensureCanAddChannels(workspaceId, 1);
+
+        return switch (network) {
+            case vk -> startOAuth(userId, workspaceId, projectId, "vk", true);
+            case ok -> startOAuth(userId, workspaceId, projectId, "ok", false);
+            case tg -> startBot(userId, workspaceId, projectId, "tg");
+            case max -> startBot(userId, workspaceId, projectId, "max");
+            case rutube -> throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Rutube connect is phase 2");
+        };
+    }
+
+    @Override
+    @Transactional
+    public CursorPage.ChannelPage connectCallback(
+            UUID userId,
+            ApiEnums.Network network,
+            ChannelDtos.ChannelConnectCallbackRequest request,
+            ClientRequestContext ctx) {
+        access.requirePermission(request.workspaceId(), userId, "channels.manage");
+        return switch (network) {
+            case vk, ok -> finishOAuth(userId, network.name(), request, ctx);
+            case tg, max -> finishBot(
+                    userId,
+                    network.name(),
+                    request.workspaceId(),
+                    request.projectId(),
+                    request.username(),
+                    request.chatId(),
+                    request.forwardedMessage(),
+                    ctx);
+            case rutube -> throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Rutube connect is phase 2");
+        };
+    }
+
+    @Override
+    @Transactional
+    public CursorPage.ChannelPage connectConfirm(
+            UUID userId,
+            ApiEnums.Network network,
+            ChannelDtos.ChannelConnectConfirmRequest request,
+            ClientRequestContext ctx) {
+        access.requirePermission(request.workspaceId(), userId, "channels.manage");
+        if (network != ApiEnums.Network.tg && network != ApiEnums.Network.max) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "confirm is only for tg/max bot flows");
+        }
+        return finishBot(
+                userId,
+                network.name(),
+                request.workspaceId(),
+                request.projectId(),
+                request.username(),
+                request.chatId(),
+                request.forwardedMessage(),
+                ctx);
+    }
+
+    @Override
+    @Transactional
+    public ChannelDtos.ChannelCheckResponse check(UUID userId, UUID channelId, ClientRequestContext ctx) {
+        ChannelEntity channel = requireChannel(channelId);
+        access.requirePermission(channel.getWorkspaceId(), userId, "channels.manage");
+        String token = resolveAccessToken(channel);
+        Instant checkedAt = Instant.now();
+        boolean ok = token != null && connectClient.probeToken(channel.getNetwork(), token, channel.getExternalId());
+        if (ok) {
+            channel.setStatus("active");
+            channel.setStatusReason(null);
+        } else {
+            channel.setStatus("reauth_required");
+            channel.setStatusReason("token_check_failed");
+            if (channel.getSocialAccountId() != null) {
+                socialAccountRepository.findById(channel.getSocialAccountId()).ifPresent(account -> {
+                    account.setStatus("reauth_required");
+                    account.setLastCheckedAt(checkedAt);
+                    account.setUpdatedAt(checkedAt);
+                    socialAccountRepository.save(account);
+                });
+            }
+        }
+        channel.setUpdatedAt(checkedAt);
+        channelRepository.save(channel);
+        return new ChannelDtos.ChannelCheckResponse(
+                channel.getId(),
+                ApiEnums.ChannelStatus.valueOf(channel.getStatus()),
+                channel.getStatusReason(),
+                checkedAt);
+    }
+
+    private ChannelDtos.ChannelConnectStartResponse startOAuth(
+            UUID userId, UUID workspaceId, UUID projectId, String network, boolean pkce) {
+        String state = Pkce.randomState();
+        String verifier = pkce ? Pkce.codeVerifier() : null;
+        ChannelConnectStateEntity row = new ChannelConnectStateEntity();
+        row.setState(state);
+        row.setWorkspaceId(workspaceId);
+        row.setProjectId(projectId);
+        row.setNetwork(network);
+        row.setUserId(userId);
+        row.setCodeVerifier(verifier);
+        row.setRedirectUri(network.equals("vk") ? properties.vkRedirectUri() : properties.okRedirectUri());
+        row.setCreatedAt(Instant.now());
+        row.setExpiresAt(Instant.now().plus(15, ChronoUnit.MINUTES));
+        connectStateRepository.save(row);
+        String url = network.equals("vk")
+                ? connectClient.buildVkAuthorizeUrl(
+                        state, verifier == null ? "" : Pkce.codeChallengeS256(verifier), properties.vkRedirectUri())
+                : connectClient.buildOkAuthorizeUrl(state, properties.okRedirectUri());
+        return new ChannelDtos.ChannelConnectStartResponse(url, state, null);
+    }
+
+    private ChannelDtos.ChannelConnectStartResponse startBot(
+            UUID userId, UUID workspaceId, UUID projectId, String network) {
+        String state = Pkce.randomState();
+        ChannelConnectStateEntity row = new ChannelConnectStateEntity();
+        row.setState(state);
+        row.setWorkspaceId(workspaceId);
+        row.setProjectId(projectId);
+        row.setNetwork(network);
+        row.setUserId(userId);
+        row.setCreatedAt(Instant.now());
+        row.setExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
+        connectStateRepository.save(row);
+        String botUser = properties.tgBotUsername();
+        String invite = network.equals("tg")
+                ? "https://t.me/" + botUser
+                        + "?startchannel&admin=post_messages+edit_messages+delete_messages+pin_messages"
+                : "https://max.ru/addbot/" + botUser;
+        return new ChannelDtos.ChannelConnectStartResponse(null, state, invite);
+    }
+
+    private CursorPage.ChannelPage finishOAuth(
+            UUID userId, String network, ChannelDtos.ChannelConnectCallbackRequest request, ClientRequestContext ctx) {
+        if (request.code() == null || request.state() == null) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "code and state are required");
+        }
+        ChannelConnectStateEntity state = connectStateRepository
+                .findById(request.state())
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state"));
+        if (!state.getUserId().equals(userId)
+                || !state.getWorkspaceId().equals(request.workspaceId())
+                || !state.getNetwork().equals(network)
+                || state.getExpiresAt().isBefore(Instant.now())) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state");
+        }
+        connectStateRepository.delete(state);
+
+        SocialConnectClient.OAuthToken token = network.equals("vk")
+                ? connectClient.exchangeVk(request.code(), state.getCodeVerifier(), state.getRedirectUri())
+                : connectClient.exchangeOk(request.code(), state.getRedirectUri());
+
+        List<SocialConnectClient.RemoteChannel> remotes = network.equals("vk")
+                ? connectClient.listVkAdminTargets(token.accessToken())
+                : connectClient.listOkAdminGroups(token.accessToken());
+
+        List<SocialConnectClient.RemoteChannel> adminRemotes = remotes.stream()
+                .filter(SocialConnectClient.RemoteChannel::admin)
+                .toList();
+        if (adminRemotes.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    ProblemCodes.INSUFFICIENT_PERMISSIONS,
+                    "No admin groups available. Become an admin/editor of a community and try again.",
+                    Map.of("network", network));
+        }
+
+        UUID projectId = request.projectId() != null ? request.projectId() : state.getProjectId();
+        planLimitService.ensureCanAddChannels(request.workspaceId(), adminRemotes.size());
+
+        SocialAccountEntity account =
+                upsertSocialAccount(request.workspaceId(), network, token.externalUserId(), token.displayName(), token);
+
+        List<ChannelDtos.Channel> created = new ArrayList<>();
+        for (SocialConnectClient.RemoteChannel remote : adminRemotes) {
+            ChannelEntity channel = upsertChannel(
+                    request.workspaceId(),
+                    projectId,
+                    account.getId(),
+                    network,
+                    remote,
+                    null,
+                    remote.groupToken() == null ? null : tokenVault.seal(request.workspaceId(), remote.groupToken()));
+            created.add(toDto(channel));
+            auditRecorder.record(
+                    request.workspaceId(),
+                    userId,
+                    "channel.connected",
+                    "channel",
+                    channel.getId(),
+                    Map.of("network", network, "externalId", remote.externalId()),
+                    ctx.ip());
+        }
+        return new CursorPage.ChannelPage(created, null, false);
+    }
+
+    private CursorPage.ChannelPage finishBot(
+            UUID userId,
+            String network,
+            UUID workspaceId,
+            UUID projectId,
+            String username,
+            String chatId,
+            ChannelDtos.ForwardedMessageRef forwarded,
+            ClientRequestContext ctx) {
+        String ref = firstNonBlank(chatId, username, forwarded == null ? null : forwarded.chatId());
+        if (ref == null || ref.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    ProblemCodes.VALIDATION_FAILED,
+                    "Provide username, chatId, or forwardedMessage.chatId");
+        }
+
+        planLimitService.ensureCanAddChannels(workspaceId, 1);
+
+        String botToken;
+        UUID botId = null;
+        if ("tg".equals(network)) {
+            TelegramBotEntity bot = pickBot();
+            botId = bot.getId();
+            botToken = resolveBotToken(bot);
+        } else {
+            botToken = properties.maxBotToken();
+        }
+
+        SocialConnectClient.BotPermissionCheck check = "tg".equals(network)
+                ? connectClient.checkTelegram(botToken, ref)
+                : connectClient.checkMax(botToken, ref);
+
+        if (!check.ok()) {
+            String reason = check.reason() == null ? "insufficient_permissions" : check.reason();
+            if ("chat_not_found".equals(reason)) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        ProblemCodes.VALIDATION_FAILED,
+                        "Bot is not in the chat or username is invalid. Add the bot as admin and retry.");
+            }
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN, ProblemCodes.INSUFFICIENT_PERMISSIONS, reason, Map.of("network", network));
+        }
+
+        String externalId = firstNonBlank(chatId, forwarded == null ? null : forwarded.chatId(), ref);
+        SocialAccountEntity account = upsertSocialAccount(
+                workspaceId,
+                network,
+                "tg".equals(network) ? properties.tgBotUsername() : "max-bot",
+                "tg".equals(network) ? "@" + properties.tgBotUsername() : "Max bot",
+                new SocialConnectClient.OAuthToken(botToken, null, null, "bot", "bot"));
+
+        SocialConnectClient.RemoteChannel remote = new SocialConnectClient.RemoteChannel(
+                externalId,
+                check.type() == null ? "channel" : check.type(),
+                check.title() == null ? ref : check.title(),
+                null,
+                check.username() == null ? stripAt(username) : check.username(),
+                true,
+                null);
+        ChannelEntity channel = upsertChannel(workspaceId, projectId, account.getId(), network, remote, botId, null);
+        auditRecorder.record(
+                workspaceId,
+                userId,
+                "channel.connected",
+                "channel",
+                channel.getId(),
+                Map.of("network", network, "externalId", externalId),
+                ctx.ip());
+        return new CursorPage.ChannelPage(List.of(toDto(channel)), null, false);
+    }
+
+    private SocialAccountEntity upsertSocialAccount(
+            UUID workspaceId,
+            String network,
+            String externalUserId,
+            String displayName,
+            SocialConnectClient.OAuthToken token) {
+        SocialAccountEntity account = socialAccountRepository.findByWorkspaceId(workspaceId).stream()
+                .filter(a -> network.equals(a.getNetwork()) && externalUserId.equals(a.getExternalUserId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    SocialAccountEntity created = new SocialAccountEntity();
+                    created.setId(UuidV7.generate());
+                    created.setWorkspaceId(workspaceId);
+                    created.setNetwork(network);
+                    created.setExternalUserId(externalUserId);
+                    created.setCreatedAt(Instant.now());
+                    return created;
+                });
+        account.setDisplayName(displayName);
+        account.setAccessTokenEnc(tokenVault.seal(workspaceId, token.accessToken()));
+        if (token.refreshToken() != null) {
+            account.setRefreshTokenEnc(tokenVault.seal(workspaceId, token.refreshToken()));
+        }
+        account.setTokenExpiresAt(token.expiresAt());
+        account.setStatus("active");
+        account.setLastCheckedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        return socialAccountRepository.save(account);
+    }
+
+    private ChannelEntity upsertChannel(
+            UUID workspaceId,
+            UUID projectId,
+            UUID socialAccountId,
+            String network,
+            SocialConnectClient.RemoteChannel remote,
+            UUID botId,
+            byte[] groupTokenEnc) {
+        ChannelEntity channel = channelRepository
+                .findByWorkspaceIdAndNetworkAndExternalId(workspaceId, network, remote.externalId())
+                .orElseGet(() -> {
+                    ChannelEntity created = new ChannelEntity();
+                    created.setId(UuidV7.generate());
+                    created.setWorkspaceId(workspaceId);
+                    created.setNetwork(network);
+                    created.setExternalId(remote.externalId());
+                    created.setCreatedAt(Instant.now());
+                    return created;
+                });
+        channel.setProjectId(projectId);
+        channel.setSocialAccountId(socialAccountId);
+        channel.setType(remote.type());
+        channel.setTitle(remote.title() == null ? remote.externalId() : remote.title());
+        channel.setAvatarUrl(remote.avatarUrl());
+        channel.setUsername(remote.username());
+        channel.setGroupTokenEnc(groupTokenEnc);
+        channel.setBotId(botId);
+        channel.setStatus("active");
+        channel.setStatusReason(null);
+        channel.setDeletedAt(null);
+        channel.setUpdatedAt(Instant.now());
+        channel.setCapabilities(Map.of("network", network));
+        return channelRepository.save(channel);
+    }
+
+    private TelegramBotEntity pickBot() {
+        List<TelegramBotEntity> bots = telegramBotRepository.findByStatusOrderByCreatedAtAsc("active");
+        if (bots.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    ProblemCodes.NOT_IMPLEMENTED,
+                    "No Telegram bots configured in pool");
+        }
+        return bots.stream()
+                .min(Comparator.comparingLong(b -> channelRepository.countByBotIdAndDeletedAtIsNull(b.getId())))
+                .orElse(bots.getFirst());
+    }
+
+    private String resolveBotToken(TelegramBotEntity bot) {
+        String fromEnv = properties.tgBotToken();
+        if (bot.getTokenEnc() == null || bot.getTokenEnc().length <= 1) {
+            return fromEnv;
+        }
+        // Bot tokens are sealed with a synthetic workspace of zero UUID via env fallback.
+        return fromEnv;
+    }
+
+    private String resolveAccessToken(ChannelEntity channel) {
+        if (channel.getSocialAccountId() == null) {
+            return null;
+        }
+        return socialAccountRepository
+                .findById(channel.getSocialAccountId())
+                .map(account -> tokenVault.unseal(channel.getWorkspaceId(), account.getAccessTokenEnc()))
+                .orElse(null);
+    }
+
+    private ChannelEntity requireChannel(UUID channelId) {
+        return channelRepository.findByIdAndDeletedAtIsNull(channelId).orElseThrow(WorkspaceAccessService::notFound);
+    }
+
+    private boolean visible(WorkspaceMembership membership, ChannelEntity channel) {
+        if (membership.role().seesAllProjects()) {
+            return true;
+        }
+        if (channel.getProjectId() == null) {
+            return true;
+        }
+        return membership.assignedProjectIds().contains(channel.getProjectId());
+    }
+
+    private ChannelDtos.Channel toDto(ChannelEntity channel) {
+        return new ChannelDtos.Channel(
+                channel.getId(),
+                channel.getWorkspaceId(),
+                channel.getProjectId(),
+                ApiEnums.Network.valueOf(channel.getNetwork()),
+                channel.getExternalId(),
+                ApiEnums.ChannelType.valueOf(channel.getType()),
+                channel.getTitle(),
+                channel.getAvatarUrl(),
+                channel.getUsername(),
+                ApiEnums.ChannelStatus.valueOf(channel.getStatus()),
+                channel.getStatusReason(),
+                channel.getTimezone(),
+                channel.getCapabilities(),
+                channel.getCreatedAt());
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String stripAt(String username) {
+        if (username == null) {
+            return null;
+        }
+        return username.startsWith("@") ? username.substring(1) : username;
+    }
+}

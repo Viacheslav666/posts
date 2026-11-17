@@ -64,6 +64,9 @@ public class ChannelEntity extends BaseUuidEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Column(name = "bot_id")
+    private UUID botId;
+
     public UUID getWorkspaceId() {
         return workspaceId;
     }
@@ -198,5 +201,13 @@ public class ChannelEntity extends BaseUuidEntity {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public UUID getBotId() {
+        return botId;
+    }
+
+    public void setBotId(UUID botId) {
+        this.botId = botId;
     }
 }

@@ -69,6 +69,19 @@ public final class SocialEmulatorProcess implements AutoCloseable {
         }
     }
 
+    public void post(String path, String body) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + path))
+                .timeout(Duration.ofSeconds(5))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body == null ? "" : body))
+                .build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException(
+                    "POST " + path + " failed: " + response.statusCode() + " " + response.body());
+        }
+    }
+
     public String get(String path) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + path))
                 .timeout(Duration.ofSeconds(5))
@@ -80,19 +93,6 @@ public final class SocialEmulatorProcess implements AutoCloseable {
                     "GET " + path + " failed: " + response.statusCode() + " " + response.body());
         }
         return response.body();
-    }
-
-    private void post(String path, String body) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + path))
-                .timeout(Duration.ofSeconds(5))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body == null ? "" : body))
-                .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() >= 300) {
-            throw new IllegalStateException(
-                    "POST " + path + " failed: " + response.statusCode() + " " + response.body());
-        }
     }
 
     private void waitUntilReady(Duration timeout) throws Exception {
