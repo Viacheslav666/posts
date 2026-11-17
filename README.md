@@ -60,6 +60,17 @@ pnpm --dir frontend -r test
 pnpm --dir frontend --filter @posts/web dev
 ```
 
+## Образы (DEV-3)
+
+```bash
+make media-base          # JRE 21 + ffmpeg для posts-media
+make images              # jibDockerBuild всех apps/* + Dockerfile web
+make images-run-smoke    # docker run → /actuator/health и /health
+```
+
+Реестр: `ghcr.io/viacheslav666/posts-<svc>:<sha>` (CI на `main`/тегах, cosign + SBOM + Trivy).  
+Подробности: [`docs/runbooks/images.md`](docs/runbooks/images.md).
+
 ## Локальные порты
 
 | Сервис | Порт |
