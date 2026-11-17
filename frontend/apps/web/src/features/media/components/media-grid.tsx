@@ -1,0 +1,173 @@
+'use client';
+
+import { Badge, cn } from '@posts/ui';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { FileText, Film, Image as ImageIcon, Music } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useMemo, useRef } from 'react';
+
+import type { MediaLibraryItem } from '../model/types';
+
+const COLUMNS = 4;
+const ROW_HEIGHT = 168;
+/** Below this count, skip virtualization (tests / small libraries). */
+const VIRTUALIZE_THRESHOLD = 48;
+
+type MediaGridProps = {
+  items: MediaLibraryItem[];
+  selectedIds?: Set<string>;
+  onSelect?: (item: MediaLibraryItem) => void;
+  onOpen?: (item: MediaLibraryItem) => void;
+  selectable?: boolean;
+};
+
+function KindIcon({ kind }: { kind?: string }) {
+  if (kind === 'video') return <Film className="h-8 w-8" aria-hidden />;
+  if (kind === 'audio') return <Music className="h-8 w-8" aria-hidden />;
+  if (kind === 'doc') return <FileText className="h-8 w-8" aria-hidden />;
+  return <ImageIcon className="h-8 w-8" aria-hidden />;
+}
+
+function MediaCard({
+  item,
+  selected,
+  selectable,
+  onSelect,
+  onOpen,
+  statusLabel,
+}: {
+  item: MediaLibraryItem;
+  selected?: boolean;
+  selectable?: boolean;
+  onSelect?: (item: MediaLibraryItem) => void;
+  onOpen?: (item: MediaLibraryItem) => void;
+  statusLabel: string;
+}) {
+  const id = item.id ?? '';
+  return (
+    <button
+      key={id}
+      type="button"
+      className={cn(
+        'group flex h-[144px] flex-col overflow-hidden rounded-md border border-border bg-card text-left transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        selected && 'ring-2 ring-primary',
+      )}
+      onClick={() => {
+        if (selectable && onSelect) {
+          onSelect(item);
+        } else {
+          onOpen?.(item);
+        }
+      }}
+      onDoubleClick={() => onOpen?.(item)}
+      aria-pressed={selectable ? selected : undefined}
+      data-testid={`media-card-${id}`}
+    >
+      <div className="relative flex h-24 items-center justify-center bg-muted/40 text-muted-foreground">
+        {item.previewUrl && (item.kind === 'image' || item.kind === 'video') ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <KindIcon kind={item.kind} />
+        )}
+        <Badge
+          variant={
+            item.status === 'ready'
+              ? 'published'
+              : item.status === 'failed'
+                ? 'failed'
+                : 'scheduled'
+          }
+          className="absolute left-2 top-2 text-[10px]"
+        >
+          {statusLabel}
+        </Badge>
+      </div>
+      <div className="truncate px-2 py-2 text-xs font-medium">{item.filename ?? id}</div>
+    </button>
+  );
+}
+
+export function MediaGrid({
+  items,
+  selectedIds,
+  onSelect,
+  onOpen,
+  selectable,
+}: MediaGridProps) {
+  const t = useTranslations('media.status');
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rows = useMemo(() => {
+    const result: MediaLibraryItem[][] = [];
+    for (let i = 0; i < items.length; i += COLUMNS) {
+      result.push(items.slice(i, i + COLUMNS));
+    }
+    return result;
+  }, [items]);
+
+  const virtualizer = useVirtualizer({
+    count: items.length > VIRTUALIZE_THRESHOLD ? rows.length : 0,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 4,
+  });
+
+  if (items.length <= VIRTUALIZE_THRESHOLD) {
+    return (
+      <div
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+        data-testid="media-grid"
+      >
+        {items.map((item) => (
+          <MediaCard
+            key={item.id}
+            item={item}
+            selected={item.id ? selectedIds?.has(item.id) : false}
+            selectable={selectable}
+            onSelect={onSelect}
+            onOpen={onOpen}
+            statusLabel={t(item.status ?? 'uploading')}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={parentRef}
+      className="h-[min(70vh,720px)] overflow-auto rounded-md border border-border"
+      data-testid="media-grid"
+    >
+      <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const row = rows[virtualRow.index] ?? [];
+          return (
+            <div
+              key={virtualRow.key}
+              className="absolute left-0 top-0 grid w-full grid-cols-4 gap-3 px-3"
+              style={{
+                transform: `translateY(${virtualRow.start}px)`,
+                height: `${virtualRow.size}px`,
+                paddingTop: 12,
+              }}
+            >
+              {row.map((item) => (
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  selected={item.id ? selectedIds?.has(item.id) : false}
+                  selectable={selectable}
+                  onSelect={onSelect}
+                  onOpen={onOpen}
+                  statusLabel={t(item.status ?? 'uploading')}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
