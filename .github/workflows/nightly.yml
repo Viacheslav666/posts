@@ -131,6 +131,13 @@ jobs:
           mkdir -p tests/load/reports
           k6 run --out json=tests/load/reports/k6-smoke.json tests/load/smoke.js
 
+      # QA-5: full TC-PUB suite including @Tag("nightly") load (TC-PUB-01 / 10k).
+      - name: Publisher pipeline IT (include nightly load)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:publisher:integrationTest -PincludeNightly=true
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,6 +149,7 @@ jobs:
             tests/e2e/reports/
             tests/e2e/test-results/
             tests/load/reports/
+            backend/apps/publisher/build/reports/tests/integrationTest/
           if-no-files-found: warn
 
       - name: Compose logs on failure

@@ -99,4 +99,29 @@ class TelegramApiTest {
                 .andExpect(header().string("Retry-After", "11"))
                 .andExpect(jsonPath("$.parameters.retry_after").value(11));
     }
+
+    @Test
+    void forcedPermanent403DoesNotCreatePost() throws Exception {
+        mockMvc.perform(
+                        put("/_control/scenario")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                {
+                                  "networks": {
+                                    "telegram": {"forcedError":"permanent","httpStatus":403},
+                                    "vk":{}, "ok":{}, "max":{}
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/bot123:ABC/sendMessage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"chat_id\":\"1\",\"text\":\"nope\",\"idempotency_key\":\"perm-1\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.ok").value(false));
+
+        assertThat(postStore.counts().get("telegram")).isZero();
+    }
 }

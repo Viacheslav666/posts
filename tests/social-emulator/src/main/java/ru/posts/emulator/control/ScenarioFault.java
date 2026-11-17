@@ -9,6 +9,8 @@ public enum ScenarioFault {
     VK_100,
     HTTP_5XX,
     HTTP_429,
+    /** Permanent client/auth failure (401/403/400) — no retries expected. */
+    HTTP_FORBIDDEN,
     DROP,
     HANG;
 
@@ -25,6 +27,7 @@ public enum ScenarioFault {
             case "100", "vk_100", "param" -> VK_100;
             case "5xx", "500", "502", "503", "http_5xx" -> HTTP_5XX;
             case "429", "rate_limit", "http_429" -> HTTP_429;
+            case "403", "401", "400", "permanent", "forbidden", "no_rights", "auth" -> HTTP_FORBIDDEN;
             case "drop", "success_without_response", "lost_response" -> DROP;
             case "hang", "timeout", "no_response" -> HANG;
             default -> throw new IllegalArgumentException("Unknown forcedError: " + raw);

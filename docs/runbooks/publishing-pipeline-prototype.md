@@ -31,11 +31,16 @@ POSTS_PUBLISHER_NETWORK=tg POSTS_SOCIAL_EMULATOR_URL=http://localhost:8090 \
 - CircuitBreaker `social-tg` в состоянии open
 - Reaper переводит > N задач за 5 минут
 
-## Интеграционные тесты
+## Интеграционные тесты (QA-5)
 
 ```bash
 cd backend
+# CI: быстрый набор TC-PUB (без @Tag("nightly"))
 ./gradlew :apps:publisher:integrationTest
+
+# Nightly: + TC-PUB-01 (10k, p99 < 60s)
+./gradlew :apps:publisher:integrationTest -PincludeNightly=true
 ```
 
-Покрывают TC-PUB-02/03/06/07 и нагрузку 10 000 публикаций против эмулятора.
+Матрица кейс → тест: `docs/qa/traceability-tc-pub.md`.  
+Покрывают TC-PUB-01…08 (реализуемые на прототипе TG), rate-limit, CB, deferred/cancel; TC-PUB-09…13 — `@Disabled` «ожидает BE-10».

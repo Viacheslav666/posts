@@ -11,31 +11,37 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import ru.posts.publisher.PublisherApplication;
 import ru.posts.publisher.service.PublicationProcessor;
 import ru.posts.testsupport.emulator.SocialEmulatorProcess;
 
+/**
+ * Shared pipeline IT base. Containers are started once as JVM singletons (not {@code @Container})
+ * so multiple test classes / Spring contexts (e.g. rate-limit overrides) do not stop Postgres
+ * between classes.
+ */
 @SpringBootTest(classes = PublisherApplication.class)
-@Testcontainers(disabledWithoutDocker = true)
 abstract class AbstractPipelineIT {
 
-    @Container
     @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("posts")
             .withUsername("posts")
             .withPassword("posts");
 
-    @Container
     @ServiceConnection
-    static RabbitMQContainer rabbit = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
+    static final RabbitMQContainer RABBIT =
+            new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
-    @Container
-    static GenericContainer<?> redis =
+    static final GenericContainer<?> REDIS =
             new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+
+    static {
+        POSTGRES.start();
+        RABBIT.start();
+        REDIS.start();
+    }
 
     private static SocialEmulatorProcess emulator;
     private static final Object EMULATOR_LOCK = new Object();
@@ -75,15 +81,15 @@ abstract class AbstractPipelineIT {
 
     @DynamicPropertySource
     static void registerProps(DynamicPropertyRegistry registry) {
-        redis.start();
-        registry.add("spring.data.redis.host", redis::getHost);
-        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
-        registry.add("posts.ratelimit.redis-uri", () -> "redis://" + redis.getHost() + ":" + redis.getMappedPort(6379));
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+        registry.add("posts.ratelimit.redis-uri", () -> "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379));
         registry.add("posts.publisher.network", () -> "tg");
         registry.add("posts.publisher.pod-name", () -> "publisher-it");
         registry.add("posts.social.telegram.base-url", () -> emulator().baseUrl());
         registry.add("posts.social.telegram.read-timeout", () -> "5s");
-        registry.add("posts.ratelimit.enabled", () -> "false");
+        // High ceilings come from integrationTest application.yml; RateLimitPipelineIT lowers them.
+        registry.add("posts.ratelimit.enabled", () -> "true");
         registry.add("posts.publisher.prefetch", () -> "200");
         registry.add("posts.publisher.publish-timeout", () -> "30s");
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "40");

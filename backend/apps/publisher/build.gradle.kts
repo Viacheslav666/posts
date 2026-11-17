@@ -36,4 +36,10 @@ dependencies {
 
 tasks.named<Test>("integrationTest") {
     systemProperty("posts.repo.root", rootProject.projectDir.parentFile.absolutePath)
+    // Fast TC-PUB suite in CI; heavy load (@Tag("nightly")) runs via -PincludeNightly=true.
+    useJUnitPlatform {
+        if (!project.hasProperty("includeNightly")) {
+            excludeTags("nightly")
+        }
+    }
 }

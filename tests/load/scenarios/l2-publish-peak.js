@@ -5,8 +5,8 @@
  *   1 500 000 каналов в БД, 120 000 публикаций на одну минуту (2 000/с),
  *   повтор 3 «ровных часа»; p99 задержки ≤ 60 с; 0 потерь, 0 дублей.
  *
- * Сейчас: harness проверяет доступность API; планирование пачки и сверка
- * с social-emulator — QA-5/QA-7 (после BE-4 publisher + emulator wiring).
+ * TC-PUB-01 на прототипе: backend PipelineLoadIT (10k, nightly).
+ * Полный L2 (120k / 2000/с) + сверка эмулятора — QA-7 на staging.
  *
  * Usage:
  *   k6 run tests/load/scenarios/l2-publish-peak.js
