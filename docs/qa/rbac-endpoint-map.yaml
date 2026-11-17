@@ -1,0 +1,637 @@
+# Карта RBAC эндпоинтов (QA-6). Генерируется: python docs/qa/generate_rbac_endpoint_map.py
+# Источник правды по правам: docs/product/roles-permissions.yaml
+# Не коммитьте карту, рассинхронизированную с OpenAPI (CI упадёт).
+version: 1.0.0
+updated: '2026-11-17'
+task: QA-6
+schema: posts.rbac.endpoint-map.v1
+description: Карта OpenAPI operationId → RBAC action. Каждый operationId из docs/api/openapi.yaml обязан
+  иметь запись. rbac=none — вне матрицы ролей workspace. HTTP-тесты TC-RBAC пропускают эндпоинт при 501
+  и включают автоматически, когда ответ не 501. Рассинхрон OpenAPI↔карта ловится тестом.
+sources:
+  openapi: docs/api/openapi.yaml
+  roles_permissions: docs/product/roles-permissions.yaml
+test_contract:
+  allow_http: не 401/403 (2xx или бизнес-4xx); 501 → skip
+  deny_same_workspace_http: 403
+  foreign_workspace_http: 404
+endpoints:
+- operationId: jwksGet
+  method: GET
+  path: /.well-known/jwks.json
+  implementedHint: true
+  rbac: none
+- operationId: auth2faConfirm
+  method: POST
+  path: /api/v1/auth/2fa/confirm
+  implementedHint: true
+  rbac: none
+- operationId: auth2faDisable
+  method: POST
+  path: /api/v1/auth/2fa/disable
+  implementedHint: true
+  rbac: none
+- operationId: auth2faSetup
+  method: POST
+  path: /api/v1/auth/2fa/setup
+  implementedHint: true
+  rbac: none
+- operationId: authVerifyEmail
+  method: POST
+  path: /api/v1/auth/email/verify
+  implementedHint: true
+  rbac: none
+- operationId: authLogin
+  method: POST
+  path: /api/v1/auth/login
+  implementedHint: true
+  rbac: none
+- operationId: authLogout
+  method: POST
+  path: /api/v1/auth/logout
+  implementedHint: true
+  rbac: none
+- operationId: authOauthLink
+  method: POST
+  path: /api/v1/auth/oauth/link
+  implementedHint: true
+  rbac: none
+- operationId: authOauthCallback
+  method: POST
+  path: /api/v1/auth/oauth/{provider}/callback
+  implementedHint: true
+  rbac: none
+- operationId: authOauthStart
+  method: POST
+  path: /api/v1/auth/oauth/{provider}/start
+  implementedHint: true
+  rbac: none
+- operationId: authPasswordForgot
+  method: POST
+  path: /api/v1/auth/password/forgot
+  implementedHint: true
+  rbac: none
+- operationId: authPasswordReset
+  method: POST
+  path: /api/v1/auth/password/reset
+  implementedHint: true
+  rbac: none
+- operationId: authRefresh
+  method: POST
+  path: /api/v1/auth/refresh
+  implementedHint: true
+  rbac: none
+- operationId: authRegister
+  method: POST
+  path: /api/v1/auth/register
+  implementedHint: true
+  rbac: none
+- operationId: billingCheckout
+  method: POST
+  path: /api/v1/billing/checkout
+  implementedHint: false
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingListInvoices
+  method: GET
+  path: /api/v1/billing/invoices
+  implementedHint: false
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingListPlans
+  method: GET
+  path: /api/v1/billing/plans
+  implementedHint: false
+  rbac: none
+- operationId: billingApplyPromo
+  method: POST
+  path: /api/v1/billing/promo/apply
+  implementedHint: false
+  rbac: matrix
+  action: billing.apply_promo
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingGetSubscription
+  method: GET
+  path: /api/v1/billing/subscription
+  implementedHint: false
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingStartTrial
+  method: POST
+  path: /api/v1/billing/trial/start
+  implementedHint: false
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: calendarList
+  method: GET
+  path: /api/v1/calendar
+  implementedHint: false
+  rbac: matrix
+  action: calendar.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: calendarMove
+  method: POST
+  path: /api/v1/calendar/{postId}/move
+  implementedHint: false
+  rbac: matrix
+  action: calendar.move
+  pathParams:
+    postId: '{postId}'
+- operationId: channelSetsList
+  method: GET
+  path: /api/v1/channel-sets
+  implementedHint: false
+  rbac: matrix
+  action: channel_sets.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: channelSetsCreate
+  method: POST
+  path: /api/v1/channel-sets
+  implementedHint: false
+  rbac: matrix
+  action: channel_sets.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: channelSetsDelete
+  method: DELETE
+  path: /api/v1/channel-sets/{setId}
+  implementedHint: false
+  rbac: matrix
+  action: channel_sets.manage
+  pathParams:
+    setId: '{channelSetId}'
+  destructive: true
+- operationId: channelSetsGet
+  method: GET
+  path: /api/v1/channel-sets/{setId}
+  implementedHint: false
+  rbac: matrix
+  action: channel_sets.view
+  pathParams:
+    setId: '{channelSetId}'
+- operationId: channelSetsUpdate
+  method: PUT
+  path: /api/v1/channel-sets/{setId}
+  implementedHint: false
+  rbac: matrix
+  action: channel_sets.manage
+  pathParams:
+    setId: '{channelSetId}'
+- operationId: channelsList
+  method: GET
+  path: /api/v1/channels
+  implementedHint: false
+  rbac: matrix
+  action: channels.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: channelsConnectCallback
+  method: POST
+  path: /api/v1/channels/connect/{network}/callback
+  implementedHint: false
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    network: vk
+- operationId: channelsConnectConfirm
+  method: POST
+  path: /api/v1/channels/connect/{network}/confirm
+  implementedHint: false
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    network: vk
+- operationId: channelsConnectStart
+  method: POST
+  path: /api/v1/channels/connect/{network}/start
+  implementedHint: false
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    network: vk
+- operationId: channelsDelete
+  method: DELETE
+  path: /api/v1/channels/{channelId}
+  implementedHint: false
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    channelId: '{channelId}'
+  destructive: true
+- operationId: channelsGet
+  method: GET
+  path: /api/v1/channels/{channelId}
+  implementedHint: false
+  rbac: matrix
+  action: channels.view
+  pathParams:
+    channelId: '{channelId}'
+- operationId: channelsUpdate
+  method: PUT
+  path: /api/v1/channels/{channelId}
+  implementedHint: false
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    channelId: '{channelId}'
+- operationId: channelsCheck
+  method: POST
+  path: /api/v1/channels/{channelId}/check
+  implementedHint: false
+  rbac: matrix
+  action: channels.view
+  pathParams:
+    channelId: '{channelId}'
+- operationId: invitationsAccept
+  method: POST
+  path: /api/v1/invitations/accept
+  implementedHint: true
+  rbac: none
+- operationId: invitationsPreview
+  method: GET
+  path: /api/v1/invitations/preview
+  implementedHint: true
+  rbac: none
+- operationId: invitationsCancel
+  method: DELETE
+  path: /api/v1/invitations/{invitationId}
+  implementedHint: true
+  rbac: matrix
+  action: members.invite
+  pathParams:
+    invitationId: '{invitationId}'
+  destructive: true
+- operationId: meDelete
+  method: DELETE
+  path: /api/v1/me
+  implementedHint: true
+  rbac: none
+- operationId: meGet
+  method: GET
+  path: /api/v1/me
+  implementedHint: true
+  rbac: none
+- operationId: meUpdate
+  method: PATCH
+  path: /api/v1/me
+  implementedHint: true
+  rbac: none
+- operationId: meChangePassword
+  method: POST
+  path: /api/v1/me/password
+  implementedHint: true
+  rbac: none
+- operationId: meRevokeOtherSessions
+  method: DELETE
+  path: /api/v1/me/sessions
+  implementedHint: true
+  rbac: none
+- operationId: meListSessions
+  method: GET
+  path: /api/v1/me/sessions
+  implementedHint: true
+  rbac: none
+- operationId: meRevokeSession
+  method: DELETE
+  path: /api/v1/me/sessions/{sessionId}
+  implementedHint: true
+  rbac: none
+- operationId: mediaList
+  method: GET
+  path: /api/v1/media
+  implementedHint: false
+  rbac: matrix
+  action: media.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: mediaCreateUpload
+  method: POST
+  path: /api/v1/media/uploads
+  implementedHint: false
+  rbac: matrix
+  action: media.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: mediaGet
+  method: GET
+  path: /api/v1/media/{mediaId}
+  implementedHint: false
+  rbac: matrix
+  action: media.view
+  pathParams:
+    mediaId: '{mediaId}'
+- operationId: mediaCompleteUpload
+  method: POST
+  path: /api/v1/media/{mediaId}/complete
+  implementedHint: false
+  rbac: matrix
+  action: media.manage
+  pathParams:
+    mediaId: '{mediaId}'
+- operationId: networksCapabilities
+  method: GET
+  path: /api/v1/networks/capabilities
+  implementedHint: false
+  rbac: none
+- operationId: notificationSettingsGet
+  method: GET
+  path: /api/v1/notification-settings
+  implementedHint: false
+  rbac: matrix
+  action: notifications.manage_self
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: notificationSettingsUpdate
+  method: PUT
+  path: /api/v1/notification-settings
+  implementedHint: false
+  rbac: matrix
+  action: notifications.manage_self
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: notificationsList
+  method: GET
+  path: /api/v1/notifications
+  implementedHint: false
+  rbac: matrix
+  action: notifications.manage_self
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: notificationsMarkRead
+  method: PUT
+  path: /api/v1/notifications/read
+  implementedHint: false
+  rbac: matrix
+  action: notifications.manage_self
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: ping
+  method: GET
+  path: /api/v1/ping
+  implementedHint: true
+  rbac: none
+- operationId: postsList
+  method: GET
+  path: /api/v1/posts
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: postsCreate
+  method: POST
+  path: /api/v1/posts
+  implementedHint: false
+  rbac: matrix
+  action: posts.create
+- operationId: postsBulk
+  method: POST
+  path: /api/v1/posts/bulk
+  implementedHint: false
+  rbac: matrix
+  action: posts.bulk
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: postsPreview
+  method: POST
+  path: /api/v1/posts/preview
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: postsDelete
+  method: DELETE
+  path: /api/v1/posts/{postId}
+  implementedHint: false
+  rbac: matrix
+  action: posts.delete
+  pathParams:
+    postId: '{postId}'
+  destructive: true
+- operationId: postsGet
+  method: GET
+  path: /api/v1/posts/{postId}
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  pathParams:
+    postId: '{postId}'
+- operationId: postsUpdate
+  method: PUT
+  path: /api/v1/posts/{postId}
+  implementedHint: false
+  rbac: matrix
+  action: posts.update
+  pathParams:
+    postId: '{postId}'
+- operationId: postsDuplicate
+  method: POST
+  path: /api/v1/posts/{postId}/duplicate
+  implementedHint: false
+  rbac: matrix
+  action: posts.create
+  pathParams:
+    postId: '{postId}'
+- operationId: postsPause
+  method: POST
+  path: /api/v1/posts/{postId}/pause
+  implementedHint: false
+  rbac: matrix
+  action: posts.bulk
+  pathParams:
+    postId: '{postId}'
+- operationId: postsListPublications
+  method: GET
+  path: /api/v1/posts/{postId}/publications
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  pathParams:
+    postId: '{postId}'
+- operationId: postsResume
+  method: POST
+  path: /api/v1/posts/{postId}/resume
+  implementedHint: false
+  rbac: matrix
+  action: posts.bulk
+  pathParams:
+    postId: '{postId}'
+- operationId: postsSchedule
+  method: POST
+  path: /api/v1/posts/{postId}/schedule
+  implementedHint: false
+  rbac: matrix
+  action: posts.schedule
+  pathParams:
+    postId: '{postId}'
+- operationId: projectsDelete
+  method: DELETE
+  path: /api/v1/projects/{projectId}
+  implementedHint: true
+  rbac: matrix
+  action: projects.manage
+  pathParams:
+    projectId: '{projectId}'
+  destructive: true
+- operationId: projectsGet
+  method: GET
+  path: /api/v1/projects/{projectId}
+  implementedHint: true
+  rbac: matrix
+  action: projects.view
+  pathParams:
+    projectId: '{projectId}'
+- operationId: projectsUpdate
+  method: PUT
+  path: /api/v1/projects/{projectId}
+  implementedHint: true
+  rbac: matrix
+  action: projects.manage
+  pathParams:
+    projectId: '{projectId}'
+- operationId: projectsSetMembers
+  method: PUT
+  path: /api/v1/projects/{projectId}/members
+  implementedHint: true
+  rbac: matrix
+  action: members.update
+  pathParams:
+    projectId: '{projectId}'
+- operationId: publicationsList
+  method: GET
+  path: /api/v1/publications
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: publicationsGet
+  method: GET
+  path: /api/v1/publications/{publicationId}
+  implementedHint: false
+  rbac: matrix
+  action: posts.view
+  pathParams:
+    publicationId: '{publicationId}'
+- operationId: publicationsRetry
+  method: POST
+  path: /api/v1/publications/{publicationId}/retry
+  implementedHint: false
+  rbac: matrix
+  action: posts.retry_publish
+  pathParams:
+    publicationId: '{publicationId}'
+- operationId: workspacesList
+  method: GET
+  path: /api/v1/workspaces
+  implementedHint: true
+  rbac: none
+- operationId: workspacesCreate
+  method: POST
+  path: /api/v1/workspaces
+  implementedHint: true
+  rbac: none
+- operationId: workspacesDelete
+  method: DELETE
+  path: /api/v1/workspaces/{workspaceId}
+  implementedHint: true
+  rbac: matrix
+  action: workspace.delete
+  pathParams:
+    workspaceId: '{workspaceId}'
+  destructive: true
+- operationId: workspacesGet
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}
+  implementedHint: true
+  rbac: matrix
+  action: workspace.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: workspacesUpdate
+  method: PUT
+  path: /api/v1/workspaces/{workspaceId}
+  implementedHint: true
+  rbac: matrix
+  action: workspace.update
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: workspacesListAudit
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/audit
+  implementedHint: true
+  rbac: matrix
+  action: audit.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: invitationsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/invitations
+  implementedHint: true
+  rbac: matrix
+  action: members.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: invitationsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/invitations
+  implementedHint: true
+  rbac: matrix
+  action: members.invite
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: workspaceMembersList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/members
+  implementedHint: true
+  rbac: matrix
+  action: members.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: workspaceMembersRemove
+  method: DELETE
+  path: /api/v1/workspaces/{workspaceId}/members/{userId}
+  implementedHint: true
+  rbac: matrix
+  action: members.remove
+  pathParams:
+    workspaceId: '{workspaceId}'
+    userId: '{memberUserId}'
+  destructive: true
+- operationId: workspaceMembersUpdate
+  method: PUT
+  path: /api/v1/workspaces/{workspaceId}/members/{userId}
+  implementedHint: true
+  rbac: matrix
+  action: members.update
+  pathParams:
+    workspaceId: '{workspaceId}'
+    userId: '{memberUserId}'
+- operationId: projectsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/projects
+  implementedHint: true
+  rbac: matrix
+  action: projects.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: projectsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/projects
+  implementedHint: true
+  rbac: matrix
+  action: projects.manage
+  pathParams:
+    workspaceId: '{workspaceId}'

@@ -7,9 +7,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
+/**
+ * Условия scope/conditions (не дублирует полную матрицу — см. {@link RbacMatrixFullCoverageTest}).
+ */
 class RbacPermissionEvaluatorTest {
 
     private static RbacPermissionEvaluator evaluator;
@@ -17,46 +18,6 @@ class RbacPermissionEvaluatorTest {
     @BeforeAll
     static void loadMatrix() {
         evaluator = new RbacPermissionEvaluator(RbacMatrixLoader.loadDefault());
-    }
-
-    @ParameterizedTest(name = "TC-RBAC-06 {0} {1} → {2}")
-    @CsvSource({
-        "owner, workspace.view, true",
-        "admin, workspace.view, true",
-        "editor, workspace.view, true",
-        "author, workspace.view, true",
-        "viewer, workspace.view, true",
-        "owner, members.invite, true",
-        "admin, members.invite, true",
-        "editor, members.invite, false",
-        "author, members.invite, false",
-        "viewer, members.invite, false",
-        "owner, channels.manage, true",
-        "admin, channels.manage, true",
-        "editor, channels.manage, false",
-        "owner, posts.schedule, true",
-        "admin, posts.schedule, true",
-        "editor, posts.schedule, true",
-        "author, posts.schedule, false",
-        "viewer, posts.schedule, false",
-        "owner, posts.create, true",
-        "admin, posts.create, true",
-        "editor, posts.create, true",
-        "author, posts.create, true",
-        "viewer, posts.create, false",
-        "owner, audit.view, true",
-        "admin, audit.view, true",
-        "editor, audit.view, false",
-        "author, audit.view, false",
-        "viewer, audit.view, false",
-        "owner, billing.manage, true",
-        "admin, billing.manage, false",
-        "editor, billing.manage, false",
-        "owner, workspace.delete, true",
-        "admin, workspace.delete, false",
-    })
-    void tcRbac06_smokeMatrix(String role, String action, boolean expected) {
-        assertThat(evaluator.isAllowed(RbacRole.from(role), action)).isEqualTo(expected);
     }
 
     @Test

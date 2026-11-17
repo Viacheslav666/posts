@@ -27,6 +27,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'docs/api/openapi.yaml'
+              - 'docs/product/roles-permissions.yaml'
+              - 'docs/qa/rbac-endpoint-map.yaml'
               - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/**'
