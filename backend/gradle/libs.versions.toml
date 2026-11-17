@@ -19,7 +19,7 @@ openapi-gradle = "1.9.0"
 totp = "1.7.1"
 nimbus-jose = "9.37.3"
 aws-sdk = "2.30.21"
-tika = "2.9.2"
+tika = "3.2.2"
 thumbnailator = "0.4.20"
 
 [libraries]
