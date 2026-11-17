@@ -47,7 +47,7 @@ services:
 
   # MinIO official images are currently unavailable from public registries in some
   # environments; adobe/s3mock provides S3-compatible local storage for DEV-1.
-  # (See docs/adr/0001-dev1-skeleton-decisions.md.)
+  # (See docs/adr/0008-dev1-skeleton-decisions.md.)
   minio:
     image: adobe/s3mock:latest
     environment:

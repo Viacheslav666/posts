@@ -1,0 +1,94 @@
+:root {
+  /* Surfaces */
+  --background: 150 20% 97%;
+  --foreground: 222 47% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 8%;
+
+  /* Brand */
+  --primary: 173 80% 26%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 150 14% 92%;
+  --secondary-foreground: 222 30% 18%;
+  --muted: 150 12% 93%;
+  --muted-foreground: 215 16% 40%;
+  --accent: 199 60% 94%;
+  --accent-foreground: 201 55% 24%;
+
+  /* Feedback */
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 61% 34%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 42%;
+  --warning-foreground: 0 0% 100%;
+  --info: 207 72% 42%;
+  --info-foreground: 0 0% 100%;
+
+  /* Chrome */
+  --border: 150 12% 86%;
+  --input: 150 12% 86%;
+  --ring: 173 80% 26%;
+
+  /* Publication status palette */
+  --status-draft: 215 16% 47%;
+  --status-scheduled: 207 72% 42%;
+  --status-publishing: 173 70% 32%;
+  --status-published: 152 61% 34%;
+  --status-failed: 0 72% 48%;
+  --status-paused: 38 92% 42%;
+  --status-review: 271 45% 42%;
+
+  /* Layout */
+  --radius: 0.5rem;
+  --sidebar-width: 15.5rem;
+  --header-height: 3.5rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px hsl(222 47% 8% / 0.06);
+  --shadow-md: 0 8px 24px hsl(222 47% 8% / 0.08);
+}
+
+.dark {
+  --background: 222 35% 7%;
+  --foreground: 150 20% 96%;
+  --card: 222 30% 10%;
+  --card-foreground: 150 20% 96%;
+  --popover: 222 30% 10%;
+  --popover-foreground: 150 20% 96%;
+
+  --primary: 173 65% 42%;
+  --primary-foreground: 222 35% 7%;
+  --secondary: 222 22% 16%;
+  --secondary-foreground: 150 15% 92%;
+  --muted: 222 20% 14%;
+  --muted-foreground: 215 12% 65%;
+  --accent: 201 30% 16%;
+  --accent-foreground: 199 70% 82%;
+
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 55% 45%;
+  --success-foreground: 222 35% 7%;
+  --warning: 38 90% 52%;
+  --warning-foreground: 222 35% 7%;
+  --info: 207 80% 58%;
+  --info-foreground: 222 35% 7%;
+
+  --border: 222 18% 20%;
+  --input: 222 18% 20%;
+  --ring: 173 65% 42%;
+
+  --status-draft: 215 12% 62%;
+  --status-scheduled: 207 80% 58%;
+  --status-publishing: 173 65% 48%;
+  --status-published: 152 55% 45%;
+  --status-failed: 0 70% 55%;
+  --status-paused: 38 90% 52%;
+  --status-review: 271 50% 68%;
+
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.35);
+  --shadow-md: 0 10px 28px hsl(0 0% 0% / 0.45);
+}

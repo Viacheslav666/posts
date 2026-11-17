@@ -36,7 +36,7 @@ dependencies {
     "integrationTestRuntimeOnly"(libs.postgresql)
 }
 
-// Custom OpenAPI export (ADR-0001): springdoc-openapi-gradle-plugin 1.9 has
+// Custom OpenAPI export (ADR-0008): springdoc-openapi-gradle-plugin 1.9 has
 // Gradle 8.12 implicit-dependency issues with multi-module jars; we boot the fat
 // jar ourselves and fetch /v3/api-docs.yaml.
 val openApiOutput =
