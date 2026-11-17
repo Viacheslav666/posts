@@ -33,13 +33,28 @@ describe('RegisterForm', () => {
 
     await user.type(screen.getByLabelText('Имя'), 'Anna Editor');
     await user.type(screen.getByLabelText('Email'), 'anna@posts.app');
-    await user.type(screen.getByLabelText('Пароль'), 'Secret12');
-    await user.type(screen.getByLabelText('Повтор пароля'), 'Secret12');
+    await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
+    await user.type(screen.getByLabelText('Повтор пароля'), 'Secret12ab');
     await user.click(screen.getByLabelText(/Принимаю условия/));
     await user.click(screen.getByTestId('register-submit'));
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith('/verify-email?email=anna%40posts.app');
     });
+  });
+
+  it('shows ProblemDetail on conflict email', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterForm />);
+
+    await user.type(screen.getByLabelText('Имя'), 'Taken User');
+    await user.type(screen.getByLabelText('Email'), 'taken@posts.app');
+    await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
+    await user.type(screen.getByLabelText('Повтор пароля'), 'Secret12ab');
+    await user.click(screen.getByLabelText(/Принимаю условия/));
+    await user.click(screen.getByTestId('register-submit'));
+
+    expect(await screen.findByText('Email already registered')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });

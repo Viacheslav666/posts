@@ -7,15 +7,18 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { getErrorMessage } from '@/shared/lib/errors';
+
 import { verifyEmailRequest } from '../api/auth-api';
 import { verifyEmailSchema, type VerifyEmailValues } from '../model/schemas';
 import { FormField } from './form-field';
 
 type VerifyEmailFormProps = {
-  email: string;
+  /** Pre-filled token from email link query (`?token=`). */
+  initialToken?: string;
 };
 
-export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
+export function VerifyEmailForm({ initialToken = '' }: VerifyEmailFormProps) {
   const t = useTranslations('auth');
   const tErrors = useTranslations('auth.validation');
   const router = useRouter();
@@ -27,20 +30,20 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
     formState: { errors },
   } = useForm<VerifyEmailValues>({
     resolver: zodResolver(verifyEmailSchema),
-    defaultValues: { code: '' },
+    defaultValues: { token: initialToken },
   });
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
     try {
-      await verifyEmailRequest({ email, code: values.code });
+      await verifyEmailRequest({ token: values.token });
       toast({ title: t('verify.successTitle'), description: t('verify.successBody') });
       router.push('/login');
     } catch (error) {
       toast({
         variant: 'destructive',
         title: t('verify.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);
@@ -51,12 +54,10 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <FormField
         label={t('fields.code')}
-        inputMode="numeric"
         autoComplete="one-time-code"
-        maxLength={6}
         hint={t('verify.codeHint')}
-        error={errors.code ? tErrors(errors.code.message as 'codeRequired') : undefined}
-        {...register('code')}
+        error={errors.token ? tErrors(errors.token.message as 'codeRequired') : undefined}
+        {...register('token')}
       />
       <Button type="submit" className="w-full" disabled={submitting}>
         {submitting ? t('submitting') : t('verify.submit')}

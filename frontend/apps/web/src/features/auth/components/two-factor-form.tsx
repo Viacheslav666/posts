@@ -7,15 +7,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { verifyTwoFactorRequest } from '../api/auth-api';
+import { readPendingLogin } from '@/shared/api-client';
+import { getErrorMessage } from '@/shared/lib/errors';
+
+import { completeTwoFactorLogin } from '../api/auth-api';
 import { twoFactorSchema, type TwoFactorValues } from '../model/schemas';
 import { FormField } from './form-field';
 
-type TwoFactorFormProps = {
-  challengeId: string;
-};
-
-export function TwoFactorForm({ challengeId }: TwoFactorFormProps) {
+export function TwoFactorForm() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('auth.validation');
   const router = useRouter();
@@ -33,20 +32,28 @@ export function TwoFactorForm({ challengeId }: TwoFactorFormProps) {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
     try {
-      const result = await verifyTwoFactorRequest({
-        challengeId,
-        code: values.code,
-      });
-      if (result.status !== 'authenticated') {
-        throw new Error(t('genericError'));
+      const pending = readPendingLogin();
+      if (!pending) {
+        toast({
+          variant: 'destructive',
+          title: t('twoFactor.errorTitle'),
+          description: t('twoFactor.missingPending'),
+        });
+        router.push('/login');
+        return;
       }
+      await completeTwoFactorLogin({
+        email: pending.email,
+        password: pending.password,
+        totpCode: values.code,
+      });
       toast({ title: t('twoFactor.successTitle'), description: t('twoFactor.successBody') });
       router.push('/app/demo');
     } catch (error) {
       toast({
         variant: 'destructive',
         title: t('twoFactor.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);
@@ -64,7 +71,7 @@ export function TwoFactorForm({ challengeId }: TwoFactorFormProps) {
         error={errors.code ? tErrors(errors.code.message as 'codeRequired') : undefined}
         {...register('code')}
       />
-      <Button type="submit" className="w-full" disabled={submitting || !challengeId}>
+      <Button type="submit" className="w-full" disabled={submitting}>
         {submitting ? t('submitting') : t('twoFactor.submit')}
       </Button>
     </form>

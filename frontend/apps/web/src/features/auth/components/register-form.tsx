@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { getErrorMessage } from '@/shared/lib/errors';
+
 import { registerRequest } from '../api/auth-api';
 import { registerSchema, type RegisterValues } from '../model/schemas';
 import { AuthDivider } from './auth-divider';
@@ -37,21 +39,23 @@ export function RegisterForm() {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
     try {
-      const result = await registerRequest({
+      await registerRequest({
         name: values.name,
         email: values.email,
         password: values.password,
+        locale: 'ru',
+        timezone: 'Europe/Moscow',
       });
       toast({
         title: t('register.successTitle'),
         description: t('register.successBody'),
       });
-      router.push(`/verify-email?email=${encodeURIComponent(result.email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: t('register.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);
