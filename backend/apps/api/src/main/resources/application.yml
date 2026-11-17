@@ -15,6 +15,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 server:
   port: 8080
@@ -39,6 +48,42 @@ springdoc:
   show-actuator: false
   default-produces-media-type: application/json
   writer-with-order-by-keys: true
+
+posts:
+  # Social Bucket4j/Redis limiter is for publisher (BE-4). API uses in-memory LoginRateLimiter only.
+  ratelimit:
+    enabled: false
+  auth:
+    hibp-enabled: false
+    app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}
+    mail-from: ${POSTS_MAIL_FROM:Posts <noreply@posts.local>}
+    totp-issuer: Posts
+    refresh-cookie-name: posts_refresh
+    refresh-cookie-secure: false
+    refresh-cookie-same-site: Lax
+    jwt:
+      key-id: posts-es256-1
+      issuer: https://posts.ru
+      audience: posts-api
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+    oauth:
+      vk:
+        client-id: ${POSTS_OAUTH_VK_CLIENT_ID:local-vk-client}
+        client-secret: ${POSTS_OAUTH_VK_CLIENT_SECRET:local-vk-secret}
+        authorization-uri: https://id.vk.ru/authorize
+        token-uri: https://id.vk.ru/oauth2/auth
+        user-info-uri: https://id.vk.ru/oauth2/user_info
+        redirect-uri: ${POSTS_OAUTH_VK_REDIRECT_URI:http://localhost:3000/auth/callback/vk}
+        scopes: email
+      yandex:
+        client-id: ${POSTS_OAUTH_YANDEX_CLIENT_ID:local-yandex-client}
+        client-secret: ${POSTS_OAUTH_YANDEX_CLIENT_SECRET:local-yandex-secret}
+        authorization-uri: https://oauth.yandex.ru/authorize
+        token-uri: https://oauth.yandex.ru/token
+        user-info-uri: https://login.yandex.ru/info
+        redirect-uri: ${POSTS_OAUTH_YANDEX_REDIRECT_URI:http://localhost:3000/auth/callback/yandex}
+        scopes: login:email login:info
 
 logging:
   level:

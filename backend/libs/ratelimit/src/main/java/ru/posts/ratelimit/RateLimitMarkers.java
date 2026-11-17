@@ -1,6 +1,9 @@
 package ru.posts.ratelimit;
 
-/** Stub marker for the ratelimit module (DEV-1 skeleton). */
+/** Marker type for ArchUnit / classpath presence of the ratelimit module. */
 public final class RateLimitMarkers {
+
+    public static final String MODULE = "ratelimit";
+
     private RateLimitMarkers() {}
 }

@@ -9,6 +9,11 @@ spring:
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+
+posts:
+  ratelimit:
+    enabled: false
 
 management:
   health:
@@ -17,4 +22,6 @@ management:
     redis:
       enabled: false
     rabbit:
+      enabled: false
+    mail:
       enabled: false

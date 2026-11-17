@@ -2,15 +2,15 @@ package ru.posts.api.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,11 +20,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.auth.AuthService;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.user.UserDtos;
-import ru.posts.api.web.support.ApiStub;
-import ru.posts.api.web.support.LocalFixtures;
+import ru.posts.security.auth.PostsPrincipal;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @Validated
@@ -33,52 +34,20 @@ import ru.posts.api.web.support.LocalFixtures;
 @OpenApiResponses
 public class MeController {
 
-    private final Environment environment;
+    private final AuthService authService;
 
-    public MeController(Environment environment) {
-        this.environment = environment;
+    public MeController(AuthService authService) {
+        this.authService = authService;
     }
 
     @GetMapping("/me")
-    @Operation(
-            operationId = "meGet",
-            summary = "Get current user profile",
-            description =
-                    "In the `local` profile returns deterministic fixture data for FE/QA. Other profiles return 501 until BE-5.")
+    @Operation(operationId = "meGet", summary = "Get current user profile")
     @ApiResponse(
             responseCode = "200",
             description = "Current user",
-            content =
-                    @Content(
-                            schema = @Schema(implementation = UserDtos.UserProfile.class),
-                            examples =
-                                    @ExampleObject(
-                                            name = "local",
-                                            value =
-                                                    """
-                                                    {
-                                                      "id": "019a0000-0002-7000-8000-000000000001",
-                                                      "email": "local@posts.test",
-                                                      "emailVerified": true,
-                                                      "name": "Local Dev",
-                                                      "timezone": "Europe/Moscow",
-                                                      "locale": "ru",
-                                                      "totpEnabled": false,
-                                                      "memberships": [
-                                                        {
-                                                          "workspaceId": "019a0000-0002-7000-8000-000000000002",
-                                                          "workspaceName": "Личное пространство",
-                                                          "role": "owner",
-                                                          "billingStatus": "trial"
-                                                        }
-                                                      ]
-                                                    }
-                                                    """)))
+            content = @Content(schema = @Schema(implementation = UserDtos.UserProfile.class)))
     public UserDtos.UserProfile me() {
-        if (environment.matchesProfiles("local")) {
-            return LocalFixtures.localUser();
-        }
-        throw ApiStub.notImplemented("meGet");
+        return authService.me(SecurityAuthSupport.requirePrincipal().userId());
     }
 
     @PatchMapping("/me")
@@ -88,14 +57,15 @@ public class MeController {
             description = "Updated",
             content = @Content(schema = @Schema(implementation = UserDtos.UserProfile.class)))
     public UserDtos.UserProfile updateMe(@Valid @RequestBody UserDtos.UpdateMeRequest request) {
-        throw ApiStub.notImplemented("meUpdate");
+        return authService.updateMe(SecurityAuthSupport.requirePrincipal().userId(), request);
     }
 
     @PostMapping("/me/password")
     @Operation(operationId = "meChangePassword", summary = "Change password while authenticated")
     @ApiResponse(responseCode = "200", description = "Password changed")
     public AuthDtos.MessageResponse changePassword(@Valid @RequestBody UserDtos.UpdatePasswordRequest request) {
-        throw ApiStub.notImplemented("meChangePassword");
+        PostsPrincipal principal = SecurityAuthSupport.requirePrincipal();
+        return authService.changePassword(principal.userId(), principal.sessionId(), request);
     }
 
     @DeleteMapping("/me")
@@ -104,28 +74,32 @@ public class MeController {
             summary = "Request account deletion / anonymization (152-FZ)",
             description = "Schedules anonymization after a grace period.")
     @ApiResponse(responseCode = "202", description = "Deletion scheduled")
-    public AuthDtos.MessageResponse deleteMe() {
-        throw ApiStub.notImplemented("meDelete");
+    public ResponseEntity<AuthDtos.MessageResponse> deleteMe() {
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(authService.deleteMe(
+                        SecurityAuthSupport.requirePrincipal().userId()));
     }
 
     @GetMapping("/me/sessions")
     @Operation(operationId = "meListSessions", summary = "List active and recent sessions (US-1.5)")
     @ApiResponse(responseCode = "200", description = "Sessions page")
     public CursorPage.SessionPage listSessions(@Valid @ParameterObject CursorPage.Params page) {
-        throw ApiStub.notImplemented("meListSessions");
+        PostsPrincipal principal = SecurityAuthSupport.requirePrincipal();
+        return authService.listSessions(principal.userId(), principal.sessionId(), page);
     }
 
     @DeleteMapping("/me/sessions/{sessionId}")
     @Operation(operationId = "meRevokeSession", summary = "Revoke a specific session")
     @ApiResponse(responseCode = "200", description = "Session revoked")
     public AuthDtos.MessageResponse revokeSession(@PathVariable UUID sessionId) {
-        throw ApiStub.notImplemented("meRevokeSession");
+        return authService.revokeSession(SecurityAuthSupport.requirePrincipal().userId(), sessionId);
     }
 
     @DeleteMapping("/me/sessions")
     @Operation(operationId = "meRevokeOtherSessions", summary = "Revoke all sessions except the current one")
     @ApiResponse(responseCode = "200", description = "Other sessions revoked")
     public AuthDtos.MessageResponse revokeOtherSessions() {
-        throw ApiStub.notImplemented("meRevokeOtherSessions");
+        PostsPrincipal principal = SecurityAuthSupport.requirePrincipal();
+        return authService.revokeOtherSessions(principal.userId(), principal.sessionId());
     }
 }
