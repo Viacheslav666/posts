@@ -33,9 +33,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           build-root-directory: backend
+          cache-read-only: true
+      # Clean + no build-cache so CodeQL tracer always sees javac (empty DB otherwise
+      # when Gradle restores compile outputs from cache on PRs that barely touch Java).
       - if: matrix.language == 'java'
+        name: Build backend (CodeQL trace)
         working-directory: backend
-        run: ./gradlew build -x test -x integrationTest
+        run: ./gradlew --no-build-cache clean build -x test -x integrationTest
+      - if: matrix.language == 'java'
+        name: Build social-emulator (CodeQL trace)
+        working-directory: tests/social-emulator
+        run: ./gradlew --no-build-cache clean compileJava
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
