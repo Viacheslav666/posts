@@ -29,7 +29,6 @@ include(
     "libs:social-ok",
     "libs:social-max",
     "libs:test-support",
-    "libs:architecture",
     "apps:api",
     "apps:scheduler",
     "apps:publisher",
