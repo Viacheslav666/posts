@@ -98,11 +98,12 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectEntity project =
                 projectRepository.findByIdAndDeletedAtIsNull(projectId).orElseThrow(WorkspaceAccessService::notFound);
         WorkspaceMembership membership = access.requireMember(project.getWorkspaceId(), userId);
+        // Outside ProjectGrant → 404 (not 403), same as IDOR for foreign resources.
+        access.requireVisibleProject(membership, projectId);
         access.requireAction(
                 membership,
                 "projects.view",
                 RbacEvaluationContext.forProject(projectId, membership.assignedProjectIds()));
-        access.requireVisibleProject(membership, projectId);
         return toDto(project);
     }
 
