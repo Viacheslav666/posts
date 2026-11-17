@@ -109,7 +109,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       <ToolButton
         label={t('spoiler')}
         pressed={editor.isActive('spoiler')}
-        onClick={() => editor.chain().focus().toggleSpoiler().run()}
+        onClick={() => editor.chain().focus().toggleMark('spoiler').run()}
       >
         <EyeOff aria-hidden className="h-4 w-4" />
       </ToolButton>

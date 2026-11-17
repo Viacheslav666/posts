@@ -12,20 +12,4 @@ export const Spoiler = Mark.create({
   renderHTML({ HTMLAttributes }) {
     return ['tg-spoiler', mergeAttributes(HTMLAttributes), 0];
   },
-  addCommands() {
-    return {
-      toggleSpoiler:
-        () =>
-        ({ commands }) =>
-          commands.toggleMark(this.name),
-    };
-  },
 });
-
-declare module '@tiptap/core' {
-  interface Commands<ReturnType> {
-    spoiler: {
-      toggleSpoiler: () => ReturnType;
-    };
-  }
-}
