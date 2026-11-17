@@ -1,4 +1,5 @@
 -- BE-5: auth tokens, TOTP backup codes, OAuth PKCE/link state, session family for refresh reuse detection.
+-- family_id NOT NULL via CHECK ... NOT VALID + VALIDATE (squawk expand-safe).
 
 ALTER TABLE sessions
     ADD COLUMN IF NOT EXISTS family_id UUID;
@@ -8,7 +9,10 @@ SET family_id = id
 WHERE family_id IS NULL;
 
 ALTER TABLE sessions
-    ALTER COLUMN family_id SET NOT NULL;
+    ADD CONSTRAINT sessions_family_id_present CHECK (family_id IS NOT NULL) NOT VALID;
+
+ALTER TABLE sessions
+    VALIDATE CONSTRAINT sessions_family_id_present;
 
 CREATE INDEX IF NOT EXISTS sessions_family_id_idx ON sessions (family_id);
 

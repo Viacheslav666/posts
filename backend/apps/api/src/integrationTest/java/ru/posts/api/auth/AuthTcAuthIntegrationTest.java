@@ -1,6 +1,7 @@
 package ru.posts.api.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -71,6 +72,7 @@ class AuthTcAuthIntegrationTest {
         register(email, "correct-horse-battery", "Alice");
         String verifyToken = latestMailToken(email);
         mockMvc.perform(post("/api/v1/auth/email/verify")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("token", verifyToken))))
                 .andExpect(status().isOk())
@@ -96,6 +98,7 @@ class AuthTcAuthIntegrationTest {
         register(email, "correct-horse-battery", "Bob");
         mailSender.clear();
         mockMvc.perform(post("/api/v1/auth/register")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "email", email,
@@ -113,12 +116,14 @@ class AuthTcAuthIntegrationTest {
         registerVerify(email, "correct-horse-battery", "Carol");
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(post("/api/v1/auth/login")
+                            .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
                                     Map.of("email", email, "password", "wrong-password-xx"))))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 Map.of("email", email, "password", "wrong-password-xx"))))
@@ -135,7 +140,8 @@ class AuthTcAuthIntegrationTest {
         JsonNode tokens = login(email, password, null);
         String access = tokens.get("accessToken").asText();
 
-        MvcResult setup = mockMvc.perform(post("/api/v1/auth/2fa/setup").header("Authorization", "Bearer " + access))
+        MvcResult setup = mockMvc.perform(
+                        post("/api/v1/auth/2fa/setup").with(csrf()).header("Authorization", "Bearer " + access))
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode setupBody = objectMapper.readTree(setup.getResponse().getContentAsString());
@@ -144,12 +150,14 @@ class AuthTcAuthIntegrationTest {
         String totp = currentTotp(secret);
 
         mockMvc.perform(post("/api/v1/auth/2fa/confirm")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + access)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("code", totp))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", email, "password", password))))
                 .andExpect(status().isUnauthorized())
@@ -159,6 +167,7 @@ class AuthTcAuthIntegrationTest {
         assertThat(withBackup.get("accessToken").asText()).isNotBlank();
 
         mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 Map.of("email", email, "password", password, "totpCode", backup))))
@@ -178,11 +187,13 @@ class AuthTcAuthIntegrationTest {
         assertThat(newRefresh).isNotEqualTo(oldRefresh);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("refreshToken", oldRefresh))))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("refreshToken", newRefresh))))
                 .andExpect(status().isUnauthorized());
@@ -198,6 +209,7 @@ class AuthTcAuthIntegrationTest {
         JsonNode sessionB = login(email, password, null);
 
         mockMvc.perform(post("/api/v1/me/password")
+                        .with(csrf())
                         .header(
                                 "Authorization",
                                 "Bearer " + sessionA.get("accessToken").asText())
@@ -207,12 +219,14 @@ class AuthTcAuthIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "refreshToken", sessionB.get("refreshToken").asText()))))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "refreshToken", sessionA.get("refreshToken").asText()))))
@@ -230,7 +244,7 @@ class AuthTcAuthIntegrationTest {
                 "vk-code-1",
                 new OAuthUserProfile("vk", "vk-user-77", email, true, "Grace VK", Map.of("id", "vk-user-77")));
 
-        MvcResult start = mockMvc.perform(post("/api/v1/auth/oauth/vk/start"))
+        MvcResult start = mockMvc.perform(post("/api/v1/auth/oauth/vk/start").with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn();
         String state = objectMapper
@@ -239,6 +253,7 @@ class AuthTcAuthIntegrationTest {
                 .asText();
 
         MvcResult callback = mockMvc.perform(post("/api/v1/auth/oauth/vk/callback")
+                        .with(csrf())
                         .param("code", "vk-code-1")
                         .param("state", state))
                 .andExpect(status().isConflict())
@@ -251,6 +266,7 @@ class AuthTcAuthIntegrationTest {
 
         JsonNode tokens = login(email, password, null);
         mockMvc.perform(post("/api/v1/auth/oauth/link")
+                        .with(csrf())
                         .header(
                                 "Authorization",
                                 "Bearer " + tokens.get("accessToken").asText())
@@ -262,7 +278,7 @@ class AuthTcAuthIntegrationTest {
         stubOAuthProviderClient.registerCode(
                 "vk-code-2",
                 new OAuthUserProfile("vk", "vk-user-77", email, true, "Grace VK", Map.of("id", "vk-user-77")));
-        MvcResult start2 = mockMvc.perform(post("/api/v1/auth/oauth/vk/start"))
+        MvcResult start2 = mockMvc.perform(post("/api/v1/auth/oauth/vk/start").with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn();
         String state2 = objectMapper
@@ -270,6 +286,7 @@ class AuthTcAuthIntegrationTest {
                 .get("state")
                 .asText();
         mockMvc.perform(post("/api/v1/auth/oauth/vk/callback")
+                        .with(csrf())
                         .param("code", "vk-code-2")
                         .param("state", state2))
                 .andExpect(status().isOk())
@@ -292,6 +309,7 @@ class AuthTcAuthIntegrationTest {
                 .andExpect(jsonPath("$.items").isArray());
 
         mockMvc.perform(delete("/api/v1/me/sessions")
+                        .with(csrf())
                         .header(
                                 "Authorization",
                                 "Bearer " + a.get("accessToken").asText()))
@@ -300,6 +318,7 @@ class AuthTcAuthIntegrationTest {
 
     private void register(String email, String password, String name) throws Exception {
         mockMvc.perform(post("/api/v1/auth/register")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 Map.of("email", email, "password", password, "name", name))))
@@ -310,6 +329,7 @@ class AuthTcAuthIntegrationTest {
         register(email, password, name);
         String token = latestMailToken(email);
         mockMvc.perform(post("/api/v1/auth/email/verify")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("token", token))))
                 .andExpect(status().isOk());
@@ -323,6 +343,7 @@ class AuthTcAuthIntegrationTest {
             body.put("totpCode", totpCode);
         }
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
@@ -332,6 +353,7 @@ class AuthTcAuthIntegrationTest {
 
     private JsonNode refresh(String refreshToken) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
                 .andExpect(status().isOk())

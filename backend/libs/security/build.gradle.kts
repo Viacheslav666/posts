@@ -17,7 +17,7 @@ dependencies {
     api("org.springframework.boot:spring-boot-autoconfigure")
     api(libs.nimbus.jose.jwt)
     api(libs.totp)
-    api("org.bouncycastle:bcprov-jdk18on:1.79")
+    api("org.bouncycastle:bcprov-jdk18on:1.85")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
