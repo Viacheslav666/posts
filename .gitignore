@@ -18,6 +18,8 @@ frontend/**/.next/
 frontend/**/out/
 frontend/**/dist/
 frontend/**/coverage/
+frontend/**/storybook-static/
+frontend/**/storybook-static/**
 *.tsbuildinfo
 .pnpm-store/
 

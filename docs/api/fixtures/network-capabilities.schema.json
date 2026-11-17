@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://posts.local/schemas/network-capabilities.v1.json",
+  "title": "Posts NetworkCapabilities",
+  "description": "Машиночитаемая матрица возможностей соцсетей (AN-2). Каждое значение — Fact со ссылкой на официальный источник и датой проверки.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "updated", "task", "schema", "checked_at", "networks"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "updated": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "task": {
+      "type": "string",
+      "const": "AN-2"
+    },
+    "schema": {
+      "type": "string",
+      "const": "posts.network-capabilities.v1"
+    },
+    "checked_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "networks": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "$ref": "#/$defs/network"
+      }
+    }
+  },
+  "$defs": {
+    "uri": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^https?://"
+    },
+    "isoDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "checked_at"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "unknown"]
+        },
+        "value": {
+          "type": ["string", "number", "integer", "boolean", "array", "object", "null"]
+        },
+        "unit": {
+          "type": "string",
+          "description": "Единица измерения value (chars, bytes, seconds, rps, rpm, …)"
+        },
+        "source": {
+          "$ref": "#/$defs/uri"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/isoDate"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "confirmed"
+              }
+            }
+          },
+          "then": {
+            "required": ["value"],
+            "not": {
+              "properties": {
+                "value": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "mediaKind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_count_per_post": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_file_bytes": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_width_px": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_height_px": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_width_plus_height_px": {
+          "$ref": "#/$defs/fact"
+        },
+        "max_duration_seconds": {
+          "$ref": "#/$defs/fact"
+        },
+        "formats": {
+          "$ref": "#/$defs/fact"
+        },
+        "caption_max_chars": {
+          "$ref": "#/$defs/fact"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "phase",
+        "docs_home",
+        "channel_types",
+        "content_types",
+        "text",
+        "formatting",
+        "media",
+        "features",
+        "api_limits",
+        "tokens",
+        "webhooks",
+        "permissions"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["vk", "telegram", "ok", "max", "rutube"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["mvp", "phase2"]
+        },
+        "docs_home": {
+          "$ref": "#/$defs/uri"
+        },
+        "channel_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "content_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "text": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_chars"],
+          "properties": {
+            "max_chars": {
+              "$ref": "#/$defs/fact"
+            },
+            "title_max_chars": {
+              "$ref": "#/$defs/fact"
+            },
+            "description_max_chars": {
+              "$ref": "#/$defs/fact"
+            }
+          }
+        },
+        "formatting": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "features"],
+          "properties": {
+            "mode": {
+              "$ref": "#/$defs/fact"
+            },
+            "features": {
+              "$ref": "#/$defs/fact"
+            },
+            "html_tags": {
+              "$ref": "#/$defs/fact"
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "media": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_attachments_per_post", "photo", "video", "document", "audio"],
+          "properties": {
+            "max_attachments_per_post": {
+              "$ref": "#/$defs/fact"
+            },
+            "photo": {
+              "$ref": "#/$defs/mediaKind"
+            },
+            "video": {
+              "$ref": "#/$defs/mediaKind"
+            },
+            "document": {
+              "$ref": "#/$defs/mediaKind"
+            },
+            "audio": {
+              "$ref": "#/$defs/mediaKind"
+            },
+            "album": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "supported": {
+                  "$ref": "#/$defs/fact"
+                },
+                "min_items": {
+                  "$ref": "#/$defs/fact"
+                },
+                "max_items": {
+                  "$ref": "#/$defs/fact"
+                }
+              }
+            }
+          }
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "native_schedule",
+            "edit_after_publish",
+            "delete_after_publish",
+            "pin",
+            "unpin",
+            "first_comment",
+            "stories",
+            "close_comments",
+            "mute_notifications",
+            "inline_buttons",
+            "repost"
+          ],
+          "properties": {
+            "native_schedule": {
+              "$ref": "#/$defs/fact"
+            },
+            "edit_after_publish": {
+              "$ref": "#/$defs/fact"
+            },
+            "delete_after_publish": {
+              "$ref": "#/$defs/fact"
+            },
+            "pin": {
+              "$ref": "#/$defs/fact"
+            },
+            "unpin": {
+              "$ref": "#/$defs/fact"
+            },
+            "first_comment": {
+              "$ref": "#/$defs/fact"
+            },
+            "stories": {
+              "$ref": "#/$defs/fact"
+            },
+            "close_comments": {
+              "$ref": "#/$defs/fact"
+            },
+            "mute_notifications": {
+              "$ref": "#/$defs/fact"
+            },
+            "inline_buttons": {
+              "$ref": "#/$defs/fact"
+            },
+            "repost": {
+              "$ref": "#/$defs/fact"
+            },
+            "signed_author": {
+              "$ref": "#/$defs/fact"
+            },
+            "primary_attachments_mode": {
+              "$ref": "#/$defs/fact"
+            },
+            "idempotency_key": {
+              "$ref": "#/$defs/fact"
+            }
+          }
+        },
+        "api_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requests_per_second", "notes"],
+          "properties": {
+            "requests_per_second": {
+              "$ref": "#/$defs/fact"
+            },
+            "requests_per_second_user_token": {
+              "$ref": "#/$defs/fact"
+            },
+            "requests_per_second_community_token": {
+              "$ref": "#/$defs/fact"
+            },
+            "messages_per_second_global": {
+              "$ref": "#/$defs/fact"
+            },
+            "messages_per_second_per_chat": {
+              "$ref": "#/$defs/fact"
+            },
+            "messages_per_minute_per_group": {
+              "$ref": "#/$defs/fact"
+            },
+            "publications_per_day": {
+              "$ref": "#/$defs/fact"
+            },
+            "config_keys": {
+              "type": "object",
+              "description": "Рекомендуемые ключи posts.ratelimit.<network>.* для Bucket4j",
+              "additionalProperties": {
+                "type": ["number", "integer", "string", "null"]
+              }
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["auth_model", "access_token_ttl_seconds", "refresh_token_ttl_seconds"],
+          "properties": {
+            "auth_model": {
+              "$ref": "#/$defs/fact"
+            },
+            "access_token_ttl_seconds": {
+              "$ref": "#/$defs/fact"
+            },
+            "refresh_token_ttl_seconds": {
+              "$ref": "#/$defs/fact"
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "webhooks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supported"],
+          "properties": {
+            "supported": {
+              "$ref": "#/$defs/fact"
+            },
+            "mechanism": {
+              "$ref": "#/$defs/fact"
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary"],
+          "properties": {
+            "summary": {
+              "$ref": "#/$defs/fact"
+            },
+            "required_scopes": {
+              "$ref": "#/$defs/fact"
+            }
+          }
+        }
+      }
+    }
+  }
+}

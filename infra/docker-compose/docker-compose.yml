@@ -47,7 +47,7 @@ services:
 
   # MinIO official images are currently unavailable from public registries in some
   # environments; adobe/s3mock provides S3-compatible local storage for DEV-1.
-  # (See docs/adr/0001-dev1-skeleton-decisions.md.)
+  # (See docs/adr/0008-dev1-skeleton-decisions.md.)
   minio:
     image: adobe/s3mock:latest
     environment:
@@ -110,6 +110,7 @@ services:
       start_period: 30s
 
   # QA-3: build locally first — `cd tests/social-emulator && ./gradlew jibDockerBuild`
+  # Distroless image (DEV-3 conventions): no shell/wget; probe from host via /_control/health.
   social-emulator:
     image: ghcr.io/viacheslav666/posts-social-emulator:latest
     profiles: ["emulator", "full"]
@@ -118,11 +119,10 @@ services:
     environment:
       SERVER_PORT: "8090"
     healthcheck:
-      # Temurin image has bash; TCP open ≈ process accepts connections (HTTP probe from host).
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8090'"]
-      interval: 10s
+      test: ["CMD", "/usr/bin/java", "-version"]
+      interval: 30s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 25s
 
 volumes:

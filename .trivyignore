@@ -1,0 +1,8 @@
+# Distroless java21-debian12:nonroot — brotli fix not yet in base image.
+# Remove when gcr.io/distroless/java21-debian12:nonroot includes libbrotli1 >= 1.0.9-2+deb12u1.
+CVE-2026-111497
+
+# Spring Framework 6.2.x (Boot 3.5): fixes only published on 7.0.9+ (Boot 4).
+# Tracked for Boot 4 migration; skeleton stays on Boot 3.5 for DEV-3.
+CVE-2026-47884
+CVE-2026-47890

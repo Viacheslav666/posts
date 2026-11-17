@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "timezone": "Europe/Moscow",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "bump",
+  "enabledManagers": [
+    "gradle",
+    "gradle-wrapper",
+    "npm",
+    "github-actions",
+    "dockerfile",
+    "docker-compose"
+  ],
+  "packageRules": [
+    {
+      "description": "Group Spring Boot BOM, starters, and Gradle plugin",
+      "groupName": "Spring Boot",
+      "matchPackageNames": [
+        "org.springframework.boot{/,}**",
+        "org.springframework.boot:**"
+      ],
+      "matchDepNames": ["org.springframework.boot"]
+    },
+    {
+      "description": "Group Testcontainers BOM and modules",
+      "groupName": "Testcontainers",
+      "matchPackageNames": [
+        "org.testcontainers{/,}**",
+        "org.testcontainers:**"
+      ]
+    },
+    {
+      "description": "Group Next.js and React ecosystem",
+      "groupName": "Next/React",
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+        "eslint-config-next"
+      ]
+    },
+    {
+      "description": "Group all GitHub Actions updates",
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"]
+    }
+  ]
+}

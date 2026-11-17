@@ -14,12 +14,13 @@ cd tests/social-emulator
 curl -s http://localhost:8090/_control/health
 ```
 
-Сборка локального Docker-образа (Jib):
+Сборка локального Docker-образа (Jib, соглашения DEV-3: distroless Java 21 nonroot, OCI labels, `IMAGE_TAGS`/`IMAGE_NAME`):
 
 ```bash
 cd tests/social-emulator
 ./gradlew jibDockerBuild
 # образ: ghcr.io/viacheslav666/posts-social-emulator:latest
+# HTTP-probe с хоста (в образе нет shell): curl -s localhost:8090/_control/health
 ```
 
 В docker-compose (профиль `emulator`):

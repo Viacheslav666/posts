@@ -18,32 +18,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [java, javascript-typescript]
+        include:
+          - language: java
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
       - if: matrix.language == 'java'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
+      # Do not restore Gradle build cache here: CodeQL traces javac/kotlinc.
+      # Cached/UP-TO-DATE compiles leave an empty DB ("no source code seen").
       - if: matrix.language == 'java'
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          build-root-directory: backend
-          cache-read-only: true
-      # Clean + no build-cache so CodeQL tracer always sees javac (empty DB otherwise
-      # when Gradle restores compile outputs from cache on PRs that barely touch Java).
-      - if: matrix.language == 'java'
-        name: Build backend (CodeQL trace)
+        name: Build backend for CodeQL tracing
         working-directory: backend
-        run: ./gradlew --no-build-cache clean build -x test -x integrationTest
+        run: ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks
       - if: matrix.language == 'java'
-        name: Build social-emulator (CodeQL trace)
+        name: Build social-emulator for CodeQL tracing
         working-directory: tests/social-emulator
-        run: ./gradlew --no-build-cache clean compileJava
+        run: ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"

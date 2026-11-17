@@ -27,6 +27,13 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// ArchUnit rules + shared test fixtures (BE-1). Skip self-dependency for test-support.
+if (project.path != ":libs:test-support") {
+    dependencies {
+        testImplementation(project(":libs:test-support"))
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
 }

@@ -1,22 +1,109 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap');
+@import '@posts/ui/styles/tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-0: #f3f6f4;
-  --bg-1: #e7eee9;
-  --ink: #0b1220;
-  --accent: #0f766e;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 8% -12%, hsl(var(--primary) / 0.12) 0%, transparent 55%),
+      radial-gradient(900px 500px at 100% 0%, hsl(var(--info) / 0.1) 0%, transparent 50%);
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(1000px 500px at 0% -10%, hsl(var(--primary) / 0.18) 0%, transparent 50%),
+      radial-gradient(800px 420px at 100% 0%, hsl(var(--info) / 0.12) 0%, transparent 45%);
+  }
 }
 
-body {
-  color: var(--ink);
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #d7ebe3 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #d9e4f2 0%, transparent 50%),
-    linear-gradient(180deg, var(--bg-0), var(--bg-1));
-  min-height: 100vh;
-  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+@layer utilities {
+  @keyframes auth-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes landing-fade {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes orb-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(18px, -12px, 0) scale(1.06);
+    }
+  }
+
+  @keyframes pricing-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-auth-in {
+    animation: auth-in 420ms ease-out both;
+  }
+
+  .landing-fade {
+    animation: landing-fade 560ms ease-out both;
+  }
+
+  .landing-fade-delay-1 {
+    animation-delay: 80ms;
+  }
+
+  .landing-fade-delay-2 {
+    animation-delay: 160ms;
+  }
+
+  .landing-fade-delay-3 {
+    animation-delay: 240ms;
+  }
+
+  .landing-fade-delay-4 {
+    animation-delay: 320ms;
+  }
+
+  .landing-orb {
+    animation: orb-drift 10s ease-in-out infinite;
+  }
+
+  .landing-orb-b {
+    animation-delay: -4s;
+  }
+
+  .pricing-card {
+    animation: pricing-rise 480ms ease-out both;
+  }
 }
