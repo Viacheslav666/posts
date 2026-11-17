@@ -1,6 +1,7 @@
-.PHONY: up up-emulator down backend frontend test openapi lint emulator help \
-	media-base images images-backend images-web images-run-smoke
+.PHONY: up up-emulator up-full down backend frontend test openapi lint emulator help \
+	media-base images images-backend images-web images-run-smoke wait-full
 
+SHELL := /bin/bash
 COMPOSE_FILE := infra/docker-compose/docker-compose.yml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
 
@@ -8,7 +9,7 @@ REGISTRY ?= ghcr.io/viacheslav666
 MEDIA_BASE_IMAGE ?= posts-java21-ffmpeg:21
 
 help:
-	@echo "Targets: up up-emulator down backend frontend test openapi lint emulator"
+	@echo "Targets: up up-emulator up-full down backend frontend test openapi lint emulator"
 	@echo "         media-base images images-backend images-web images-run-smoke"
 
 up:
@@ -18,8 +19,36 @@ up-emulator:
 	cd tests/social-emulator && ./gradlew jibDockerBuild
 	$(COMPOSE) --profile emulator up -d social-emulator
 
+# DEV-4: infra + all apps (local images) + web + social-emulator
+up-full: images
+	$(COMPOSE) --profile full up -d
+	@$(MAKE) wait-full
+
+wait-full:
+	@set -euo pipefail; \
+	echo "==> waiting for API /api/v1/ping"; \
+	ok=0; \
+	for i in $$(seq 1 90); do \
+		if curl -sf http://127.0.0.1:8080/api/v1/ping >/tmp/posts-full-api-ping.json; then ok=1; break; fi; \
+		sleep 2; \
+	done; \
+	if [ "$$ok" != 1 ]; then echo "API ping failed"; docker compose -f $(COMPOSE_FILE) --profile full logs api --tail=80; exit 1; fi; \
+	cat /tmp/posts-full-api-ping.json; echo; \
+	echo "==> waiting for web /health"; \
+	ok=0; \
+	for i in $$(seq 1 60); do \
+		if curl -sf http://127.0.0.1:3000/health >/dev/null; then ok=1; break; fi; \
+		sleep 2; \
+	done; \
+	if [ "$$ok" != 1 ]; then echo "web /health failed"; docker compose -f $(COMPOSE_FILE) --profile full logs web --tail=80; exit 1; fi; \
+	echo "web /health OK"; \
+	echo "==> social-emulator /_control/health"; \
+	curl -sf http://127.0.0.1:8090/_control/health | tee /tmp/posts-full-emulator-health.json; \
+	echo; \
+	echo "Full stack is up (profile full)"
+
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile full --profile emulator down
 
 backend:
 	cd backend && ./gradlew :apps:api:bootRun --args='--spring.profiles.active=local'

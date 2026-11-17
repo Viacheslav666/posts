@@ -29,6 +29,8 @@ cd tests/social-emulator
 docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up -d social-emulator
 ```
 
+Полный стек с приложениями и web (DEV-4, профиль `full`): `make up-full` — эмулятор поднимается вместе с api/scheduler/publisher-*/media/ingest/notifications/web; публикаторы смотрят на `http://social-emulator:8090`.
+
 ## Эндпоинты сетей
 
 | Сеть | Пути | Заметки |
