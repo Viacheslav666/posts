@@ -21,6 +21,8 @@ import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
 import { loadDraft } from '../model/draft-db';
 import { EMPTY_DOC, type EditorDraft, type EditorVariant } from '../model/types';
+import { EditorMediaBlock } from '@/features/media/components/editor-media-block';
+
 import { AutosaveIndicator } from './autosave-indicator';
 import { ChannelPicker } from './channel-picker';
 import { PreviewPanel } from './preview-panel';
@@ -44,6 +46,7 @@ function createDraft(workspaceId: string, draftId: string): EditorDraft {
     variants: [],
     previewNetwork: 'tg',
     activeVariant: 'base',
+    media: [],
   };
 }
 
@@ -76,7 +79,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       if (cancelled) {
         return;
       }
-      setDraft(stored ?? createDraft(workspaceId, draftId));
+      const draftValue = stored ?? createDraft(workspaceId, draftId);
+      setDraft({ ...draftValue, media: draftValue.media ?? [] });
       setHydrated(true);
     })();
     return () => {
@@ -323,6 +327,19 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             </div>
           )}
 
+          <EditorMediaBlock
+            workspaceId={workspaceId}
+            items={draft.media}
+            selectedNetworks={selectedNetworks}
+            onChange={(media) =>
+              setDraft((current) =>
+                current
+                  ? { ...current, media, updatedAt: new Date().toISOString() }
+                  : current,
+              )
+            }
+          />
+
           <ValidationPanel issues={issues} charCount={charCount} />
         </div>
 
@@ -330,6 +347,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
           html={activeHtml}
           network={draft.previewNetwork}
           channelName={previewChannelName}
+          media={draft.media}
           onNetworkChange={(network) =>
             setDraft((current) =>
               current

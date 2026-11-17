@@ -9,14 +9,20 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.channel.NetworkCapabilitiesService;
 import ru.posts.api.web.dto.network.NetworkDtos;
-import ru.posts.api.web.support.ApiStub;
 
 @RestController
 @RequestMapping(path = "/api/v1/networks", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Networks", description = "Network capability matrix for validation and UI")
 @OpenApiResponses
 public class NetworkCapabilitiesController {
+
+    private final NetworkCapabilitiesService networkCapabilitiesService;
+
+    public NetworkCapabilitiesController(NetworkCapabilitiesService networkCapabilitiesService) {
+        this.networkCapabilitiesService = networkCapabilitiesService;
+    }
 
     @GetMapping("/capabilities")
     @Operation(
@@ -30,6 +36,6 @@ public class NetworkCapabilitiesController {
             description = "Capabilities",
             content = @Content(schema = @Schema(implementation = NetworkDtos.NetworkCapabilitiesResponse.class)))
     public NetworkDtos.NetworkCapabilitiesResponse capabilities() {
-        throw ApiStub.notImplemented("networksCapabilities");
+        return networkCapabilitiesService.get();
     }
 }

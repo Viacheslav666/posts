@@ -65,6 +65,21 @@ posts:
     secret-key: ${POSTS_S3_SECRET_KEY:postsposts}
     path-style-access: true
     presign-ttl: 15m
+  crypto:
+    kek: ${POSTS_DEV_KEK:local-dev-posts-kek}
+  channels:
+    social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+    vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:local-vk-channels}
+    vk-client-secret: ${POSTS_CHANNELS_VK_CLIENT_SECRET:local-vk-channels-secret}
+    vk-redirect-uri: ${POSTS_CHANNELS_VK_REDIRECT_URI:http://localhost:3000/channels/callback/vk}
+    ok-client-id: ${POSTS_CHANNELS_OK_CLIENT_ID:local-ok-channels}
+    ok-client-secret: ${POSTS_CHANNELS_OK_CLIENT_SECRET:local-ok-channels-secret}
+    ok-redirect-uri: ${POSTS_CHANNELS_OK_REDIRECT_URI:http://localhost:3000/channels/callback/ok}
+    tg-bot-username: ${POSTS_TG_BOT_USERNAME:posts_local_bot}
+    tg-bot-token: ${POSTS_TG_BOT_TOKEN:emulator-token}
+    max-bot-token: ${POSTS_MAX_BOT_TOKEN:emulator-max-token}
+    ingest-exchange: ingest
+    ingest-routing-key: social
   auth:
     hibp-enabled: false
     app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}

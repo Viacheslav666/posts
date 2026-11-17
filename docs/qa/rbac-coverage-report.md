@@ -8,13 +8,13 @@
 
 | Метрика | Значение |
 |---|---|
-| OpenAPI operationId | 87 |
-| В матрице RBAC | 59 |
-| Вне RBAC (auth/me/public) | 28 |
+| OpenAPI operationId | 92 |
+| В матрице RBAC | 61 |
+| Вне RBAC (auth/me/public) | 31 |
 | Роли | 5 |
-| Ячейки роль×эндпоинт | 295 |
-| Реализованы (hint) | 16 |
-| Stub / 501 (hint) | 43 — HTTP skip до реализации |
+| Ячейки роль×эндпоинт | 305 |
+| Реализованы (hint) | 35 |
+| Stub / 501 (hint) | 26 — HTTP skip до реализации |
 
 ## Матрица (ожидание HTTP)
 
@@ -30,24 +30,26 @@
 | `billingStartTrial` | `billing.manage` | stub | A | D | D | D | D |
 | `calendarList` | `calendar.view` | stub | A | A | A | A | A |
 | `calendarMove` | `calendar.move` | stub | A | A | A | D | D |
-| `channelSetsList` | `channel_sets.view` | stub | A | A | A | A | A |
-| `channelSetsCreate` | `channel_sets.manage` | stub | A | A | A | D | D |
-| `channelSetsDelete` | `channel_sets.manage` | stub | A | A | A | D | D |
-| `channelSetsGet` | `channel_sets.view` | stub | A | A | A | A | A |
-| `channelSetsUpdate` | `channel_sets.manage` | stub | A | A | A | D | D |
-| `channelsList` | `channels.view` | stub | A | A | A | A | A |
-| `channelsConnectCallback` | `channels.manage` | stub | A | A | D | D | D |
-| `channelsConnectConfirm` | `channels.manage` | stub | A | A | D | D | D |
-| `channelsConnectStart` | `channels.manage` | stub | A | A | D | D | D |
-| `channelsDelete` | `channels.manage` | stub | A | A | D | D | D |
-| `channelsGet` | `channels.view` | stub | A | A | A | A | A |
-| `channelsUpdate` | `channels.manage` | stub | A | A | D | D | D |
-| `channelsCheck` | `channels.view` | stub | A | A | A | A | A |
+| `channelSetsList` | `channel_sets.view` | yes | A | A | A | A | A |
+| `channelSetsCreate` | `channel_sets.manage` | yes | A | A | A | D | D |
+| `channelSetsDelete` | `channel_sets.manage` | yes | A | A | A | D | D |
+| `channelSetsGet` | `channel_sets.view` | yes | A | A | A | A | A |
+| `channelSetsUpdate` | `channel_sets.manage` | yes | A | A | A | D | D |
+| `channelsList` | `channels.view` | yes | A | A | A | A | A |
+| `channelsConnectCallback` | `channels.manage` | yes | A | A | D | D | D |
+| `channelsConnectConfirm` | `channels.manage` | yes | A | A | D | D | D |
+| `channelsConnectStart` | `channels.manage` | yes | A | A | D | D | D |
+| `channelsDelete` | `channels.manage` | yes | A | A | D | D | D |
+| `channelsGet` | `channels.view` | yes | A | A | A | A | A |
+| `channelsUpdate` | `channels.manage` | yes | A | A | D | D | D |
+| `channelsCheck` | `channels.manage` | yes | A | A | D | D | D |
 | `invitationsCancel` | `members.invite` | yes | A | A | D | D | D |
-| `mediaList` | `media.view` | stub | A | A | A | A | A |
-| `mediaCreateUpload` | `media.manage` | stub | A | A | A | A | D |
-| `mediaGet` | `media.view` | stub | A | A | A | A | A |
-| `mediaCompleteUpload` | `media.manage` | stub | A | A | A | A | D |
+| `mediaList` | `media.view` | yes | A | A | A | A | A |
+| `mediaImportUrl` | `media.manage` | yes | A | A | A | A | D |
+| `mediaCreateUpload` | `media.manage` | yes | A | A | A | A | D |
+| `mediaDelete` | `media.manage` | yes | A | A | A | A | D |
+| `mediaGet` | `media.view` | yes | A | A | A | A | A |
+| `mediaCompleteUpload` | `media.manage` | yes | A | A | A | A | D |
 | `notificationSettingsGet` | `notifications.manage_self` | stub | A | A | A | A | A |
 | `notificationSettingsUpdate` | `notifications.manage_self` | stub | A | A | A | A | A |
 | `notificationsList` | `notifications.manage_self` | stub | A | A | A | A | A |

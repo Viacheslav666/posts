@@ -1220,6 +1220,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hooks/max/{botId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Max Bot webhook */
+        post: operations["hooksMax"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hooks/tg/{botId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram Bot webhook */
+        post: operations["hooksTg"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hooks/vk/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** VK Callback API endpoint */
+        post: operations["hooksVk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1586,6 +1637,7 @@ export interface components {
             items?: components["schemas"]["Invoice"][];
             nextCursor?: string;
         };
+        JsonNode: Record<string, never>;
         LoginRequest: {
             /** @example user@example.com */
             email: string;
@@ -6273,7 +6325,9 @@ export interface operations {
     mediaImportUrl: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -10034,6 +10088,94 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    hooksMax: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Max-Bot-Api-Secret"?: string;
+            };
+            path: {
+                botId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    hooksTg: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Telegram-Bot-Api-Secret-Token"?: string;
+            };
+            path: {
+                botId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    hooksVk: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Callback-Secret"?: string;
+            };
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

@@ -1,0 +1,1437 @@
+# Машиночитаемая матрица NetworkCapabilities (AN-2)
+# Человекочитаемое описание: docs/product/network-capabilities.md
+# Схема: network-capabilities.schema.json
+# Правило: status=confirmed только при официальном источнике; иначе status=unknown, value=null.
+
+version: "1.0.0"
+updated: "2026-11-17"
+task: "AN-2"
+schema: "posts.network-capabilities.v1"
+checked_at: "2026-11-17"
+notes: >
+  Бэкенд загружает этот файл в NetworkCapabilities и posts.ratelimit.<network>.*.
+  Фронт получает снимок через GET /api/v1/networks/capabilities.
+  Числовые лимиты без официальной цифры в документации сети помечены unknown — не подставлять «народные» значения в прод-валидацию без отдельного решения владельца.
+
+networks:
+  # ---------------------------------------------------------------------------
+  # VK
+  # ---------------------------------------------------------------------------
+  - id: vk
+    name: ВКонтакте
+    phase: mvp
+    docs_home: "https://dev.vk.ru/"
+    channel_types: [group, profile]
+    content_types: [post, repost, story]
+
+    text:
+      max_chars:
+        status: unknown
+        value: null
+        unit: chars
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр message описан как text; числовой максимум в официальной схеме wall.post не опубликован."
+
+    formatting:
+      mode:
+        status: confirmed
+        value: plain
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "wall.post принимает обычный текст; rich-разметка HTML/Markdown в API поста не документирована."
+      features:
+        status: confirmed
+        value: []
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+      html_tags:
+        status: confirmed
+        value: []
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+
+    media:
+      max_attachments_per_post:
+        status: confirmed
+        value: 10
+        unit: items
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Не более 10 медиа (фото, видео) в посте."
+      photo:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.vk.ru/ru/api/upload/wall-photo"
+          checked_at: "2026-11-17"
+        max_count_per_post:
+          status: confirmed
+          value: 10
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 52428800
+          unit: bytes
+          source: "https://dev.vk.ru/ru/api/upload/wall-photo"
+          checked_at: "2026-11-17"
+          note: "Не более 50 Мбайт."
+        max_width_plus_height_px:
+          status: confirmed
+          value: 14000
+          unit: px
+          source: "https://dev.vk.ru/ru/api/upload/wall-photo"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: [JPG, PNG, GIF]
+          source: "https://dev.vk.ru/ru/api/upload/wall-photo"
+          checked_at: "2026-11-17"
+      video:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+        max_count_per_post:
+          status: confirmed
+          value: 10
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+          note: "Общий лимит 10 медиа photo+video."
+        max_file_bytes:
+          status: unknown
+          value: null
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+          note: "Лимит размера видеофайла для вложения на стену в wall.post не указан числом."
+        formats:
+          status: unknown
+          value: null
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+      document:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+          note: "Тип вложения doc; к посту можно прикрепить один файл."
+        max_count_per_post:
+          status: confirmed
+          value: 1
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: unknown
+          value: null
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+      audio:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+        max_count_per_post:
+          status: confirmed
+          value: 10
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+          note: "До 10 треков или 1 плейлист/альбом/подкаст."
+        formats:
+          status: unknown
+          value: null
+          source: "https://dev.vk.ru/ru/method/wall.post"
+          checked_at: "2026-11-17"
+
+    features:
+      native_schedule:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр publish_date (Unix Timestamp). В MVP Posts публикует сам; нативная отложка — ADR Фазы 2."
+      edit_after_publish:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.edit"
+        checked_at: "2026-11-17"
+      delete_after_publish:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.delete"
+        checked_at: "2026-11-17"
+      pin:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.pin"
+        checked_at: "2026-11-17"
+      unpin:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.unpin"
+        checked_at: "2026-11-17"
+      first_comment:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.createComment"
+        checked_at: "2026-11-17"
+        note: "Публикация комментария сразу после wall.post через wall.createComment."
+      stories:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/api/upload/story-in-profile"
+        checked_at: "2026-11-17"
+        note: "Фаза 2 продукта. Фото: JPG/PNG/GIF/WEBP/HEIF; видео истории ≤ 350 Мбайт (H.264/AAC/MP4)."
+      close_comments:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр close_comments."
+      mute_notifications:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр mute_notifications."
+      inline_buttons:
+        status: confirmed
+        value: false
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Inline-кнопки у wall.post не документированы (в отличие от сообщений сообщества)."
+      repost:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.repost"
+        checked_at: "2026-11-17"
+      signed_author:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр signed при from_group."
+      primary_attachments_mode:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "primary_attachments_mode: carousel|grid."
+      idempotency_key:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Параметр guid действует 1 час."
+
+    api_limits:
+      requests_per_second:
+        status: confirmed
+        value: 3
+        unit: rps
+        source: "https://dev.vk.ru/ru/api/api-requests"
+        checked_at: "2026-11-17"
+        note: "Базовый лимит пользовательского ключа; для сообщества см. отдельное поле."
+      requests_per_second_user_token:
+        status: confirmed
+        value: 3
+        unit: rps
+        source: "https://dev.vk.ru/ru/api/api-requests"
+        checked_at: "2026-11-17"
+      requests_per_second_community_token:
+        status: confirmed
+        value: 20
+        unit: rps
+        source: "https://dev.vk.ru/ru/api/api-requests"
+        checked_at: "2026-11-17"
+      publications_per_day:
+        status: unknown
+        value: null
+        source: "https://dev.vk.ru/ru/api/api-requests"
+        checked_at: "2026-11-17"
+        note: "Количественные лимиты однотипных методов VK не публикует (ошибка 29 / flood control 9)."
+      config_keys:
+        user_token_rps: 3
+        community_token_rps: 20
+        flood_control_error: 9
+        too_many_requests_error: 6
+      notes: >
+        При error 6 — backoff; при error 9 (flood control) — временная блокировка ключа.
+        Суточные лимиты на публикацию официально не раскрыты.
+
+    tokens:
+      auth_model:
+        status: confirmed
+        value: "vk_id_oauth2_pkce_plus_community_token"
+        source: "https://id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/tokens/about"
+        checked_at: "2026-11-17"
+      access_token_ttl_seconds:
+        status: confirmed
+        value: 3600
+        unit: seconds
+        source: "https://id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/api-description"
+        checked_at: "2026-11-17"
+        note: "Access token VK ID — 1 час."
+      refresh_token_ttl_seconds:
+        status: confirmed
+        value: 15552000
+        unit: seconds
+        source: "https://id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/tokens/refresh-token"
+        checked_at: "2026-11-17"
+        note: "Refresh token VK ID — 180 дней; ротация инвалидирует прежнюю пару."
+      notes: >
+        Ключ сообщества создаётся в настройках сообщества / OAuth; действует до удаления/отзыва
+        (см. https://dev.vk.ru/en/api/community-messages/getting-started). TTL ключа сообщества
+        как число секунд официально не публикуется → для community token TTL трактовать как until_revoked.
+
+    webhooks:
+      supported:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/api/callback/getting-started"
+        checked_at: "2026-11-17"
+      mechanism:
+        status: confirmed
+        value: "callback_api"
+        source: "https://dev.vk.ru/ru/api/callback/getting-started"
+        checked_at: "2026-11-17"
+        note: "Ответ ok; до 10 серверов; secret; confirmation."
+      notes: "Фаза 2: предложка/антиспам; MVP — статус канала и ingest."
+
+    permissions:
+      summary:
+        status: confirmed
+        value: "Пользователь должен быть админом/редактором сообщества или владельцем стены; wall.post требует права wall (для user token — по правилам VK)."
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+      required_scopes:
+        status: confirmed
+        value: [wall, photos, video, docs, groups, stories, offline]
+        source: "https://dev.vk.ru/ru/method/wall.post"
+        checked_at: "2026-11-17"
+        note: "Точный набор scopes для Posts утверждается при подключении VK ID; stories — отдельное право для Фазы 2."
+
+  # ---------------------------------------------------------------------------
+  # Telegram
+  # ---------------------------------------------------------------------------
+  - id: telegram
+    name: Telegram
+    phase: mvp
+    docs_home: "https://core.telegram.org/bots/api"
+    channel_types: [channel, group, supergroup]
+    content_types: [post, album, document]
+
+    text:
+      max_chars:
+        status: confirmed
+        value: 4096
+        unit: chars
+        source: "https://core.telegram.org/bots/api#sendmessage"
+        checked_at: "2026-11-17"
+        note: "1–4096 символов после разбора entities."
+
+    formatting:
+      mode:
+        status: confirmed
+        value: html
+        source: "https://core.telegram.org/bots/api#formatting-options"
+        checked_at: "2026-11-17"
+        note: "Posts использует parse_mode=HTML (также доступны MarkdownV2 и legacy Markdown)."
+      features:
+        status: confirmed
+        value: [bold, italic, underline, strikethrough, spoiler, code, pre, link, blockquote, expandable_blockquote]
+        source: "https://core.telegram.org/bots/api#formatting-options"
+        checked_at: "2026-11-17"
+      html_tags:
+        status: confirmed
+        value: [b, strong, i, em, u, ins, s, strike, del, span, tg-spoiler, a, code, pre, blockquote]
+        source: "https://core.telegram.org/bots/api#html-style"
+        checked_at: "2026-11-17"
+
+    media:
+      max_attachments_per_post:
+        status: confirmed
+        value: 10
+        unit: items
+        source: "https://core.telegram.org/bots/api#sendmediagroup"
+        checked_at: "2026-11-17"
+        note: "Альбом sendMediaGroup: 2–10 элементов; одиночные sendPhoto/sendVideo — 1."
+      photo:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://core.telegram.org/bots/api#sendphoto"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 10485760
+          unit: bytes
+          source: "https://core.telegram.org/bots/api#sendphoto"
+          checked_at: "2026-11-17"
+          note: "Фото ≤ 10 MB; width+height ≤ 10000; ratio ≤ 20."
+        max_width_plus_height_px:
+          status: confirmed
+          value: 10000
+          unit: px
+          source: "https://core.telegram.org/bots/api#sendphoto"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://core.telegram.org/bots/api#sendphoto"
+          checked_at: "2026-11-17"
+          note: "Конкретный whitelist расширений в sendPhoto не перечислен."
+        caption_max_chars:
+          status: confirmed
+          value: 1024
+          unit: chars
+          source: "https://core.telegram.org/bots/api#sendphoto"
+          checked_at: "2026-11-17"
+      video:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://core.telegram.org/bots/api#sendvideo"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 52428800
+          unit: bytes
+          source: "https://core.telegram.org/bots/api#sendvideo"
+          checked_at: "2026-11-17"
+          note: "Боты могут отправлять видео до 50 MB; лимит может измениться."
+        formats:
+          status: confirmed
+          value: [MP4]
+          source: "https://core.telegram.org/bots/api#sendvideo"
+          checked_at: "2026-11-17"
+          note: "Клиенты поддерживают MPEG4; прочие форматы могут уйти как Document."
+        caption_max_chars:
+          status: confirmed
+          value: 1024
+          unit: chars
+          source: "https://core.telegram.org/bots/api#sendvideo"
+          checked_at: "2026-11-17"
+      document:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://core.telegram.org/bots/api#senddocument"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 52428800
+          unit: bytes
+          source: "https://core.telegram.org/bots/faq"
+          checked_at: "2026-11-17"
+          note: "FAQ: боты отправляют файлы любого типа до 50 MB."
+        formats:
+          status: unknown
+          value: null
+          source: "https://core.telegram.org/bots/api#senddocument"
+          checked_at: "2026-11-17"
+        caption_max_chars:
+          status: confirmed
+          value: 1024
+          unit: chars
+          source: "https://core.telegram.org/bots/api#senddocument"
+          checked_at: "2026-11-17"
+      audio:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://core.telegram.org/bots/api#sendaudio"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 52428800
+          unit: bytes
+          source: "https://core.telegram.org/bots/faq"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://core.telegram.org/bots/api#sendaudio"
+          checked_at: "2026-11-17"
+      album:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://core.telegram.org/bots/api#sendmediagroup"
+          checked_at: "2026-11-17"
+        min_items:
+          status: confirmed
+          value: 2
+          source: "https://core.telegram.org/bots/api#sendmediagroup"
+          checked_at: "2026-11-17"
+        max_items:
+          status: confirmed
+          value: 10
+          source: "https://core.telegram.org/bots/api#sendmediagroup"
+          checked_at: "2026-11-17"
+
+    features:
+      native_schedule:
+        status: confirmed
+        value: false
+        source: "https://core.telegram.org/bots/api#sendmessage"
+        checked_at: "2026-11-17"
+        note: "Bot API не предоставляет publish_date; планирование на стороне Posts."
+      edit_after_publish:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#editmessagetext"
+        checked_at: "2026-11-17"
+      delete_after_publish:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#deletemessage"
+        checked_at: "2026-11-17"
+      pin:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#pinchatmessage"
+        checked_at: "2026-11-17"
+        note: "Нужно право can_pin_messages у бота."
+      unpin:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#unpinchatmessage"
+        checked_at: "2026-11-17"
+      first_comment:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#sendmessage"
+        checked_at: "2026-11-17"
+        note: "Для каналов с discussion — сообщение в связанную группу/ответ; отдельного метода «первый комментарий» нет."
+      stories:
+        status: confirmed
+        value: false
+        source: "https://core.telegram.org/bots/api"
+        checked_at: "2026-11-17"
+        note: "Публикация Stories через Bot API для каналов не документирована как аналог постов."
+      close_comments:
+        status: unknown
+        value: null
+        source: "https://core.telegram.org/bots/api"
+        checked_at: "2026-11-17"
+        note: "Управление комментариями канала зависит от настроек discussion; отдельный флаг в sendMessage не найден."
+      mute_notifications:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#sendmessage"
+        checked_at: "2026-11-17"
+        note: "disable_notification."
+      inline_buttons:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#inlinekeyboardmarkup"
+        checked_at: "2026-11-17"
+      repost:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#forwardmessage"
+        checked_at: "2026-11-17"
+        note: "forwardMessage / copyMessage."
+      idempotency_key:
+        status: unknown
+        value: null
+        source: "https://core.telegram.org/bots/api#sendmessage"
+        checked_at: "2026-11-17"
+        note: "Встроенного guid как у VK нет; идемпотентность на стороне Posts."
+
+    api_limits:
+      requests_per_second:
+        status: confirmed
+        value: 30
+        unit: rps
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+        note: "Около 30 сообщений/с на бота для bulk (без paid broadcasts)."
+      messages_per_second_global:
+        status: confirmed
+        value: 30
+        unit: rps
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+      messages_per_second_per_chat:
+        status: confirmed
+        value: 1
+        unit: rps
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+        note: "Не чаще ~1 сообщения/с в один чат."
+      messages_per_minute_per_group:
+        status: confirmed
+        value: 20
+        unit: rpm
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+      publications_per_day:
+        status: unknown
+        value: null
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+      config_keys:
+        global_msg_rps: 30
+        per_chat_msg_rps: 1
+        per_group_msg_rpm: 20
+      notes: "При 429 учитывать parameters.retry_after. Для пика >30/с — пул ботов (см. 02-backend.md)."
+
+    tokens:
+      auth_model:
+        status: confirmed
+        value: "bot_token"
+        source: "https://core.telegram.org/bots/tutorial"
+        checked_at: "2026-11-17"
+        note: "Токен выдаёт @BotFather; передаётся в URL api.telegram.org/bot<token>/."
+      access_token_ttl_seconds:
+        status: unknown
+        value: null
+        unit: seconds
+        source: "https://core.telegram.org/bots/faq"
+        checked_at: "2026-11-17"
+        note: "Официальный числовой TTL bot token не опубликован; действует до отзыва/ротации в BotFather."
+      refresh_token_ttl_seconds:
+        status: unknown
+        value: null
+        unit: seconds
+        source: "https://core.telegram.org/bots/tutorial"
+        checked_at: "2026-11-17"
+        note: "Refresh-токена у Bot API нет (не применимо)."
+
+    webhooks:
+      supported:
+        status: confirmed
+        value: true
+        source: "https://core.telegram.org/bots/api#setwebhook"
+        checked_at: "2026-11-17"
+      mechanism:
+        status: confirmed
+        value: "setWebhook"
+        source: "https://core.telegram.org/bots/api#setwebhook"
+        checked_at: "2026-11-17"
+        note: "secret_token → заголовок X-Telegram-Bot-Api-Secret-Token; порты 443/80/88/8443."
+
+    permissions:
+      summary:
+        status: confirmed
+        value: "Бот — администратор канала/группы с правами публикации (can_post_messages и др.)."
+        source: "https://core.telegram.org/bots/api#getchatmember"
+        checked_at: "2026-11-17"
+      required_scopes:
+        status: confirmed
+        value: [can_post_messages, can_edit_messages, can_delete_messages, can_pin_messages]
+        source: "https://core.telegram.org/bots/api#chatadministratorrights"
+        checked_at: "2026-11-17"
+        note: "Проверять при подключении канала (US-3.2)."
+
+  # ---------------------------------------------------------------------------
+  # OK (Одноклассники)
+  # ---------------------------------------------------------------------------
+  - id: ok
+    name: Одноклассники
+    phase: mvp
+    docs_home: "https://apiok.ru/"
+    channel_types: [group, profile]
+    content_types: [post, reshare, moment]
+
+    text:
+      max_chars:
+        status: unknown
+        value: null
+        unit: chars
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+        note: "Лимит длины текста существует (ошибка MEDIA_TOPIC_TEXT_LIMIT=601), но число символов в публичной документации метода не указано."
+
+    formatting:
+      mode:
+        status: confirmed
+        value: plain
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+        note: "media type=text — обычная строка; HTML/Markdown для поста не документированы."
+      features:
+        status: confirmed
+        value: []
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+      html_tags:
+        status: confirmed
+        value: []
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+
+    media:
+      max_attachments_per_post:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/errors"
+        checked_at: "2026-11-17"
+        note: "Есть ошибка MEDIA_TOPIC_BLOCK_LIMIT=600 («слишком много параметров media»), без числового порога в docs."
+      photo:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        max_count_per_post:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/errors"
+          checked_at: "2026-11-17"
+          note: "PHOTO_SIZE_LIMIT_EXCEEDED=500 без числового байтового лимита в таблице ошибок."
+        formats:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+      video:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+          note: "media type=movie; право VIDEO_CONTENT."
+        max_count_per_post:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+      document:
+        supported:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+          note: "Тип «файл/документ» в таблице media mediatopic.post не перечислен."
+        max_count_per_post:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+      audio:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+          note: "media type=music."
+        max_count_per_post:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+        formats:
+          status: unknown
+          value: null
+          source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+          checked_at: "2026-11-17"
+
+    features:
+      native_schedule:
+        status: confirmed
+        value: true
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+        note: "publishAt / publishAtMs для групповых тем."
+      edit_after_publish:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/"
+        checked_at: "2026-11-17"
+      delete_after_publish:
+        status: confirmed
+        value: true
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.deleteTopic"
+        checked_at: "2026-11-17"
+      pin:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/"
+        checked_at: "2026-11-17"
+        note: "Публичный метод закрепления топика в списке mediatopic не найден."
+      unpin:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/"
+        checked_at: "2026-11-17"
+      first_comment:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/"
+        checked_at: "2026-11-17"
+        note: "Метод создания комментария к медиатопику для сценария «первый комментарий» не подтверждён в просмотренной документации."
+      stories:
+        status: confirmed
+        value: true
+        source: "https://apiok.ru/dev/methods/rest/moments/"
+        checked_at: "2026-11-17"
+        note: "OK «Моменты» (moments.*). Фаза 2 продукта. Детальные лимиты размера — unknown без страницы commit/upload."
+      close_comments:
+        status: confirmed
+        value: true
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+        note: "disableComments для групповых тем."
+      mute_notifications:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+      inline_buttons:
+        status: confirmed
+        value: false
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+      repost:
+        status: confirmed
+        value: true
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+        note: "Решара: media type=topic / movie-reshare."
+      idempotency_key:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
+        checked_at: "2026-11-17"
+
+    api_limits:
+      requests_per_second:
+        status: unknown
+        value: null
+        unit: rps
+        source: "https://apiok.ru/dev/limits"
+        checked_at: "2026-11-17"
+        note: "Документация: для почти всех REST-методов нет ограничений частоты; числовой RPS не задан. Лимиты могут вводиться индивидуально. FLOOD_BLOCKED=8."
+      publications_per_day:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/dev/limits"
+        checked_at: "2026-11-17"
+      config_keys:
+        token_rps: 5
+      notes: >
+        Официального RPS нет. Консервативный стартовый ключ posts.ratelimit.ok.token_rps=5
+        (рекомендация 02-backend.md), не как лимит OK — как защита Posts.
+
+    tokens:
+      auth_model:
+        status: confirmed
+        value: "oauth_access_token"
+        source: "https://apiok.ru/ext/oauth/permissions"
+        checked_at: "2026-11-17"
+      access_token_ttl_seconds:
+        status: confirmed
+        value: 2592000
+        unit: seconds
+        source: "https://apiok.ru/ext/oauth/permissions"
+        checked_at: "2026-11-17"
+        note: "LONG_ACCESS_TOKEN: lifetime 30 дней; автопродление при вызовах API ≤1 раз/сутки; auth.touchSession ≤10 раз/мес."
+      refresh_token_ttl_seconds:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/ext/oauth/permissions"
+        checked_at: "2026-11-17"
+        note: "Отдельный refresh_token в модели LONG_ACCESS_TOKEN не описан; продление через API-вызовы / auth.touchSession."
+
+    webhooks:
+      supported:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/"
+        checked_at: "2026-11-17"
+        note: "Публичный webhook/callback для постов групп в просмотренной документации не подтверждён."
+      mechanism:
+        status: unknown
+        value: null
+        source: "https://apiok.ru/"
+        checked_at: "2026-11-17"
+
+    permissions:
+      summary:
+        status: confirmed
+        value: "OAuth с правами VALUABLE_ACCESS, GROUP_CONTENT (постинг в группу), PHOTO_CONTENT / VIDEO_CONTENT по типу вложений; LONG_ACCESS_TOKEN для долгого токена."
+        source: "https://apiok.ru/ext/oauth/permissions"
+        checked_at: "2026-11-17"
+      required_scopes:
+        status: confirmed
+        value: [VALUABLE_ACCESS, LONG_ACCESS_TOKEN, GROUP_CONTENT, PHOTO_CONTENT, VIDEO_CONTENT]
+        source: "https://apiok.ru/ext/oauth/permissions"
+        checked_at: "2026-11-17"
+
+  # ---------------------------------------------------------------------------
+  # Max
+  # ---------------------------------------------------------------------------
+  - id: max
+    name: Max
+    phase: mvp
+    docs_home: "https://dev.max.ru/docs-api"
+    channel_types: [channel, group, dialog]
+    content_types: [post, message]
+
+    text:
+      max_chars:
+        status: confirmed
+        value: 4000
+        unit: chars
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+
+    formatting:
+      mode:
+        status: confirmed
+        value: html
+        source: "https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting"
+        checked_at: "2026-11-17"
+        note: "format=html|markdown; Posts — HTML-подмножество."
+      features:
+        status: confirmed
+        value: [bold, italic, underline, strikethrough, code, link, heading, quote, highlight, user_mention]
+        source: "https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting"
+        checked_at: "2026-11-17"
+      html_tags:
+        status: confirmed
+        value: [b, strong, i, em, u, ins, s, strike, del, code, pre, a, h1, h2, h3, h4, h5, h6, blockquote, mark]
+        source: "https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting"
+        checked_at: "2026-11-17"
+        note: "Точный список тегов — по таблице HTML на странице форматирования Max."
+
+    media:
+      max_attachments_per_post:
+        status: confirmed
+        value: 12
+        unit: items
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+      photo:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 52428800
+          unit: bytes
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "image ≤ 50 МБ и ≤ 7680×7680."
+        max_width_px:
+          status: confirmed
+          value: 7680
+          unit: px
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        max_height_px:
+          status: confirmed
+          value: 7680
+          unit: px
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: [JPG, JPEG, PNG, GIF, TIFF, BMP, HEIC]
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+      video:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 262144000
+          unit: bytes
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "≤ 250 МБ."
+        formats:
+          status: confirmed
+          value: [MP4, MOV, MKV, WEBM]
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+      document:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "type=file, до 4 ГБ."
+        max_file_bytes:
+          status: confirmed
+          value: 4294967296
+          unit: bytes
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: [TXT, DOC]
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "Документация: «распространённые форматы (например, TXT, DOC и другие)» — полный whitelist не закрыт."
+      audio:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 268435456
+          unit: bytes
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "≤ 256 МБ и ≤ 60 мин."
+        max_duration_seconds:
+          status: confirmed
+          value: 3600
+          unit: seconds
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: [MP3, M4A]
+          source: "https://dev.max.ru/docs-api/methods/POST/uploads"
+          checked_at: "2026-11-17"
+          note: "«MP3, M4A и другие»."
+
+    features:
+      native_schedule:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+        note: "Параметр отложенной публикации в POST /messages не найден."
+      edit_after_publish:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/PUT/messages"
+        checked_at: "2026-11-17"
+        note: "В диалогах без кнопок — ≤7 суток; в группах/каналах — без лимита давности."
+      delete_after_publish:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/DELETE/messages"
+        checked_at: "2026-11-17"
+      pin:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/PUT/chats/-chatId-/pin"
+        checked_at: "2026-11-17"
+      unpin:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/DELETE/chats/-chatId-/pin"
+        checked_at: "2026-11-17"
+      first_comment:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+        note: "Упоминания ограничений форматирования в комментариях есть; отдельный метод «комментарий к посту канала» для first_comment не подтверждён."
+      stories:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+      close_comments:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+      mute_notifications:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/objects/NewMessageBody"
+        checked_at: "2026-11-17"
+        note: "notify=false; для каналов нужно notify=true / поле опущено."
+      inline_buttons:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+        note: "type=inline_keyboard; до 7 кнопок в ряду, до 30 рядов."
+      repost:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+      idempotency_key:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+
+    api_limits:
+      requests_per_second:
+        status: confirmed
+        value: 30
+        unit: rps
+        source: "https://dev.max.ru/docs/chatbots/bots-coding/prepare"
+        checked_at: "2026-11-17"
+        note: "Максимум 30 rps на platform-api2.max.ru."
+      messages_per_second_per_chat:
+        status: confirmed
+        value: 2
+        unit: rps
+        source: "https://dev.max.ru/docs-api/methods/POST/messages"
+        checked_at: "2026-11-17"
+        note: "Не более 2 сообщений/с в один диалог/группу/канал (также для edit/delete)."
+      publications_per_day:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+      config_keys:
+        global_rps: 30
+        per_chat_msg_rps: 2
+      notes: "HTTP 429 при превышении."
+
+    tokens:
+      auth_model:
+        status: confirmed
+        value: "bot_access_token"
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+        note: "Authorization: <access_token>; query-параметры токена больше не поддерживаются."
+      access_token_ttl_seconds:
+        status: unknown
+        value: null
+        unit: seconds
+        source: "https://dev.max.ru/docs/chatbots/bots-create/manage"
+        checked_at: "2026-11-17"
+        note: "Числовой TTL не опубликован; токен действует до ротации/отзыва."
+      refresh_token_ttl_seconds:
+        status: unknown
+        value: null
+        unit: seconds
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+        note: "Refresh-токен бота не описан (не применимо)."
+
+    webhooks:
+      supported:
+        status: confirmed
+        value: true
+        source: "https://dev.max.ru/docs-api/methods/POST/subscriptions"
+        checked_at: "2026-11-17"
+      mechanism:
+        status: confirmed
+        value: "POST /subscriptions"
+        source: "https://dev.max.ru/docs-api/methods/POST/subscriptions"
+        checked_at: "2026-11-17"
+        note: "HTTPS; secret → X-Max-Bot-Api-Secret; ответ 200 ≤30 с; до 10 ретраев; отписка после 8 ч ошибок."
+
+    permissions:
+      summary:
+        status: confirmed
+        value: "Бот добавлен админом в чат/канал; для pin/delete — права администратора."
+        source: "https://dev.max.ru/docs-api/methods/PUT/chats/-chatId-/pin"
+        checked_at: "2026-11-17"
+      required_scopes:
+        status: unknown
+        value: null
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-17"
+        note: "OAuth scopes как у VK/OK не применяются; права задаются ролью бота в чате."
+
+  # ---------------------------------------------------------------------------
+  # Rutube (Фаза 2)
+  # ---------------------------------------------------------------------------
+  - id: rutube
+    name: Rutube
+    phase: phase2
+    docs_home: "https://r2b.su/"
+    channel_types: [channel]
+    content_types: [video, shorts]
+
+    text:
+      max_chars:
+        status: confirmed
+        value: 5000
+        unit: chars
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "Описание видео (description) до 5000 символов; отдельного «текста поста» нет."
+      title_max_chars:
+        status: confirmed
+        value: 100
+        unit: chars
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      description_max_chars:
+        status: confirmed
+        value: 5000
+        unit: chars
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+
+    formatting:
+      mode:
+        status: confirmed
+        value: plain
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "PartnerAPI принимает title/description строками без documented rich markup."
+      features:
+        status: confirmed
+        value: []
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      html_tags:
+        status: confirmed
+        value: []
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+
+    media:
+      max_attachments_per_post:
+        status: confirmed
+        value: 1
+        unit: items
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "Одна загрузка = одно видео."
+      photo:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+          note: "Обложка видео (не фото-пост): jpeg/jpg/png, ≤10 МБ, до 1920×1080."
+        max_file_bytes:
+          status: confirmed
+          value: 10485760
+          unit: bytes
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+        max_width_px:
+          status: confirmed
+          value: 1920
+          unit: px
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+        max_height_px:
+          status: confirmed
+          value: 1080
+          unit: px
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: [JPEG, JPG, PNG]
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+      video:
+        supported:
+          status: confirmed
+          value: true
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+        max_file_bytes:
+          status: confirmed
+          value: 26843545600
+          unit: bytes
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+          note: "Не более 25 Гб (FAQ загрузки)."
+        max_duration_seconds:
+          status: confirmed
+          value: 18000
+          unit: seconds
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+          note: "Не более 5 часов (300 минут)."
+        formats:
+          status: confirmed
+          value: [MP4, AVI, WMV, MOV, FLV, MPEG-1, MPEG-2, MPEG-4, MPG, MPEGPS, 3GPP, WebM, DNxHR, ProRes, CineForm, HEVC]
+          source: "https://rutube.ru/info/upload/"
+          checked_at: "2026-11-17"
+      document:
+        supported:
+          status: confirmed
+          value: false
+          source: "https://r2b.su/"
+          checked_at: "2026-11-17"
+        max_count_per_post:
+          status: confirmed
+          value: 0
+          source: "https://r2b.su/"
+          checked_at: "2026-11-17"
+        formats:
+          status: confirmed
+          value: []
+          source: "https://r2b.su/"
+          checked_at: "2026-11-17"
+      audio:
+        supported:
+          status: confirmed
+          value: false
+          source: "https://r2b.su/"
+          checked_at: "2026-11-17"
+          note: "Отдельная аудио-публикация не является объектом PartnerAPI."
+        formats:
+          status: confirmed
+          value: []
+          source: "https://r2b.su/"
+          checked_at: "2026-11-17"
+
+    features:
+      native_schedule:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "В PartnerAPI (r2b.su) метод отложенной публикации в просмотренной спецификации не найден; is_hidden — скрытие, не schedule."
+      edit_after_publish:
+        status: confirmed
+        value: true
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "PATCH /api/video/{video_id}/ — title/description/category/…"
+      delete_after_publish:
+        status: confirmed
+        value: true
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "DELETE видео в PartnerAPI."
+      pin:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      unpin:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      first_comment:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      stories:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      close_comments:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      mute_notifications:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      inline_buttons:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      repost:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      idempotency_key:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+
+    api_limits:
+      requests_per_second:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "RPS PartnerAPI не опубликован."
+      publications_per_day:
+        status: unknown
+        value: null
+        source: "https://rutube.ru/info/upload/"
+        checked_at: "2026-11-17"
+        note: "FAQ: одновременно до 5 загрузок; суточный лимит API не указан."
+      config_keys:
+        token_rps: 5
+        max_parallel_uploads: 5
+      notes: "Стартовый posts.ratelimit.rutube.token_rps=5 (консервативно, 02-backend.md)."
+
+    tokens:
+      auth_model:
+        status: confirmed
+        value: "partner_jwt"
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "client_id/secret → code → login канала → access_token/refresh_token; обновление /api/v3/accounts/token."
+      access_token_ttl_seconds:
+        status: confirmed
+        value: 1209600
+        unit: seconds
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "Пример ответа PartnerAPI: expires_in=1209600 (14 суток)."
+      refresh_token_ttl_seconds:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "TTL refresh_token в спецификации числом не указан."
+
+    webhooks:
+      supported:
+        status: confirmed
+        value: true
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+        note: "callback_url / errback_url при загрузке видео (не входящий webhook платформы, а исходящий callback партнёра)."
+      mechanism:
+        status: confirmed
+        value: "upload_callback_url"
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+
+    permissions:
+      summary:
+        status: confirmed
+        value: "Партнёрские client_id/client_secret от менеджера Rutube + учётные данные канала для JWT."
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"
+      required_scopes:
+        status: unknown
+        value: null
+        source: "https://r2b.su/"
+        checked_at: "2026-11-17"

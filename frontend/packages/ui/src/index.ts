@@ -91,3 +91,6 @@ export type { EmptyStateProps } from './components/empty-state';
 
 export { PostPreview } from './components/post-preview';
 export type { PostPreviewNetwork, PostPreviewProps } from './components/post-preview';
+
+export { FileDropzone } from './components/file-dropzone';
+export type { FileDropzoneProps } from './components/file-dropzone';

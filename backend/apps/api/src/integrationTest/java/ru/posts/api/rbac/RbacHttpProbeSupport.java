@@ -24,9 +24,13 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.ChannelSetEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.ChannelSetRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
@@ -47,6 +51,8 @@ final class RbacHttpProbeSupport {
     private final LoggingAuthMailSender mailSender;
     private final PlanRepository planRepository;
     private final WorkspaceRepository workspaceRepository;
+    private final ChannelRepository channelRepository;
+    private final ChannelSetRepository channelSetRepository;
     private final MediaAssetRepository mediaAssetRepository;
 
     RbacHttpProbeSupport(
@@ -55,12 +61,16 @@ final class RbacHttpProbeSupport {
             LoggingAuthMailSender mailSender,
             PlanRepository planRepository,
             WorkspaceRepository workspaceRepository,
+            ChannelRepository channelRepository,
+            ChannelSetRepository channelSetRepository,
             MediaAssetRepository mediaAssetRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
         this.planRepository = planRepository;
         this.workspaceRepository = workspaceRepository;
+        this.channelRepository = channelRepository;
+        this.channelSetRepository = channelSetRepository;
         this.mediaAssetRepository = mediaAssetRepository;
     }
 
@@ -151,6 +161,18 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "channelsDelete" -> {
+                UUID disposable = seedChannel(ids.workspaceId(), ids.projectAlpha(), "RBAC disposable channel");
+                yield statusOf(delete("/api/v1/channels/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
+            case "channelSetsDelete" -> {
+                UUID disposable = seedChannelSet(ids.workspaceId(), "RBAC disposable set");
+                yield statusOf(delete("/api/v1/channel-sets/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             case "mediaDelete" -> {
                 UUID disposable = insertMedia(ids.workspaceId(), userIdFromMe(accessToken));
                 yield statusOf(delete("/api/v1/media/" + disposable)
@@ -213,11 +235,17 @@ final class RbacHttpProbeSupport {
         path = path.replace("{invitationId}", values.get("{invitationId}"));
         path = path.replace("{channelId}", values.get("{channelId}"));
         path = path.replace("{setId}", values.get("{channelSetId}"));
+        path = path.replace("{botId}", values.getOrDefault("{botId}", randomUuid()));
         path = path.replace("{postId}", values.get("{postId}"));
         path = path.replace("{mediaId}", values.get("{mediaId}"));
         path = path.replace("{publicationId}", values.get("{publicationId}"));
         path = path.replace("{sessionId}", values.get("{sessionId}"));
-        path = path.replace("{network}", "vk");
+        // confirm is tg/max-only; use tg so authz is reached after body validation
+        if ("channelsConnectConfirm".equals(endpoint.operationId())) {
+            path = path.replace("{network}", "tg");
+        } else {
+            path = path.replace("{network}", "vk");
+        }
         path = path.replace("{provider}", "vk");
         return path;
     }
@@ -240,6 +268,8 @@ final class RbacHttpProbeSupport {
             // Never reuse own resource IDs for IDOR probes.
             values.put("{memberUserId}", randomUuid());
             values.put("{invitationId}", randomUuid());
+            values.put("{channelId}", randomUuid());
+            values.put("{channelSetId}", randomUuid());
             values.put(
                     "{mediaId}",
                     ids.foreignMediaId() == null
@@ -259,11 +289,18 @@ final class RbacHttpProbeSupport {
                             ? randomUuid()
                             : ids.pendingInvitationId().toString());
             values.put(
+                    "{channelId}",
+                    ids.channelId() == null ? randomUuid() : ids.channelId().toString());
+            values.put(
+                    "{channelSetId}",
+                    ids.channelSetId() == null
+                            ? randomUuid()
+                            : ids.channelSetId().toString());
+            values.put(
                     "{mediaId}",
                     ids.mediaId() == null ? randomUuid() : ids.mediaId().toString());
         }
-        values.put("{channelId}", randomUuid());
-        values.put("{channelSetId}", randomUuid());
+        values.put("{botId}", randomUuid());
         values.put("{postId}", randomUuid());
         values.put("{publicationId}", randomUuid());
         values.put("{sessionId}", randomUuid());
@@ -273,6 +310,7 @@ final class RbacHttpProbeSupport {
     private String defaultBody(String operationId, EndpointIds ids, Scope scope) {
         UUID workspaceId = scope == Scope.FOREIGN ? ids.foreignWorkspaceId() : ids.workspaceId();
         UUID projectId = scope == Scope.FOREIGN ? ids.foreignProjectId() : ids.projectAlpha();
+        UUID channelId = scope == Scope.FOREIGN || ids.channelId() == null ? UUID.randomUUID() : ids.channelId();
         return switch (operationId) {
             case "workspacesUpdate" -> "{\"name\":\"RBAC Probe Rename\"}";
             case "projectsCreate" -> "{\"name\":\"RBAC Probe " + UUID.randomUUID() + "\",\"color\":\"#123456\"}";
@@ -308,6 +346,23 @@ final class RbacHttpProbeSupport {
                     .createObjectNode()
                     .put("workspaceId", workspaceId.toString())
                     .toString();
+            case "channelSetsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Set " + UUID.randomUUID());
+                node.set("channelIds", objectMapper.createArrayNode().add(channelId.toString()));
+                yield node.toString();
+            }
+            case "channelSetsUpdate" -> "{\"name\":\"RBAC Set Updated\"}";
+            case "channelsUpdate" -> "{\"timezone\":\"Europe/Moscow\"}";
+            case "channelsConnectCallback", "channelsConnectConfirm" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("projectId", projectId.toString());
+                node.put("code", "rbac-probe-code");
+                node.put("state", "rbac-probe-state");
+                node.put("username", "@rbac_probe");
+                yield node.toString();
+            }
             case "mediaCreateUpload" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
@@ -317,13 +372,13 @@ final class RbacHttpProbeSupport {
                 node.put("filename", "rbac-probe.jpg");
                 yield node.toString();
             }
-            case "mediaCompleteUpload" -> "{}";
             case "mediaImportUrl" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
                 node.put("url", "http://127.0.0.1/rbac-probe.jpg");
                 yield node.toString();
             }
+            case "mediaCompleteUpload" -> "{}";
             case "postsCreate",
                     "postsUpdate",
                     "postsBulk",
@@ -332,12 +387,7 @@ final class RbacHttpProbeSupport {
                     "postsPause",
                     "postsResume",
                     "calendarMove",
-                    "channelSetsCreate",
-                    "channelSetsUpdate",
-                    "channelsUpdate",
                     "channelsConnectStart",
-                    "channelsConnectConfirm",
-                    "channelsConnectCallback",
                     "notificationSettingsUpdate",
                     "notificationsMarkRead" -> "{}";
             default -> "{}";
@@ -373,6 +423,9 @@ final class RbacHttpProbeSupport {
         UUID foreignWs = firstWorkspaceId(foreignToken);
         UUID foreignProject = createProject(foreignToken, foreignWs, "Foreign", "#0000AA");
 
+        UUID channelId = seedChannel(workspaceId, projectAlpha, "RBAC fixture channel");
+        UUID channelSetId = seedChannelSet(workspaceId, "RBAC fixture set");
+
         JsonNode pending = createInvitation(
                 ownerToken,
                 workspaceId,
@@ -397,6 +450,8 @@ final class RbacHttpProbeSupport {
                 projectBeta,
                 foreignWs,
                 foreignProject,
+                channelId,
+                channelSetId,
                 UUID.fromString(pending.get("id").asText()),
                 viewerUserId,
                 mediaId,
@@ -425,6 +480,36 @@ final class RbacHttpProbeSupport {
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         return mediaAssetRepository.save(asset).getId();
+    }
+
+    private UUID seedChannel(UUID workspaceId, UUID projectId, String title) {
+        ChannelEntity channel = new ChannelEntity();
+        channel.setId(UuidV7.generate());
+        channel.setWorkspaceId(workspaceId);
+        channel.setProjectId(projectId);
+        channel.setNetwork("vk");
+        channel.setExternalId("rbac-" + UUID.randomUUID());
+        channel.setType("group");
+        channel.setTitle(title);
+        channel.setUsername("@rbac_" + UUID.randomUUID().toString().substring(0, 8));
+        channel.setCapabilities(Map.of());
+        channel.setStatus("active");
+        channel.setTimezone("Europe/Moscow");
+        Instant now = Instant.now();
+        channel.setCreatedAt(now);
+        channel.setUpdatedAt(now);
+        return channelRepository.save(channel).getId();
+    }
+
+    private UUID seedChannelSet(UUID workspaceId, String name) {
+        ChannelSetEntity set = new ChannelSetEntity();
+        set.setId(UuidV7.generate());
+        set.setWorkspaceId(workspaceId);
+        set.setName(name);
+        Instant now = Instant.now();
+        set.setCreatedAt(now);
+        set.setUpdatedAt(now);
+        return channelSetRepository.save(set).getId();
     }
 
     private UUID userIdFromMe(String token) throws Exception {
@@ -567,6 +652,8 @@ final class RbacHttpProbeSupport {
             UUID projectBeta,
             UUID foreignWorkspaceId,
             UUID foreignProjectId,
+            UUID channelId,
+            UUID channelSetId,
             UUID pendingInvitationId,
             UUID viewerUserId,
             UUID mediaId,

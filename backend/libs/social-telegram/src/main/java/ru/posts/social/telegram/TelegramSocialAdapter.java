@@ -2,22 +2,25 @@ package ru.posts.social.telegram;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import ru.posts.social.api.ChannelContext;
 import ru.posts.social.api.ErrorClass;
+import ru.posts.social.api.MediaAssetRef;
 import ru.posts.social.api.Network;
+import ru.posts.social.api.NetworkCapabilities;
 import ru.posts.social.api.PostVariantContent;
 import ru.posts.social.api.PublishResult;
+import ru.posts.social.api.RemoteMediaRef;
 import ru.posts.social.api.SocialAdapter;
 import ru.posts.social.api.SocialApiException;
 
@@ -34,9 +37,8 @@ public class TelegramSocialAdapter implements SocialAdapter {
     public TelegramSocialAdapter(TelegramAdapterProperties properties, ObjectMapper objectMapper) {
         this.baseUrl = trimTrailingSlash(properties.baseUrl());
         this.objectMapper = objectMapper;
-        HttpClient httpClient =
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(3));
         requestFactory.setReadTimeout(properties.readTimeout());
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -50,8 +52,18 @@ public class TelegramSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public NetworkCapabilities capabilities() {
+        return new NetworkCapabilities(
+                Network.TG,
+                true,
+                true,
+                false,
+                Map.of("sendMessage", true, "sendPhoto", true, "deleteMessage", true, "pinChatMessage", true));
+    }
+
+    @Override
     public PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
-        String token = ctx.accessToken() == null || ctx.accessToken().isBlank() ? "emulator-token" : ctx.accessToken();
+        String token = resolveToken(ctx);
         String chatId = ctx.externalId();
         String text = content == null || content.text() == null ? "" : content.text();
         try {
@@ -69,10 +81,13 @@ public class TelegramSocialAdapter implements SocialAdapter {
             return parsePublishResult(body, chatId);
         } catch (RestClientResponseException ex) {
             throw mapHttpError(ex);
-        } catch (RestClientException ex) {
-            // Emulator DROP returns aborted connection after creating the post.
+        } catch (ResourceAccessException ex) {
+            // Emulator DROP / timeout: response may already exist — resolve via findExisting.
             throw new SocialApiException(
                     ErrorClass.UNKNOWN_OUTCOME, "Telegram call interrupted: " + ex.getMessage(), null, null, ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Telegram transport error: " + ex.getMessage(), null, null, ex);
         }
     }
 
@@ -106,6 +121,81 @@ public class TelegramSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public RemoteMediaRef uploadMedia(ChannelContext ctx, MediaAssetRef asset) {
+        String token = resolveToken(ctx);
+        String chatId = ctx.externalId();
+        String photoRef = asset == null || asset.id() == null ? "stub-photo" : asset.id();
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/bot{token}/sendPhoto", token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "chat_id",
+                            chatId,
+                            "photo",
+                            photoRef,
+                            "caption",
+                            "",
+                            "idempotency_key",
+                            "media:" + photoRef))
+                    .retrieve()
+                    .body(JsonNode.class);
+            PublishResult published = parsePublishResult(body, chatId);
+            String kind = asset == null || asset.kind() == null ? "photo" : asset.kind();
+            return new RemoteMediaRef(published.remotePostId(), kind);
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Telegram upload interrupted: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    @Override
+    public void delete(ChannelContext ctx, String remotePostId) {
+        String token = resolveToken(ctx);
+        try {
+            restClient
+                    .post()
+                    .uri("/bot{token}/deleteMessage", token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("chat_id", ctx.externalId(), "message_id", remotePostId))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            int status = ex.getStatusCode().value();
+            if (status == 400 || status == 404) {
+                return;
+            }
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Telegram delete failed: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    /** Optional pin helper used by scheduled actions (not part of the core publish path). */
+    public void pin(ChannelContext ctx, String remotePostId, boolean pinned) {
+        String token = resolveToken(ctx);
+        String method = pinned ? "pinChatMessage" : "unpinChatMessage";
+        try {
+            restClient
+                    .post()
+                    .uri("/bot{token}/" + method, token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("chat_id", ctx.externalId(), "message_id", remotePostId))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Telegram pin failed: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    @Override
     public ErrorClass classifyError(Throwable error) {
         if (error instanceof SocialApiException social) {
             return social.errorClass();
@@ -123,10 +213,17 @@ public class TelegramSocialAdapter implements SocialAdapter {
             }
             return ErrorClass.PERMANENT;
         }
+        if (error instanceof ResourceAccessException) {
+            return ErrorClass.UNKNOWN_OUTCOME;
+        }
         if (error instanceof RestClientException) {
             return ErrorClass.RETRYABLE;
         }
         return ErrorClass.RETRYABLE;
+    }
+
+    private static String resolveToken(ChannelContext ctx) {
+        return ctx.accessToken() == null || ctx.accessToken().isBlank() ? "emulator-token" : ctx.accessToken();
     }
 
     private SocialApiException mapHttpError(RestClientResponseException ex) {

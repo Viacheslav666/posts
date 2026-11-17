@@ -52,6 +52,8 @@ tags:
   name: Channel sets
 - description: Connected social channels and connect flows
   name: Channels
+- description: Inbound webhooks for VK / Telegram / Max (validate + enqueue)
+  name: Social hooks
 - description: In-app notifications and delivery settings (US-5.4)
   name: Notifications
 - description: "Plans, subscription, checkout, invoices, promo codes"
@@ -3243,6 +3245,12 @@ paths:
   /api/v1/media/import-url:
     post:
       operationId: mediaImportUrl
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -6288,6 +6296,103 @@ paths:
       summary: Create a project
       tags:
       - Projects
+  /hooks/max/{botId}:
+    post:
+      operationId: hooksMax
+      parameters:
+      - in: path
+        name: botId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Max-Bot-Api-Secret
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: Max Bot webhook
+      tags:
+      - Social hooks
+  /hooks/tg/{botId}:
+    post:
+      operationId: hooksTg
+      parameters:
+      - in: path
+        name: botId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Telegram-Bot-Api-Secret-Token
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: Telegram Bot webhook
+      tags:
+      - Social hooks
+  /hooks/vk/{channelId}:
+    post:
+      operationId: hooksVk
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Callback-Secret
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: OK
+      summary: VK Callback API endpoint
+      tags:
+      - Social hooks
 components:
   schemas:
     AcceptInvitationRequest:
@@ -6984,6 +7089,8 @@ components:
             $ref: "#/components/schemas/Invoice"
         nextCursor:
           type: string
+    JsonNode:
+      type: object
     LoginRequest:
       type: object
       properties:
