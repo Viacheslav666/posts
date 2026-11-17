@@ -33,9 +33,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           build-root-directory: backend
+      # --no-build-cache: CodeQL tracer must see a real javac; FROM-CACHE skips instrumentation
+      # and finalize fails with no-source-code-seen-during-build.
       - if: matrix.language == 'java'
         working-directory: backend
-        run: ./gradlew build -x test -x integrationTest
+        run: ./gradlew build -x test -x integrationTest --no-build-cache
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
