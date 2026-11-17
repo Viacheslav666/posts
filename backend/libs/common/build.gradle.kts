@@ -3,5 +3,6 @@ plugins {
 }
 
 dependencies {
-    api(libs.aws.s3)
+    // Keep S3 off consumer compile/runtime classpaths; only api/media pull it in.
+    implementation(libs.aws.s3)
 }
