@@ -493,6 +493,100 @@
     "emptyTitle": "Здесь пока пусто",
     "emptyDescription": "Подключите канал или создайте первый пост — после FE-2/FE-3."
   },
+  "posts": {
+    "title": "Отложенные посты",
+    "description": "Список запланированных публикаций с фильтрами и массовыми действиями.",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра постов.",
+    "emptyTitle": "Постов пока нет",
+    "emptyBody": "Создайте пост или измените фильтры.",
+    "create": "Создать пост",
+    "untitled": "Без названия",
+    "selectAll": "Выбрать все на странице",
+    "count": "{count} на странице",
+    "backToList": "К списку постов",
+    "filters": {
+      "search": "Поиск",
+      "searchPlaceholder": "Заголовок или текст",
+      "status": "Статус",
+      "network": "Сеть",
+      "channel": "Канал",
+      "author": "Автор",
+      "from": "С даты",
+      "to": "По дату",
+      "sort": "Сортировка",
+      "allStatuses": "Все статусы",
+      "allNetworks": "Все сети",
+      "allChannels": "Все каналы",
+      "allAuthors": "Все авторы"
+    },
+    "sort": {
+      "scheduledDesc": "Сначала поздние",
+      "scheduledAsc": "Сначала ранние",
+      "titleAsc": "По названию",
+      "updatedDesc": "Недавно обновлённые"
+    },
+    "networks": {
+      "vk": "ВКонтакте",
+      "tg": "Telegram",
+      "ok": "Одноклассники",
+      "max": "Max",
+      "rutube": "Rutube"
+    },
+    "status": {
+      "draft": "Черновик",
+      "pending_approval": "На согласовании",
+      "approved": "Согласован",
+      "scheduled": "Запланирован",
+      "publishing": "Публикуется",
+      "published": "Опубликован",
+      "partially_published": "Частично",
+      "failed": "Ошибка",
+      "paused": "Пауза",
+      "archived": "Архив",
+      "deleted_from_network": "Удалён из сети"
+    },
+    "publicationState": {
+      "pending": "Ожидает",
+      "queued": "В очереди",
+      "in_progress": "В работе",
+      "succeeded": "Успешно",
+      "failed_retryable": "Ошибка (повтор)",
+      "failed_permanent": "Ошибка",
+      "cancelled": "Отменено",
+      "waiting_for_channel": "Ждёт канал"
+    },
+    "pagination": {
+      "prev": "Назад",
+      "next": "Далее"
+    },
+    "bulk": {
+      "toolbarLabel": "Массовые действия",
+      "selected": "Выбрано: {count}",
+      "pause": "Пауза",
+      "resume": "Возобновить",
+      "duplicate": "Дублировать",
+      "reschedule": "Перенести",
+      "rescheduleAt": "Новое время",
+      "delete": "Удалить",
+      "clear": "Снять выбор",
+      "successTitle": "Действие выполнено",
+      "successBody": "{action}: затронуто {affected}",
+      "errorTitle": "Не удалось выполнить действие"
+    },
+    "detail": {
+      "publications": "Публикации по каналам",
+      "noPublications": "Публикаций ещё нет",
+      "scheduledAt": "Запланировано: {value}",
+      "attempts": "Попыток: {count}",
+      "retry": "Повторить",
+      "retrySuccess": "Публикация отправлена на повтор",
+      "retryError": "Не удалось повторить публикацию",
+      "openRemote": "Открыть в сети",
+      "notFoundTitle": "Пост не найден",
+      "notFoundBody": "Возможно, он удалён или недоступен."
+    }
+  },
   "calendar": {
     "title": "Календарь",
     "description": "Планируйте публикации и переносите посты перетаскиванием.",

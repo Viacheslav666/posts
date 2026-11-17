@@ -14,7 +14,18 @@ const STATUS_VARIANT: Record<string, NonNullable<BadgeProps['variant']>> = {
   review: 'review',
   partially_published: 'publishing',
   pending_approval: 'review',
+  approved: 'review',
   archived: 'draft',
+  deleted_from_network: 'paused',
+  // publication pipeline states
+  pending: 'scheduled',
+  queued: 'scheduled',
+  in_progress: 'publishing',
+  succeeded: 'published',
+  failed_retryable: 'failed',
+  failed_permanent: 'failed',
+  cancelled: 'paused',
+  waiting_for_channel: 'review',
 };
 
 export type PostStatusBadgeProps = HTMLAttributes<HTMLDivElement> & {

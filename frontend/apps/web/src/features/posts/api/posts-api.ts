@@ -99,7 +99,7 @@ export async function getPost(postId: string): Promise<Post> {
   );
 }
 
-export async function deletePost(postId: string): Promise<Post | void> {
+export async function deletePost(postId: string): Promise<void> {
   const client = getApiClient();
   const result = await client.DELETE('/api/v1/posts/{postId}', {
     params: { path: { postId } },
@@ -107,7 +107,6 @@ export async function deletePost(postId: string): Promise<Post | void> {
   if (!result.response.ok) {
     unwrapApi(result);
   }
-  return result.data;
 }
 
 export async function pausePost(postId: string, body: PostActionRequest): Promise<Post> {

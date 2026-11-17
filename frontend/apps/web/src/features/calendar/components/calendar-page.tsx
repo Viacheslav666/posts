@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarPlus, ChevronLeft, ChevronRight, ShieldOff } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -81,6 +82,7 @@ function usePreferredDefaultMode(): CalendarViewMode {
 
 export function CalendarPage({ workspaceId }: CalendarPageProps) {
   const t = useTranslations('calendar');
+  const router = useRouter();
   const queryClient = useQueryClient();
   const canView = useCan('calendar.view', workspaceId);
   const canMove = useCan('calendar.move', workspaceId);
@@ -309,7 +311,10 @@ export function CalendarPage({ workspaceId }: CalendarPageProps) {
           anchor={anchor}
           canMove={canMove}
           onMoveRequest={handleMoveRequest}
-          onEventClick={(id) => setSelectedId(id)}
+          onEventClick={(id) => {
+            setSelectedId(id);
+            router.push(`/app/${workspaceId}/posts/${id}`);
+          }}
           selectedId={selectedId}
         />
       )}
