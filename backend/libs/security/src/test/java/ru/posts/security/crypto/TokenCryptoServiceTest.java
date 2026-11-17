@@ -17,7 +17,8 @@ class TokenCryptoServiceTest {
 
         byte[] sealed = crypto.seal(dek, "vk-access-token-secret");
         assertThat(sealed[0]).isEqualTo(TokenCryptoService.BLOB_VERSION);
-        assertThat(new String(sealed)).doesNotContain("vk-access-token-secret");
+        assertThat(new String(sealed, java.nio.charset.StandardCharsets.UTF_8))
+                .doesNotContain("vk-access-token-secret");
         assertThat(crypto.unseal(dek, sealed)).isEqualTo("vk-access-token-secret");
     }
 

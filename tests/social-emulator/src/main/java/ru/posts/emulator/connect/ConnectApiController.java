@@ -1,6 +1,5 @@
 package ru.posts.emulator.connect;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,8 @@ public class ConnectApiController {
         String code = first(form, "code");
         Map<String, Object> fixture = store.consumeOAuthCode(code);
         if (fixture == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "invalid_grant", "error_description", "unknown code"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "invalid_grant", "error_description", "unknown code"));
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("access_token", fixture.get("access_token"));
@@ -88,7 +88,8 @@ public class ConnectApiController {
     public ResponseEntity<?> getChat(@PathVariable String token, @RequestParam("chat_id") String chatId) {
         ConnectFixtureStore.ChatFixture chat = store.findTelegram(chatId);
         if (chat == null || !chat.botIsAdmin()) {
-            return ResponseEntity.ok(Map.of("ok", false, "error_code", 400, "description", "Bad Request: chat not found"));
+            return ResponseEntity.ok(
+                    Map.of("ok", false, "error_code", 400, "description", "Bad Request: chat not found"));
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", Long.parseLong(chat.id()));
@@ -102,7 +103,8 @@ public class ConnectApiController {
     public ResponseEntity<?> getChatMember(@PathVariable String token, @RequestParam("chat_id") String chatId) {
         ConnectFixtureStore.ChatFixture chat = store.findTelegram(chatId);
         if (chat == null || !chat.botIsAdmin()) {
-            return ResponseEntity.ok(Map.of("ok", false, "error_code", 400, "description", "Bad Request: chat not found"));
+            return ResponseEntity.ok(
+                    Map.of("ok", false, "error_code", 400, "description", "Bad Request: chat not found"));
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "administrator");

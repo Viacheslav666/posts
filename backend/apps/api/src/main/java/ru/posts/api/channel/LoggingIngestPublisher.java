@@ -3,17 +3,11 @@ package ru.posts.api.channel;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 
 /**
  * Default ingest publisher for MVP: validates hooks without requiring RabbitMQ on posts-api.
  * A Rabbit-backed bean can replace this when messaging is wired in the deployment.
  */
-@Component
-@Profile("!openapi")
-@ConditionalOnMissingBean(IngestPublisher.class)
 public class LoggingIngestPublisher implements IngestPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingIngestPublisher.class);

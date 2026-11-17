@@ -77,8 +77,7 @@ public class ConnectFixtureStore {
                         "name",
                         "OK Admin",
                         "groups",
-                        List.of(Map.of(
-                                "uid", "ok-g1", "name", "OK Group", "role", "ADMIN", "is_admin", true))));
+                        List.of(Map.of("uid", "ok-g1", "name", "OK Group", "role", "ADMIN", "is_admin", true))));
         oauthCodes.put(
                 "ok-no-admin",
                 Map.of(

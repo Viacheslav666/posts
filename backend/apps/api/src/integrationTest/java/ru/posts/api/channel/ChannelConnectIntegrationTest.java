@@ -423,10 +423,9 @@ class ChannelConnectIntegrationTest {
         String email = "ch-" + UUID.randomUUID() + "@example.com";
         String token = registerVerifyLogin(email, "Channel Owner");
         UUID workspaceId = firstWorkspaceId(token);
-        JsonNode project = readJson(mockMvc.perform(post("/api/v1/projects")
+        JsonNode project = readJson(mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/projects")
                         .with(csrf())
                         .header("Authorization", bearer(token))
-                        .param("workspaceId", workspaceId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("name", "Main", "color", "#112233"))))
                 .andExpect(status().isCreated())

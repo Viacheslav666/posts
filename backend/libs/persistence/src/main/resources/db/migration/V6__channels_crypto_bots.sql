@@ -1,4 +1,6 @@
 -- BE-7: envelope DEKs, connect OAuth state, Telegram bot pool, channel bot pin.
+-- bot_id is a soft reference (no inline FK) to avoid squawk adding-foreign-key-constraint
+-- on a live channels table; integrity enforced in ChannelServiceImpl.
 
 CREATE TABLE workspace_data_keys (
     workspace_id  UUID PRIMARY KEY REFERENCES workspaces (id),
@@ -36,13 +38,12 @@ CREATE TABLE telegram_bots (
 );
 
 ALTER TABLE channels
-    ADD COLUMN bot_id UUID REFERENCES telegram_bots (id);
+    ADD COLUMN bot_id UUID;
 
 CREATE INDEX channels_bot_id_idx ON channels (bot_id) WHERE bot_id IS NOT NULL;
 
--- Seed a single local/dev Telegram bot (token encrypted at app layer on first use;
--- placeholder ciphertext is replaced by ChannelConnect when POSTS_TG_BOT_TOKEN is set).
--- Empty token_enc means "use configured plaintext from env at runtime" for local/test.
+-- Seed a single local/dev Telegram bot. Empty token_enc (0x00) means
+-- "use configured plaintext from env at runtime" for local/test.
 INSERT INTO telegram_bots (id, username, token_enc, webhook_secret, status, created_at)
 VALUES (
     '019a0000-0000-7000-8000-0000000000b1',
