@@ -5,7 +5,7 @@ import { AuthShell } from '@/features/auth/components/auth-shell';
 import { VerifyEmailForm } from '@/features/auth/components/verify-email-form';
 
 type VerifyEmailPageProps = {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; token?: string }>;
 };
 
 export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) {
@@ -13,6 +13,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
   const common = await getTranslations('common');
   const params = await searchParams;
   const email = params.email?.trim() || 'demo@posts.app';
+  const token = params.token?.trim() || '';
 
   return (
     <AuthShell
@@ -27,7 +28,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
         </p>
       }
     >
-      <VerifyEmailForm email={email} />
+      <VerifyEmailForm initialToken={token} />
     </AuthShell>
   );
 }

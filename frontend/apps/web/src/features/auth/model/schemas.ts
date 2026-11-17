@@ -6,10 +6,11 @@ const emailSchema = z
   .min(1, 'emailRequired')
   .email('emailInvalid');
 
+/** Matches OpenAPI RegisterRequest / PasswordResetRequest minLength=10. */
 const passwordSchema = z
   .string()
   .min(1, 'passwordRequired')
-  .min(8, 'passwordMin')
+  .min(10, 'passwordMin')
   .regex(/[A-Za-z]/, 'passwordLetter')
   .regex(/[0-9]/, 'passwordDigit');
 
@@ -22,7 +23,7 @@ export type LoginValues = z.infer<typeof loginSchema>;
 
 export const registerSchema = z
   .object({
-    name: z.string().trim().min(1, 'nameRequired').max(80, 'nameMax'),
+    name: z.string().trim().min(1, 'nameRequired').max(120, 'nameMax'),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'confirmRequired'),
@@ -38,11 +39,11 @@ export const registerSchema = z
 export type RegisterValues = z.infer<typeof registerSchema>;
 
 export const verifyEmailSchema = z.object({
-  code: z
+  token: z
     .string()
     .trim()
     .min(1, 'codeRequired')
-    .regex(/^\d{6}$/, 'codeFormat'),
+    .min(6, 'codeFormat'),
 });
 
 export type VerifyEmailValues = z.infer<typeof verifyEmailSchema>;

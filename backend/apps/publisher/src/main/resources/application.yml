@@ -1,11 +1,43 @@
 spring:
   application:
     name: posts-publisher
-  main:
-    web-application-type: servlet
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: jdbc:postgresql://${POSTS_DB_HOST:localhost}:${POSTS_DB_PORT:5432}/${POSTS_DB_NAME:posts}
+    username: ${POSTS_DB_USER:posts}
+    password: ${POSTS_DB_PASSWORD:posts}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${POSTS_REDIS_HOST:localhost}
+      port: ${POSTS_REDIS_PORT:6379}
+  rabbitmq:
+    host: ${POSTS_RABBIT_HOST:localhost}
+    port: ${POSTS_RABBIT_PORT:5672}
+    username: ${POSTS_RABBIT_USER:posts}
+    password: ${POSTS_RABBIT_PASSWORD:posts}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: ${posts.publisher.prefetch:50}
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8082}
+  shutdown: graceful
 
 management:
   endpoints:
@@ -16,3 +48,32 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+posts:
+  publisher:
+    network: ${POSTS_PUBLISHER_NETWORK:tg}
+    pod-name: ${HOSTNAME:publisher-local}
+    claim-lock-ttl: 5m
+    prefetch: 50
+    max-attempts: 8
+    max-age-after-run-at: 60m
+    publish-timeout: 15s
+  social:
+    telegram:
+      base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
+      read-timeout: 15s
+  ratelimit:
+    redis-uri: redis://${POSTS_REDIS_HOST:localhost}:${POSTS_REDIS_PORT:6379}
+    networks:
+      tg:
+        global-per-second: 200
+        token-per-second: 200
+        chat-per-minute: 600
+
+logging:
+  level:
+    root: INFO
+    ru.posts.publisher: INFO

@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { getErrorMessage } from '@/shared/lib/errors';
+
 import { resetPasswordRequest } from '../api/auth-api';
 import { resetPasswordSchema, type ResetPasswordValues } from '../model/schemas';
 import { FormField } from './form-field';
@@ -33,14 +35,14 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
     try {
-      await resetPasswordRequest({ token, password: values.password });
+      await resetPasswordRequest({ token, newPassword: values.password });
       toast({ title: t('reset.successTitle'), description: t('reset.successBody') });
       router.push('/login');
     } catch (error) {
       toast({
         variant: 'destructive',
         title: t('reset.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);

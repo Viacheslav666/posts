@@ -3,30 +3,28 @@
 import { Button, toast } from '@posts/ui';
 import { useTranslations } from 'next-intl';
 
-import { oauthStartUrl } from '../api/auth-api';
+import { getErrorMessage } from '@/shared/lib/errors';
+
+import { startOauth } from '../api/auth-api';
 
 export function OauthButtons() {
   const t = useTranslations('auth.oauth');
 
   async function handleOauth(provider: 'vk' | 'yandex') {
     try {
-      const response = await fetch(oauthStartUrl(provider));
-      const data = (await response.json()) as { authorizeUrl?: string; detail?: string };
-      if (!response.ok) {
-        throw new Error(data.detail || t('error'));
-      }
+      const data = await startOauth(provider);
       toast({
         title: t('stubTitle', { provider: provider === 'vk' ? 'VK ID' : 'Яндекс ID' }),
         description: t('stubDescription'),
       });
-      if (data.authorizeUrl) {
-        window.open(data.authorizeUrl, '_blank', 'noopener,noreferrer');
+      if (data.authorizationUrl) {
+        window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: t('error'),
-        description: error instanceof Error ? error.message : t('error'),
+        description: getErrorMessage(error, t('error')),
       });
     }
   }

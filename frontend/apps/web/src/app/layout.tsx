@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
-import { IBM_Plex_Sans, Source_Serif_4 } from 'next/font/google';
+import localFont from 'next/font/local';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
@@ -8,16 +8,26 @@ import { AppProviders } from '@/shared/providers/app-providers';
 
 import './globals.css';
 
-const sans = IBM_Plex_Sans({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600'],
+const sans = localFont({
+  src: [
+    { path: './fonts/ibm-plex-sans-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/ibm-plex-sans-latin-500-normal.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/ibm-plex-sans-latin-600-normal.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/ibm-plex-sans-cyrillic-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/ibm-plex-sans-cyrillic-500-normal.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/ibm-plex-sans-cyrillic-600-normal.woff2', weight: '600', style: 'normal' },
+  ],
   variable: '--font-sans',
   display: 'swap',
 });
 
-const display = Source_Serif_4({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['600', '700'],
+const display = localFont({
+  src: [
+    { path: './fonts/source-serif-4-latin-600-normal.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/source-serif-4-latin-700-normal.woff2', weight: '700', style: 'normal' },
+    { path: './fonts/source-serif-4-cyrillic-600-normal.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/source-serif-4-cyrillic-700-normal.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-display',
   display: 'swap',
 });

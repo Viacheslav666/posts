@@ -1,0 +1,252 @@
+package ru.posts.persistence.jdbc;
+
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.annotation.Transactional;
+import ru.posts.common.uuid.UuidV7;
+
+/** Hot-path publication state transitions for publisher + reaper (ADR-0004). */
+public class PublicationLifecycleJdbc {
+
+    private static final String CLAIM_QUEUED =
+            """
+            UPDATE publications p
+            SET state = 'in_progress',
+                attempts = attempts + 1,
+                locked_by = :lockedBy,
+                locked_until = :lockedUntil
+            WHERE p.id = :id
+              AND p.state = 'queued'
+            RETURNING p.id, p.run_at, p.workspace_id, p.post_id, p.variant_id, p.channel_id,
+                      p.network, p.idempotency_key, p.remote_post_id, p.attempts
+            """;
+
+    private static final String LOAD_CONTENT =
+            """
+            SELECT c.external_id AS external_channel_id,
+                   coalesce(pv.content ->> 'text', p.base_content ->> 'text', '') AS content_text
+            FROM publications pub
+            JOIN channels c ON c.id = pub.channel_id
+            JOIN posts p ON p.id = pub.post_id
+            LEFT JOIN post_variants pv ON pv.id = pub.variant_id
+            WHERE pub.id = :id AND pub.run_at = :runAt
+            """;
+
+    private final JdbcClient jdbcClient;
+
+    public PublicationLifecycleJdbc(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Transactional
+    public Optional<PublicationClaim> claimQueued(UUID publicationId, String lockedBy, Duration lockTtl) {
+        Instant lockedUntil = Instant.now().plus(lockTtl);
+        List<PublicationClaim> rows = jdbcClient
+                .sql(CLAIM_QUEUED)
+                .param("id", publicationId)
+                .param("lockedBy", lockedBy)
+                .param("lockedUntil", Timestamp.from(lockedUntil))
+                .query((rs, rowNum) -> new PublicationClaim(
+                        rs.getObject("id", UUID.class),
+                        rs.getTimestamp("run_at").toInstant(),
+                        rs.getObject("workspace_id", UUID.class),
+                        rs.getObject("post_id", UUID.class),
+                        rs.getObject("variant_id", UUID.class),
+                        rs.getObject("channel_id", UUID.class),
+                        rs.getString("network"),
+                        rs.getString("idempotency_key"),
+                        null,
+                        null,
+                        rs.getString("remote_post_id"),
+                        rs.getInt("attempts")))
+                .list();
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        PublicationClaim base = rows.getFirst();
+        return Optional.of(enrich(base));
+    }
+
+    private PublicationClaim enrich(PublicationClaim base) {
+        return jdbcClient
+                .sql(LOAD_CONTENT)
+                .param("id", base.id())
+                .param("runAt", Timestamp.from(base.runAt()))
+                .query((rs, rowNum) -> new PublicationClaim(
+                        base.id(),
+                        base.runAt(),
+                        base.workspaceId(),
+                        base.postId(),
+                        base.variantId(),
+                        base.channelId(),
+                        base.network(),
+                        base.idempotencyKey(),
+                        rs.getString("external_channel_id"),
+                        rs.getString("content_text"),
+                        base.remotePostId(),
+                        base.attempts()))
+                .optional()
+                .orElse(base);
+    }
+
+    @Transactional
+    public void markSucceeded(UUID id, Instant runAt, String remotePostId, String remoteUrl) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE publications
+                        SET state = 'succeeded',
+                            remote_post_id = :remotePostId,
+                            remote_url = :remoteUrl,
+                            published_at = :publishedAt,
+                            locked_by = NULL,
+                            locked_until = NULL,
+                            error_code = NULL,
+                            error_message = NULL,
+                            next_attempt_at = NULL
+                        WHERE id = :id AND run_at = :runAt
+                        """)
+                .param("id", id)
+                .param("runAt", Timestamp.from(runAt))
+                .param("remotePostId", remotePostId)
+                .param("remoteUrl", remoteUrl)
+                .param("publishedAt", Timestamp.from(Instant.now()))
+                .update();
+    }
+
+    @Transactional
+    public void markFailedRetryable(
+            UUID id, Instant runAt, Instant nextAttemptAt, String errorCode, String errorMessage) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE publications
+                        SET state = 'failed_retryable',
+                            next_attempt_at = :nextAttemptAt,
+                            error_code = :errorCode,
+                            error_message = :errorMessage,
+                            locked_by = NULL,
+                            locked_until = NULL
+                        WHERE id = :id AND run_at = :runAt
+                        """)
+                .param("id", id)
+                .param("runAt", Timestamp.from(runAt))
+                .param("nextAttemptAt", Timestamp.from(nextAttemptAt))
+                .param("errorCode", errorCode)
+                .param("errorMessage", truncate(errorMessage, 1000))
+                .update();
+    }
+
+    @Transactional
+    public void markFailedPermanent(UUID id, Instant runAt, String errorCode, String errorMessage) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE publications
+                        SET state = 'failed_permanent',
+                            error_code = :errorCode,
+                            error_message = :errorMessage,
+                            locked_by = NULL,
+                            locked_until = NULL,
+                            next_attempt_at = NULL
+                        WHERE id = :id AND run_at = :runAt
+                        """)
+                .param("id", id)
+                .param("runAt", Timestamp.from(runAt))
+                .param("errorCode", errorCode)
+                .param("errorMessage", truncate(errorMessage, 1000))
+                .update();
+    }
+
+    @Transactional
+    public void revertQueuedToPending(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        for (UUID id : ids) {
+            jdbcClient
+                    .sql(
+                            """
+                            UPDATE publications
+                            SET state = 'pending', locked_until = NULL, locked_by = NULL
+                            WHERE id = :id AND state = 'queued'
+                            """)
+                    .param("id", id)
+                    .update();
+        }
+    }
+
+    @Transactional
+    public int reaperStuck() {
+        return jdbcClient
+                .sql(
+                        """
+                        UPDATE publications
+                        SET state = 'failed_retryable',
+                            next_attempt_at = now(),
+                            locked_by = NULL,
+                            locked_until = NULL,
+                            error_code = 'reaper_stale_lock',
+                            error_message = 'locked_until expired'
+                        WHERE state IN ('queued', 'in_progress')
+                          AND locked_until IS NOT NULL
+                          AND locked_until < now()
+                        """)
+                .update();
+    }
+
+    @Transactional
+    public void recordAttempt(
+            UUID publicationId,
+            Instant publicationRunAt,
+            int attemptNo,
+            Instant startedAt,
+            Instant finishedAt,
+            Integer httpStatus,
+            String errorCode,
+            String responseExcerptJson) {
+        jdbcClient
+                .sql(
+                        """
+                        INSERT INTO publication_attempts (
+                            id, publication_id, publication_run_at, attempt_no,
+                            started_at, finished_at, http_status, error_code, response_excerpt)
+                        VALUES (
+                            :id, :publicationId, :publicationRunAt, :attemptNo,
+                            :startedAt, :finishedAt, :httpStatus, :errorCode,
+                            CAST(:responseExcerpt AS jsonb))
+                        """)
+                .param("id", UuidV7.generate())
+                .param("publicationId", publicationId)
+                .param("publicationRunAt", Timestamp.from(publicationRunAt))
+                .param("attemptNo", attemptNo)
+                .param("startedAt", Timestamp.from(startedAt))
+                .param("finishedAt", finishedAt == null ? null : Timestamp.from(finishedAt))
+                .param("httpStatus", httpStatus)
+                .param("errorCode", errorCode)
+                .param("responseExcerpt", responseExcerptJson == null ? "{}" : responseExcerptJson)
+                .update();
+    }
+
+    @Transactional(readOnly = true)
+    public long countByState(String state) {
+        Long count = jdbcClient
+                .sql("SELECT count(*) FROM publications WHERE state = :state")
+                .param("state", state)
+                .query(Long.class)
+                .single();
+        return count == null ? 0 : count;
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= max ? value : value.substring(0, max);
+    }
+}
