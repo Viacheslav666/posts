@@ -304,11 +304,12 @@ export function TeamPage({ workspaceId }: TeamPageProps) {
               <Skeleton className="h-32 w-full" />
             ) : (
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[480px] text-left text-sm" data-testid="audit-table">
+                <table className="w-full min-w-[560px] text-left text-sm" data-testid="audit-table">
                   <thead className="border-b border-border bg-muted/50">
                     <tr>
                       <th className="px-3 py-2 font-medium">{t('audit.action')}</th>
                       <th className="px-3 py-2 font-medium">{t('audit.entity')}</th>
+                      <th className="px-3 py-2 font-medium">{t('audit.ip')}</th>
                       <th className="px-3 py-2 font-medium">{t('audit.time')}</th>
                     </tr>
                   </thead>
@@ -317,6 +318,9 @@ export function TeamPage({ workspaceId }: TeamPageProps) {
                       <tr key={entry.id} className="border-b border-border last:border-0">
                         <td className="px-3 py-2">{entry.action}</td>
                         <td className="px-3 py-2 text-muted-foreground">{entry.entity}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          {entry.ip ?? '—'}
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {entry.createdAt
                             ? new Date(entry.createdAt).toLocaleString('ru-RU')
@@ -326,7 +330,7 @@ export function TeamPage({ workspaceId }: TeamPageProps) {
                     ))}
                     {(auditQuery.data?.items ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-3 py-8 text-center text-muted-foreground">
+                        <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
                           {t('audit.empty')}
                         </td>
                       </tr>
