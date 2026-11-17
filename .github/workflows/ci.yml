@@ -59,6 +59,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Squawk lint Flyway migrations
@@ -68,7 +70,8 @@ jobs:
           config: "backend/.squawk.toml"
           pg-version: "16.0"
           fail-on-violations: "true"
-          upload-to-github: "true"
+          # GITHUB_TOKEN lacks issues:write here; lint result is enough for the gate.
+          upload-to-github: "false"
 
   contract:
     needs: changes
