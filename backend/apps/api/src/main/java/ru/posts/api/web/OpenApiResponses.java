@@ -10,7 +10,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import ru.posts.api.web.dto.common.ProblemDetailDto;
 
-/** Common stub responses documented on every mutating/read stub endpoint. */
+/** Common documented responses for stub and future real endpoints. */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @ApiResponses({
@@ -23,7 +23,43 @@ import ru.posts.api.web.dto.common.ProblemDetailDto;
                             schema = @Schema(implementation = ProblemDetailDto.class))),
     @ApiResponse(
             responseCode = "400",
-            description = "Validation failed",
+            description = "Validation failed (`validation_failed`)",
+            content =
+                    @Content(
+                            mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetailDto.class))),
+    @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized (`unauthorized`)",
+            content =
+                    @Content(
+                            mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetailDto.class))),
+    @ApiResponse(
+            responseCode = "403",
+            description = "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)",
+            content =
+                    @Content(
+                            mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetailDto.class))),
+    @ApiResponse(
+            responseCode = "404",
+            description = "Not found or IDOR (`not_found`)",
+            content =
+                    @Content(
+                            mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetailDto.class))),
+    @ApiResponse(
+            responseCode = "409",
+            description =
+                    "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`)",
+            content =
+                    @Content(
+                            mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetailDto.class))),
+    @ApiResponse(
+            responseCode = "429",
+            description = "Rate limited (`rate_limited`)",
             content =
                     @Content(
                             mediaType = "application/problem+json",

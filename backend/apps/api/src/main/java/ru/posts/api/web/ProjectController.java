@@ -34,8 +34,7 @@ public class ProjectController {
     @GetMapping("/workspaces/{workspaceId}/projects")
     @Operation(operationId = "projectsList", summary = "List projects visible to the current member")
     @ApiResponse(responseCode = "200", description = "Projects page")
-    public CursorPage.Response<ProjectDtos.Project> list(
-            @PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
+    public CursorPage.ProjectPage list(@PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("projectsList");
     }
 

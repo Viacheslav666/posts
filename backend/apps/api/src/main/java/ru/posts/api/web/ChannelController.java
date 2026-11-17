@@ -35,7 +35,7 @@ public class ChannelController {
     @GetMapping("/channels")
     @Operation(operationId = "channelsList", summary = "List channels in a workspace")
     @ApiResponse(responseCode = "200", description = "Channels page")
-    public CursorPage.Response<ChannelDtos.Channel> list(
+    public CursorPage.ChannelPage list(
             @RequestParam UUID workspaceId,
             @RequestParam(required = false) UUID projectId,
             @RequestParam(required = false) ApiEnums.Network network,
@@ -83,12 +83,35 @@ public class ChannelController {
     }
 
     @PostMapping("/channels/connect/{network}/callback")
-    @Operation(operationId = "channelsConnectCallback", summary = "Finish channel connect after OAuth/bot confirmation")
-    @ApiResponse(responseCode = "200", description = "Connected channel(s)")
-    public CursorPage.Response<ChannelDtos.Channel> connectCallback(
+    @Operation(
+            operationId = "channelsConnectCallback",
+            summary = "Finish channel connect after OAuth or bot confirmation",
+            description = "OAuth: code+state. Bot (tg/max): username and/or forwardedMessage/chatId. "
+                    + "Missing bot rights → 403 `insufficient_permissions`.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Connected channel(s)",
+            content = @Content(schema = @Schema(implementation = CursorPage.ChannelPage.class)))
+    public CursorPage.ChannelPage connectCallback(
             @PathVariable ApiEnums.Network network,
             @Valid @RequestBody ChannelDtos.ChannelConnectCallbackRequest request) {
         throw ApiStub.notImplemented("channelsConnectCallback");
+    }
+
+    @PostMapping("/channels/connect/{network}/confirm")
+    @Operation(
+            operationId = "channelsConnectConfirm",
+            summary = "Confirm Telegram/Max bot channel attach (US-3.2 / US-3.4)",
+            description = "After the bot is added as admin, user submits @username or a forwarded message. "
+                    + "Permission check failure → ProblemDetail.code=`insufficient_permissions`.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Connected channel(s)",
+            content = @Content(schema = @Schema(implementation = CursorPage.ChannelPage.class)))
+    public CursorPage.ChannelPage connectConfirm(
+            @PathVariable ApiEnums.Network network,
+            @Valid @RequestBody ChannelDtos.ChannelConnectConfirmRequest request) {
+        throw ApiStub.notImplemented("channelsConnectConfirm");
     }
 
     @PostMapping("/channels/{channelId}/check")

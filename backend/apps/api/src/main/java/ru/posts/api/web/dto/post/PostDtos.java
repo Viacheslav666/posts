@@ -30,7 +30,7 @@ public final class PostDtos {
             Boolean closeComments,
             Boolean signed,
             String firstComment,
-            List<Map<String, Object>> buttons,
+            List<InlineButton> buttons,
             String carouselMode,
             Map<String, Object> extra) {}
 
@@ -40,10 +40,26 @@ public final class PostDtos {
 
     @Schema(name = "Recurrence")
     public record Recurrence(
-            @Schema(example = "weekly") String freq,
+            @NotNull ApiEnums.RecurrenceFreq freq,
             @Schema(example = "1") Integer interval,
             List<String> byWeekday,
             Instant until) {}
+
+    @Schema(
+            name = "RepostTarget",
+            description = "Repost of an existing network object with optional comment (US-4.9). "
+                    + "Supported for vk/tg/ok; not for max (capability.repost=false).")
+    public record RepostTarget(
+            @NotNull ApiEnums.Network network,
+            @Schema(description = "External post/object id in the source network") String externalId,
+            @Schema(description = "Canonical URL of the source post when id is unknown") String url,
+            @Schema(description = "Optional commentary attached to the repost") String comment) {}
+
+    @Schema(name = "InlineButton")
+    public record InlineButton(
+            @Schema(example = "Открыть") String text,
+            @Schema(example = "https://example.com") String url,
+            @Schema(description = "Callback data for bot buttons", nullable = true) String callbackData) {}
 
     @Schema(name = "Post")
     public record Post(
@@ -56,6 +72,7 @@ public final class PostDtos {
             ApiEnums.PostStatus status,
             Instant scheduledAt,
             Recurrence recurrence,
+            @Schema(description = "Repost mode payload; null for regular posts") RepostTarget repost,
             boolean ad,
             int version,
             List<PostVariant> variants,
@@ -70,6 +87,7 @@ public final class PostDtos {
             @NotNull @Valid PostContent baseContent,
             Instant scheduledAt,
             @Valid Recurrence recurrence,
+            @Valid RepostTarget repost,
             boolean ad,
             @Valid List<PostVariantUpsert> variants) {}
 
@@ -80,6 +98,7 @@ public final class PostDtos {
             @Valid PostContent baseContent,
             Instant scheduledAt,
             @Valid Recurrence recurrence,
+            @Valid RepostTarget repost,
             Boolean ad,
             @NotNull @Schema(description = "Optimistic lock version") Integer version,
             @Valid List<PostVariantUpsert> variants) {}

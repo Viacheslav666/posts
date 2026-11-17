@@ -42,7 +42,9 @@ public final class ApiEnums {
         profile
     }
 
-    @Schema(description = "Aggregate post status")
+    @Schema(
+            description = "Aggregate post status. `deleted_from_network` = removed from social networks "
+                    + "via auto-delete/manual delete; soft-deleted drafts use `archived`.")
     public enum PostStatus {
         draft,
         pending_approval,
@@ -53,7 +55,21 @@ public final class ApiEnums {
         partially_published,
         failed,
         paused,
-        archived
+        archived,
+        deleted_from_network
+    }
+
+    @Schema(description = "Recurrence frequency for scheduled posts")
+    public enum RecurrenceFreq {
+        once,
+        daily,
+        weekdays,
+        weekends,
+        weekly,
+        monthly,
+        every_n_days,
+        every_n_weeks,
+        every_n_months
     }
 
     @Schema(description = "Per-channel publication pipeline state")

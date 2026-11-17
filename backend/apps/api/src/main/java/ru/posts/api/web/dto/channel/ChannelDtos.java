@@ -57,7 +57,31 @@ public final class ChannelDtos {
     @Schema(name = "UpdateChannelRequest")
     public record UpdateChannelRequest(UUID projectId, @Schema(example = "Europe/Moscow") String timezone) {}
 
-    @Schema(name = "ChannelConnectCallbackRequest")
+    @Schema(
+            name = "ChannelConnectCallbackRequest",
+            description = "OAuth callback (VK/OK) or bot-flow confirm (TG/Max). For OAuth provide code+state; "
+                    + "for bot flows provide username and/or forwardedMessage/chatId (US-3.2/3.4).")
     public record ChannelConnectCallbackRequest(
-            @NotBlank String code, @NotBlank String state, @NotNull UUID workspaceId, UUID projectId) {}
+            @Schema(description = "OAuth authorization code (VK/OK)") String code,
+            @Schema(description = "OAuth state (VK/OK)") String state,
+            @NotNull UUID workspaceId,
+            UUID projectId,
+            @Schema(description = "Telegram/Max channel or chat @username", example = "@brand_news") String username,
+            @Schema(description = "External chat/channel id when known") String chatId,
+            @Schema(description = "Forwarded message reference for bot attach flows")
+                    ForwardedMessageRef forwardedMessage) {}
+
+    @Schema(name = "ForwardedMessageRef")
+    public record ForwardedMessageRef(
+            @Schema(example = "-1001234567890") String chatId, @Schema(example = "42") String messageId) {}
+
+    @Schema(
+            name = "ChannelConnectConfirmRequest",
+            description = "Dedicated bot-flow confirm for Telegram/Max after the bot is added as admin")
+    public record ChannelConnectConfirmRequest(
+            @NotNull UUID workspaceId,
+            UUID projectId,
+            @Schema(example = "@brand_news") String username,
+            String chatId,
+            ForwardedMessageRef forwardedMessage) {}
 }

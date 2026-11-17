@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public class InvitationController {
     @GetMapping("/workspaces/{workspaceId}/invitations")
     @Operation(operationId = "invitationsList", summary = "List pending invitations for a workspace")
     @ApiResponse(responseCode = "200", description = "Invitations page")
-    public CursorPage.Response<WorkspaceDtos.Invitation> list(
+    public CursorPage.InvitationPage list(
             @PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("invitationsList");
     }
@@ -70,6 +71,7 @@ public class InvitationController {
     }
 
     @GetMapping("/invitations/preview")
+    @SecurityRequirements
     @Operation(operationId = "invitationsPreview", summary = "Preview invitation metadata by token (unauthenticated)")
     @ApiResponse(responseCode = "200", description = "Invitation preview")
     public WorkspaceDtos.Invitation preview(@RequestParam String token) {

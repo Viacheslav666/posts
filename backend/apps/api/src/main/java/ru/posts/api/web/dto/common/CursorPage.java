@@ -4,8 +4,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import ru.posts.api.web.dto.auth.AuthDtos;
+import ru.posts.api.web.dto.billing.BillingDtos;
+import ru.posts.api.web.dto.channel.ChannelDtos;
+import ru.posts.api.web.dto.media.MediaDtos;
+import ru.posts.api.web.dto.notification.NotificationDtos;
+import ru.posts.api.web.dto.post.PostDtos;
+import ru.posts.api.web.dto.project.ProjectDtos;
+import ru.posts.api.web.dto.workspace.WorkspaceDtos;
 
-/** Cursor-based pagination (opaque cursor, no offset). */
+/**
+ * Cursor pagination. Concrete page records (not {@code Response<T>}) so springdoc emits the correct
+ * item schema for each list operation (AN-4 blocker #1).
+ */
 public final class CursorPage {
 
     private CursorPage() {}
@@ -23,10 +34,42 @@ public final class CursorPage {
         }
     }
 
-    @Schema(name = "CursorPage", description = "Cursor page envelope")
-    public record Response<T>(
-            @Schema(description = "Page items") List<T> items,
-            @Schema(description = "Cursor for the next page; null when no more items", nullable = true)
-                    String nextCursor,
-            @Schema(description = "Whether more items exist after this page") boolean hasMore) {}
+    @Schema(name = "WorkspacePage")
+    public record WorkspacePage(List<WorkspaceDtos.Workspace> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "WorkspaceMemberPage")
+    public record WorkspaceMemberPage(List<WorkspaceDtos.WorkspaceMember> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "InvitationPage")
+    public record InvitationPage(List<WorkspaceDtos.Invitation> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "ProjectPage")
+    public record ProjectPage(List<ProjectDtos.Project> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "ChannelPage")
+    public record ChannelPage(List<ChannelDtos.Channel> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "ChannelSetPage")
+    public record ChannelSetPage(List<ChannelDtos.ChannelSet> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "PostPage")
+    public record PostPage(List<PostDtos.Post> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "PublicationPage")
+    public record PublicationPage(List<PostDtos.Publication> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "MediaPage")
+    public record MediaPage(List<MediaDtos.MediaAsset> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "NotificationPage")
+    public record NotificationPage(List<NotificationDtos.Notification> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "SessionPage")
+    public record SessionPage(List<AuthDtos.SessionDto> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "InvoicePage")
+    public record InvoicePage(List<BillingDtos.Invoice> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AuditLogPage")
+    public record AuditLogPage(List<WorkspaceDtos.AuditLogEntry> items, String nextCursor, boolean hasMore) {}
 }

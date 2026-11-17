@@ -8,16 +8,38 @@ info:
 
     BE-3 core contract: DTO + stub controllers (HTTP 501) except `GET /me` on the `local` profile.
     Errors follow RFC 7807 ProblemDetail with a stable `code` property.
-    List endpoints use opaque cursor pagination (`cursor`, `limit`).
+    List endpoints use opaque cursor pagination (`cursor`, `limit`) with typed `*Page` schemas.
+
+    Machine-readable ProblemDetail.code values:
+    - not_implemented — stub endpoint (BE-3)
+    - validation_failed — Bean Validation / malformed request
+    - not_found — resource missing or IDOR (foreign workspace → 404)
+    - conflict — state conflict
+    - optimistic_lock_conflict — post.version mismatch (409)
+    - unauthorized — missing/invalid access token (401)
+    - forbidden — authenticated but lacking permission (403)
+    - plan_limit_exceeded — tariff limit (402)
+    - rate_limited — API or login throttle (429)
+    - idempotency_conflict — Idempotency-Key reuse with different body
+    - insufficient_permissions — channel/bot lacks required rights
+    - trial_already_used — Pro trial already consumed for the account
+    - email_not_verified — action requires verified email
+    - channel_reauth_required — channel token revoked/expired
+
+    Auth: most operations require `Authorization: Bearer <access_jwt>` (scheme `bearer-jwt`).
+    Public: `/api/v1/ping`, `/api/v1/auth/*` (except authenticated password change), invitation preview.
+    IDOR: foreign workspace/resource → 404 `not_found` (not 403).
   license:
     name: Proprietary
   title: Posts API
-  version: 0.2.0
+  version: 0.2.1
 servers:
 - description: Local API
   url: http://localhost:8080
 - description: Staging placeholder
   url: https://api.posts.local
+security:
+- bearer-jwt: []
 tags:
 - description: Lightweight content calendar queries and drag-and-drop moves
   name: Calendar
@@ -69,13 +91,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Confirm TOTP enrollment with a code from the authenticator
       tags:
       - Auth
@@ -100,13 +154,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Disable TOTP after password + code verification
       tags:
       - Auth
@@ -125,13 +211,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Begin TOTP enrollment; returns otpauth URL and backup codes
       tags:
       - Auth
@@ -156,13 +274,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Confirm email via token from the verification letter
       tags:
       - Auth
@@ -191,13 +341,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Login with email and password (optional TOTP)
       tags:
       - Auth
@@ -221,13 +403,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Revoke current or specified refresh session
       tags:
       - Auth
@@ -267,13 +481,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Complete OAuth callback and issue Posts tokens
       tags:
       - Auth
@@ -304,13 +550,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Start OAuth (VK ID / Yandex ID) with PKCE
       tags:
       - Auth
@@ -336,13 +614,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Request password reset email
       tags:
       - Auth
@@ -367,13 +677,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Reset password using email token
       tags:
       - Auth
@@ -397,13 +739,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Rotate refresh token and issue a new access token
       tags:
       - Auth
@@ -431,13 +805,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Register with email and password
       tags:
       - Auth
@@ -468,7 +874,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -515,14 +952,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/InvoicePage"
           description: Invoices page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -549,7 +1017,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -580,7 +1079,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -612,7 +1142,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -620,6 +1181,76 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Get current workspace subscription
+      tags:
+      - Billing
+  /api/v1/billing/trial/start:
+    post:
+      description: One trial per account. Repeat → 409 with code `trial_already_used`.
+        Sets workspace billingStatus=trial.
+      operationId: billingStartTrial
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartTrialRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: Trial started
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Start 7-day Pro trial without a card (US-6.2)
       tags:
       - Billing
   /api/v1/calendar:
@@ -652,6 +1283,18 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: channelId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: authorId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: network
         required: false
         schema:
@@ -668,7 +1311,9 @@ paths:
         required: false
         schema:
           type: string
-          description: Aggregate post status
+          description: Aggregate post status. `deleted_from_network` = removed from
+            social networks via auto-delete/manual delete; soft-deleted drafts use
+            `archived`.
           enum:
           - draft
           - pending_approval
@@ -680,6 +1325,7 @@ paths:
           - failed
           - paused
           - archived
+          - deleted_from_network
       responses:
         "200":
           content:
@@ -694,7 +1340,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -732,7 +1409,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -779,14 +1487,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/ChannelSetPage"
           description: Channel sets page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -828,7 +1567,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -860,7 +1630,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -891,7 +1692,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -928,7 +1760,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1004,14 +1867,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/ChannelPage"
           description: Channels page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1023,6 +1917,8 @@ paths:
       - Channels
   /api/v1/channels/connect/{network}/callback:
     post:
+      description: "OAuth: code+state. Bot (tg/max): username and/or forwardedMessage/chatId.\
+        \ Missing bot rights → 403 `insufficient_permissions`."
       operationId: channelsConnectCallback
       parameters:
       - in: path
@@ -1048,21 +1944,129 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/ChannelPage"
           description: Connected channel(s)
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Finish channel connect after OAuth/bot confirmation
+      summary: Finish channel connect after OAuth or bot confirmation
+      tags:
+      - Channels
+  /api/v1/channels/connect/{network}/confirm:
+    post:
+      description: "After the bot is added as admin, user submits @username or a forwarded\
+        \ message. Permission check failure → ProblemDetail.code=`insufficient_permissions`."
+      operationId: channelsConnectConfirm
+      parameters:
+      - in: path
+        name: network
+        required: true
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelConnectConfirmRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelPage"
+          description: Connected channel(s)
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Confirm Telegram/Max bot channel attach (US-3.2 / US-3.4)
       tags:
       - Channels
   /api/v1/channels/connect/{network}/start:
@@ -1105,7 +2109,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1137,7 +2172,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1168,7 +2234,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1205,7 +2302,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1237,7 +2365,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1268,7 +2427,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1299,13 +2489,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
+      security: []
       summary: Preview invitation metadata by token (unauthenticated)
       tags:
       - Invitations
@@ -1331,7 +2553,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1357,7 +2610,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1399,7 +2683,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1429,7 +2744,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1460,7 +2806,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1485,7 +2862,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1525,14 +2933,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/SessionPage"
           description: Sessions page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1564,7 +3003,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1633,14 +3103,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/MediaPage"
           description: Media page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1678,7 +3179,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1710,7 +3242,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1747,7 +3310,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1775,7 +3369,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1800,7 +3425,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1830,7 +3486,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1876,14 +3563,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/NotificationPage"
           description: Notifications page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1914,7 +3632,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -1937,6 +3686,7 @@ paths:
                 additionalProperties:
                   type: string
           description: OK
+      security: []
       summary: Liveness ping for local and CI smoke checks
       tags:
       - System
@@ -1967,7 +3717,9 @@ paths:
         required: false
         schema:
           type: string
-          description: Aggregate post status
+          description: Aggregate post status. `deleted_from_network` = removed from
+            social networks via auto-delete/manual delete; soft-deleted drafts use
+            `archived`.
           enum:
           - draft
           - pending_approval
@@ -1979,6 +3731,7 @@ paths:
           - failed
           - paused
           - archived
+          - deleted_from_network
       - in: query
         name: channelId
         required: false
@@ -2035,14 +3788,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/PostPage"
           description: Posts page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2078,7 +3862,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2109,7 +3924,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2140,7 +3986,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2172,7 +4049,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2203,7 +4111,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2240,7 +4179,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2272,7 +4242,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2310,7 +4311,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2357,14 +4389,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/PublicationPage"
           description: Publications page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2402,7 +4465,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2440,7 +4534,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2472,7 +4597,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2503,7 +4659,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2540,7 +4727,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2578,7 +4796,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2664,14 +4913,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/PublicationPage"
           description: Publications page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2703,7 +4983,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2711,6 +5022,71 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Get a publication by id
+      tags:
+      - Publications
+  /api/v1/publications/{publicationId}/retry:
+    post:
+      description: Requires `posts.retry_publish`. Moves `failed_retryable` / selected
+        permanent failures back to pending.
+      operationId: publicationsRetry
+      parameters:
+      - in: path
+        name: publicationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Publication"
+          description: Publication queued for retry
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Manually retry a failed publication (US-5.2)
       tags:
       - Publications
   /api/v1/workspaces:
@@ -2744,14 +5120,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/WorkspacePage"
           description: Workspace page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2787,7 +5194,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2819,7 +5257,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2850,7 +5319,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2887,7 +5387,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2895,6 +5426,109 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Rename workspace
+      tags:
+      - Workspaces
+  /api/v1/workspaces/{workspaceId}/audit:
+    get:
+      description: Owner/Admin only (`audit.view`). Foreign workspace → 404 (IDOR).
+        CSV export is P1.
+      operationId: workspacesListAudit
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: actorId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: action
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: entity
+        required: false
+        schema:
+          type: string
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogPage"
+          description: Audit page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List workspace audit log entries (US-2.4)
       tags:
       - Workspaces
   /api/v1/workspaces/{workspaceId}/invitations:
@@ -2934,14 +5568,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/InvitationPage"
           description: Invitations page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -2983,7 +5648,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3030,14 +5726,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/WorkspaceMemberPage"
           description: Members page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3075,7 +5802,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3118,7 +5876,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3165,14 +5954,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPage"
+                $ref: "#/components/schemas/ProjectPage"
           description: Projects page
         "400":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3214,7 +6034,38 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-          description: Validation failed
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
         "501":
           content:
             application/problem+json:
@@ -3257,6 +6108,50 @@ components:
           format: date-time
         value:
           type: number
+    AuditLogEntry:
+      type: object
+      description: Workspace audit log row (US-2.4); retention 1 year
+      properties:
+        action:
+          type: string
+          example: member.role_changed
+        actorId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        diff:
+          type: object
+          additionalProperties:
+            type: object
+          description: JSON diff of changed fields
+        entity:
+          type: string
+          example: workspace_member
+        entityId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        ip:
+          type: string
+          example: 203.0.113.10
+        workspaceId:
+          type: string
+          format: uuid
+    AuditLogPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+        nextCursor:
+          type: string
     BulkPostsRequest:
       type: object
       properties:
@@ -3320,7 +6215,9 @@ components:
           format: date-time
         status:
           type: string
-          description: Aggregate post status
+          description: Aggregate post status. `deleted_from_network` = removed from
+            social networks via auto-delete/manual delete; soft-deleted drafts use
+            `archived`.
           enum:
           - draft
           - pending_approval
@@ -3332,6 +6229,7 @@ components:
           - failed
           - paused
           - archived
+          - deleted_from_network
         title:
           type: string
     Channel:
@@ -3413,20 +6311,53 @@ components:
           type: string
     ChannelConnectCallbackRequest:
       type: object
+      description: OAuth callback (VK/OK) or bot-flow confirm (TG/Max). For OAuth
+        provide code+state; for bot flows provide username and/or forwardedMessage/chatId
+        (US-3.2/3.4).
       properties:
+        chatId:
+          type: string
+          description: External chat/channel id when known
         code:
           type: string
+          description: OAuth authorization code (VK/OK)
+        forwardedMessage:
+          $ref: "#/components/schemas/ForwardedMessageRef"
+          description: Forwarded message reference for bot attach flows
         projectId:
           type: string
           format: uuid
         state:
           type: string
+          description: OAuth state (VK/OK)
+        username:
+          type: string
+          description: Telegram/Max channel or chat @username
+          example: '@brand_news'
         workspaceId:
           type: string
           format: uuid
       required:
-      - code
-      - state
+      - workspaceId
+    ChannelConnectConfirmRequest:
+      type: object
+      description: Dedicated bot-flow confirm for Telegram/Max after the bot is added
+        as admin
+      properties:
+        chatId:
+          type: string
+        forwardedMessage:
+          $ref: "#/components/schemas/ForwardedMessageRef"
+        projectId:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: '@brand_news'
+        workspaceId:
+          type: string
+          format: uuid
+      required:
       - workspaceId
     ChannelConnectStartResponse:
       type: object
@@ -3438,6 +6369,17 @@ components:
           type: string
           description: Bot deep-link for tg/max when applicable
         state:
+          type: string
+    ChannelPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Channel"
+        nextCursor:
           type: string
     ChannelSet:
       type: object
@@ -3456,6 +6398,17 @@ components:
         workspaceId:
           type: string
           format: uuid
+    ChannelSetPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelSet"
+        nextCursor:
+          type: string
     CheckoutRequest:
       type: object
       properties:
@@ -3550,6 +6503,8 @@ components:
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        repost:
+          $ref: "#/components/schemas/RepostTarget"
         scheduledAt:
           type: string
           format: date-time
@@ -3639,21 +6594,6 @@ components:
           minLength: 1
       required:
       - name
-    CursorPage:
-      type: object
-      description: Cursor page envelope
-      properties:
-        hasMore:
-          type: boolean
-          description: Whether more items exist after this page
-        items:
-          type: array
-          description: Page items
-          items:
-            $ref: "#/components/schemas/Channel"
-        nextCursor:
-          type: string
-          description: Cursor for the next page; null when no more items
     EmailVerifyRequest:
       type: object
       properties:
@@ -3674,6 +6614,9 @@ components:
           type: boolean
         pin:
           type: boolean
+        repost:
+          type: boolean
+          description: Repost of existing network objects (VK/TG/OK; false for Max)
         stories:
           type: boolean
         unpin:
@@ -3692,6 +6635,27 @@ components:
         mode:
           type: string
           example: html
+    ForwardedMessageRef:
+      type: object
+      properties:
+        chatId:
+          type: string
+          example: -1001234567890
+        messageId:
+          type: string
+          example: 42
+    InlineButton:
+      type: object
+      properties:
+        callbackData:
+          type: string
+          description: Callback data for bot buttons
+        text:
+          type: string
+          example: Открыть
+        url:
+          type: string
+          example: https://example.com
     Invitation:
       type: object
       properties:
@@ -3727,6 +6691,49 @@ components:
         workspaceId:
           type: string
           format: uuid
+    InvitationPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invitation"
+        nextCursor:
+          type: string
+    Invoice:
+      type: object
+      properties:
+        amount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          example: RUB
+        id:
+          type: string
+          format: uuid
+        pdfUrl:
+          type: string
+        status:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+    InvoicePage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        nextCursor:
+          type: string
     LoginRequest:
       type: object
       properties:
@@ -3825,6 +6832,17 @@ components:
           type: object
           additionalProperties:
             type: object
+    MediaPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaAsset"
+        nextCursor:
+          type: string
     MembershipSummary:
       type: object
       properties:
@@ -3920,6 +6938,36 @@ components:
           $ref: "#/components/schemas/RateLimits"
         text:
           $ref: "#/components/schemas/TextLimits"
+    Notification:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+        readAt:
+          type: string
+          format: date-time
+        type:
+          type: string
+          example: publication.failed
+    NotificationPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        nextCursor:
+          type: string
     NotificationSettings:
       type: object
       properties:
@@ -4014,12 +7062,17 @@ components:
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        repost:
+          $ref: "#/components/schemas/RepostTarget"
+          description: Repost mode payload; null for regular posts
         scheduledAt:
           type: string
           format: date-time
         status:
           type: string
-          description: Aggregate post status
+          description: Aggregate post status. `deleted_from_network` = removed from
+            social networks via auto-delete/manual delete; soft-deleted drafts use
+            `archived`.
           enum:
           - draft
           - pending_approval
@@ -4031,6 +7084,7 @@ components:
           - failed
           - paused
           - archived
+          - deleted_from_network
         title:
           type: string
         updatedAt:
@@ -4071,6 +7125,17 @@ components:
         text:
           type: string
           description: Plain/HTML text or structured doc
+    PostPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+        nextCursor:
+          type: string
     PostVariant:
       type: object
       properties:
@@ -4099,9 +7164,7 @@ components:
         buttons:
           type: array
           items:
-            type: object
-            additionalProperties:
-              type: object
+            $ref: "#/components/schemas/InlineButton"
         carouselMode:
           type: string
         closeComments:
@@ -4253,6 +7316,17 @@ components:
           items:
             type: string
             format: uuid
+    ProjectPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        nextCursor:
+          type: string
     Publication:
       type: object
       properties:
@@ -4315,6 +7389,17 @@ components:
         workspaceId:
           type: string
           format: uuid
+    PublicationPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Publication"
+        nextCursor:
+          type: string
     RateLimits:
       type: object
       properties:
@@ -4340,7 +7425,17 @@ components:
             type: string
         freq:
           type: string
-          example: weekly
+          description: Recurrence frequency for scheduled posts
+          enum:
+          - once
+          - daily
+          - weekdays
+          - weekends
+          - weekly
+          - monthly
+          - every_n_days
+          - every_n_weeks
+          - every_n_months
         interval:
           type: integer
           format: int32
@@ -4348,6 +7443,8 @@ components:
         until:
           type: string
           format: date-time
+      required:
+      - freq
     RefreshRequest:
       type: object
       properties:
@@ -4380,6 +7477,31 @@ components:
       - email
       - name
       - password
+    RepostTarget:
+      type: object
+      description: Repost of an existing network object with optional comment (US-4.9).
+        Supported for vk/tg/ok; not for max (capability.repost=false).
+      properties:
+        comment:
+          type: string
+          description: Optional commentary attached to the repost
+        externalId:
+          type: string
+          description: External post/object id in the source network
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        url:
+          type: string
+          description: Canonical URL of the source post when id is unknown
+      required:
+      - network
     SchedulePostRequest:
       type: object
       properties:
@@ -4395,6 +7517,49 @@ components:
       required:
       - scheduledAt
       - version
+    SessionDto:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+          description: True for the session that made this request
+        id:
+          type: string
+          format: uuid
+        ip:
+          type: string
+          example: 203.0.113.10
+        lastUsedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+        userAgent:
+          type: string
+          example: Mozilla/5.0...
+    SessionPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionDto"
+        nextCursor:
+          type: string
+    StartTrialRequest:
+      type: object
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - workspaceId
     Subscription:
       type: object
       properties:
@@ -4588,6 +7753,8 @@ components:
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        repost:
+          $ref: "#/components/schemas/RepostTarget"
         scheduledAt:
           type: string
           format: date-time
@@ -4729,6 +7896,28 @@ components:
         userId:
           type: string
           format: uuid
+    WorkspaceMemberPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceMember"
+        nextCursor:
+          type: string
+    WorkspacePage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workspace"
+        nextCursor:
+          type: string
   securitySchemes:
     bearer-jwt:
       bearerFormat: JWT

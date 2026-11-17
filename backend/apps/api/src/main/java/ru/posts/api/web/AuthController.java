@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +25,7 @@ import ru.posts.api.web.support.ApiStub;
 @RestController
 @RequestMapping(path = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Auth", description = "Registration, login, OAuth, 2FA, password recovery")
+@SecurityRequirements
 @OpenApiResponses
 public class AuthController {
 

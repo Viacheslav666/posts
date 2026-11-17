@@ -111,7 +111,7 @@ public class MeController {
     @GetMapping("/me/sessions")
     @Operation(operationId = "meListSessions", summary = "List active and recent sessions (US-1.5)")
     @ApiResponse(responseCode = "200", description = "Sessions page")
-    public CursorPage.Response<AuthDtos.SessionDto> listSessions(@Valid @ParameterObject CursorPage.Params page) {
+    public CursorPage.SessionPage listSessions(@Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("meListSessions");
     }
 
