@@ -4,6 +4,8 @@ import {
   ApiProblemError,
   AppError,
   getErrorMessage,
+  INSUFFICIENT_PERMISSIONS_CODE,
+  isInsufficientPermissions,
   isTwoFactorRequired,
   toApiProblemError,
   TWO_FACTOR_REQUIRED_CODE,
@@ -39,5 +41,14 @@ describe('ApiProblemError', () => {
       status: 401,
     });
     expect(isTwoFactorRequired(error)).toBe(true);
+  });
+
+  it('detects insufficient_permissions', () => {
+    const error = toApiProblemError({
+      code: INSUFFICIENT_PERMISSIONS_CODE,
+      detail: 'Forbidden',
+      status: 403,
+    });
+    expect(isInsufficientPermissions(error)).toBe(true);
   });
 });

@@ -18,6 +18,26 @@ export type RefreshRequest = components['schemas']['RefreshRequest'];
 export type OAuthStartResponse = components['schemas']['OAuthStartResponse'];
 export type LogoutRequest = components['schemas']['LogoutRequest'];
 
+export type Workspace = components['schemas']['Workspace'];
+export type WorkspacePage = components['schemas']['WorkspacePage'];
+export type WorkspaceMember = components['schemas']['WorkspaceMember'];
+export type WorkspaceMemberPage = components['schemas']['WorkspaceMemberPage'];
+export type CreateWorkspaceRequest = components['schemas']['CreateWorkspaceRequest'];
+export type UpdateWorkspaceRequest = components['schemas']['UpdateWorkspaceRequest'];
+export type Project = components['schemas']['Project'];
+export type ProjectPage = components['schemas']['ProjectPage'];
+export type CreateProjectRequest = components['schemas']['CreateProjectRequest'];
+export type UpdateProjectRequest = components['schemas']['UpdateProjectRequest'];
+export type ProjectMembersRequest = components['schemas']['ProjectMembersRequest'];
+export type Invitation = components['schemas']['Invitation'];
+export type InvitationPage = components['schemas']['InvitationPage'];
+export type CreateInvitationRequest = components['schemas']['CreateInvitationRequest'];
+export type AcceptInvitationRequest = components['schemas']['AcceptInvitationRequest'];
+export type AuditLogEntry = components['schemas']['AuditLogEntry'];
+export type AuditLogPage = components['schemas']['AuditLogPage'];
+export type UpdateMemberRequest = components['schemas']['UpdateMemberRequest'];
+export type MembershipSummary = components['schemas']['MembershipSummary'];
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

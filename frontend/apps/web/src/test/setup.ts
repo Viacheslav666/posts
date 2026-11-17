@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { server } from '@/mocks/server';
+import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
@@ -12,6 +13,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  resetWorkspaceStore();
   resetApiClient();
   clearAccessToken();
   clearPendingLogin();
