@@ -21,12 +21,13 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Posts API")
-                        .version("0.2.1")
+                        .version("0.3.0")
                         .description(
                                 """
                                 Posts SMM platform public API (`/api/v1`).
 
-                                BE-3 core contract: DTO + stub controllers (HTTP 501) except `GET /me` on the `local` profile.
+                                BE-5 auth is implemented (register/verify/login/refresh/logout, JWT ES256+JWKS, 2FA, OAuth VK/Yandex, sessions).
+                                Other domain controllers may still return 501 until later BE tasks.
                                 Errors follow RFC 7807 ProblemDetail with a stable `code` property.
                                 List endpoints use opaque cursor pagination (`cursor`, `limit`) with typed `*Page` schemas.
 
@@ -35,7 +36,8 @@ public class OpenApiConfig {
                                         + """
 
                                 Auth: most operations require `Authorization: Bearer <access_jwt>` (scheme `bearer-jwt`).
-                                Public: `/api/v1/ping`, `/api/v1/auth/*` (except authenticated password change), invitation preview.
+                                Public: `/api/v1/ping`, `/api/v1/auth/*` (except 2FA setup/confirm/disable, oauth link), invitation preview.
+                                JWKS: `GET /.well-known/jwks.json`.
                                 IDOR: foreign workspace/resource → 404 `not_found` (not 403).
                                 """)
                         .contact(new Contact().name("Posts").url("https://github.com/Viacheslav666/posts"))

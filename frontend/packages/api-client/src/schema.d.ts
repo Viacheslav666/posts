@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/.well-known/jwks.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** JSON Web Key Set (ES256) */
+        get: operations["jwksGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/2fa/confirm": {
         parameters: {
             query?: never;
@@ -100,6 +117,26 @@ export interface paths {
         put?: never;
         /** Revoke current or specified refresh session */
         post: operations["authLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm linking an OAuth identity to the authenticated account
+         * @description Completes the oauth_link_required challenge from OAuth callback (US-1.2 / TC-AUTH-07).
+         */
+        post: operations["authOauthLink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -561,10 +598,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get current user profile
-         * @description In the `local` profile returns deterministic fixture data for FE/QA. Other profiles return 501 until BE-5.
-         */
+        /** Get current user profile */
         get: operations["meGet"];
         put?: never;
         post?: never;
@@ -1666,6 +1700,10 @@ export interface components {
             telegramBotEnabled?: boolean;
             webPushEnabled?: boolean;
         };
+        OAuthLinkRequest: {
+            /** @description One-time link token from oauth_link_required response */
+            linkToken: string;
+        };
         OAuthStartResponse: {
             /** @example https://id.vk.ru/authorize?... */
             authorizationUrl?: string;
@@ -2202,6 +2240,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    jwksGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
     auth2faConfirm: {
         parameters: {
             query?: never;
@@ -2649,6 +2709,93 @@ export interface operations {
         };
         responses: {
             /** @description Logged out */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    authOauthLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Identity linked */
             200: {
                 headers: {
                     [name: string]: unknown;

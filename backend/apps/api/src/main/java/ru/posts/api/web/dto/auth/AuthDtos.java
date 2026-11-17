@@ -71,6 +71,11 @@ public final class AuthDtos {
     @Schema(name = "EmailVerifyRequest")
     public record EmailVerifyRequest(@NotBlank String token) {}
 
+    @Schema(name = "OAuthLinkRequest")
+    public record OAuthLinkRequest(
+            @NotBlank @Schema(description = "One-time link token from oauth_link_required response")
+                    String linkToken) {}
+
     @Schema(name = "SessionDto")
     public record SessionDto(
             UUID id,

@@ -1,6 +1,9 @@
 package ru.posts.security;
 
-/** Stub marker for the security module (DEV-1 skeleton). */
+/** Marker type for ArchUnit / classpath presence of the security module. */
 public final class SecurityMarkers {
+
+    public static final String MODULE = "security";
+
     private SecurityMarkers() {}
 }

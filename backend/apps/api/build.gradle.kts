@@ -10,10 +10,15 @@ dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:domain"))
     implementation(project(":libs:persistence"))
+    implementation(project(":libs:security"))
+    implementation(project(":libs:ratelimit"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.oauth2.resource.server)
+    implementation(libs.spring.boot.starter.mail)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
@@ -21,6 +26,7 @@ dependencies {
     runtimeOnly(libs.h2)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.security.test)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.junit)
@@ -28,6 +34,7 @@ dependencies {
     testImplementation(project(":libs:test-support"))
 
     "integrationTestImplementation"(libs.spring.boot.starter.test)
+    "integrationTestImplementation"(libs.spring.security.test)
     "integrationTestImplementation"(libs.spring.boot.testcontainers)
     "integrationTestImplementation"(platform(libs.testcontainers.bom))
     "integrationTestImplementation"(libs.testcontainers.junit)

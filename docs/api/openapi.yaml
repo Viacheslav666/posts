@@ -6,7 +6,8 @@ info:
   description: |
     Posts SMM platform public API (`/api/v1`).
 
-    BE-3 core contract: DTO + stub controllers (HTTP 501) except `GET /me` on the `local` profile.
+    BE-5 auth is implemented (register/verify/login/refresh/logout, JWT ES256+JWKS, 2FA, OAuth VK/Yandex, sessions).
+    Other domain controllers may still return 501 until later BE tasks.
     Errors follow RFC 7807 ProblemDetail with a stable `code` property.
     List endpoints use opaque cursor pagination (`cursor`, `limit`) with typed `*Page` schemas.
 
@@ -25,14 +26,18 @@ info:
     - trial_already_used — Pro trial already consumed for the account
     - email_not_verified — action requires verified email
     - channel_reauth_required — channel token revoked/expired
+    - totp_required — password ok, TOTP/backup code required (401)
+    - oauth_link_required — OAuth email matches existing account; confirm link (409)
+    - invalid_token — email verify / password reset / OAuth link token invalid
 
     Auth: most operations require `Authorization: Bearer <access_jwt>` (scheme `bearer-jwt`).
-    Public: `/api/v1/ping`, `/api/v1/auth/*` (except authenticated password change), invitation preview.
+    Public: `/api/v1/ping`, `/api/v1/auth/*` (except 2FA setup/confirm/disable, oauth link), invitation preview.
+    JWKS: `GET /.well-known/jwks.json`.
     IDOR: foreign workspace/resource → 404 `not_found` (not 403).
   license:
     name: Proprietary
   title: Posts API
-  version: 0.2.1
+  version: 0.3.0
 servers:
 - description: Local API
   url: http://localhost:8080
@@ -65,11 +70,29 @@ tags:
   name: Publications
 - description: Network capability matrix for validation and UI
   name: Networks
+- description: Public signing keys for access JWT verification
+  name: JWKS
 - description: Current user profile and sessions
   name: Me
 - description: "Registration, login, OAuth, 2FA, password recovery"
   name: Auth
 paths:
+  /.well-known/jwks.json:
+    get:
+      operationId: jwksGet
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      security: []
+      summary: JSON Web Key Set (ES256)
+      tags:
+      - JWKS
   /api/v1/auth/2fa/confirm:
     post:
       operationId: auth2faConfirm
@@ -129,7 +152,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      security: []
+      security:
+      - bearer-jwt: []
       summary: Confirm TOTP enrollment with a code from the authenticator
       tags:
       - Auth
@@ -192,7 +216,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      security: []
+      security:
+      - bearer-jwt: []
       summary: Disable TOTP after password + code verification
       tags:
       - Auth
@@ -249,7 +274,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      security: []
+      security:
+      - bearer-jwt: []
       summary: Begin TOTP enrollment; returns otpauth URL and backup codes
       tags:
       - Auth
@@ -443,6 +469,72 @@ paths:
           description: Stub — not implemented yet (BE-3)
       security: []
       summary: Revoke current or specified refresh session
+      tags:
+      - Auth
+  /api/v1/auth/oauth/link:
+    post:
+      description: Completes the oauth_link_required challenge from OAuth callback
+        (US-1.2 / TC-AUTH-07).
+      operationId: authOauthLink
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthLinkRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Identity linked
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      security:
+      - bearer-jwt: []
+      summary: Confirm linking an OAuth identity to the authenticated account
       tags:
       - Auth
   /api/v1/auth/oauth/{provider}/callback:
@@ -2652,29 +2744,11 @@ paths:
       tags:
       - Me
     get:
-      description: In the `local` profile returns deterministic fixture data for FE/QA.
-        Other profiles return 501 until BE-5.
       operationId: meGet
       responses:
         "200":
           content:
             application/json:
-              examples:
-                local:
-                  description: local
-                  value:
-                    id: 019a0000-0002-7000-8000-000000000001
-                    email: local@posts.test
-                    emailVerified: true
-                    name: Local Dev
-                    timezone: Europe/Moscow
-                    locale: ru
-                    totpEnabled: false
-                    memberships:
-                    - workspaceId: 019a0000-0002-7000-8000-000000000002
-                      workspaceName: Личное пространство
-                      role: owner
-                      billingStatus: trial
               schema:
                 $ref: "#/components/schemas/UserProfile"
           description: Current user
@@ -6986,6 +7060,14 @@ components:
           type: boolean
         webPushEnabled:
           type: boolean
+    OAuthLinkRequest:
+      type: object
+      properties:
+        linkToken:
+          type: string
+          description: One-time link token from oauth_link_required response
+      required:
+      - linkToken
     OAuthStartResponse:
       type: object
       properties:

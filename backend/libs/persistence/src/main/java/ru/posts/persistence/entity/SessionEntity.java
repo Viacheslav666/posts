@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "sessions")
@@ -13,12 +15,16 @@ public class SessionEntity extends BaseUuidEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "family_id", nullable = false)
+    private UUID familyId;
+
     @Column(name = "refresh_token_hash", nullable = false)
     private String refreshTokenHash;
 
     @Column(name = "user_agent")
     private String userAgent;
 
+    @JdbcTypeCode(SqlTypes.INET)
     @Column(columnDefinition = "inet")
     private String ip;
 
@@ -37,6 +43,14 @@ public class SessionEntity extends BaseUuidEntity {
 
     public void setUserId(UUID userId) {
         this.userId = userId;
+    }
+
+    public UUID getFamilyId() {
+        return familyId;
+    }
+
+    public void setFamilyId(UUID familyId) {
+        this.familyId = familyId;
     }
 
     public String getRefreshTokenHash() {

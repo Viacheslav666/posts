@@ -17,6 +17,9 @@ public final class ProblemCodes {
     public static final String EMAIL_NOT_VERIFIED = "email_not_verified";
     public static final String CHANNEL_REAUTH_REQUIRED = "channel_reauth_required";
     public static final String OPTIMISTIC_LOCK_CONFLICT = "optimistic_lock_conflict";
+    public static final String TOTP_REQUIRED = "totp_required";
+    public static final String OAUTH_LINK_REQUIRED = "oauth_link_required";
+    public static final String INVALID_TOKEN = "invalid_token";
 
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
@@ -36,6 +39,9 @@ public final class ProblemCodes {
             - trial_already_used — Pro trial already consumed for the account
             - email_not_verified — action requires verified email
             - channel_reauth_required — channel token revoked/expired
+            - totp_required — password ok, TOTP/backup code required (401)
+            - oauth_link_required — OAuth email matches existing account; confirm link (409)
+            - invalid_token — email verify / password reset / OAuth link token invalid
             """;
 
     private ProblemCodes() {}
