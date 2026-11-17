@@ -54,7 +54,137 @@
     "viewer": "Наблюдатель"
   },
   "problems": {
-    "insufficient_permissions": "Недостаточно прав для этого действия"
+    "insufficient_permissions": "Недостаточно прав для этого действия",
+    "plan_limit_exceeded": "Достигнут лимит тарифа — обновите план"
+  },
+  "channels": {
+    "title": "Каналы",
+    "description": "Подключённые сообщества и мастера подключения сетей.",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра каналов.",
+    "emptyTitle": "Каналов пока нет",
+    "emptyBody": "Попросите владельца или админа подключить сеть.",
+    "tabs": {
+      "grid": "По сетям",
+      "sets": "Наборы",
+      "connect": "Подключить"
+    },
+    "grid": {
+      "emptyNetwork": "В этой сети пока нет каналов."
+    },
+    "networks": {
+      "vk": "ВКонтакте",
+      "tg": "Telegram",
+      "ok": "Одноклассники",
+      "max": "Max"
+    },
+    "status": {
+      "active": "Активен",
+      "reauth_required": "Переподключить",
+      "no_permissions": "Нет прав",
+      "disabled": "Отключён"
+    },
+    "project": {
+      "label": "Проект",
+      "placeholder": "Выберите проект",
+      "none": "Без проекта"
+    },
+    "actions": {
+      "check": "Проверить",
+      "checkSuccess": "Права и токен проверены",
+      "reconnect": "Переподключить",
+      "disconnect": "Отключить",
+      "disconnectSuccess": "Канал отключён",
+      "projectUpdated": "Проект обновлён",
+      "errorTitle": "Ошибка"
+    },
+    "planLimit": {
+      "usage": "Каналы тарифа: {used} из {limit}",
+      "title": "Лимит тарифа",
+      "body": "Достигнут лимит каналов. Обновите тариф, чтобы подключить ещё.",
+      "upgrade": "Обновить тариф"
+    },
+    "onboarding": {
+      "label": "Подключение первого канала",
+      "title": "Подключите первый канал",
+      "body": "Выберите сеть — откроется мастер подключения."
+    },
+    "connect": {
+      "title": "Подключение канала",
+      "description": "Следуйте шагам мастера для выбранной сети.",
+      "cta": "Подключить канал",
+      "add": "Добавить",
+      "start": "Начать",
+      "starting": "Запуск…",
+      "confirm": "Проверить и подключить",
+      "confirming": "Проверка…",
+      "successTitle": "Канал подключён",
+      "errorTitle": "Не удалось подключить",
+      "missingAuthUrl": "Сервер не вернул ссылку авторизации",
+      "usernameLabel": "Username канала",
+      "usernamePlaceholder": "@channel",
+      "botInviteHint": "Добавьте бота по ссылке:",
+      "openBotInvite": "открыть приглашение",
+      "vk": {
+        "short": "OAuth групп и страницы",
+        "description": "Авторизация VK и выбор сообществ, где вы админ.",
+        "stepOauth": "Войдите через VK OAuth.",
+        "stepPick": "Выберите личную страницу и группы.",
+        "stepDone": "Каналы появятся со статусом «Активен».",
+        "cta": "Войти через VK"
+      },
+      "ok": {
+        "short": "OAuth групп OK",
+        "description": "Авторизация Одноклассников и выбор групп.",
+        "stepOauth": "Войдите через OK OAuth.",
+        "stepPick": "Выберите доступные группы.",
+        "stepDone": "Каналы появятся со статусом «Активен».",
+        "cta": "Войти через OK"
+      },
+      "tg": {
+        "short": "Бот @PostsBot админом",
+        "description": "Добавьте @PostsBot админом канала Telegram и подтвердите.",
+        "stepAddBot": "Добавьте @PostsBot администратором канала или группы.",
+        "stepRights": "Выдайте права: публикация, редактирование, удаление и закрепление сообщений.",
+        "stepUsername": "Укажите @username канала для автопроверки.",
+        "permissionsHint": "У бота недостаточно прав. Добавьте @PostsBot админом с правами публикации."
+      },
+      "max": {
+        "short": "Бот Max админом",
+        "description": "Добавьте бота Posts админом чата Max и подтвердите.",
+        "stepAddBot": "Добавьте бота Posts администратором чата Max.",
+        "stepRights": "Выдайте права на публикацию сообщений.",
+        "stepUsername": "Укажите username или id чата для автопроверки.",
+        "permissionsHint": "У бота недостаточно прав в чате Max."
+      }
+    },
+    "callback": {
+      "loading": "Завершаем подключение…",
+      "successTitle": "Канал подключён",
+      "successBody": "Можно вернуться к списку каналов.",
+      "errorTitle": "OAuth не завершён",
+      "invalidNetwork": "Неизвестная сеть",
+      "invalidNetworkBody": "Поддерживаются только VK и OK для OAuth-callback.",
+      "missingParams": "Нет кода OAuth",
+      "missingParamsBody": "В ссылке отсутствуют code или state.",
+      "back": "К каналам"
+    },
+    "sets": {
+      "title": "Наборы каналов",
+      "description": "До 50 каналов в наборе для публикации в один клик.",
+      "nameLabel": "Название набора",
+      "namePlaceholder": "Утренние посты",
+      "channelsLabel": "Каналы в наборе",
+      "selected": "Выбрано: {count} / 50",
+      "create": "Создать набор",
+      "delete": "Удалить",
+      "createdTitle": "Набор создан",
+      "deletedTitle": "Набор удалён",
+      "errorTitle": "Ошибка набора",
+      "emptyTitle": "Наборов пока нет",
+      "emptyBody": "Создайте набор, чтобы быстрее выбирать каналы в редакторе.",
+      "noChannels": "Без каналов"
+    }
   },
   "workspace": {
     "loading": "Загрузка…",
@@ -390,7 +520,8 @@
       "title": "Каналы",
       "search": "Поиск каналов",
       "selected": "Выбрано: {count}",
-      "empty": "Ничего не найдено"
+      "empty": "Ничего не найдено",
+      "loading": "Загрузка каналов…"
     },
     "variants": {
       "base": "Общий текст",

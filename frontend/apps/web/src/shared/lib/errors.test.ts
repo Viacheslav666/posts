@@ -6,7 +6,9 @@ import {
   getErrorMessage,
   INSUFFICIENT_PERMISSIONS_CODE,
   isInsufficientPermissions,
+  isPlanLimitExceeded,
   isTwoFactorRequired,
+  PLAN_LIMIT_EXCEEDED_CODE,
   toApiProblemError,
   TWO_FACTOR_REQUIRED_CODE,
 } from './errors';
@@ -51,4 +53,14 @@ describe('ApiProblemError', () => {
     });
     expect(isInsufficientPermissions(error)).toBe(true);
   });
+
+  it('detects plan_limit_exceeded', () => {
+    const error = toApiProblemError({
+      code: PLAN_LIMIT_EXCEEDED_CODE,
+      detail: 'Channel limit reached',
+      status: 402,
+    });
+    expect(isPlanLimitExceeded(error)).toBe(true);
+  });
 });
+

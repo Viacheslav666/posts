@@ -66,6 +66,12 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './comp
 export { Badge, badgeVariants } from './components/badge';
 export type { BadgeProps, PublicationStatus } from './components/badge';
 
+export { ChannelStatusBadge } from './components/channel-status-badge';
+export type {
+  ChannelConnectionStatus,
+  ChannelStatusBadgeProps,
+} from './components/channel-status-badge';
+
 export { RoleBadge, WORKSPACE_ROLES } from './components/role-badge';
 export type { RoleBadgeProps, WorkspaceRole } from './components/role-badge';
 

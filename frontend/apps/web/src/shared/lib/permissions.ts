@@ -1,12 +1,13 @@
 /**
- * Workspace RBAC matrix for FE-5 (mirrors docs/product/roles-permissions.md).
+ * Workspace RBAC matrix (mirrors docs/product/roles-permissions.md).
+ * FE-5 team + FE-6 channels actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
 
 export type WorkspaceRole = (typeof ROLES)[number];
 
-export const FE5_ACTIONS = [
+export const PERMISSION_ACTIONS = [
   'workspace.view',
   'workspace.update',
   'workspace.delete',
@@ -20,9 +21,16 @@ export const FE5_ACTIONS = [
   'audit.export',
   'billing.view',
   'billing.manage',
+  'channels.view',
+  'channels.manage',
+  'channel_sets.view',
+  'channel_sets.manage',
 ] as const;
 
-export type PermissionAction = (typeof FE5_ACTIONS)[number];
+/** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
+export const FE5_ACTIONS = PERMISSION_ACTIONS;
+
+export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
 
 type RoleActionMatrix = Record<WorkspaceRole, ReadonlySet<PermissionAction>>;
 
@@ -30,6 +38,8 @@ const ALL_VIEW: PermissionAction[] = [
   'workspace.view',
   'members.view',
   'projects.view',
+  'channels.view',
+  'channel_sets.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -41,6 +51,8 @@ const ADMIN_TEAM: PermissionAction[] = [
   'projects.manage',
   'audit.view',
   'audit.export',
+  'channels.manage',
+  'channel_sets.manage',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -49,10 +61,12 @@ const OWNER_ONLY: PermissionAction[] = [
   'billing.manage',
 ];
 
+const EDITOR_EXTRA: PermissionAction[] = ['channel_sets.manage'];
+
 export const ROLE_ACTIONS: RoleActionMatrix = {
   owner: new Set<PermissionAction>([...ADMIN_TEAM, ...OWNER_ONLY]),
   admin: new Set<PermissionAction>(ADMIN_TEAM),
-  editor: new Set<PermissionAction>(ALL_VIEW),
+  editor: new Set<PermissionAction>([...ALL_VIEW, ...EDITOR_EXTRA]),
   author: new Set<PermissionAction>(ALL_VIEW),
   viewer: new Set<PermissionAction>(ALL_VIEW),
 };
