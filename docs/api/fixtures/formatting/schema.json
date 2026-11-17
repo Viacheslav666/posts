@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://posts.local/schemas/formatting-fixture.schema.json",
+  "title": "Posts formatting fixture case",
+  "description": "Эталонный кейс рендера контента под сети (TG HTML / Max HTML / VK|OK plain). Источник лимитов: docs/api/fixtures/network-capabilities.yaml.",
+  "type": "object",
+  "required": ["id", "title", "categories", "input", "expected"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^FMT-[0-9]{3}$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "basic",
+          "nested",
+          "specialchars",
+          "emoji",
+          "links",
+          "code",
+          "quote",
+          "spoiler",
+          "plain-networks",
+          "limits",
+          "unsupported",
+          "whitespace",
+          "mixed"
+        ]
+      }
+    },
+    "source": {
+      "type": "string",
+      "description": "Ссылка на story/AC или network-capabilities"
+    },
+    "input": {
+      "type": "object",
+      "required": ["kind", "html"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "canonical-html" },
+        "html": {
+          "type": "string",
+          "description": "Канонический HTML редактора (подмножество TG/Max) до сетевого рендера"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["telegram", "max", "vk", "ok"],
+      "additionalProperties": false,
+      "properties": {
+        "telegram": { "$ref": "#/$defs/networkRender" },
+        "max": { "$ref": "#/$defs/networkRender" },
+        "vk": { "$ref": "#/$defs/plainRender" },
+        "ok": { "$ref": "#/$defs/plainRender" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "telegram_max_chars": { "type": "integer" },
+        "max_max_chars": { "type": "integer" },
+        "telegram_caption_max_chars": { "type": "integer" },
+        "exceeds_telegram": { "type": "boolean" },
+        "exceeds_max": { "type": "boolean" },
+        "exceeds_telegram_caption": { "type": "boolean" }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "networkRender": {
+      "type": "object",
+      "required": ["html", "plain_text", "valid"],
+      "additionalProperties": false,
+      "properties": {
+        "html": { "type": "string" },
+        "plain_text": { "type": "string" },
+        "plain_length": { "type": "integer", "minimum": 0 },
+        "valid": { "type": "boolean" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "plainRender": {
+      "type": "object",
+      "required": ["plain", "formatting_stripped"],
+      "additionalProperties": false,
+      "properties": {
+        "plain": { "type": "string" },
+        "formatting_stripped": { "type": "boolean" },
+        "warning": { "type": "string" }
+      }
+    }
+  }
+}
