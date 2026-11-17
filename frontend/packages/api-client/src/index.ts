@@ -38,6 +38,18 @@ export type AuditLogPage = components['schemas']['AuditLogPage'];
 export type UpdateMemberRequest = components['schemas']['UpdateMemberRequest'];
 export type MembershipSummary = components['schemas']['MembershipSummary'];
 
+export type Channel = components['schemas']['Channel'];
+export type ChannelPage = components['schemas']['ChannelPage'];
+export type ChannelSet = components['schemas']['ChannelSet'];
+export type ChannelSetPage = components['schemas']['ChannelSetPage'];
+export type ChannelCheckResponse = components['schemas']['ChannelCheckResponse'];
+export type ChannelConnectStartResponse = components['schemas']['ChannelConnectStartResponse'];
+export type ChannelConnectCallbackRequest = components['schemas']['ChannelConnectCallbackRequest'];
+export type ChannelConnectConfirmRequest = components['schemas']['ChannelConnectConfirmRequest'];
+export type CreateChannelSetRequest = components['schemas']['CreateChannelSetRequest'];
+export type UpdateChannelSetRequest = components['schemas']['UpdateChannelSetRequest'];
+export type UpdateChannelRequest = components['schemas']['UpdateChannelRequest'];
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

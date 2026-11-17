@@ -1,4 +1,7 @@
 import type {
+  ChannelConnectCallbackRequest,
+  ChannelConnectConfirmRequest,
+  CreateChannelSetRequest,
   CreateInvitationRequest,
   CreateProjectRequest,
   CreateWorkspaceRequest,
@@ -11,6 +14,8 @@ import type {
   ProjectMembersRequest,
   RegisterRequest,
   TokenResponse,
+  UpdateChannelRequest,
+  UpdateChannelSetRequest,
   UpdateMemberRequest,
   UpdateProjectRequest,
   UpdateWorkspaceRequest,
@@ -20,6 +25,7 @@ import { http, HttpResponse } from 'msw';
 import { MOCK_NETWORK_CAPABILITIES } from '@/features/editor/api/capabilities-mock';
 import {
   INSUFFICIENT_PERMISSIONS_CODE,
+  PLAN_LIMIT_EXCEEDED_CODE,
   TWO_FACTOR_REQUIRED_CODE,
 } from '@/shared/lib/errors';
 import {
@@ -29,6 +35,24 @@ import {
   type WorkspaceRole,
 } from '@/shared/lib/permissions';
 
+import {
+  channelLimitForWorkspace,
+  checkChannel,
+  confirmBotConnect,
+  connectCallback,
+  countActiveChannels,
+  createChannelSet,
+  deleteChannel,
+  deleteChannelSet,
+  getChannel,
+  getChannelSet,
+  listChannelSets,
+  listChannels,
+  startConnect,
+  updateChannel,
+  updateChannelSet,
+  type ConnectNetwork,
+} from './channel-store';
 import {
   acceptInvitation,
   cancelInvitation,
@@ -54,6 +78,12 @@ import {
   updateWorkspace,
   setProjectMembers,
 } from './workspace-store';
+
+const CONNECT_NETWORKS = new Set<ConnectNetwork>(['vk', 'tg', 'ok', 'max', 'rutube']);
+
+function parseConnectNetwork(value: string): ConnectNetwork | null {
+  return CONNECT_NETWORKS.has(value as ConnectNetwork) ? (value as ConnectNetwork) : null;
+}
 
 function problem(status: number, code: string, detail: string, title?: string, instance = '/api/v1') {
   const body: ProblemDetail = {
@@ -522,5 +552,257 @@ export const handlers = [
     const deniedAudit = requirePermission(request, 'audit.view');
     if (deniedAudit) return deniedAudit;
     return HttpResponse.json({ items: listAudit(workspaceId), hasMore: false });
+  }),
+
+  // --- Channels (FE-6) ---
+  http.get('/api/v1/channels', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'channels.view');
+    if (deniedView) return deniedView;
+    const items = listChannels(workspaceId, {
+      projectId: url.searchParams.get('projectId') ?? undefined,
+      network: url.searchParams.get('network') ?? undefined,
+      status: url.searchParams.get('status') ?? undefined,
+    });
+    return HttpResponse.json({
+      items,
+      hasMore: false,
+      meta: {
+        used: countActiveChannels(workspaceId),
+        limit: channelLimitForWorkspace(workspaceId),
+      },
+    });
+  }),
+
+  http.post('/api/v1/channels/connect/:network/start', ({ request, params }) => {
+    const network = parseConnectNetwork(String(params.network));
+    if (!network) {
+      return problem(400, 'validation_failed', 'Unknown network', 'Validation failed');
+    }
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    if (countActiveChannels(workspaceId) >= channelLimitForWorkspace(workspaceId)) {
+      return problem(
+        402,
+        PLAN_LIMIT_EXCEEDED_CODE,
+        'Channel limit for the current plan is reached. Upgrade to connect more channels.',
+        'Payment required',
+      );
+    }
+    const projectId = url.searchParams.get('projectId') ?? undefined;
+    return HttpResponse.json(startConnect(network, workspaceId, projectId));
+  }),
+
+  http.post('/api/v1/channels/connect/:network/callback', async ({ request, params }) => {
+    const network = parseConnectNetwork(String(params.network));
+    if (!network) {
+      return problem(400, 'validation_failed', 'Unknown network', 'Validation failed');
+    }
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as ChannelConnectCallbackRequest;
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, body.workspaceId);
+    if (denied) return denied;
+    const result = connectCallback(network, body);
+    if ('error' in result) {
+      if (result.error === 'plan_limit_exceeded') {
+        return problem(
+          402,
+          PLAN_LIMIT_EXCEEDED_CODE,
+          'Channel limit for the current plan is reached. Upgrade to connect more channels.',
+          'Payment required',
+        );
+      }
+      if (result.error === 'insufficient_permissions') {
+        return problem(
+          403,
+          INSUFFICIENT_PERMISSIONS_CODE,
+          'Bot lacks required admin permissions. Grant can_post_messages, can_edit_messages, can_delete_messages, can_pin_messages.',
+          'Forbidden',
+        );
+      }
+      return problem(400, 'validation_failed', 'Invalid connect callback payload', 'Validation failed');
+    }
+    return HttpResponse.json({ items: result, hasMore: false });
+  }),
+
+  http.post('/api/v1/channels/connect/:network/confirm', async ({ request, params }) => {
+    const network = parseConnectNetwork(String(params.network));
+    if (!network) {
+      return problem(400, 'validation_failed', 'Unknown network', 'Validation failed');
+    }
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as ChannelConnectConfirmRequest;
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, body.workspaceId);
+    if (denied) return denied;
+    const result = confirmBotConnect(network, body);
+    if ('error' in result) {
+      if (result.error === 'plan_limit_exceeded') {
+        return problem(
+          402,
+          PLAN_LIMIT_EXCEEDED_CODE,
+          'Channel limit for the current plan is reached. Upgrade to connect more channels.',
+          'Payment required',
+        );
+      }
+      if (result.error === 'insufficient_permissions') {
+        return problem(
+          403,
+          INSUFFICIENT_PERMISSIONS_CODE,
+          'Bot lacks required admin permissions. Add @PostsBot as admin with post/edit/delete/pin rights.',
+          'Forbidden',
+        );
+      }
+      return problem(400, 'validation_failed', 'username or forwarded message is required', 'Validation failed');
+    }
+    return HttpResponse.json({ items: result, hasMore: false });
+  }),
+
+  http.get('/api/v1/channels/:channelId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'channels.view');
+    if (deniedView) return deniedView;
+    const channel = getChannel(String(params.channelId));
+    if (!channel) {
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json(channel);
+  }),
+
+  http.put('/api/v1/channels/:channelId', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as UpdateChannelRequest;
+    const channel = updateChannel(String(params.channelId), body);
+    if (!channel) {
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json(channel);
+  }),
+
+  http.delete('/api/v1/channels/:channelId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    if (!deleteChannel(String(params.channelId))) {
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json({ message: 'disconnected' });
+  }),
+
+  http.post('/api/v1/channels/:channelId/check', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    const result = checkChannel(String(params.channelId));
+    if (!result) {
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json(result);
+  }),
+
+  // --- Channel sets ---
+  http.get('/api/v1/channel-sets', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'channel_sets.view');
+    if (deniedView) return deniedView;
+    return HttpResponse.json({ items: listChannelSets(workspaceId), hasMore: false });
+  }),
+
+  http.post('/api/v1/channel-sets', async ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'channel_sets.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as CreateChannelSetRequest;
+    const result = createChannelSet(workspaceId, body);
+    if ('error' in result) {
+      return problem(
+        400,
+        'validation_failed',
+        'Channel set name is required and max 50 channels',
+        'Validation failed',
+      );
+    }
+    return HttpResponse.json(result, { status: 201 });
+  }),
+
+  http.get('/api/v1/channel-sets/:setId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'channel_sets.view');
+    if (deniedView) return deniedView;
+    const set = getChannelSet(String(params.setId));
+    if (!set) {
+      return problem(404, 'not_found', 'Channel set not found', 'Not found');
+    }
+    return HttpResponse.json(set);
+  }),
+
+  http.put('/api/v1/channel-sets/:setId', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channel_sets.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as UpdateChannelSetRequest;
+    const result = updateChannelSet(String(params.setId), body);
+    if (!result) {
+      return problem(404, 'not_found', 'Channel set not found', 'Not found');
+    }
+    if ('error' in result) {
+      return problem(400, 'validation_failed', 'Max 50 channels per set', 'Validation failed');
+    }
+    return HttpResponse.json(result);
+  }),
+
+  http.delete('/api/v1/channel-sets/:setId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channel_sets.manage');
+    if (deniedManage) return deniedManage;
+    if (!deleteChannelSet(String(params.setId))) {
+      return problem(404, 'not_found', 'Channel set not found', 'Not found');
+    }
+    return HttpResponse.json({ message: 'deleted' });
   }),
 ];

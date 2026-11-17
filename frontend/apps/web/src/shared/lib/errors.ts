@@ -34,6 +34,9 @@ export const TWO_FACTOR_REQUIRED_CODE = 'two_factor_required';
 /** OpenAPI / BE-6 ProblemCodes: role cannot perform the action. */
 export const INSUFFICIENT_PERMISSIONS_CODE = 'insufficient_permissions';
 
+/** OpenAPI ProblemCodes: channel/seat/post quota of the current plan. */
+export const PLAN_LIMIT_EXCEEDED_CODE = 'plan_limit_exceeded';
+
 export function isApiProblemError(error: unknown): error is ApiProblemError {
   return error instanceof ApiProblemError;
 }
@@ -44,6 +47,10 @@ export function isTwoFactorRequired(error: unknown): boolean {
 
 export function isInsufficientPermissions(error: unknown): boolean {
   return isApiProblemError(error) && error.code === INSUFFICIENT_PERMISSIONS_CODE;
+}
+
+export function isPlanLimitExceeded(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === PLAN_LIMIT_EXCEEDED_CODE;
 }
 
 export function getErrorMessage(error: unknown, fallback = 'Unexpected error'): string {

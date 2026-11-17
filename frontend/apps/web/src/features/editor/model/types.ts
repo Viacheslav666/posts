@@ -1,11 +1,12 @@
 import type { NetworkId, TiptapNode } from '@posts/domain';
 
-export type MockChannel = {
-  id: string;
-  name: string;
-  network: NetworkId;
-  projectName: string;
-};
+import type { EditorChannelOption } from '@/features/channels/hooks/use-workspace-channels';
+
+/** Channel option in the editor picker (backed by GET /channels). */
+export type EditorChannel = EditorChannelOption;
+
+/** @deprecated Use EditorChannel — kept for older imports. */
+export type MockChannel = EditorChannel;
 
 export type EditorVariant = {
   network: NetworkId;
