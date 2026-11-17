@@ -310,23 +310,40 @@ endpoints:
 - operationId: mediaList
   method: GET
   path: /api/v1/media
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: mediaImportUrl
+  method: POST
+  path: /api/v1/media/import-url
+  implementedHint: true
+  rbac: matrix
+  action: media.manage
   query:
     workspaceId: '{workspaceId}'
 - operationId: mediaCreateUpload
   method: POST
   path: /api/v1/media/uploads
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.manage
   query:
     workspaceId: '{workspaceId}'
+- operationId: mediaDelete
+  method: DELETE
+  path: /api/v1/media/{mediaId}
+  implementedHint: true
+  rbac: matrix
+  action: media.manage
+  pathParams:
+    mediaId: '{mediaId}'
+  destructive: true
 - operationId: mediaGet
   method: GET
   path: /api/v1/media/{mediaId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.view
   pathParams:
@@ -334,7 +351,7 @@ endpoints:
 - operationId: mediaCompleteUpload
   method: POST
   path: /api/v1/media/{mediaId}/complete
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.manage
   pathParams:

@@ -288,6 +288,22 @@ final class RbacHttpProbeSupport {
                     .createObjectNode()
                     .put("workspaceId", workspaceId.toString())
                     .toString();
+            case "mediaCreateUpload" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("kind", "image");
+                node.put("mime", "image/jpeg");
+                node.put("sizeBytes", 1024);
+                node.put("filename", "rbac-probe.jpg");
+                yield node.toString();
+            }
+            case "mediaCompleteUpload" -> "{}";
+            case "mediaImportUrl" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("url", "https://example.invalid/rbac-probe.jpg");
+                yield node.toString();
+            }
             case "postsCreate",
                     "postsUpdate",
                     "postsBulk",
@@ -296,8 +312,6 @@ final class RbacHttpProbeSupport {
                     "postsPause",
                     "postsResume",
                     "calendarMove",
-                    "mediaCreateUpload",
-                    "mediaCompleteUpload",
                     "channelSetsCreate",
                     "channelSetsUpdate",
                     "channelsUpdate",

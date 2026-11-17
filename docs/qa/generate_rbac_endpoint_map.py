@@ -97,6 +97,8 @@ ACTION: dict[str, str | None] = {
     "mediaGet": "media.view",
     "mediaCreateUpload": "media.manage",
     "mediaCompleteUpload": "media.manage",
+    "mediaDelete": "media.manage",
+    "mediaImportUrl": "media.manage",
     "calendarList": "calendar.view",
     "calendarMove": "calendar.move",
     "publicationsList": "posts.view",
@@ -151,6 +153,12 @@ IMPLEMENTED = {
     "meRevokeOtherSessions",
     "meListSessions",
     "meRevokeSession",
+    "mediaList",
+    "mediaGet",
+    "mediaCreateUpload",
+    "mediaCompleteUpload",
+    "mediaDelete",
+    "mediaImportUrl",
 }
 
 DESTRUCTIVE = {
@@ -162,6 +170,7 @@ DESTRUCTIVE = {
     "channelSetsDelete",
     "postsDelete",
     "meDelete",
+    "mediaDelete",
 }
 
 WORKSPACE_QUERY_OPS = {
@@ -183,6 +192,7 @@ WORKSPACE_QUERY_OPS = {
     "postsPreview",
     "postsBulk",
     "mediaCreateUpload",
+    "mediaImportUrl",
     "channelSetsCreate",
 }
 
