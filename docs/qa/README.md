@@ -15,6 +15,10 @@
 | [test-plan-mvp.md](test-plan-mvp.md) | План MVP: scope, окружения, вход/выход, риски | QA-4 |
 | [test-data.md](test-data.md) | Тестовые данные и seed-профили | QA-4 |
 | [test-cases/](test-cases/) | Кейсы E1–E5 (TC-AUTH/RBAC/CH/POST/PUB) | QA-4 |
+| [rbac-endpoint-map.yaml](rbac-endpoint-map.yaml) | OpenAPI operationId → RBAC action | QA-6 |
+| [rbac-coverage-report.md](rbac-coverage-report.md) | Покрытие роль × эндпоинт | QA-6 |
+| [traceability-tc-rbac.md](traceability-tc-rbac.md) | Трассировка TC-RBAC/IDOR → автотест | QA-6 |
+| [traceability-tc-pub.md](traceability-tc-pub.md) | Трассировка TC-PUB → автотест | QA-5 |
 | `release-report-vX.md` | Релизная готовность | перед релизом |
 
 Связанные артефакты вне `docs/qa/`:
