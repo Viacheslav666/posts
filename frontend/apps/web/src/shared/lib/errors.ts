@@ -31,12 +31,19 @@ export class ApiProblemError extends AppError {
 /** Provisional code used by MSW until BE-5 formalizes 2FA challenge in OpenAPI. */
 export const TWO_FACTOR_REQUIRED_CODE = 'two_factor_required';
 
+/** OpenAPI / BE-6 ProblemCodes: role cannot perform the action. */
+export const INSUFFICIENT_PERMISSIONS_CODE = 'insufficient_permissions';
+
 export function isApiProblemError(error: unknown): error is ApiProblemError {
   return error instanceof ApiProblemError;
 }
 
 export function isTwoFactorRequired(error: unknown): boolean {
   return isApiProblemError(error) && error.code === TWO_FACTOR_REQUIRED_CODE;
+}
+
+export function isInsufficientPermissions(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === INSUFFICIENT_PERMISSIONS_CODE;
 }
 
 export function getErrorMessage(error: unknown, fallback = 'Unexpected error'): string {

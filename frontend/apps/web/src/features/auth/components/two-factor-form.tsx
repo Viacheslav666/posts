@@ -10,7 +10,9 @@ import { useForm } from 'react-hook-form';
 import { readPendingLogin } from '@/shared/api-client';
 import { getErrorMessage } from '@/shared/lib/errors';
 
-import { completeTwoFactorLogin } from '../api/auth-api';
+import { completeTwoFactorLogin, fetchMe } from '../api/auth-api';
+
+const FALLBACK_WORKSPACE_ID = '019a0000-0002-7000-8000-000000000002';
 import { twoFactorSchema, type TwoFactorValues } from '../model/schemas';
 import { FormField } from './form-field';
 
@@ -48,7 +50,9 @@ export function TwoFactorForm() {
         totpCode: values.code,
       });
       toast({ title: t('twoFactor.successTitle'), description: t('twoFactor.successBody') });
-      router.push('/app/demo');
+      const me = await fetchMe();
+      const workspaceId = me.memberships?.[0]?.workspaceId ?? FALLBACK_WORKSPACE_ID;
+      router.push(`/app/${workspaceId}`);
     } catch (error) {
       toast({
         variant: 'destructive',

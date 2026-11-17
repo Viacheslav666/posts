@@ -33,6 +33,7 @@
     "inbox": "Инбокс",
     "automations": "Автоматизации",
     "ord": "Реклама / ОРД",
+    "projects": "Проекты",
     "team": "Команда",
     "settings": "Настройки",
     "billing": "Биллинг",
@@ -41,7 +42,165 @@
   "workspaceSwitcher": {
     "label": "Workspace",
     "placeholder": "Выберите workspace",
-    "stubHint": "Заглушка FE-1 — данные появятся после auth"
+    "create": "Создать workspace",
+    "createTitle": "Новый workspace",
+    "createDescription": "Создайте пространство для команды или клиента."
+  },
+  "roles": {
+    "owner": "Владелец",
+    "admin": "Админ",
+    "editor": "Редактор",
+    "author": "Автор",
+    "viewer": "Наблюдатель"
+  },
+  "problems": {
+    "insufficient_permissions": "Недостаточно прав для этого действия"
+  },
+  "workspace": {
+    "loading": "Загрузка…",
+    "submitting": "Сохранение…",
+    "fields": {
+      "name": "Название"
+    },
+    "validation": {
+      "nameRequired": "Укажите название",
+      "nameMax": "Слишком длинное название"
+    },
+    "create": {
+      "submit": "Создать",
+      "successTitle": "Workspace создан",
+      "successBody": "Переходим в новое пространство.",
+      "errorTitle": "Не удалось создать workspace"
+    },
+    "settings": {
+      "title": "Настройки workspace",
+      "description": "Имя пространства и опасные действия.",
+      "save": "Сохранить",
+      "savedTitle": "Сохранено",
+      "savedBody": "Настройки обновлены.",
+      "errorTitle": "Не удалось сохранить",
+      "readOnly": "У вас нет прав на изменение настроек.",
+      "projectsLinkTitle": "Проекты",
+      "projectsLinkBody": "Управляйте проектами (клиентами и брендами) отдельно.",
+      "projectsLinkCta": "К проектам",
+      "dangerTitle": "Удаление",
+      "dangerBody": "Удаление необратимо. Доступно только владельцу.",
+      "delete": "Удалить workspace",
+      "deleteConfirm": "Да, удалить",
+      "deleteCancel": "Отмена",
+      "deletedTitle": "Workspace удалён",
+      "deletedBody": "Пространство больше недоступно."
+    }
+  },
+  "projects": {
+    "title": "Проекты",
+    "description": "Клиенты и бренды внутри workspace.",
+    "submitting": "Создание…",
+    "empty": "Пока нет проектов",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра проектов.",
+    "fields": {
+      "name": "Название",
+      "color": "Цвет"
+    },
+    "validation": {
+      "nameRequired": "Укажите название",
+      "nameMax": "Слишком длинное название",
+      "colorInvalid": "Цвет в формате #RRGGBB"
+    },
+    "create": {
+      "submit": "Добавить",
+      "successTitle": "Проект создан",
+      "successBody": "Он появился в списке.",
+      "errorTitle": "Не удалось создать проект"
+    },
+    "edit": {
+      "action": "Изменить",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "successTitle": "Проект обновлён",
+      "successBody": "Изменения сохранены.",
+      "errorTitle": "Не удалось обновить"
+    },
+    "delete": {
+      "action": "Удалить",
+      "successTitle": "Проект удалён",
+      "successBody": "Проект больше не в списке.",
+      "errorTitle": "Не удалось удалить"
+    }
+  },
+  "team": {
+    "title": "Команда",
+    "description": "Участники, приглашения и аудит.",
+    "submitting": "Отправка…",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра команды.",
+    "tabs": {
+      "members": "Участники",
+      "invitations": "Приглашения",
+      "audit": "Аудит"
+    },
+    "validation": {
+      "emailRequired": "Укажите email",
+      "emailInvalid": "Некорректный email",
+      "roleRequired": "Выберите роль"
+    },
+    "invite": {
+      "title": "Пригласить участника",
+      "email": "Email",
+      "role": "Роль",
+      "projects": "Проекты",
+      "projectsHint": "Опционально: доступ только к выбранным проектам.",
+      "projectsEmpty": "Сначала создайте проект в разделе «Проекты».",
+      "submit": "Отправить приглашение",
+      "successTitle": "Приглашение отправлено",
+      "successBody": "Участник получит письмо со ссылкой.",
+      "errorTitle": "Не удалось пригласить"
+    },
+    "members": {
+      "roleLabel": "Роль участника",
+      "remove": "Удалить",
+      "updatedTitle": "Роль обновлена",
+      "removedTitle": "Участник удалён",
+      "errorTitle": "Ошибка",
+      "emptyTitle": "Нет участников",
+      "emptyBody": "Пригласите коллег в workspace."
+    },
+    "invitations": {
+      "cancel": "Отменить",
+      "cancelledTitle": "Приглашение отменено",
+      "errorTitle": "Ошибка",
+      "empty": "Нет ожидающих приглашений"
+    },
+    "audit": {
+      "action": "Действие",
+      "entity": "Сущность",
+      "ip": "IP",
+      "time": "Время",
+      "empty": "Записей пока нет",
+      "forbidden": "Просмотр аудита недоступен для вашей роли."
+    }
+  },
+  "invite": {
+    "title": "Приглашение в команду",
+    "description": "Просмотрите детали и примите приглашение.",
+    "submitting": "Принятие…",
+    "submit": "Принять приглашение",
+    "previewEmail": "Email",
+    "previewRole": "Роль",
+    "previewError": "Приглашение не найдено или истекло",
+    "loginRequired": "Чтобы принять приглашение, войдите или зарегистрируйтесь.",
+    "toLogin": "Войти",
+    "toRegister": "Регистрация",
+    "successTitle": "Вы в команде",
+    "successBody": "Переходим в workspace.",
+    "errorTitle": "Не удалось принять приглашение",
+    "fields": {
+      "token": "Токен приглашения"
+    },
+    "validation": {
+      "tokenRequired": "Укажите токен"
+    }
   },
   "landing": {
     "headline": "Надёжный планировщик публикаций для команд",
@@ -194,6 +353,7 @@
       "rate_limited": "Слишком много попыток — подождите",
       "email_not_verified": "Сначала подтвердите email",
       "two_factor_required": "Нужен код двухфакторной аутентификации",
+      "insufficient_permissions": "Недостаточно прав для этого действия",
       "not_implemented": "Операция ещё не реализована на сервере"
     }
   },

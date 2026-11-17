@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { server } from '@/mocks/server';
+import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
 // ProseMirror / TipTap need layout APIs that jsdom does not implement.
 beforeAll(() => {
@@ -39,6 +40,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  resetWorkspaceStore();
   resetApiClient();
   clearAccessToken();
   clearPendingLogin();

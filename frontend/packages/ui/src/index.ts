@@ -66,6 +66,12 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './comp
 export { Badge, badgeVariants } from './components/badge';
 export type { BadgeProps, PublicationStatus } from './components/badge';
 
+export { RoleBadge, WORKSPACE_ROLES } from './components/role-badge';
+export type { RoleBadgeProps, WorkspaceRole } from './components/role-badge';
+
+export { MemberActionsBar } from './components/member-actions';
+export type { MemberActionsBarProps } from './components/member-actions';
+
 export { Avatar, AvatarFallback, AvatarImage } from './components/avatar';
 
 export { NetworkIcon } from './components/network-icon';

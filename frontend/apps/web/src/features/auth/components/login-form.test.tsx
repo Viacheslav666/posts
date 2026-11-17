@@ -28,7 +28,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByTestId('login-submit'));
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('/app/demo');
+      expect(push).toHaveBeenCalledWith('/app/019a0000-0002-7000-8000-000000000002');
     });
   });
 
