@@ -1,35 +1,40 @@
-import type { MockChannel } from './types';
+import { CHANNEL_IDS } from '@/mocks/channel-store';
 
-/** FE-4 prototype channel list (until FE-6 connects real channels API). */
-export const MOCK_CHANNELS: MockChannel[] = [
+import type { EditorChannel } from './types';
+
+/**
+ * @deprecated FE-6: editor loads channels from GET /channels (MSW/API).
+ * Kept as seed reference for tests that assert known channel ids.
+ */
+export const MOCK_CHANNELS: EditorChannel[] = [
   {
-    id: '019a0000-chan-7000-8000-000000000001',
+    id: CHANNEL_IDS.vkNews,
     name: 'Posts — новости',
     network: 'vk',
-    projectName: 'Личный бренд',
+    projectName: 'Основной проект',
   },
   {
-    id: '019a0000-chan-7000-8000-000000000002',
+    id: CHANNEL_IDS.tgNews,
     name: '@posts_news',
     network: 'tg',
-    projectName: 'Личный бренд',
+    projectName: 'Основной проект',
   },
   {
-    id: '019a0000-chan-7000-8000-000000000003',
+    id: CHANNEL_IDS.okBrand,
     name: 'Posts OK',
     network: 'ok',
-    projectName: 'Клиент А',
+    projectName: 'Основной проект',
   },
   {
-    id: '019a0000-chan-7000-8000-000000000004',
+    id: CHANNEL_IDS.maxBrand,
     name: 'Posts Max',
     network: 'max',
-    projectName: 'Клиент А',
+    projectName: 'Основной проект',
   },
   {
-    id: '019a0000-chan-7000-8000-000000000005',
+    id: CHANNEL_IDS.vkShop,
     name: 'VK Витрина',
     network: 'vk',
-    projectName: 'Клиент А',
+    projectName: 'Основной проект',
   },
 ];

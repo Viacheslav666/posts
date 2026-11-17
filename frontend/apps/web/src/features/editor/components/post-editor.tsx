@@ -12,10 +12,14 @@ import { Button } from '@posts/ui';
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 
+import {
+  useWorkspaceChannels,
+  type EditorChannelOption,
+} from '@/features/channels/hooks/use-workspace-channels';
+
 import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network-capabilities';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
 import { loadDraft } from '../model/draft-db';
-import { MOCK_CHANNELS } from '../model/mock-channels';
 import { EMPTY_DOC, type EditorDraft, type EditorVariant } from '../model/types';
 import { AutosaveIndicator } from './autosave-indicator';
 import { ChannelPicker } from './channel-picker';
@@ -36,17 +40,20 @@ function createDraft(workspaceId: string, draftId: string): EditorDraft {
     updatedAt: new Date().toISOString(),
     baseHtml: '',
     baseDoc: EMPTY_DOC,
-    selectedChannelIds: [MOCK_CHANNELS[0].id, MOCK_CHANNELS[1].id],
+    selectedChannelIds: [],
     variants: [],
     previewNetwork: 'tg',
     activeVariant: 'base',
   };
 }
 
-function networksFromSelection(channelIds: string[]): NetworkId[] {
+function networksFromSelection(
+  channelIds: string[],
+  channels: EditorChannelOption[],
+): NetworkId[] {
   const set = new Set<NetworkId>();
   for (const id of channelIds) {
-    const channel = MOCK_CHANNELS.find((item) => item.id === id);
+    const channel = channels.find((item) => item.id === id);
     if (channel) {
       set.add(channel.network);
     }
@@ -60,6 +67,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const [hydrated, setHydrated] = useState(false);
   const [, startTransition] = useTransition();
   const capabilitiesQuery = useNetworkCapabilities();
+  const { channels, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,11 +84,27 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     };
   }, [workspaceId, draftId]);
 
+  // Default selection once channels arrive (new drafts start empty).
+  useEffect(() => {
+    if (!draft || channels.length === 0) {
+      return;
+    }
+    if (draft.selectedChannelIds.length > 0) {
+      return;
+    }
+    const defaults = channels.slice(0, 2).map((channel) => channel.id);
+    setDraft((current) =>
+      current && current.selectedChannelIds.length === 0
+        ? { ...current, selectedChannelIds: defaults, updatedAt: new Date().toISOString() }
+        : current,
+    );
+  }, [channels, draft]);
+
   const { status, lastSavedAt } = useDraftAutosave(draft, hydrated);
 
   const selectedNetworks = useMemo(
-    () => (draft ? networksFromSelection(draft.selectedChannelIds) : []),
-    [draft],
+    () => (draft ? networksFromSelection(draft.selectedChannelIds, channels) : []),
+    [draft, channels],
   );
 
   const activeHtml = useMemo(() => {
@@ -114,14 +138,14 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     if (!draft) {
       return undefined;
     }
-    const match = MOCK_CHANNELS.find(
+    const match = channels.find(
       (channel) =>
         draft.selectedChannelIds.includes(channel.id) &&
         (channel.network === draft.previewNetwork ||
           (draft.previewNetwork === 'tg' && channel.network === 'tg')),
     );
     return match?.name;
-  }, [draft]);
+  }, [draft, channels]);
 
   const overriddenMap = useMemo(() => {
     const map: Partial<Record<NetworkId, boolean>> = {};
@@ -206,7 +230,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         <div className="flex min-w-0 flex-col gap-4">
           <ChannelPicker
-            channels={MOCK_CHANNELS}
+            channels={channels}
+            loading={channelsLoading}
             selectedIds={draft.selectedChannelIds}
             onChange={(ids) =>
               setDraft((current) =>

@@ -4,9 +4,9 @@ import { Badge, NetworkIcon, type SocialNetwork } from '@posts/ui';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import type { MockChannel } from '../model/types';
+import type { EditorChannel } from '../model/types';
 
-const networkToIcon: Record<MockChannel['network'], SocialNetwork | null> = {
+const networkToIcon: Record<EditorChannel['network'], SocialNetwork | null> = {
   vk: 'vk',
   tg: 'telegram',
   ok: 'ok',
@@ -15,12 +15,18 @@ const networkToIcon: Record<MockChannel['network'], SocialNetwork | null> = {
 };
 
 type ChannelPickerProps = {
-  channels: MockChannel[];
+  channels: EditorChannel[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  loading?: boolean;
 };
 
-export function ChannelPicker({ channels, selectedIds, onChange }: ChannelPickerProps) {
+export function ChannelPicker({
+  channels,
+  selectedIds,
+  onChange,
+  loading = false,
+}: ChannelPickerProps) {
   const t = useTranslations('editor.channels');
   const [query, setQuery] = useState('');
 
@@ -38,7 +44,7 @@ export function ChannelPicker({ channels, selectedIds, onChange }: ChannelPicker
   }, [channels, query]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, MockChannel[]>();
+    const map = new Map<string, EditorChannel[]>();
     for (const channel of filtered) {
       const list = map.get(channel.projectName) ?? [];
       list.push(channel);
@@ -74,38 +80,42 @@ export function ChannelPicker({ channels, selectedIds, onChange }: ChannelPicker
         placeholder={t('search')}
         className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
       />
-      <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
-        {grouped.map(([project, items]) => (
-          <div key={project}>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {project}
-            </p>
-            <ul className="space-y-1">
-              {items.map((channel) => {
-                const checked = selectedIds.includes(channel.id);
-                const icon = networkToIcon[channel.network];
-                return (
-                  <li key={channel.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggle(channel.id)}
-                        className="h-4 w-4 accent-primary"
-                      />
-                      {icon ? <NetworkIcon network={icon} size="sm" /> : null}
-                      <span className="truncate text-sm">{channel.name}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-        {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('empty')}</p>
-        ) : null}
-      </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
+      ) : (
+        <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+          {grouped.map(([project, items]) => (
+            <div key={project}>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {project}
+              </p>
+              <ul className="space-y-1">
+                {items.map((channel) => {
+                  const checked = selectedIds.includes(channel.id);
+                  const icon = networkToIcon[channel.network];
+                  return (
+                    <li key={channel.id}>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggle(channel.id)}
+                          className="h-4 w-4 accent-primary"
+                        />
+                        {icon ? <NetworkIcon network={icon} size="sm" /> : null}
+                        <span className="truncate text-sm">{channel.name}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('empty')}</p>
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }

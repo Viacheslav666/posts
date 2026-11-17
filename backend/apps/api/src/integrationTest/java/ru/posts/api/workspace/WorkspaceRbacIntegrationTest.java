@@ -99,13 +99,15 @@ class WorkspaceRbacIntegrationTest {
     }
 
     @Test
-    @DisplayName("TC-IDOR-01 foreign workspace → 404")
+    @DisplayName("TC-IDOR-01 foreign workspace / project by UUID → 404 (not 403)")
     void tcIdor01_foreignWorkspace() throws Exception {
         String ownerA = registerVerifyLogin("idor-a-" + UUID.randomUUID() + "@example.com", "Owner A");
         String ownerB = registerVerifyLogin("idor-b-" + UUID.randomUUID() + "@example.com", "Owner B");
 
         UUID wsA = firstWorkspaceId(ownerA);
         UUID wsB = firstWorkspaceId(ownerB);
+        UUID projectB = UUID.fromString(
+                createProject(ownerB, wsB, "Foreign", "#ABCDEF").get("id").asText());
 
         mockMvc.perform(get("/api/v1/workspaces/" + wsB).header("Authorization", bearer(ownerA)))
                 .andExpect(status().isNotFound())
@@ -120,10 +122,21 @@ class WorkspaceRbacIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/workspaces/" + wsA + "/audit").header("Authorization", bearer(ownerB)))
                 .andExpect(status().isNotFound());
+        // Same IDOR contract for project UUID from another workspace
+        mockMvc.perform(get("/api/v1/projects/" + projectB).header("Authorization", bearer(ownerA)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("not_found"));
+        mockMvc.perform(put("/api/v1/projects/" + projectB)
+                        .with(csrf())
+                        .header("Authorization", bearer(ownerA))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Hacked"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("not_found"));
     }
 
     @Test
-    @DisplayName("TC-WS-03 create project; TC-RBAC-01 editor sees only granted projects")
+    @DisplayName("TC-WS-03 / TC-RBAC-01 / TC-IDOR: editor sees only granted projects; unassigned → 404")
     void tcRbac01_editorAssignedProjects() throws Exception {
         Fixture fx = seedTeamWorkspace();
 
@@ -131,9 +144,11 @@ class WorkspaceRbacIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Alpha"));
 
+        // Outside ProjectGrant must be not_found (404), never forbidden (403)
         mockMvc.perform(get("/api/v1/projects/" + fx.projectBeta).header("Authorization", bearer(fx.editorToken)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("not_found"));
+                .andExpect(jsonPath("$.code").value("not_found"))
+                .andExpect(jsonPath("$.status").value(404));
 
         JsonNode editorProjects = readJson(mockMvc.perform(get("/api/v1/workspaces/" + fx.workspaceId + "/projects")
                         .header("Authorization", bearer(fx.editorToken)))
