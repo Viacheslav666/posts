@@ -45,9 +45,12 @@ jobs:
               - 'tests/e2e/**'
               - 'tests/contract/**'
               - 'tests/load/**'
+              - 'tests/chaos/**'
               - 'docs/api/openapi.yaml'
+              - 'docs/qa/**'
               - 'frontend/apps/web/**'
               - 'backend/apps/api/**'
+              - 'backend/apps/publisher/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/nightly.yml'
 

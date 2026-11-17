@@ -75,9 +75,10 @@ curl -s -X PUT http://localhost:8090/_control/scenario \
 
 | Значение | Поведение |
 |---|---|
-| `6` / `9` / `10` / `15` / `100` | ответ VK с `error.error_code` (без создания поста) |
+| `6` / `9` / `10` / `15` / `100` | ответ VK с `error.error_code` (без создания поста); на TG/OK/Max → HTTP 403 |
 | `429` | HTTP 429 + `Retry-After` / `retry_after` |
 | `5xx` | HTTP 5xx (`httpStatus` или 503) |
+| `403` / `401` / `permanent` / `forbidden` / `no_rights` | HTTP 4xx без создания поста (по умолчанию 403) |
 | `drop` / `success_without_response` | пост **создаётся**, соединение обрывается (статус 499) |
 | `hang` / `timeout` | долгая пауза `hangMs`, затем обрыв **без** создания поста |
 
