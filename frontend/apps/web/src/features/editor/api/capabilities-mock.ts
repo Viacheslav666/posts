@@ -2,8 +2,11 @@ import type { components } from '@posts/api-client';
 
 export type NetworkCapabilitiesResponse = components['schemas']['NetworkCapabilitiesResponse'];
 
-/** Snapshot aligned with `docs/api/fixtures/network-capabilities.yaml` (AN-2) for FE-4. */
-export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
+/**
+ * Snapshot aligned with `docs/api/fixtures/network-capabilities.yaml` (AN-2).
+ * Cast: OpenAPI stubs media.photo/video as empty maps; fixture uses nested `{ value }`.
+ */
+export const MOCK_NETWORK_CAPABILITIES = {
   version: '1.0.0',
   checkedAt: '2026-11-17',
   networks: [
@@ -15,6 +18,17 @@ export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
       contentTypes: ['post', 'repost', 'story'],
       text: { maxChars: undefined, captionMaxChars: undefined },
       formatting: { mode: 'plain', features: [], htmlTags: [] },
+      media: {
+        maxAttachmentsPerPost: 10,
+        photo: {
+          max_count_per_post: { value: 10 },
+          max_file_bytes: { value: 52_428_800 },
+          formats: { value: ['JPG', 'PNG', 'GIF'] },
+        },
+        video: {
+          max_count_per_post: { value: 10 },
+        },
+      },
       features: {
         pin: true,
         unpin: true,
@@ -65,6 +79,17 @@ export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
           'blockquote',
         ],
       },
+      media: {
+        maxAttachmentsPerPost: 10,
+        photo: {
+          max_count_per_post: { value: 10 },
+          max_file_bytes: { value: 10_485_760 },
+          formats: { value: ['JPG', 'PNG', 'WEBP'] },
+        },
+        video: {
+          max_file_bytes: { value: 52_428_800 },
+        },
+      },
       features: {
         pin: true,
         unpin: false,
@@ -84,6 +109,13 @@ export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
       contentTypes: ['post', 'repost'],
       text: { maxChars: undefined, captionMaxChars: undefined },
       formatting: { mode: 'plain', features: [], htmlTags: [] },
+      media: {
+        maxAttachmentsPerPost: 10,
+        photo: {
+          max_count_per_post: { value: 10 },
+          formats: { value: ['JPG', 'PNG'] },
+        },
+      },
       features: {
         pin: false,
         unpin: false,
@@ -139,6 +171,13 @@ export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
           'mark',
         ],
       },
+      media: {
+        maxAttachmentsPerPost: 10,
+        photo: {
+          max_count_per_post: { value: 10 },
+          formats: { value: ['JPG', 'PNG', 'WEBP'] },
+        },
+      },
       features: {
         pin: false,
         unpin: false,
@@ -151,4 +190,4 @@ export const MOCK_NETWORK_CAPABILITIES: NetworkCapabilitiesResponse = {
       },
     },
   ],
-};
+} as unknown as NetworkCapabilitiesResponse;

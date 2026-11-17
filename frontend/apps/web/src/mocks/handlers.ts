@@ -1,9 +1,11 @@
 import type {
   ChannelConnectCallbackRequest,
   ChannelConnectConfirmRequest,
+  CompleteUploadRequest,
   CreateChannelSetRequest,
   CreateInvitationRequest,
   CreateProjectRequest,
+  CreateUploadRequest,
   CreateWorkspaceRequest,
   EmailVerifyRequest,
   LoginRequest,
@@ -23,6 +25,7 @@ import type {
 import { http, HttpResponse } from 'msw';
 
 import { MOCK_NETWORK_CAPABILITIES } from '@/features/editor/api/capabilities-mock';
+import type { MediaKind, MediaStatus } from '@/features/media/model/types';
 import {
   INSUFFICIENT_PERMISSIONS_CODE,
   PLAN_LIMIT_EXCEEDED_CODE,
@@ -53,6 +56,18 @@ import {
   updateChannelSet,
   type ConnectNetwork,
 } from './channel-store';
+import {
+  advanceProcessing,
+  completeUpload,
+  createUpload,
+  deleteMedia,
+  getMedia,
+  getQuota,
+  importFromUrl,
+  listFolders,
+  listMedia,
+  receivePart,
+} from './media-store';
 import {
   acceptInvitation,
   cancelInvitation,
@@ -804,5 +819,169 @@ export const handlers = [
       return problem(404, 'not_found', 'Channel set not found', 'Not found');
     }
     return HttpResponse.json({ message: 'deleted' });
+  }),
+
+  // --- Media (OpenAPI + MSW extensions for DELETE / import-url / quota / folders until BE-8) ---
+  http.get('/api/v1/media', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'media.view');
+    if (deniedView) return deniedView;
+    const kind = url.searchParams.get('kind') as MediaKind | null;
+    const status = url.searchParams.get('status') as MediaStatus | null;
+    const page = listMedia({
+      workspaceId,
+      kind: kind ?? undefined,
+      status: status ?? undefined,
+      q: url.searchParams.get('q') ?? undefined,
+      folderId: url.searchParams.get('folderId'),
+      tag: url.searchParams.get('tag') ?? undefined,
+      cursor: url.searchParams.get('cursor') ?? undefined,
+      limit: url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : 20,
+    });
+    return HttpResponse.json(page);
+  }),
+
+  http.post('/api/v1/media/uploads', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'media.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as CreateUploadRequest;
+    if (!body.workspaceId || !body.kind || !body.mime || !body.sizeBytes) {
+      return problem(
+        400,
+        'validation_failed',
+        'workspaceId, kind, mime, sizeBytes are required',
+        'Validation failed',
+      );
+    }
+    const denied = requireWorkspaceAccess(request, body.workspaceId);
+    if (denied) return denied;
+    const created = createUpload({
+      workspaceId: body.workspaceId,
+      kind: body.kind,
+      mime: body.mime,
+      sizeBytes: body.sizeBytes,
+      filename: body.filename,
+      sha256: body.sha256,
+    });
+    return HttpResponse.json(
+      {
+        mediaId: created.mediaId,
+        uploadUrl: created.uploadUrl,
+        expiresAt: created.expiresAt,
+        headers: created.headers,
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/v1/media/quota', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'media.view');
+    if (deniedView) return deniedView;
+    const workspace = getWorkspace(workspaceId);
+    return HttpResponse.json(getQuota(workspaceId, workspace?.planCode));
+  }),
+
+  http.get('/api/v1/media/folders', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'media.view');
+    if (deniedView) return deniedView;
+    return HttpResponse.json({ items: listFolders(workspaceId) });
+  }),
+
+  http.post('/api/v1/media/import-url', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'media.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as {
+      workspaceId?: string;
+      url?: string;
+      filename?: string;
+    };
+    if (!body.workspaceId || !body.url) {
+      return problem(400, 'validation_failed', 'workspaceId and url are required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, body.workspaceId);
+    if (denied) return denied;
+    const asset = importFromUrl({
+      workspaceId: body.workspaceId,
+      url: body.url,
+      filename: body.filename,
+    });
+    return HttpResponse.json(asset, { status: 201 });
+  }),
+
+  http.get('/api/v1/media/:mediaId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'media.view');
+    if (deniedView) return deniedView;
+    const mediaId = String(params.mediaId);
+    advanceProcessing(mediaId);
+    const asset = getMedia(mediaId);
+    if (!asset) {
+      return problem(404, 'not_found', 'Media not found', 'Not found');
+    }
+    return HttpResponse.json(asset);
+  }),
+
+  http.post('/api/v1/media/:mediaId/complete', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'media.manage');
+    if (deniedManage) return deniedManage;
+    const body = ((await request.json()) as CompleteUploadRequest) ?? {};
+    const asset = completeUpload(String(params.mediaId), body);
+    if (!asset) {
+      return problem(404, 'not_found', 'Upload session not found', 'Not found');
+    }
+    return HttpResponse.json(asset);
+  }),
+
+  http.delete('/api/v1/media/:mediaId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'media.manage');
+    if (deniedManage) return deniedManage;
+    if (!deleteMedia(String(params.mediaId))) {
+      return problem(404, 'not_found', 'Media not found', 'Not found');
+    }
+    return HttpResponse.json({ message: 'deleted' });
+  }),
+
+  // Mock S3 multipart PUT (same-origin; never hits external network)
+  http.put('/mock-s3/:mediaId/upload', async ({ request, params }) => {
+    const url = new URL(request.url);
+    const partNumber = Number(url.searchParams.get('partNumber') ?? '1');
+    const buffer = await request.arrayBuffer();
+    const result = receivePart(String(params.mediaId), partNumber, buffer.byteLength);
+    if (!result) {
+      return problem(404, 'not_found', 'Upload session not found', 'Not found');
+    }
+    return new HttpResponse(null, {
+      status: 200,
+      headers: { ETag: `"${result.etag}"` },
+    });
   }),
 ];

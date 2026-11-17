@@ -22,6 +22,7 @@ function sampleDraft(overrides?: Partial<EditorDraft>): EditorDraft {
     variants: [],
     previewNetwork: 'tg',
     activeVariant: 'base',
+    media: [],
     ...overrides,
   };
 }

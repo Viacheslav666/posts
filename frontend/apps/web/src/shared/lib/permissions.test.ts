@@ -27,6 +27,8 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'channels.manage': ['owner', 'admin'],
   'channel_sets.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'channel_sets.manage': ['owner', 'admin', 'editor'],
+  'media.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'media.manage': ['owner', 'admin', 'editor', 'author'],
 };
 
 describe('permissions matrix (FE-5/FE-6)', () => {

@@ -1,6 +1,7 @@
 import type { NetworkId, TiptapNode } from '@posts/domain';
 
 import type { EditorChannelOption } from '@/features/channels/hooks/use-workspace-channels';
+import type { EditorMediaItem } from '@/features/media/model/types';
 
 /** Channel option in the editor picker (backed by GET /channels). */
 export type EditorChannel = EditorChannelOption;
@@ -26,6 +27,7 @@ export type EditorDraft = {
   variants: EditorVariant[];
   previewNetwork: 'vk' | 'tg' | 'ok' | 'max';
   activeVariant: 'base' | NetworkId;
+  media: EditorMediaItem[];
 };
 
 export const EMPTY_DOC: TiptapNode = {
