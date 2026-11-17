@@ -47,3 +47,8 @@ tmp/
 # Coverage
 **/jacoco/
 **/coverage/
+
+# Schemathesis / k6 local artifacts
+.schemathesis/
+tests/contract/reports/
+tests/load/reports/

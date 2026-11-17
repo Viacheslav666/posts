@@ -4,9 +4,12 @@
   "version": "0.1.0",
   "scripts": {
     "test": "playwright test",
-    "test:registration": "playwright test registration.spec.ts"
+    "test:smoke": "playwright test smoke.spec.ts",
+    "test:registration": "playwright test registration.spec.ts",
+    "test:report": "playwright show-report playwright-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.1"
+    "@playwright/test": "^1.50.1",
+    "@types/node": "^22.13.10"
   }
 }

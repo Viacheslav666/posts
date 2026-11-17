@@ -1,5 +1,6 @@
 .PHONY: up up-emulator up-full down backend frontend test openapi lint emulator help \
-	media-base images images-backend images-web images-run-smoke wait-full
+	media-base images images-backend images-web images-run-smoke wait-full \
+	e2e-smoke contract-smoke load-smoke
 
 SHELL := /bin/bash
 COMPOSE_FILE := infra/docker-compose/docker-compose.yml
@@ -7,10 +8,12 @@ COMPOSE := docker compose -f $(COMPOSE_FILE)
 
 REGISTRY ?= ghcr.io/viacheslav666
 MEDIA_BASE_IMAGE ?= posts-java21-ffmpeg:21
+API_BASE_URL ?= http://127.0.0.1:8080
 
 help:
 	@echo "Targets: up up-emulator up-full down backend frontend test openapi lint emulator"
 	@echo "         media-base images images-backend images-web images-run-smoke"
+	@echo "         e2e-smoke contract-smoke load-smoke"
 
 up:
 	$(COMPOSE) up -d
@@ -74,6 +77,18 @@ lint:
 	cd tests/social-emulator && ./gradlew spotlessCheck
 	pnpm --dir frontend -r lint
 	pnpm --dir frontend -r typecheck
+
+# QA-2 smoke harness (API must already answer /api/v1/ping unless you use openapi boot below)
+e2e-smoke:
+	pnpm --dir frontend install
+	cd tests/e2e && pnpm install && pnpm exec playwright install chromium && pnpm test:smoke
+
+contract-smoke:
+	chmod +x tests/contract/run-smoke.sh
+	API_BASE_URL=$(API_BASE_URL) ./tests/contract/run-smoke.sh
+
+load-smoke:
+	API_BASE_URL=$(API_BASE_URL) k6 run tests/load/smoke.js
 
 media-base:
 	docker build -t $(MEDIA_BASE_IMAGE) infra/docker/java21-ffmpeg

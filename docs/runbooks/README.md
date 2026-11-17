@@ -7,3 +7,4 @@
 | [repo-settings.md](./repo-settings.md) | Branch protection `main`, метки, GitHub Project, Renovate (DEV-2) |
 | [images.md](./images.md) | Сборка и публикация образов (DEV-3) |
 | [local-full.md](./local-full.md) | Compose profile `full` для e2e (DEV-4) |
+| [qa-harness.md](./qa-harness.md) | Playwright / Schemathesis / k6 smoke (QA-2) |
