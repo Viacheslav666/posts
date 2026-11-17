@@ -1,11 +1,13 @@
 package ru.posts.scheduler;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class SchedulerApplicationTests {
 
     @Test
-    void contextLoads() {}
+    void applicationEntryPointIsPresent() {
+        assertThat(SchedulerApplication.class.getName()).contains("SchedulerApplication");
+    }
 }

@@ -1,0 +1,48 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+posts:
+  publisher:
+    network: tg
+    pod-name: publisher-it
+    claim-lock-ttl: 5m
+    prefetch: 50
+    max-attempts: 8
+    max-age-after-run-at: 60m
+    publish-timeout: 10s
+  scheduler:
+    batch-size: 500
+    lock-ttl: 10m
+    look-ahead: 5s
+    confirm-timeout: 5s
+  ratelimit:
+    networks:
+      tg:
+        global-per-second: 500
+        token-per-second: 500
+        chat-per-minute: 10000
+
+logging:
+  level:
+    root: WARN
+    ru.posts: INFO

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
+import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
 
 /**
  * Registers hot-path JDBC beans. Entity/repository discovery is handled by the consuming app via
@@ -24,5 +25,11 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(PublicationDispatcherJdbc.class)
     PublicationDispatcherJdbc publicationDispatcherJdbc(DataSource dataSource) {
         return new PublicationDispatcherJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(PublicationLifecycleJdbc.class)
+    PublicationLifecycleJdbc publicationLifecycleJdbc(DataSource dataSource) {
+        return new PublicationLifecycleJdbc(JdbcClient.create(dataSource));
     }
 }
