@@ -11,10 +11,25 @@
 | [roles-permissions.md](./roles-permissions.md) | Роли и права (человекочитаемо) |
 | [roles-permissions.yaml](./roles-permissions.yaml) | Матрица роль × действие для RBAC-тестов и `PermissionEvaluator` |
 
+## Артефакты AN-3 (stories MVP)
+
+| Файл | Назначение |
+|---|---|
+| [stories/](./stories/) | User stories E1–E6 (36 шт.): Given/When/Then, приоритет, зависимости, DoR |
+| [stories/README.md](./stories/README.md) | Индекс эпиков и сводка P0/P1 |
+| [billing-rules.md](./billing-rules.md) | Тарифы, триал, продление, grace/freeze, промокоды, возвраты |
+
+Создание GitHub Issues (идемпотентно, запускает **владелец**, не агент):
+
+```bash
+./infra/scripts/gh-stories-issues.sh          # dry-run
+./infra/scripts/gh-stories-issues.sh --apply
+```
+
 Маркер **★** в документах — превосходство над Впостером; **≈** — паритет.
 
-## Далее (не в этом PR)
+## Далее
 
-- AN-2: `network-capabilities.md` + fixtures
-- AN-3: `stories/E1…E6-*.md`, `billing-rules.md`
+- AN-2: `network-capabilities.md` + fixtures (параллельно)
+- AN-4: ревью `openapi.yaml` против stories E1–E6
 - Фазы 2–3: `PRD-phase2.md`, `PRD-phase3.md`
