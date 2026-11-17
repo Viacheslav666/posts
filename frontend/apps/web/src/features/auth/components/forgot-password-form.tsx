@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { getErrorMessage } from '@/shared/lib/errors';
+
 import { forgotPasswordRequest } from '../api/auth-api';
 import { forgotPasswordSchema, type ForgotPasswordValues } from '../model/schemas';
 import { FormField } from './form-field';
@@ -35,7 +37,7 @@ export function ForgotPasswordForm() {
       toast({
         variant: 'destructive',
         title: t('forgot.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);

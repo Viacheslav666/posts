@@ -100,7 +100,7 @@
       "password": "Пароль",
       "confirmPassword": "Повтор пароля",
       "code": "Код",
-      "passwordHint": "Минимум 8 символов, буква и цифра"
+      "passwordHint": "Минимум 10 символов, буква и цифра"
     },
     "validation": {
       "emailRequired": "Укажите email",
@@ -148,9 +148,9 @@
     },
     "verify": {
       "title": "Подтверждение email",
-      "description": "Мы отправили код на {email}. Для мока используйте 123456.",
+      "description": "Мы отправили ссылку на {email}. Для мока введите токен 123456.",
       "submit": "Подтвердить",
-      "codeHint": "Шестизначный код из письма",
+      "codeHint": "Токен из письма (мок: 123456)",
       "toLogin": "К входу",
       "successTitle": "Email подтверждён",
       "successBody": "Теперь можно войти.",
@@ -184,7 +184,17 @@
       "toLogin": "К входу",
       "successTitle": "Вход завершён",
       "successBody": "2FA пройдена.",
-      "errorTitle": "Код 2FA неверен"
+      "errorTitle": "Код 2FA неверен",
+      "missingPending": "Сессия входа истекла — войдите снова."
+    },
+    "problems": {
+      "validation_failed": "Проверьте введённые данные",
+      "unauthorized": "Неверный email или пароль",
+      "conflict": "Конфликт данных",
+      "rate_limited": "Слишком много попыток — подождите",
+      "email_not_verified": "Сначала подтвердите email",
+      "two_factor_required": "Нужен код двухфакторной аутентификации",
+      "not_implemented": "Операция ещё не реализована на сервере"
     }
   },
   "app": {

@@ -36,19 +36,28 @@ describe('auth schemas', () => {
     });
     expect(weak.success).toBe(false);
 
-    const ok = registerSchema.safeParse({
+    const tooShort = registerSchema.safeParse({
       name: 'Anna',
       email: 'anna@posts.app',
       password: 'Secret12',
       confirmPassword: 'Secret12',
       acceptTerms: true,
     });
+    expect(tooShort.success).toBe(false);
+
+    const ok = registerSchema.safeParse({
+      name: 'Anna',
+      email: 'anna@posts.app',
+      password: 'Secret12ab',
+      confirmPassword: 'Secret12ab',
+      acceptTerms: true,
+    });
     expect(ok.success).toBe(true);
   });
 
-  it('validates verification and 2FA codes', () => {
-    expect(verifyEmailSchema.safeParse({ code: '123456' }).success).toBe(true);
-    expect(verifyEmailSchema.safeParse({ code: '12' }).success).toBe(false);
+  it('validates verification token and 2FA codes', () => {
+    expect(verifyEmailSchema.safeParse({ token: '123456' }).success).toBe(true);
+    expect(verifyEmailSchema.safeParse({ token: '12' }).success).toBe(false);
     expect(twoFactorSchema.safeParse({ code: '654321' }).success).toBe(true);
   });
 
@@ -56,14 +65,14 @@ describe('auth schemas', () => {
     expect(forgotPasswordSchema.safeParse({ email: 'a@b.co' }).success).toBe(true);
     expect(
       resetPasswordSchema.safeParse({
-        password: 'Secret12',
-        confirmPassword: 'Secret12',
+        password: 'Secret12ab',
+        confirmPassword: 'Secret12ab',
       }).success,
     ).toBe(true);
     expect(
       resetPasswordSchema.safeParse({
-        password: 'Secret12',
-        confirmPassword: 'Other12',
+        password: 'Secret12ab',
+        confirmPassword: 'Other12ab',
       }).success,
     ).toBe(false);
   });

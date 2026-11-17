@@ -1,4 +1,4 @@
-import { TooltipProvider } from '@posts/ui';
+import { Toaster, TooltipProvider } from '@posts/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
@@ -17,7 +17,10 @@ function Providers({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale="ru" messages={messages}>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          {children}
+          <Toaster />
+        </TooltipProvider>
       </QueryClientProvider>
     </NextIntlClientProvider>
   );

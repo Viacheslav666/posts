@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { getErrorMessage } from '@/shared/lib/errors';
+
 import { loginRequest } from '../api/auth-api';
 import { loginSchema, type LoginValues } from '../model/schemas';
 import { AuthDivider } from './auth-divider';
@@ -34,7 +36,7 @@ export function LoginForm() {
     try {
       const result = await loginRequest(values);
       if (result.status === 'two_factor_required') {
-        router.push(`/two-factor?challengeId=${encodeURIComponent(result.challengeId)}`);
+        router.push('/two-factor');
         return;
       }
       toast({ title: t('login.successTitle'), description: t('login.successBody') });
@@ -43,7 +45,7 @@ export function LoginForm() {
       toast({
         variant: 'destructive',
         title: t('login.errorTitle'),
-        description: error instanceof Error ? error.message : t('genericError'),
+        description: getErrorMessage(error, t('genericError')),
       });
     } finally {
       setSubmitting(false);

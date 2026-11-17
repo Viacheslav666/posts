@@ -1,112 +1,104 @@
-export type AuthUser = {
-  id: string;
-  email: string;
-  name: string;
-  emailVerified: boolean;
-};
+import type {
+  LoginRequest,
+  MessageResponse,
+  OAuthStartResponse,
+  RegisterRequest,
+  TokenResponse,
+  UserProfile,
+} from '@posts/api-client';
 
-export type LoginResponse =
-  | { status: 'authenticated'; user: AuthUser }
-  | { status: 'two_factor_required'; challengeId: string };
+import {
+  applyTokenResponse,
+  clearAccessToken,
+  clearPendingLogin,
+  getApiClient,
+  savePendingLogin,
+  unwrapApi,
+} from '@/shared/api-client';
+import { isTwoFactorRequired, toApiProblemError } from '@/shared/lib/errors';
 
-export type RegisterResponse = {
-  status: 'verification_required';
-  email: string;
-};
+export type AuthLoginResult =
+  | { status: 'authenticated'; tokens: TokenResponse }
+  | { status: 'two_factor_required' };
 
-export type MessageResponse = {
-  message: string;
-};
+export async function loginRequest(body: LoginRequest): Promise<AuthLoginResult> {
+  const client = getApiClient();
+  const result = await client.POST('/api/v1/auth/login', { body });
 
-export type AuthApiError = {
-  title: string;
-  detail: string;
-  status: number;
-};
-
-const API_BASE = '/api/v1';
-
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json()) as T | AuthApiError;
-  if (!response.ok) {
-    const error = data as AuthApiError;
-    throw new Error(error.detail || error.title || 'Request failed');
+  if (result.error || !result.response.ok) {
+    const problem = toApiProblemError(result.error, result.response.status);
+    if (isTwoFactorRequired(problem)) {
+      savePendingLogin({ email: body.email, password: body.password });
+      return { status: 'two_factor_required' };
+    }
+    throw problem;
   }
-  return data as T;
+
+  const tokens = unwrapApi(result);
+  applyTokenResponse(tokens);
+  clearPendingLogin();
+  return { status: 'authenticated', tokens };
 }
 
-export async function loginRequest(body: {
+export async function completeTwoFactorLogin(input: {
   email: string;
   password: string;
-}): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  totpCode: string;
+}): Promise<TokenResponse> {
+  const result = await loginRequest({
+    email: input.email,
+    password: input.password,
+    totpCode: input.totpCode,
   });
-  return parseJson<LoginResponse>(response);
+  if (result.status !== 'authenticated') {
+    throw new Error('Two-factor login failed');
+  }
+  return result.tokens;
 }
 
-export async function registerRequest(body: {
-  name: string;
-  email: string;
-  password: string;
-}): Promise<RegisterResponse> {
-  const response = await fetch(`${API_BASE}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<RegisterResponse>(response);
+export async function registerRequest(body: RegisterRequest): Promise<MessageResponse> {
+  const client = getApiClient();
+  return unwrapApi(await client.POST('/api/v1/auth/register', { body }));
 }
 
-export async function verifyEmailRequest(body: {
-  email: string;
-  code: string;
-}): Promise<MessageResponse> {
-  const response = await fetch(`${API_BASE}/auth/verify-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<MessageResponse>(response);
+export async function verifyEmailRequest(body: { token: string }): Promise<MessageResponse> {
+  const client = getApiClient();
+  return unwrapApi(await client.POST('/api/v1/auth/email/verify', { body }));
 }
 
-export async function forgotPasswordRequest(body: {
-  email: string;
-}): Promise<MessageResponse> {
-  const response = await fetch(`${API_BASE}/auth/forgot-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<MessageResponse>(response);
+export async function forgotPasswordRequest(body: { email: string }): Promise<MessageResponse> {
+  const client = getApiClient();
+  return unwrapApi(await client.POST('/api/v1/auth/password/forgot', { body }));
 }
 
 export async function resetPasswordRequest(body: {
   token: string;
-  password: string;
+  newPassword: string;
 }): Promise<MessageResponse> {
-  const response = await fetch(`${API_BASE}/auth/reset-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<MessageResponse>(response);
+  const client = getApiClient();
+  return unwrapApi(await client.POST('/api/v1/auth/password/reset', { body }));
 }
 
-export async function verifyTwoFactorRequest(body: {
-  challengeId: string;
-  code: string;
-}): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE}/auth/2fa/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<LoginResponse>(response);
+export async function startOauth(provider: 'vk' | 'yandex' | 'telegram'): Promise<OAuthStartResponse> {
+  const client = getApiClient();
+  return unwrapApi(
+    await client.POST('/api/v1/auth/oauth/{provider}/start', {
+      params: { path: { provider } },
+    }),
+  );
 }
 
-export function oauthStartUrl(provider: 'vk' | 'yandex'): string {
-  return `${API_BASE}/auth/oauth/${provider}`;
+export async function fetchMe(): Promise<UserProfile> {
+  const client = getApiClient();
+  return unwrapApi(await client.GET('/api/v1/me'));
+}
+
+export async function logoutRequest(): Promise<void> {
+  const client = getApiClient();
+  try {
+    await client.POST('/api/v1/auth/logout', { body: {} });
+  } finally {
+    clearAccessToken();
+    clearPendingLogin();
+  }
 }
