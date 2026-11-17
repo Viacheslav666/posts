@@ -129,7 +129,7 @@ public class WorkspaceAccessService {
         return new WorkspaceMembership(member.getWorkspaceId(), member.getUserId(), role, assigned);
     }
 
-    static ApiException notFound() {
+    public static ApiException notFound() {
         return new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Resource not found");
     }
 }

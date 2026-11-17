@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
+    implementation("org.yaml:snakeyaml")
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.h2)
 
@@ -41,6 +42,10 @@ dependencies {
     "integrationTestImplementation"(libs.testcontainers.postgresql)
     "integrationTestImplementation"(project(":libs:test-support"))
     "integrationTestRuntimeOnly"(libs.postgresql)
+}
+
+tasks.named<Test>("integrationTest") {
+    systemProperty("posts.repo.root", rootProject.projectDir.parentFile.absolutePath)
 }
 
 // Custom OpenAPI export (ADR-0008): springdoc-openapi-gradle-plugin 1.9 has
