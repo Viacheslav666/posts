@@ -94,6 +94,21 @@
 
 Далее (в порядке `02-backend.md` §12): BE-7 каналы VK/TG/OK/Max · BE-8 медиа + posts-media · BE-9 посты/варианты/рендер/календарь · BE-10 конвейер в прод-качестве · BE-11 уведомления · BE-12 биллинг ЮKassa · BE-13 админ-API · BE-14 харденинг и нагрузка.
 
+### BE-15. ОРД и маркировка рекламы + полный паритет опций поста (E10)
+- **Ветка:** `feat/be-15-ord-ad-marking` · **Зависит от:** BE-9, BE-10, **AN-P**.
+- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md`: Flyway `ord_*`, `OrdProvider` (VK, Yandex; stub Ozon), register creative → erid, вставка маркера, job актов/статистики, расширение DTO поста (Donut, co-authors, poll, stop/del_task, ads); OpenAPI + WireMock ORD.
+- **Приёмка:** TC-AD-* (интеграционные) зелёные; fail-closed без erid; идемпотентность `external_id`.
+
+### BE-16. Отложенные истории VK/OK (E11)
+- **Ветка:** `feat/be-16-scheduled-stories` · **Зависит от:** BE-7, BE-8, BE-15 (ads), **AN-P**.
+- **Сделать:** по `docs/product/features/scheduled-stories.md`: `content_kind=story`, story-connect VK, адаптеры `publishStory`/`deleteStory`, TTL/ссылки, batch, publications через тот же конвейер.
+- **Приёмка:** TC-STORY-* P0; 0 дублей; TG/Max/IG stories не публикуются (явный отказ).
+
+### BE-17. Граббер + RSS Ingest (E17)
+- **Ветка:** `feat/be-17-grabber-ingest` · **Зависит от:** BE-9, BE-10, apps/ingest, **AN-P**.
+- **Сделать:** по `docs/product/features/grabber.md`: `automation_rules`, runs/items, дедуп, модерация, атрибуция, RSS; публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
+- **Приёмка:** TC-GRAB-* P0; повторный ingest не создаёт дублей публикаций.
+
 ---
 
 ## Posts Разраб Фронт
@@ -120,6 +135,21 @@
 
 Далее (в порядке `03-frontend.md` §6): FE-5 workspace/команда · FE-6 каналы и мастера подключения · FE-7 медиа · FE-8 календарь + список + WS-статусы (STOMP) · FE-9 уведомления/настройки/дашборд/онбординг · FE-10 биллинг и админ-панель · FE-11 производительность, a11y, PWA.
 
+### FE-12. Паритет редактора поста + UI маркировки ОРД
+- **Ветка:** `feat/fe-12-ord-ad-editor` · **Зависит от:** FE-4, FE-8, BE-15, **AN-P**.
+- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` — полные опции поста, экран настроек ОРД, контрагенты, предпросмотр «Реклама»+erid, валидация ИНН/ККТУ.
+- **Приёмка:** e2e TC-AD-01…04 на моках/MSW; a11y редактора без регрессий.
+
+### FE-13. UI отложенных историй
+- **Ветка:** `feat/fe-13-scheduled-stories` · **Зависит от:** FE-7, FE-12, BE-16, **AN-P**.
+- **Сделать:** по `docs/product/features/scheduled-stories.md` — создать историю, список/фильтр календаря, VK story-connect, batch, TTL/ссылки, ads.
+- **Приёмка:** e2e TC-STORY P0 на моках; сети TG/Max/IG скрыты с пояснением.
+
+### FE-14. UI граббера / RSS
+- **Ветка:** `feat/fe-14-grabber` · **Зависит от:** FE-6, BE-17, **AN-P**.
+- **Сделать:** по `docs/product/features/grabber.md` — правила, активные, ручной run, история, модерация, юр. чекбокс.
+- **Приёмка:** e2e TC-GRAB P0 на моках.
+
 ---
 
 ## Posts Аналитик
@@ -142,6 +172,21 @@
 ### AN-4. Ревью контракта API
 - **Ветка:** — (ревью PR BE-3) · **Зависит от:** BE-3.
 - **Сделать:** проверить, что `openapi.yaml` покрывает stories E1–E6; замечания — комментариями в PR.
+
+### AN-P. Матрица паритета vposter и детальные спецификации ключевых инструментов
+- **Ветка:** `feat/an-p-vposter-parity` · **Зависит от:** AN-1, AN-2, AN-3. **Блокирует:** BE-15…17, FE-12…14, QA-10…12.
+- **Сделать:**
+  1. Исследование vposter (help, API v3, блог, тарифы) + API сетей + ФЗ-38/ОРД — со ссылками.
+  2. `docs/product/parity-matrix.md` — все функции оригинала.
+  3. Спеки: `features/scheduled-posts-and-ad-marking.md`, `scheduled-stories.md`, `grabber.md` (UI, сети, модель, OpenAPI, надёжность, RBAC, юр., AC, TC).
+  4. `parity-open-questions.md` + допущения.
+  5. Обновить `02-backend.md`, `03-frontend.md`, `05-qa.md`, `agent-tasks.md` (только дополнения; не ломать BE-1…7, FE-1…6, QA-2…6).
+- **Приёмка:** матрица полная; три спеки согласованы с конвейером/адаптерами/RBAC; план задач обновлён; PR с резюме пробелов и топ-рисков.
+
+### AN-5. User stories Фазы 2 (E8–E22) по итогам AN-P
+- **Ветка:** `docs/an-5-phase2-stories` · **Зависит от:** AN-P.
+- **Сделать:** stories E10/E11/E17 (и связанные) в `docs/product/stories/` по спекам AN-P; черновик `PRD-phase2.md`.
+- **Приёмка:** DoR для P0 stories паритета; Issues (владельцем).
 
 ---
 
@@ -169,6 +214,21 @@
 
 Далее: QA-5 автотесты конвейера TC-PUB-* (с BE-4/BE-10) · QA-6 RBAC-матрица автоматически из `roles-permissions` · QA-7 нагрузка L1–L6 на staging · QA-8 хаос/DR с Devops · QA-9 security-чеклист и release-report.
 
+### QA-10. Автотесты маркировки / ОРД (E10)
+- **Ветка:** `feat/qa-10-ord-ad-tests` · **Зависит от:** BE-15, FE-12, **AN-P** (кейсы `E10-ad-marking.md` уже в репо).
+- **Сделать:** автоматизировать TC-AD-*; WireMock ORD; fail-closed; идемпотентность креатива; регресс TC-PUB на рекламных постах.
+- **Приёмка:** P0 TC-AD авто в CI/nightly.
+
+### QA-11. Автотесты отложенных историй (E11)
+- **Ветка:** `feat/qa-11-stories-tests` · **Зависит от:** BE-16, FE-13, QA-3 (расширение эмулятора), **AN-P**.
+- **Сделать:** TC-STORY-*; эмулятор VK stories / OK Moments; 0 дублей.
+- **Приёмка:** P0 TC-STORY авто зелёные.
+
+### QA-12. Автотесты граббера / RSS (E17)
+- **Ветка:** `feat/qa-12-grabber-tests` · **Зависит от:** BE-17, FE-14, **AN-P**.
+- **Сделать:** TC-GRAB-*; дедуп; SSRF; модерация; связь с конвейером.
+- **Приёмка:** P0 TC-GRAB авто зелёные.
+
 ---
 
 ## Сводный порядок запуска агентов
@@ -179,4 +239,8 @@
 | 3 | BE-2, FE-2, AN-2, AN-3 | BE-1 / FE-1 / AN-1 смёржены |
 | 4 | BE-3 → (ревью AN-4, FE, QA) | BE-2 смёржен |
 | 5 | BE-4, BE-5, FE-3, FE-4, QA-2, QA-4, DEV-4 | BE-3 смёржен (гейт C), QA-3 готов |
-| 6 | BE-6…, FE-5…, DEV-5, DEV-6, QA-5… | по спринтам `00-overview.md` §6 |
+| 6 | BE-6…14, FE-5…11, DEV-5, DEV-6, QA-5…9 | по спринтам `00-overview.md` §6 |
+| 7 | **AN-P** (паритет vposter) | AN-1…3 смёржены; можно параллельно шагу 6 |
+| 8 | BE-15 + FE-12 + QA-10 (ОРД) | AN-P + BE-9/10 |
+| 9 | BE-16 + FE-13 + QA-11 (истории) | BE-15 (ads), BE-7/8 |
+| 10 | BE-17 + FE-14 + QA-12 (граббер) | BE-9/10; параллельно шагу 9 после AN-P |
