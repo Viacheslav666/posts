@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +23,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
+import ru.posts.common.uuid.UuidV7;
+import ru.posts.persistence.entity.MediaAssetEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 import ru.posts.security.rbac.RbacEffect;
@@ -43,18 +47,21 @@ final class RbacHttpProbeSupport {
     private final LoggingAuthMailSender mailSender;
     private final PlanRepository planRepository;
     private final WorkspaceRepository workspaceRepository;
+    private final MediaAssetRepository mediaAssetRepository;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
             ObjectMapper objectMapper,
             LoggingAuthMailSender mailSender,
             PlanRepository planRepository,
-            WorkspaceRepository workspaceRepository) {
+            WorkspaceRepository workspaceRepository,
+            MediaAssetRepository mediaAssetRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
         this.planRepository = planRepository;
         this.workspaceRepository = workspaceRepository;
+        this.mediaAssetRepository = mediaAssetRepository;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -144,6 +151,12 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "mediaDelete" -> {
+                UUID disposable = insertMedia(ids.workspaceId(), userIdFromMe(accessToken));
+                yield statusOf(delete("/api/v1/media/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             default -> performRaw(accessToken, withoutDestructive(endpoint), ids, Scope.OWN);
         };
     }
@@ -227,6 +240,11 @@ final class RbacHttpProbeSupport {
             // Never reuse own resource IDs for IDOR probes.
             values.put("{memberUserId}", randomUuid());
             values.put("{invitationId}", randomUuid());
+            values.put(
+                    "{mediaId}",
+                    ids.foreignMediaId() == null
+                            ? randomUuid()
+                            : ids.foreignMediaId().toString());
         } else {
             values.put("{workspaceId}", ids.workspaceId().toString());
             values.put("{projectId}", ids.projectAlpha().toString());
@@ -240,11 +258,13 @@ final class RbacHttpProbeSupport {
                     ids.pendingInvitationId() == null
                             ? randomUuid()
                             : ids.pendingInvitationId().toString());
+            values.put(
+                    "{mediaId}",
+                    ids.mediaId() == null ? randomUuid() : ids.mediaId().toString());
         }
         values.put("{channelId}", randomUuid());
         values.put("{channelSetId}", randomUuid());
         values.put("{postId}", randomUuid());
-        values.put("{mediaId}", randomUuid());
         values.put("{publicationId}", randomUuid());
         values.put("{sessionId}", randomUuid());
         return values;
@@ -301,7 +321,7 @@ final class RbacHttpProbeSupport {
             case "mediaImportUrl" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
-                node.put("url", "https://example.invalid/rbac-probe.jpg");
+                node.put("url", "http://127.0.0.1/rbac-probe.jpg");
                 yield node.toString();
             }
             case "postsCreate",
@@ -366,6 +386,10 @@ final class RbacHttpProbeSupport {
         String viewerToken = login(viewerEmail);
 
         UUID viewerUserId = userIdFromMe(viewerToken);
+        UUID ownerUserId = userIdFromMe(ownerToken);
+        UUID foreignOwnerId = userIdFromMe(foreignToken);
+        UUID mediaId = insertMedia(workspaceId, ownerUserId);
+        UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
 
         return new EndpointIds(
                 workspaceId,
@@ -375,12 +399,32 @@ final class RbacHttpProbeSupport {
                 foreignProject,
                 UUID.fromString(pending.get("id").asText()),
                 viewerUserId,
+                mediaId,
+                foreignMediaId,
                 ownerToken,
                 adminToken,
                 editorToken,
                 authorToken,
                 viewerToken,
                 foreignToken);
+    }
+
+    private UUID insertMedia(UUID workspaceId, UUID uploaderId) {
+        MediaAssetEntity asset = new MediaAssetEntity();
+        asset.setId(UuidV7.generate());
+        asset.setWorkspaceId(workspaceId);
+        asset.setUploaderId(uploaderId);
+        asset.setKind("image");
+        asset.setMime("image/jpeg");
+        asset.setSizeBytes(1024L);
+        asset.setFilename("rbac-fixture.jpg");
+        asset.setS3Key("workspaces/" + workspaceId + "/media/" + asset.getId() + "/rbac-fixture.jpg");
+        asset.setStatus("ready");
+        asset.setTags(List.of());
+        asset.setDerivatives(Map.of());
+        asset.setCreatedAt(Instant.now());
+        asset.setUpdatedAt(Instant.now());
+        return mediaAssetRepository.save(asset).getId();
     }
 
     private UUID userIdFromMe(String token) throws Exception {
@@ -525,6 +569,8 @@ final class RbacHttpProbeSupport {
             UUID foreignProjectId,
             UUID pendingInvitationId,
             UUID viewerUserId,
+            UUID mediaId,
+            UUID foreignMediaId,
             String ownerToken,
             String adminToken,
             String editorToken,

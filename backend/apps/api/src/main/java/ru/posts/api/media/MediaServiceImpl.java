@@ -172,35 +172,41 @@ public class MediaServiceImpl implements MediaService {
         String uploadUrl;
         Map<String, String> headers = new LinkedHashMap<>();
 
-        if (request.sizeBytes() >= MULTIPART_THRESHOLD_BYTES) {
-            var created = s3Client.createMultipartUpload(CreateMultipartUploadRequest.builder()
-                    .bucket(s3Properties.getBucket())
-                    .key(s3Key)
-                    .contentType(request.mime())
-                    .build());
-            uploadId = created.uploadId();
-            PresignedUploadPartRequest presigned = s3Presigner.presignUploadPart(UploadPartPresignRequest.builder()
-                    .signatureDuration(s3Properties.getPresignTtl())
-                    .uploadPartRequest(UploadPartRequest.builder()
-                            .bucket(s3Properties.getBucket())
-                            .key(s3Key)
-                            .uploadId(uploadId)
-                            .partNumber(1)
-                            .build())
-                    .build());
-            uploadUrl = presigned.url().toString();
-            headers.put("Content-Type", request.mime());
-        } else {
-            PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(PutObjectPresignRequest.builder()
-                    .signatureDuration(s3Properties.getPresignTtl())
-                    .putObjectRequest(PutObjectRequest.builder()
-                            .bucket(s3Properties.getBucket())
-                            .key(s3Key)
-                            .contentType(request.mime())
-                            .build())
-                    .build());
-            uploadUrl = presigned.url().toString();
-            headers.put("Content-Type", request.mime());
+        try {
+            if (request.sizeBytes() >= MULTIPART_THRESHOLD_BYTES) {
+                var created = s3Client.createMultipartUpload(CreateMultipartUploadRequest.builder()
+                        .bucket(s3Properties.getBucket())
+                        .key(s3Key)
+                        .contentType(request.mime())
+                        .build());
+                uploadId = created.uploadId();
+                PresignedUploadPartRequest presigned = s3Presigner.presignUploadPart(UploadPartPresignRequest.builder()
+                        .signatureDuration(s3Properties.getPresignTtl())
+                        .uploadPartRequest(UploadPartRequest.builder()
+                                .bucket(s3Properties.getBucket())
+                                .key(s3Key)
+                                .uploadId(uploadId)
+                                .partNumber(1)
+                                .build())
+                        .build());
+                uploadUrl = presigned.url().toString();
+                headers.put("Content-Type", request.mime());
+            } else {
+                PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(PutObjectPresignRequest.builder()
+                        .signatureDuration(s3Properties.getPresignTtl())
+                        .putObjectRequest(PutObjectRequest.builder()
+                                .bucket(s3Properties.getBucket())
+                                .key(s3Key)
+                                .contentType(request.mime())
+                                .build())
+                        .build());
+                uploadUrl = presigned.url().toString();
+                headers.put("Content-Type", request.mime());
+            }
+        } catch (software.amazon.awssdk.core.exception.SdkClientException
+                | software.amazon.awssdk.services.s3.model.S3Exception ex) {
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
         }
 
         auditRecorder.record(
@@ -237,7 +243,13 @@ public class MediaServiceImpl implements MediaService {
                 throw new ApiException(
                         HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Uploaded object not found in storage");
             }
-            throw ex;
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    ProblemCodes.CONFLICT,
+                    "Object storage error: " + ex.awsErrorDetails().errorMessage());
+        } catch (software.amazon.awssdk.core.exception.SdkClientException ex) {
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
         }
 
         asset.setStatus("processing");
