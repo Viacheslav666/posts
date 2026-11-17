@@ -14,16 +14,13 @@ export const CROP_PRESETS = {
 export type CropPreset = keyof typeof CROP_PRESETS;
 
 /**
- * MediaAsset plus UI fields that BE-8 / OpenAPI will grow into.
- * MSW returns them today; typed client still accepts unknown extras.
+ * MediaAsset plus UI-only fields (preview URL, folder picker id).
+ * `usedIn` / filename / tags come from OpenAPI MediaAsset as-is.
  */
 export type MediaLibraryItem = MediaAsset & {
-  filename?: string;
   folderId?: string | null;
-  tags?: string[];
   /** Object URL / mock-s3 preview — always same-origin, never external CDN at build. */
   previewUrl?: string;
-  usedIn?: Array<{ postId: string; title: string }>;
 };
 
 export type MediaFolder = {
