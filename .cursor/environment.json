@@ -1,7 +1,7 @@
 {
   "name": "posts",
   "install": "sudo apt-get update && sudo apt-get install -y openjdk-21-jdk docker.io docker-compose-v2 && curl -fsSL https://get.pnpm.io/install.sh | SHELL=bash bash -",
-  "start": "sudo dockerd >/tmp/dockerd.log 2>&1 & sleep 2; echo api.version=1.44 > \"$HOME/.docker-java.properties\"",
+  "start": "sudo dockerd >/tmp/dockerd.log 2>&1 & sleep 2; sudo sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0 >/dev/null 2>&1 || true; echo api.version=1.44 > \"$HOME/.docker-java.properties\"",
   "terminals": [
     { "name": "infra", "command": "make up" },
     { "name": "backend", "command": "cd backend && ./gradlew build -x integrationTest" },

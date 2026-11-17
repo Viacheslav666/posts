@@ -71,12 +71,50 @@ make images-run-smoke    # docker run → /actuator/health и /health
 Реестр: `ghcr.io/viacheslav666/posts-<svc>:<sha>` (CI на `main`/тегах, cosign + SBOM + Trivy).  
 Подробности: [`docs/runbooks/images.md`](docs/runbooks/images.md).
 
+## Полный стек для e2e (DEV-4)
+
+Одна команда поднимает инфраструктуру, все backend-приложения из локально собранных образов, web и эмулятор соцсетей (compose profile `full`):
+
+```bash
+make up-full
+# ждёт готовности, затем:
+curl -s http://localhost:8080/api/v1/ping   # → {"status":"ok"}
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health  # → 200
+curl -s http://localhost:8090/_control/health
+```
+
+Что входит в profile `full`:
+
+| Контейнер | Образ | Порт хоста |
+|---|---|---|
+| api | `posts-api:latest` | 8080 |
+| scheduler | `posts-scheduler:latest` | 8081 |
+| publisher-vk/tg/ok/max | `posts-publisher:latest` | 8082–8085 |
+| media | `posts-media:latest` | 8086 |
+| ingest | `posts-ingest:latest` | 8087 |
+| notifications | `posts-notifications:latest` | 8088 |
+| web | `posts-web:local` | 3000 |
+| social-emulator | `posts-social-emulator:latest` | 8090 |
+| + infra из `make up` | Postgres, Redis, RabbitMQ, MinIO, ClickHouse, Mailpit, otel-lgtm | см. ниже |
+
+Публикаторы получают `POSTS_PUBLISHER_NETWORK` (`vk`/`tg`/`ok`/`max`) и адрес эмулятора `POSTS_SOCIAL_BASE_URL` / `SOCIAL_EMULATOR_URL` = `http://social-emulator:8090` (для BE-4; код приложений не меняется в DEV-4).
+
+Повторный подъём без пересборки образов:
+
+```bash
+docker compose -f infra/docker-compose/docker-compose.yml --profile full up -d
+make wait-full
+```
+
+Остановка: `make down`. Подробности: [`docs/runbooks/local-full.md`](docs/runbooks/local-full.md).
+
 ## Локальные порты
 
 | Сервис | Порт |
 |---|---|
 | API | 8080 |
 | Web | 3000 |
+| Scheduler / publishers / media / ingest / notifications | 8081–8088 |
 | Postgres | 5432 |
 | Redis | 6379 |
 | RabbitMQ / UI | 5672 / 15672 |
