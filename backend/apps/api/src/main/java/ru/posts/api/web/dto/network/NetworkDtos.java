@@ -58,7 +58,8 @@ public final class NetworkDtos {
             boolean firstComment,
             boolean inlineButtons,
             boolean nativeSchedule,
-            boolean stories) {}
+            boolean stories,
+            @Schema(description = "Repost of existing network objects (VK/TG/OK; false for Max)") boolean repost) {}
 
     @Schema(name = "RateLimits")
     public record RateLimits(

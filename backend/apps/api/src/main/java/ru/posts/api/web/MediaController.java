@@ -33,7 +33,7 @@ public class MediaController {
     @GetMapping
     @Operation(operationId = "mediaList", summary = "List media assets in a workspace")
     @ApiResponse(responseCode = "200", description = "Media page")
-    public CursorPage.Response<MediaDtos.MediaAsset> list(
+    public CursorPage.MediaPage list(
             @RequestParam UUID workspaceId,
             @RequestParam(required = false) ApiEnums.MediaKind kind,
             @RequestParam(required = false) ApiEnums.MediaStatus status,

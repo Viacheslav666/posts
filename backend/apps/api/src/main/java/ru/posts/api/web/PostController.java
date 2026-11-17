@@ -37,7 +37,7 @@ public class PostController {
     @GetMapping
     @Operation(operationId = "postsList", summary = "List posts with filters and cursor pagination")
     @ApiResponse(responseCode = "200", description = "Posts page")
-    public CursorPage.Response<PostDtos.Post> list(
+    public CursorPage.PostPage list(
             @RequestParam UUID workspaceId,
             @RequestParam(required = false) Instant from,
             @RequestParam(required = false) Instant to,
@@ -137,7 +137,7 @@ public class PostController {
     @GetMapping("/{postId}/publications")
     @Operation(operationId = "postsListPublications", summary = "List publications for a post")
     @ApiResponse(responseCode = "200", description = "Publications page")
-    public CursorPage.Response<PostDtos.Publication> listPublications(
+    public CursorPage.PublicationPage listPublications(
             @PathVariable UUID postId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("postsListPublications");
     }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.CursorPage;
@@ -34,7 +35,7 @@ public class WorkspaceController {
     @GetMapping
     @Operation(operationId = "workspacesList", summary = "List workspaces for the current user")
     @ApiResponse(responseCode = "200", description = "Workspace page")
-    public CursorPage.Response<WorkspaceDtos.Workspace> list(@Valid @ParameterObject CursorPage.Params page) {
+    public CursorPage.WorkspacePage list(@Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("workspacesList");
     }
 
@@ -81,7 +82,7 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/members")
     @Operation(operationId = "workspaceMembersList", summary = "List workspace members")
     @ApiResponse(responseCode = "200", description = "Members page")
-    public CursorPage.Response<WorkspaceDtos.WorkspaceMember> listMembers(
+    public CursorPage.WorkspaceMemberPage listMembers(
             @PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("workspaceMembersList");
     }
@@ -101,5 +102,23 @@ public class WorkspaceController {
     @ApiResponse(responseCode = "200", description = "Removed")
     public AuthDtos.MessageResponse removeMember(@PathVariable UUID workspaceId, @PathVariable UUID userId) {
         throw ApiStub.notImplemented("workspaceMembersRemove");
+    }
+
+    @GetMapping("/{workspaceId}/audit")
+    @Operation(
+            operationId = "workspacesListAudit",
+            summary = "List workspace audit log entries (US-2.4)",
+            description = "Owner/Admin only (`audit.view`). Foreign workspace → 404 (IDOR). CSV export is P1.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Audit page",
+            content = @Content(schema = @Schema(implementation = CursorPage.AuditLogPage.class)))
+    public CursorPage.AuditLogPage listAudit(
+            @PathVariable UUID workspaceId,
+            @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String entity,
+            @Valid @ParameterObject CursorPage.Params page) {
+        throw ApiStub.notImplemented("workspacesListAudit");
     }
 }

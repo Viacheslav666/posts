@@ -65,7 +65,7 @@ public class BillingController {
     @GetMapping("/invoices")
     @Operation(operationId = "billingListInvoices", summary = "List invoices for a workspace")
     @ApiResponse(responseCode = "200", description = "Invoices page")
-    public CursorPage.Response<BillingDtos.Invoice> listInvoices(
+    public CursorPage.InvoicePage listInvoices(
             @RequestParam UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("billingListInvoices");
     }
@@ -78,5 +78,21 @@ public class BillingController {
             content = @Content(schema = @Schema(implementation = BillingDtos.ApplyPromoResponse.class)))
     public BillingDtos.ApplyPromoResponse applyPromo(@Valid @RequestBody BillingDtos.ApplyPromoRequest request) {
         throw ApiStub.notImplemented("billingApplyPromo");
+    }
+
+    @PostMapping("/trial/start")
+    @Operation(
+            operationId = "billingStartTrial",
+            summary = "Start 7-day Pro trial without a card (US-6.2)",
+            description =
+                    "One trial per account. Repeat → 409 with code `trial_already_used`. Sets workspace billingStatus=trial.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Trial started",
+            content = @Content(schema = @Schema(implementation = BillingDtos.Subscription.class)))
+    public BillingDtos.Subscription startTrial(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody BillingDtos.StartTrialRequest request) {
+        throw ApiStub.notImplemented("billingStartTrial");
     }
 }

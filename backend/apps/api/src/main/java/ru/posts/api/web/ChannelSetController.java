@@ -35,7 +35,7 @@ public class ChannelSetController {
     @GetMapping
     @Operation(operationId = "channelSetsList", summary = "List channel sets in a workspace")
     @ApiResponse(responseCode = "200", description = "Channel sets page")
-    public CursorPage.Response<ChannelDtos.ChannelSet> list(
+    public CursorPage.ChannelSetPage list(
             @RequestParam UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("channelSetsList");
     }

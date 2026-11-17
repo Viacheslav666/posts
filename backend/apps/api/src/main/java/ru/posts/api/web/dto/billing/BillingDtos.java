@@ -63,4 +63,7 @@ public final class BillingDtos {
     @Schema(name = "ApplyPromoResponse")
     public record ApplyPromoResponse(
             String code, @Schema(example = "percent") String kind, BigDecimal value, Instant validUntil) {}
+
+    @Schema(name = "StartTrialRequest")
+    public record StartTrialRequest(@NotNull UUID workspaceId) {}
 }

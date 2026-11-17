@@ -30,7 +30,7 @@ public class NotificationController {
     @GetMapping("/notifications")
     @Operation(operationId = "notificationsList", summary = "List notifications for the current user")
     @ApiResponse(responseCode = "200", description = "Notifications page")
-    public CursorPage.Response<NotificationDtos.Notification> list(
+    public CursorPage.NotificationPage list(
             @RequestParam(required = false) Boolean unreadOnly, @Valid @ParameterObject CursorPage.Params page) {
         throw ApiStub.notImplemented("notificationsList");
     }

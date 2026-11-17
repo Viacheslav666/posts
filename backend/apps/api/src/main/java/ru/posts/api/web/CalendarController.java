@@ -42,6 +42,8 @@ public class CalendarController {
             @RequestParam Instant from,
             @RequestParam Instant to,
             @RequestParam(required = false) UUID projectId,
+            @RequestParam(required = false) UUID channelId,
+            @RequestParam(required = false) UUID authorId,
             @RequestParam(required = false) ApiEnums.Network network,
             @RequestParam(required = false) ApiEnums.PostStatus status) {
         throw ApiStub.notImplemented("calendarList");

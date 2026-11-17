@@ -64,4 +64,16 @@ public final class WorkspaceDtos {
 
     @Schema(name = "AcceptInvitationRequest")
     public record AcceptInvitationRequest(@NotBlank String token) {}
+
+    @Schema(name = "AuditLogEntry", description = "Workspace audit log row (US-2.4); retention 1 year")
+    public record AuditLogEntry(
+            UUID id,
+            UUID workspaceId,
+            UUID actorId,
+            @Schema(example = "member.role_changed") String action,
+            @Schema(example = "workspace_member") String entity,
+            UUID entityId,
+            @Schema(description = "JSON diff of changed fields") java.util.Map<String, Object> diff,
+            @Schema(example = "203.0.113.10") String ip,
+            Instant createdAt) {}
 }

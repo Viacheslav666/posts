@@ -5,11 +5,13 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.posts.api.error.ProblemCodes;
 
 @Configuration
 public class OpenApiConfig {
@@ -19,20 +21,29 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Posts API")
-                        .version("0.2.0")
+                        .version("0.2.1")
                         .description(
                                 """
                                 Posts SMM platform public API (`/api/v1`).
 
                                 BE-3 core contract: DTO + stub controllers (HTTP 501) except `GET /me` on the `local` profile.
                                 Errors follow RFC 7807 ProblemDetail with a stable `code` property.
-                                List endpoints use opaque cursor pagination (`cursor`, `limit`).
+                                List endpoints use opaque cursor pagination (`cursor`, `limit`) with typed `*Page` schemas.
+
+                                """
+                                        + ProblemCodes.OPENAPI_CATALOG
+                                        + """
+
+                                Auth: most operations require `Authorization: Bearer <access_jwt>` (scheme `bearer-jwt`).
+                                Public: `/api/v1/ping`, `/api/v1/auth/*` (except authenticated password change), invitation preview.
+                                IDOR: foreign workspace/resource → 404 `not_found` (not 403).
                                 """)
                         .contact(new Contact().name("Posts").url("https://github.com/Viacheslav666/posts"))
                         .license(new License().name("Proprietary")))
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("Local API"),
                         new Server().url("https://api.posts.local").description("Staging placeholder")))
+                .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"))
                 .components(
                         new Components()
                                 .addSecuritySchemes(
