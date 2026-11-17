@@ -36,6 +36,9 @@ public class IdempotencyRequestEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
     public String getKey() {
         return key;
     }
@@ -74,6 +77,14 @@ public class IdempotencyRequestEntity {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public static final class IdempotencyRequestId implements Serializable {

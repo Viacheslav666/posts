@@ -53,6 +53,10 @@ posts:
   # Social Bucket4j/Redis limiter is for publisher (BE-4). API uses in-memory LoginRateLimiter only.
   ratelimit:
     enabled: false
+  idempotency:
+    ttl: 24h
+    in-flight-wait: 5s
+    in-flight-poll: 50ms
   s3:
     endpoint: ${POSTS_S3_ENDPOINT:http://127.0.0.1:9000}
     region: ${POSTS_S3_REGION:us-east-1}

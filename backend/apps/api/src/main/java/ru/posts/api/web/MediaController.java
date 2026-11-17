@@ -66,9 +66,14 @@ public class MediaController {
             description = "Import started",
             content = @Content(schema = @Schema(implementation = MediaDtos.ImportUrlResponse.class)))
     public MediaDtos.ImportUrlResponse importUrl(
-            @Valid @RequestBody MediaDtos.ImportUrlRequest request, HttpServletRequest httpRequest) {
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody MediaDtos.ImportUrlRequest request,
+            HttpServletRequest httpRequest) {
         return mediaService.importUrl(
-                SecurityAuthSupport.requirePrincipal().userId(), request, ClientRequestContexts.from(httpRequest));
+                SecurityAuthSupport.requirePrincipal().userId(),
+                request,
+                idempotencyKey,
+                ClientRequestContexts.from(httpRequest));
     }
 
     @GetMapping("/{mediaId}")

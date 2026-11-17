@@ -29,5 +29,6 @@ public interface MediaService {
 
     AuthDtos.MessageResponse delete(UUID userId, UUID mediaId, ClientRequestContext ctx);
 
-    MediaDtos.ImportUrlResponse importUrl(UUID userId, MediaDtos.ImportUrlRequest request, ClientRequestContext ctx);
+    MediaDtos.ImportUrlResponse importUrl(
+            UUID userId, MediaDtos.ImportUrlRequest request, String idempotencyKey, ClientRequestContext ctx);
 }

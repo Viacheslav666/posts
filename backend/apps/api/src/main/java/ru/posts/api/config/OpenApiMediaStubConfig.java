@@ -60,7 +60,7 @@ public class OpenApiMediaStubConfig {
 
             @Override
             public MediaDtos.ImportUrlResponse importUrl(
-                    UUID userId, MediaDtos.ImportUrlRequest request, ClientRequestContext ctx) {
+                    UUID userId, MediaDtos.ImportUrlRequest request, String idempotencyKey, ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }
         };

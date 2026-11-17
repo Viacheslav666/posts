@@ -23,11 +23,15 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.config.S3Properties;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
+import ru.posts.api.idempotency.IdempotencyService;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.common.CursorPage;
@@ -66,6 +70,9 @@ public class MediaServiceImpl implements MediaService {
     private static final long MULTIPART_THRESHOLD_BYTES = 5L * 1024 * 1024;
     private static final int MAX_REDIRECTS = 5;
     private static final long MAX_IMPORT_BYTES = 1024L * 1024 * 1024;
+    static final String IDEMPOTENCY_SCOPE_UPLOAD = "POST /api/v1/media/uploads";
+    static final String IDEMPOTENCY_SCOPE_IMPORT = "POST /api/v1/media/import-url";
+
     private final MediaAssetRepository mediaAssetRepository;
     private final PlanRepository planRepository;
     private final WorkspaceAccessService access;
@@ -74,6 +81,8 @@ public class MediaServiceImpl implements MediaService {
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
     private final ObjectProvider<RabbitTemplate> rabbitTemplate;
+    private final IdempotencyService idempotencyService;
+    private final TransactionTemplate writeTx;
     private final JdbcClient jdbcClient;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
@@ -89,6 +98,8 @@ public class MediaServiceImpl implements MediaService {
             S3Presigner s3Presigner,
             S3Properties s3Properties,
             ObjectProvider<RabbitTemplate> rabbitTemplate,
+            IdempotencyService idempotencyService,
+            PlatformTransactionManager transactionManager,
             javax.sql.DataSource dataSource) {
         this.mediaAssetRepository = mediaAssetRepository;
         this.planRepository = planRepository;
@@ -98,6 +109,8 @@ public class MediaServiceImpl implements MediaService {
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
         this.rabbitTemplate = rabbitTemplate;
+        this.idempotencyService = idempotencyService;
+        this.writeTx = new TransactionTemplate(transactionManager);
         this.jdbcClient = JdbcClient.create(dataSource);
     }
 
@@ -139,8 +152,20 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MediaDtos.CreateUploadResponse createUpload(
             UUID userId, MediaDtos.CreateUploadRequest request, String idempotencyKey, ClientRequestContext ctx) {
+        return idempotencyService.execute(
+                userId,
+                idempotencyKey,
+                IDEMPOTENCY_SCOPE_UPLOAD,
+                request,
+                MediaDtos.CreateUploadResponse.class,
+                () -> writeTx.execute(status -> createUploadOnce(userId, request, ctx)));
+    }
+
+    private MediaDtos.CreateUploadResponse createUploadOnce(
+            UUID userId, MediaDtos.CreateUploadRequest request, ClientRequestContext ctx) {
         access.requirePermission(request.workspaceId(), userId, "media.manage");
         ensureStorageQuota(request.workspaceId(), request.sizeBytes());
 
@@ -296,7 +321,19 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MediaDtos.ImportUrlResponse importUrl(
+            UUID userId, MediaDtos.ImportUrlRequest request, String idempotencyKey, ClientRequestContext ctx) {
+        return idempotencyService.execute(
+                userId,
+                idempotencyKey,
+                IDEMPOTENCY_SCOPE_IMPORT,
+                request,
+                MediaDtos.ImportUrlResponse.class,
+                () -> writeTx.execute(status -> importUrlOnce(userId, request, ctx)));
+    }
+
+    private MediaDtos.ImportUrlResponse importUrlOnce(
             UUID userId, MediaDtos.ImportUrlRequest request, ClientRequestContext ctx) {
         access.requirePermission(request.workspaceId(), userId, "media.manage");
         try {
@@ -332,13 +369,19 @@ public class MediaServiceImpl implements MediaService {
 
         String s3Key = "workspaces/" + request.workspaceId() + "/media/" + asset.getId() + "/" + filename;
         asset.setS3Key(s3Key);
-        s3Client.putObject(
-                PutObjectRequest.builder()
-                        .bucket(s3Properties.getBucket())
-                        .key(s3Key)
-                        .contentType(downloaded.contentType())
-                        .build(),
-                RequestBody.fromBytes(downloaded.bytes()));
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(s3Properties.getBucket())
+                            .key(s3Key)
+                            .contentType(downloaded.contentType())
+                            .build(),
+                    RequestBody.fromBytes(downloaded.bytes()));
+        } catch (software.amazon.awssdk.core.exception.SdkClientException
+                | software.amazon.awssdk.services.s3.model.S3Exception ex) {
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
+        }
         mediaAssetRepository.save(asset);
         publishProcessCommand(asset.getId());
 
