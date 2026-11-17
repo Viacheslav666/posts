@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: posts-social-emulator
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8090
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    ru.posts.emulator: INFO

@@ -4,9 +4,12 @@ backend/.gradle/
 backend/**/build/
 backend/build/
 backend/build-logic/.gradle/
+tests/social-emulator/.gradle/
+tests/social-emulator/build/
 *.class
 *.jar
 !backend/gradle/wrapper/gradle-wrapper.jar
+!tests/social-emulator/gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*
 
 # Node / Next / pnpm

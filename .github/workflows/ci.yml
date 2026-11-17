@@ -16,6 +16,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       contract: ${{ steps.filter.outputs.contract }}
+      social_emulator: ${{ steps.filter.outputs.social_emulator }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -34,6 +35,10 @@ jobs:
               - 'backend/apps/api/**'
               - 'frontend/packages/api-client/**'
               - 'docs/api/openapi.yaml'
+              - '.github/workflows/ci.yml'
+            social_emulator:
+              - 'tests/social-emulator/**'
+              - 'infra/docker-compose/docker-compose.yml'
               - '.github/workflows/ci.yml'
 
   backend:
@@ -115,6 +120,23 @@ jobs:
       - name: Build
         working-directory: frontend
         run: pnpm --filter @posts/web build
+
+  social-emulator:
+    needs: changes
+    if: ${{ needs.changes.outputs.social_emulator == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: tests/social-emulator
+      - name: Spotless and unit tests
+        working-directory: tests/social-emulator
+        run: ./gradlew spotlessCheck test
 
   security:
     runs-on: ubuntu-latest

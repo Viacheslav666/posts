@@ -109,6 +109,22 @@ services:
       retries: 20
       start_period: 30s
 
+  # QA-3: build locally first — `cd tests/social-emulator && ./gradlew jibDockerBuild`
+  social-emulator:
+    image: ghcr.io/viacheslav666/posts-social-emulator:latest
+    profiles: ["emulator", "full"]
+    ports:
+      - "8090:8090"
+    environment:
+      SERVER_PORT: "8090"
+    healthcheck:
+      # Temurin image has bash; TCP open ≈ process accepts connections (HTTP probe from host).
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8090'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+
 volumes:
   posts_pg:
   posts_redis:
