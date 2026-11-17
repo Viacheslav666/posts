@@ -96,7 +96,7 @@ export function tiptapJsonToCanonicalHtml(doc: TiptapNode): string {
     return renderNode(doc);
   }
   const blocks = doc.content ?? [];
-  return blocks
+  let joined = blocks
     .map((block, index) => {
       const html = renderNode(block);
       if (block.type === 'paragraph' && index < blocks.length - 1) {
@@ -105,8 +105,11 @@ export function tiptapJsonToCanonicalHtml(doc: TiptapNode): string {
       }
       return html;
     })
-    .join('')
-    .replace(/(?:<br\/>)+$/g, '');
+    .join('');
+  while (joined.endsWith('<br/>')) {
+    joined = joined.slice(0, -'<br/>'.length);
+  }
+  return joined;
 }
 
 /** Tiptap JSON → network preview payloads. */

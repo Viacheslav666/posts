@@ -58,46 +58,121 @@ type TagToken =
   | { kind: 'close'; name: string; raw: string }
   | { kind: 'self'; name: string; raw: string };
 
-const TAG_RE = /<\/?([a-zA-Z][\w:-]*)((?:\s[^>]*)?)\/?>/g;
+function isNameChar(ch: string): boolean {
+  return (
+    (ch >= 'a' && ch <= 'z') ||
+    (ch >= 'A' && ch <= 'Z') ||
+    (ch >= '0' && ch <= '9') ||
+    ch === '_' ||
+    ch === ':' ||
+    ch === '-'
+  );
+}
 
+/**
+ * Linear HTML tokenizer (no nested/quantified regex) for canonical editor markup.
+ */
 function tokenize(html: string): TagToken[] {
   const tokens: TagToken[] = [];
-  let last = 0;
-  for (const match of html.matchAll(TAG_RE)) {
-    const index = match.index ?? 0;
-    if (index > last) {
-      tokens.push({ kind: 'text', value: html.slice(last, index) });
+  let i = 0;
+  let textStart = 0;
+
+  while (i < html.length) {
+    if (html[i] !== '<') {
+      i += 1;
+      continue;
     }
-    const raw = match[0];
-    const name = match[1].toLowerCase();
-    const attrs = match[2] ?? '';
-    if (raw.startsWith('</')) {
+
+    const tagStart = i;
+    let j = i + 1;
+    let closing = false;
+    if (j < html.length && html[j] === '/') {
+      closing = true;
+      j += 1;
+    }
+    if (j >= html.length || !((html[j] >= 'a' && html[j] <= 'z') || (html[j] >= 'A' && html[j] <= 'Z'))) {
+      i += 1;
+      continue;
+    }
+
+    if (tagStart > textStart) {
+      tokens.push({ kind: 'text', value: html.slice(textStart, tagStart) });
+    }
+
+    const nameStart = j;
+    while (j < html.length && isNameChar(html[j])) {
+      j += 1;
+    }
+    const name = html.slice(nameStart, j).toLowerCase();
+    const attrsStart = j;
+    while (j < html.length && html[j] !== '>') {
+      j += 1;
+    }
+    if (j >= html.length) {
+      // Incomplete tag — treat remainder as text.
+      tokens.push({ kind: 'text', value: html.slice(tagStart) });
+      return tokens;
+    }
+    let attrs = html.slice(attrsStart, j);
+    let selfClosing = false;
+    const trimmedEnd = attrs.trimEnd();
+    if (trimmedEnd.endsWith('/')) {
+      selfClosing = true;
+      attrs = trimmedEnd.slice(0, -1);
+    }
+    const raw = html.slice(tagStart, j + 1);
+    i = j + 1;
+    textStart = i;
+
+    if (closing) {
       tokens.push({ kind: 'close', name, raw });
-    } else if (raw.endsWith('/>') || name === 'br') {
+    } else if (selfClosing || name === 'br') {
       tokens.push({ kind: 'self', name, raw });
     } else {
       tokens.push({ kind: 'open', name, raw, attrs });
     }
-    last = index + raw.length;
   }
-  if (last < html.length) {
-    tokens.push({ kind: 'text', value: html.slice(last) });
+
+  if (textStart < html.length) {
+    tokens.push({ kind: 'text', value: html.slice(textStart) });
   }
   return tokens;
 }
 
 function isTgSpoilerSpan(name: string, attrs: string): boolean {
-  return name === 'span' && /\bclass\s*=\s*["'][^"']*\btg-spoiler\b[^"']*["']/i.test(attrs);
+  if (name !== 'span') {
+    return false;
+  }
+  const lower = attrs.toLowerCase();
+  return lower.includes('class') && lower.includes('tg-spoiler');
 }
 
 function hasExpandableAttr(attrs: string): boolean {
-  return /(?:^|\s)expandable(?:\s|=|$)/i.test(attrs) || /\bexpandable\s*=/i.test(attrs);
+  const lower = attrs.toLowerCase();
+  let idx = 0;
+  while (idx < lower.length) {
+    const found = lower.indexOf('expandable', idx);
+    if (found === -1) {
+      return false;
+    }
+    const beforeOk = found === 0 || lower[found - 1] === ' ' || lower[found - 1] === '\t';
+    const after = found + 'expandable'.length;
+    const afterOk =
+      after >= lower.length ||
+      lower[after] === ' ' ||
+      lower[after] === '\t' ||
+      lower[after] === '=';
+    if (beforeOk && afterOk) {
+      return true;
+    }
+    idx = found + 1;
+  }
+  return false;
 }
 
-function stripExpandableAttr(rawOpen: string): string {
-  return rawOpen
-    .replace(/\s+expandable(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '')
-    .replace(/<blockquote(\s*)>/i, '<blockquote>');
+function stripExpandableAttr(_rawOpen: string): string {
+  // Canonical form for Max: drop expandable attribute entirely.
+  return '<blockquote>';
 }
 
 type TransformResult = { html: string; warnings: string[] };
@@ -157,8 +232,6 @@ function transformForNetwork(html: string, network: 'telegram' | 'max'): Transfo
       continue;
     }
     if (network === 'max' && token.name === 'span') {
-      // Closing tag for stripped spoiler span — drop silently if we already warned on open.
-      // Non-spoiler spans are also unsupported on Max and were stripped on open.
       if (!allowed.has('span')) {
         continue;
       }
