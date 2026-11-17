@@ -19,6 +19,11 @@
     "menu": "Меню",
     "workspace": "Рабочее пространство"
   },
+  "publicNav": {
+    "pricing": "Тарифы",
+    "login": "Войти",
+    "register": "Регистрация"
+  },
   "nav": {
     "calendar": "Календарь",
     "posts": "Посты",
@@ -38,11 +43,149 @@
     "placeholder": "Выберите workspace",
     "stubHint": "Заглушка FE-1 — данные появятся после auth"
   },
-  "home": {
+  "landing": {
     "headline": "Надёжный планировщик публикаций для команд",
-    "subtitle": "Каркас приложения FE-1: дизайн-система, layout, i18n и тёмная тема.",
-    "cta": "Открыть приложение",
-    "health": "Health"
+    "subtitle": "Один редактор — VK, Telegram, OK и Max. Пост выйдет вовремя или вы узнаете об этом сразу.",
+    "ctaPrimary": "7 дней бесплатно",
+    "ctaSecondary": "Смотреть тарифы",
+    "networks": "Сети MVP:"
+  },
+  "pricing": {
+    "title": "Тарифы для фрилансеров, команд и агентств",
+    "subtitle": "Сегментированные планы по PRD MVP. Годовая оплата — скидка 20%.",
+    "periodLabel": "Период оплаты",
+    "monthly": "Месяц",
+    "yearly": "Год",
+    "yearlyBadge": "−20%",
+    "popular": "Популярный",
+    "freePrice": "0 ₽",
+    "perMonth": "/ мес",
+    "perYear": "/ год",
+    "ctaFree": "Начать бесплатно",
+    "ctaTrial": "Попробовать 7 дней",
+    "trialNote": "Триал Про — 7 дней без карты. При неоплате grace 3 дня, данные хранятся 90 дней.",
+    "agencyNote": "Доп. каналы: +250 ₽ за каждые +25. Доп. места — по запросу. Enterprise — договором.",
+    "limits": {
+      "channels": "Каналы: {value}",
+      "seats": "Места в команде: {value}",
+      "posts": "Посты: {value}",
+      "ai": "AI-кредиты: {value}"
+    },
+    "plans": {
+      "free": {
+        "name": "Free",
+        "blurb": "Чтобы попробовать планировщик на своих каналах."
+      },
+      "start": {
+        "name": "Старт",
+        "blurb": "Для фрилансера с несколькими клиентами."
+      },
+      "pro": {
+        "name": "Про",
+        "blurb": "Для небольшой команды и стабильного потока публикаций."
+      },
+      "agency": {
+        "name": "Агентство",
+        "blurb": "Для агентств с проектами, ролями и большим числом каналов."
+      }
+    }
+  },
+  "auth": {
+    "or": "или",
+    "submitting": "Отправка…",
+    "genericError": "Не удалось выполнить действие",
+    "fields": {
+      "name": "Имя",
+      "email": "Email",
+      "password": "Пароль",
+      "confirmPassword": "Повтор пароля",
+      "code": "Код",
+      "passwordHint": "Минимум 8 символов, буква и цифра"
+    },
+    "validation": {
+      "emailRequired": "Укажите email",
+      "emailInvalid": "Некорректный email",
+      "passwordRequired": "Укажите пароль",
+      "passwordMin": "Пароль слишком короткий",
+      "passwordLetter": "Добавьте хотя бы одну букву",
+      "passwordDigit": "Добавьте хотя бы одну цифру",
+      "confirmRequired": "Повторите пароль",
+      "passwordMismatch": "Пароли не совпадают",
+      "nameRequired": "Укажите имя",
+      "nameMax": "Слишком длинное имя",
+      "termsRequired": "Нужно принять условия",
+      "codeRequired": "Укажите код",
+      "codeFormat": "Код из 6 цифр"
+    },
+    "oauth": {
+      "vk": "VK ID",
+      "yandex": "Яндекс ID",
+      "error": "Не удалось начать вход",
+      "stubTitle": "{provider}",
+      "stubDescription": "OAuth-заглушка MSW: редирект откроется в новой вкладке."
+    },
+    "login": {
+      "title": "Вход",
+      "description": "Email и пароль, VK ID или Яндекс ID.",
+      "submit": "Войти",
+      "forgot": "Забыли пароль?",
+      "noAccount": "Нет аккаунта?",
+      "toRegister": "Зарегистрироваться",
+      "successTitle": "Вы вошли",
+      "successBody": "Перенаправляем в приложение.",
+      "errorTitle": "Не удалось войти"
+    },
+    "register": {
+      "title": "Регистрация",
+      "description": "Создайте аккаунт Posts. После регистрации подтвердите email.",
+      "submit": "Создать аккаунт",
+      "acceptTerms": "Принимаю условия использования и политику конфиденциальности",
+      "hasAccount": "Уже есть аккаунт?",
+      "toLogin": "Войти",
+      "successTitle": "Аккаунт создан",
+      "successBody": "Проверьте почту и введите код подтверждения.",
+      "errorTitle": "Регистрация не удалась"
+    },
+    "verify": {
+      "title": "Подтверждение email",
+      "description": "Мы отправили код на {email}. Для мока используйте 123456.",
+      "submit": "Подтвердить",
+      "codeHint": "Шестизначный код из письма",
+      "toLogin": "К входу",
+      "successTitle": "Email подтверждён",
+      "successBody": "Теперь можно войти.",
+      "errorTitle": "Код не принят"
+    },
+    "forgot": {
+      "title": "Восстановление пароля",
+      "description": "Укажите email — пришлём ссылку для сброса.",
+      "submit": "Отправить ссылку",
+      "toLogin": "К входу",
+      "successTitle": "Письмо отправлено",
+      "successBody": "Если аккаунт существует, ссылка уже в пути.",
+      "sentBody": "Проверьте почту. Для мока откройте /reset-password?token=demo-reset-token",
+      "errorTitle": "Не удалось отправить"
+    },
+    "reset": {
+      "title": "Новый пароль",
+      "description": "Задайте новый пароль для аккаунта.",
+      "missingToken": "Токен сброса отсутствует в ссылке — для демо подставлен mock-токен.",
+      "submit": "Сохранить пароль",
+      "toLogin": "К входу",
+      "successTitle": "Пароль обновлён",
+      "successBody": "Войдите с новым паролем.",
+      "errorTitle": "Не удалось сбросить пароль"
+    },
+    "twoFactor": {
+      "title": "Двухфакторная защита",
+      "description": "Введите код из приложения-аутентификатора. Для мока войдите как twofa@posts.app, код 654321.",
+      "submit": "Подтвердить",
+      "codeHint": "Код TOTP из 6 цифр",
+      "toLogin": "К входу",
+      "successTitle": "Вход завершён",
+      "successBody": "2FA пройдена.",
+      "errorTitle": "Код 2FA неверен"
+    }
   },
   "app": {
     "welcomeTitle": "Добро пожаловать в Posts",
