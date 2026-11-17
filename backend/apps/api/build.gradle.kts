@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:domain"))
     implementation(project(":libs:persistence"))
+    implementation(project(":libs:messaging"))
     implementation(project(":libs:security"))
     implementation(project(":libs:ratelimit"))
 
@@ -19,9 +20,11 @@ dependencies {
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.oauth2.resource.server)
     implementation(libs.spring.boot.starter.mail)
+    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
+    implementation(libs.aws.s3)
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.h2)
 
@@ -39,6 +42,8 @@ dependencies {
     "integrationTestImplementation"(platform(libs.testcontainers.bom))
     "integrationTestImplementation"(libs.testcontainers.junit)
     "integrationTestImplementation"(libs.testcontainers.postgresql)
+    "integrationTestImplementation"("org.testcontainers:rabbitmq")
+    "integrationTestImplementation"("org.awaitility:awaitility:4.2.2")
     "integrationTestImplementation"(project(":libs:test-support"))
     "integrationTestRuntimeOnly"(libs.postgresql)
 }
