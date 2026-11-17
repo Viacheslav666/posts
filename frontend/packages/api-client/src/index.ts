@@ -50,6 +50,18 @@ export type CreateChannelSetRequest = components['schemas']['CreateChannelSetReq
 export type UpdateChannelSetRequest = components['schemas']['UpdateChannelSetRequest'];
 export type UpdateChannelRequest = components['schemas']['UpdateChannelRequest'];
 
+export type Post = components['schemas']['Post'];
+export type PostPage = components['schemas']['PostPage'];
+export type PostActionRequest = components['schemas']['PostActionRequest'];
+export type CalendarItem = components['schemas']['CalendarItem'];
+export type MoveCalendarItemRequest = components['schemas']['MoveCalendarItemRequest'];
+export type BulkPostsRequest = components['schemas']['BulkPostsRequest'];
+export type BulkPostsResponse = components['schemas']['BulkPostsResponse'];
+export type Publication = components['schemas']['Publication'];
+export type PublicationPage = components['schemas']['PublicationPage'];
+export type CreatePostRequest = components['schemas']['CreatePostRequest'];
+
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

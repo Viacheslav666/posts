@@ -493,6 +493,69 @@
     "emptyTitle": "Здесь пока пусто",
     "emptyDescription": "Подключите канал или создайте первый пост — после FE-2/FE-3."
   },
+  "calendar": {
+    "title": "Календарь",
+    "description": "Планируйте публикации и переносите посты перетаскиванием.",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра календаря.",
+    "emptyTitle": "Нет запланированных постов",
+    "emptyBody": "Создайте пост с датой публикации — он появится здесь.",
+    "errorTitle": "Не удалось загрузить календарь",
+    "errorBody": "Проверьте соединение и попробуйте снова.",
+    "retry": "Повторить",
+    "createPost": "Создать пост",
+    "untitled": "Без названия",
+    "views": {
+      "month": "Месяц",
+      "week": "Неделя",
+      "day": "День"
+    },
+    "nav": {
+      "prev": "Назад",
+      "next": "Вперёд",
+      "today": "Сегодня"
+    },
+    "filters": {
+      "status": "Статус",
+      "network": "Сеть",
+      "allStatuses": "Все статусы",
+      "allNetworks": "Все сети"
+    },
+    "networks": {
+      "vk": "ВКонтакте",
+      "tg": "Telegram",
+      "ok": "Одноклассники",
+      "max": "Max",
+      "rutube": "Rutube"
+    },
+    "status": {
+      "draft": "Черновик",
+      "scheduled": "Запланирован",
+      "publishing": "Публикуется",
+      "published": "Опубликован",
+      "partially_published": "Частично",
+      "failed": "Ошибка",
+      "paused": "Пауза",
+      "pending_approval": "На согласовании",
+      "archived": "Архив"
+    },
+    "board": {
+      "monthLabel": "Календарь на месяц",
+      "weekLabel": "Календарь на неделю",
+      "dayLabel": "Календарь на день"
+    },
+    "move": {
+      "title": "Перенести публикацию?",
+      "description": "«{title}»: {from} → {to}",
+      "confirm": "Перенести",
+      "cancel": "Отмена",
+      "thisOnly": "Только этот",
+      "allFollowing": "Этот и следующие",
+      "successTitle": "Время публикации обновлено",
+      "errorTitle": "Не удалось перенести пост"
+    }
+  },
+
   "editor": {
     "title": "Редактор поста",
     "loading": "Загрузка черновика…",

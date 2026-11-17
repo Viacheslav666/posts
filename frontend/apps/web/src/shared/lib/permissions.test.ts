@@ -27,9 +27,18 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'channels.manage': ['owner', 'admin'],
   'channel_sets.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'channel_sets.manage': ['owner', 'admin', 'editor'],
+  'posts.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'posts.create': ['owner', 'admin', 'editor', 'author'],
+  'posts.update': ['owner', 'admin', 'editor', 'author'],
+  'posts.delete': ['owner', 'admin', 'editor', 'author'],
+  'posts.schedule': ['owner', 'admin', 'editor'],
+  'posts.bulk': ['owner', 'admin', 'editor'],
+  'posts.retry_publish': ['owner', 'admin', 'editor'],
+  'calendar.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'calendar.move': ['owner', 'admin', 'editor'],
 };
 
-describe('permissions matrix (FE-5/FE-6)', () => {
+describe('permissions matrix (FE-5/FE-6/FE-8)', () => {
   it('covers all permission actions for every role', () => {
     for (const role of ROLES) {
       for (const action of PERMISSION_ACTIONS) {
@@ -44,5 +53,6 @@ describe('permissions matrix (FE-5/FE-6)', () => {
     expect(can(null, 'workspace.view')).toBe(false);
     expect(can(undefined, 'members.invite')).toBe(false);
     expect(can(null, 'channels.manage')).toBe(false);
+    expect(can(null, 'calendar.move')).toBe(false);
   });
 });

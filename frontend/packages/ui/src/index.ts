@@ -72,6 +72,15 @@ export type {
   ChannelStatusBadgeProps,
 } from './components/channel-status-badge';
 
+export { PostStatusBadge } from './components/post-status-badge';
+export type { PostStatusBadgeProps } from './components/post-status-badge';
+
+export { CalendarEventCard } from './components/calendar-event-card';
+export type { CalendarEventCardProps } from './components/calendar-event-card';
+
+export { AdMarkingSlot } from './components/ad-marking-slot';
+export type { AdMarkingSlotProps } from './components/ad-marking-slot';
+
 export { RoleBadge, WORKSPACE_ROLES } from './components/role-badge';
 export type { RoleBadgeProps, WorkspaceRole } from './components/role-badge';
 

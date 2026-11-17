@@ -1,6 +1,6 @@
 /**
  * Workspace RBAC matrix (mirrors docs/product/roles-permissions.md).
- * FE-5 team + FE-6 channels actions.
+ * FE-5 team + FE-6 channels + FE-8 posts/calendar actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
@@ -25,6 +25,15 @@ export const PERMISSION_ACTIONS = [
   'channels.manage',
   'channel_sets.view',
   'channel_sets.manage',
+  'posts.view',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.view',
+  'calendar.move',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -40,6 +49,8 @@ const ALL_VIEW: PermissionAction[] = [
   'projects.view',
   'channels.view',
   'channel_sets.view',
+  'posts.view',
+  'calendar.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -53,6 +64,13 @@ const ADMIN_TEAM: PermissionAction[] = [
   'audit.export',
   'channels.manage',
   'channel_sets.manage',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.move',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -61,13 +79,28 @@ const OWNER_ONLY: PermissionAction[] = [
   'billing.manage',
 ];
 
-const EDITOR_EXTRA: PermissionAction[] = ['channel_sets.manage'];
+const EDITOR_EXTRA: PermissionAction[] = [
+  'channel_sets.manage',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.move',
+];
+
+const AUTHOR_EXTRA: PermissionAction[] = [
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+];
 
 export const ROLE_ACTIONS: RoleActionMatrix = {
   owner: new Set<PermissionAction>([...ADMIN_TEAM, ...OWNER_ONLY]),
   admin: new Set<PermissionAction>(ADMIN_TEAM),
   editor: new Set<PermissionAction>([...ALL_VIEW, ...EDITOR_EXTRA]),
-  author: new Set<PermissionAction>(ALL_VIEW),
+  author: new Set<PermissionAction>([...ALL_VIEW, ...AUTHOR_EXTRA]),
   viewer: new Set<PermissionAction>(ALL_VIEW),
 };
 
