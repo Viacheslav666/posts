@@ -108,17 +108,20 @@ export function planParts(fileSize: number, partSize: number): Array<{ partNumbe
   return parts;
 }
 
+/** True when `uploadUrl` has no scheme (path-absolute / relative for same-origin MSW). */
+function isRelativeUploadUrl(uploadUrl: string): boolean {
+  return !/^[a-z][a-z0-9+.-]*:/i.test(uploadUrl);
+}
+
 function partUrl(uploadUrl: string, partNumber: number, uploadId: string): string {
+  // Dummy base only for parsing relative paths — never used as an allowlist substring.
   const url = new URL(uploadUrl, 'http://local.invalid');
   url.searchParams.set('partNumber', String(partNumber));
   if (uploadId) {
     url.searchParams.set('uploadId', uploadId);
   }
   // Preserve relative URLs (MSW / same-origin mock-s3).
-  if (uploadUrl.startsWith('/') || uploadUrl.startsWith('./')) {
-    return `${url.pathname}${url.search}`;
-  }
-  if (uploadUrl.startsWith('http://local.invalid')) {
+  if (isRelativeUploadUrl(uploadUrl)) {
     return `${url.pathname}${url.search}`;
   }
   return url.toString();
