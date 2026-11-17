@@ -32,6 +32,7 @@ public class AuditLogEntity extends BaseUuidEntity {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> diff;
 
+    @JdbcTypeCode(SqlTypes.INET)
     @Column(columnDefinition = "inet")
     private String ip;
 
