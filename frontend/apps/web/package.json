@@ -17,6 +17,13 @@
     "@posts/ui": "workspace:*",
     "@tanstack/react-query": "^5.66.0",
     "@tanstack/react-query-devtools": "^5.66.0",
+    "@tiptap/core": "^3.34.0",
+    "@tiptap/extension-placeholder": "^3.34.0",
+    "@tiptap/pm": "^3.34.0",
+    "@tiptap/react": "^3.34.0",
+    "@tiptap/starter-kit": "^3.34.0",
+    "dompurify": "^3.4.18",
+    "idb-keyval": "^6.3.0",
     "lucide-react": "^0.474.0",
     "next": "^15.1.6",
     "next-intl": "^3.26.3",
@@ -24,7 +31,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.92.0",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",

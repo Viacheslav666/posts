@@ -50,9 +50,11 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
         <Button variant="ghost" size="icon" aria-label={t('search')} className="hidden sm:inline-flex">
           <Search aria-hidden />
         </Button>
-        <Button className="hidden sm:inline-flex" size="sm">
-          <Plus aria-hidden />
-          {t('createPost')}
+        <Button className="hidden sm:inline-flex" size="sm" asChild>
+          <Link href={`/app/${workspaceId}/posts/new`}>
+            <Plus aria-hidden />
+            {t('createPost')}
+          </Link>
         </Button>
         <Button variant="ghost" size="icon" aria-label={t('notifications')}>
           <Bell aria-hidden />
