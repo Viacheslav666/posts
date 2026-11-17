@@ -34,6 +34,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/oauth/*/start",
                                 "/api/v1/auth/oauth/*/callback",
                                 "/api/v1/auth/password/**",
+                                "/api/v1/invitations/preview",
                                 "/.well-known/jwks.json",
                                 "/v3/api-docs",
                                 "/v3/api-docs.yaml",

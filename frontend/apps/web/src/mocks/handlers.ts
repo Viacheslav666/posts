@@ -17,6 +17,7 @@ import type {
 } from '@posts/api-client';
 import { http, HttpResponse } from 'msw';
 
+import { MOCK_NETWORK_CAPABILITIES } from '@/features/editor/api/capabilities-mock';
 import {
   INSUFFICIENT_PERMISSIONS_CODE,
   TWO_FACTOR_REQUIRED_CODE,
@@ -253,6 +254,9 @@ export const handlers = [
     };
     return HttpResponse.json(payload);
   }),
+
+  // --- Networks (FE-4 editor) ---
+  http.get('/api/v1/networks/capabilities', () => HttpResponse.json(MOCK_NETWORK_CAPABILITIES)),
 
   // --- Workspaces ---
   http.get('/api/v1/workspaces', ({ request }) => {

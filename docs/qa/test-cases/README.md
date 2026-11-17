@@ -12,3 +12,5 @@
 План: [`../test-plan-mvp.md`](../test-plan-mvp.md).
 
 **Правило QA-4:** каждый P0 AC stories E1–E5 → ≥ 1 TC; у каждого TC указано **авто** / **ручной** / **кандидат в авто**.
+
+**QA-5:** матрица TC-PUB → автотест — [`../traceability-tc-pub.md`](../traceability-tc-pub.md).

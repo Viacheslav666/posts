@@ -5,9 +5,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,11 +20,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.auth.ClientRequestContexts;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.project.ProjectDtos;
-import ru.posts.api.web.support.ApiStub;
+import ru.posts.api.workspace.ProjectService;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @Validated
@@ -31,14 +36,21 @@ import ru.posts.api.web.support.ApiStub;
 @OpenApiResponses
 public class ProjectController {
 
+    private final ProjectService projectService;
+
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
+    }
+
     @GetMapping("/workspaces/{workspaceId}/projects")
     @Operation(operationId = "projectsList", summary = "List projects visible to the current member")
     @ApiResponse(responseCode = "200", description = "Projects page")
     public CursorPage.ProjectPage list(@PathVariable UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
-        throw ApiStub.notImplemented("projectsList");
+        return projectService.list(SecurityAuthSupport.requirePrincipal().userId(), workspaceId, page);
     }
 
     @PostMapping("/workspaces/{workspaceId}/projects")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "projectsCreate", summary = "Create a project")
     @ApiResponse(
             responseCode = "201",
@@ -47,8 +59,13 @@ public class ProjectController {
     public ProjectDtos.Project create(
             @PathVariable UUID workspaceId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-            @Valid @RequestBody ProjectDtos.CreateProjectRequest request) {
-        throw ApiStub.notImplemented("projectsCreate");
+            @Valid @RequestBody ProjectDtos.CreateProjectRequest request,
+            HttpServletRequest httpRequest) {
+        return projectService.create(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                workspaceId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 
     @GetMapping("/projects/{projectId}")
@@ -58,29 +75,42 @@ public class ProjectController {
             description = "Project",
             content = @Content(schema = @Schema(implementation = ProjectDtos.Project.class)))
     public ProjectDtos.Project get(@PathVariable UUID projectId) {
-        throw ApiStub.notImplemented("projectsGet");
+        return projectService.get(SecurityAuthSupport.requirePrincipal().userId(), projectId);
     }
 
     @PutMapping("/projects/{projectId}")
     @Operation(operationId = "projectsUpdate", summary = "Update project name/color")
     @ApiResponse(responseCode = "200", description = "Updated")
     public ProjectDtos.Project update(
-            @PathVariable UUID projectId, @Valid @RequestBody ProjectDtos.UpdateProjectRequest request) {
-        throw ApiStub.notImplemented("projectsUpdate");
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectDtos.UpdateProjectRequest request,
+            HttpServletRequest httpRequest) {
+        return projectService.update(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                projectId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 
     @DeleteMapping("/projects/{projectId}")
     @Operation(operationId = "projectsDelete", summary = "Delete a project")
     @ApiResponse(responseCode = "200", description = "Deleted")
-    public AuthDtos.MessageResponse delete(@PathVariable UUID projectId) {
-        throw ApiStub.notImplemented("projectsDelete");
+    public AuthDtos.MessageResponse delete(@PathVariable UUID projectId, HttpServletRequest httpRequest) {
+        return projectService.delete(
+                SecurityAuthSupport.requirePrincipal().userId(), projectId, ClientRequestContexts.from(httpRequest));
     }
 
     @PutMapping("/projects/{projectId}/members")
     @Operation(operationId = "projectsSetMembers", summary = "Replace project membership grants")
     @ApiResponse(responseCode = "200", description = "Grants updated")
     public AuthDtos.MessageResponse setMembers(
-            @PathVariable UUID projectId, @Valid @RequestBody ProjectDtos.ProjectMembersRequest request) {
-        throw ApiStub.notImplemented("projectsSetMembers");
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectDtos.ProjectMembersRequest request,
+            HttpServletRequest httpRequest) {
+        return projectService.setMembers(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                projectId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 }

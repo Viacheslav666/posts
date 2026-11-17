@@ -45,9 +45,11 @@ public class ScenarioEngine {
             case HTTP_5XX -> new Outcome.Respond(ResponseEntity.status(pick5xx(scenario))
                     .body(Map.of("error", "emulated_5xx", "network", network.id())));
             case HTTP_429 -> new Outcome.Respond(rateLimitResponse(network, scenario));
+            case HTTP_FORBIDDEN -> new Outcome.Respond(forbiddenResponse(network, scenario));
             case VK_6, VK_9, VK_10, VK_15, VK_100 -> {
                 if (network != Network.VK) {
-                    yield new Outcome.Respond(rateLimitResponse(network, scenario));
+                    // On non-VK networks VK_* codes map to permanent 403 (access denied semantics).
+                    yield new Outcome.Respond(forbiddenResponse(network, scenario));
                 }
                 yield new Outcome.Respond(vkError(fault));
             }
@@ -92,6 +94,32 @@ public class ScenarioEngine {
             return scenario.getHttpStatus();
         }
         return 503;
+    }
+
+    private static int pickForbidden(NetworkScenario scenario) {
+        if (scenario.getHttpStatus() != null
+                && scenario.getHttpStatus() >= 400
+                && scenario.getHttpStatus() < 500
+                && scenario.getHttpStatus() != 429) {
+            return scenario.getHttpStatus();
+        }
+        return 403;
+    }
+
+    private ResponseEntity<?> forbiddenResponse(Network network, NetworkScenario scenario) {
+        int status = pickForbidden(scenario);
+        if (network == Network.TELEGRAM || network == Network.MAX) {
+            return ResponseEntity.status(status)
+                    .body(Map.of(
+                            "ok",
+                            false,
+                            "error_code",
+                            status,
+                            "description",
+                            "Forbidden: bot was kicked / no rights to post"));
+        }
+        return ResponseEntity.status(status)
+                .body(Map.of("error", "forbidden", "network", network.id(), "httpStatus", status));
     }
 
     private ResponseEntity<?> rateLimitResponse(Network network, NetworkScenario scenario) {
