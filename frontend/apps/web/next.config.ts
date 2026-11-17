@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   // Monorepo: include workspace packages in the standalone trace.
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: ['@posts/ui', '@posts/domain', '@posts/api-client'],
+  webpack: (config, { isServer }) => {
+    // MSW package exports mark browser/node entrypoints as null for the opposite runtime.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      ...(isServer ? { 'msw/browser': false } : { 'msw/node': false }),
+    };
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);

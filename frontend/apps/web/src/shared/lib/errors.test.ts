@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getErrorMessage, AppError } from '@/shared/lib/errors';
-
-describe('HomePage stub', () => {
-  it('passes a smoke assertion', () => {
-    expect('Posts').toContain('Post');
-  });
-});
+import { AppError, getErrorMessage } from './errors';
 
 describe('getErrorMessage', () => {
   it('reads AppError message', () => {

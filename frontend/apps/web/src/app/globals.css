@@ -26,3 +26,84 @@
       radial-gradient(800px 420px at 100% 0%, hsl(var(--info) / 0.12) 0%, transparent 45%);
   }
 }
+
+@layer utilities {
+  @keyframes auth-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes landing-fade {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes orb-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(18px, -12px, 0) scale(1.06);
+    }
+  }
+
+  @keyframes pricing-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-auth-in {
+    animation: auth-in 420ms ease-out both;
+  }
+
+  .landing-fade {
+    animation: landing-fade 560ms ease-out both;
+  }
+
+  .landing-fade-delay-1 {
+    animation-delay: 80ms;
+  }
+
+  .landing-fade-delay-2 {
+    animation-delay: 160ms;
+  }
+
+  .landing-fade-delay-3 {
+    animation-delay: 240ms;
+  }
+
+  .landing-fade-delay-4 {
+    animation-delay: 320ms;
+  }
+
+  .landing-orb {
+    animation: orb-drift 10s ease-in-out infinite;
+  }
+
+  .landing-orb-b {
+    animation-delay: -4s;
+  }
+
+  .pricing-card {
+    animation: pricing-rise 480ms ease-out both;
+  }
+}

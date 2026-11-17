@@ -3,6 +3,7 @@
 import { Toaster, TooltipProvider } from '@posts/ui';
 import type { ReactNode } from 'react';
 
+import { MswProvider } from './msw-provider';
 import { QueryProvider } from './query-provider';
 import { ThemeProvider } from './theme-provider';
 
@@ -13,12 +14,14 @@ type AppProvidersProps = {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ThemeProvider>
-      <QueryProvider>
-        <TooltipProvider delayDuration={200}>
-          {children}
-          <Toaster />
-        </TooltipProvider>
-      </QueryProvider>
+      <MswProvider>
+        <QueryProvider>
+          <TooltipProvider delayDuration={200}>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </QueryProvider>
+      </MswProvider>
     </ThemeProvider>
   );
 }
