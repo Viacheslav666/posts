@@ -16,7 +16,7 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveClassifier.set("")
 }
 
-// Keep a plain jar so other modules (e.g. architecture tests) can depend on apps.
+// Keep a plain jar so other modules (e.g. ArchUnit via test-support) can depend on apps.
 tasks.named<Jar>("jar") {
     enabled = true
 }

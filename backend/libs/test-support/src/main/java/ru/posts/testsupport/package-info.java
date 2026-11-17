@@ -1,2 +1,2 @@
-/** Shared test helpers and Testcontainers configuration. */
+/** Shared test helpers, ArchUnit rules, and Testcontainers configuration. */
 package ru.posts.testsupport;

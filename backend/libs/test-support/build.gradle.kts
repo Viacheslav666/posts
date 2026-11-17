@@ -8,5 +8,33 @@ dependencies {
     api("org.testcontainers:postgresql")
     api("org.springframework.boot:spring-boot-testcontainers:3.4.2")
     api(project(":libs:common"))
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    api(libs.archunit.junit5)
+    api(libs.assertj.core)
+}
+
+val moduleClassProjects =
+    listOf(
+        ":libs:common",
+        ":libs:domain",
+        ":libs:persistence",
+        ":libs:messaging",
+        ":libs:security",
+        ":libs:ratelimit",
+        ":libs:content",
+        ":libs:social-api",
+        ":libs:social-vk",
+        ":libs:social-telegram",
+        ":libs:social-ok",
+        ":libs:social-max",
+        ":apps:api",
+        ":apps:scheduler",
+        ":apps:publisher",
+        ":apps:media",
+        ":apps:ingest",
+        ":apps:notifications",
+    )
+
+tasks.test {
+    dependsOn(moduleClassProjects.map { "$it:classes" })
+    systemProperty("posts.backend.root", rootProject.projectDir.absolutePath)
 }
