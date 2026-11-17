@@ -17,6 +17,7 @@
     "@posts/ui": "workspace:*",
     "@tanstack/react-query": "^5.66.0",
     "@tanstack/react-query-devtools": "^5.66.0",
+    "@tiptap/core": "^3.34.0",
     "@tiptap/extension-placeholder": "^3.34.0",
     "@tiptap/pm": "^3.34.0",
     "@tiptap/react": "^3.34.0",
