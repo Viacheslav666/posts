@@ -1,25 +1,4738 @@
 openapi: 3.1.0
 info:
+  contact:
+    name: Posts
+    url: https://github.com/Viacheslav666/posts
+  description: |
+    Posts SMM platform public API (`/api/v1`).
+
+    BE-3 core contract: DTO + stub controllers (HTTP 501) except `GET /me` on the `local` profile.
+    Errors follow RFC 7807 ProblemDetail with a stable `code` property.
+    List endpoints use opaque cursor pagination (`cursor`, `limit`).
+  license:
+    name: Proprietary
   title: Posts API
-  description: Posts SMM platform API (DEV-1 skeleton)
-  version: 0.1.0
+  version: 0.2.0
 servers:
-- url: http://localhost:8080
-  description: Local API
+- description: Local API
+  url: http://localhost:8080
+- description: Staging placeholder
+  url: https://api.posts.local
+tags:
+- description: Lightweight content calendar queries and drag-and-drop moves
+  name: Calendar
+- description: Named channel groups for one-click multi-publish (US-3.6)
+  name: Channel sets
+- description: Connected social channels and connect flows
+  name: Channels
+- description: In-app notifications and delivery settings (US-5.4)
+  name: Notifications
+- description: "Plans, subscription, checkout, invoices, promo codes"
+  name: Billing
+- description: Media library uploads via presigned S3 URLs
+  name: Media
+- description: "Posts, variants, schedule actions, preview, bulk"
+  name: Posts
+- description: Projects (clients/brands) inside a workspace
+  name: Projects
+- description: Workspace invitations by email (US-2.3)
+  name: Invitations
+- description: Workspaces and members
+  name: Workspaces
+- description: Per-channel publication attempts and live status
+  name: Publications
+- description: Network capability matrix for validation and UI
+  name: Networks
+- description: Current user profile and sessions
+  name: Me
+- description: "Registration, login, OAuth, 2FA, password recovery"
+  name: Auth
 paths:
+  /api/v1/auth/2fa/confirm:
+    post:
+      operationId: auth2faConfirm
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorConfirmRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: 2FA enabled
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Confirm TOTP enrollment with a code from the authenticator
+      tags:
+      - Auth
+  /api/v1/auth/2fa/disable:
+    post:
+      operationId: auth2faDisable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorDisableRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: 2FA disabled
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Disable TOTP after password + code verification
+      tags:
+      - Auth
+  /api/v1/auth/2fa/setup:
+    post:
+      operationId: auth2faSetup
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorSetupResponse"
+          description: Setup payload
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Begin TOTP enrollment; returns otpauth URL and backup codes
+      tags:
+      - Auth
+  /api/v1/auth/email/verify:
+    post:
+      operationId: authVerifyEmail
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerifyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Email verified
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Confirm email via token from the verification letter
+      tags:
+      - Auth
+  /api/v1/auth/login:
+    post:
+      operationId: authLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+          description: Tokens issued
+          headers:
+            Set-Cookie:
+              description: httpOnly refresh cookie for web clients
+              style: simple
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Login with email and password (optional TOTP)
+      tags:
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      operationId: authLogout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Logged out
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Revoke current or specified refresh session
+      tags:
+      - Auth
+  /api/v1/auth/oauth/{provider}/callback:
+    post:
+      operationId: authOauthCallback
+      parameters:
+      - in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+          description: OAuth identity provider
+          enum:
+          - vk
+          - yandex
+          - telegram
+      - in: query
+        name: code
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: state
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+          description: Tokens issued
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Complete OAuth callback and issue Posts tokens
+      tags:
+      - Auth
+  /api/v1/auth/oauth/{provider}/start:
+    post:
+      operationId: authOauthStart
+      parameters:
+      - description: OAuth provider
+        in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+          description: OAuth identity provider
+          enum:
+          - vk
+          - yandex
+          - telegram
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthStartResponse"
+          description: Authorization URL
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Start OAuth (VK ID / Yandex ID) with PKCE
+      tags:
+      - Auth
+  /api/v1/auth/password/forgot:
+    post:
+      description: Always returns the same shape to avoid email enumeration (US-1.4).
+      operationId: authPasswordForgot
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordForgotRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Accepted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Request password reset email
+      tags:
+      - Auth
+  /api/v1/auth/password/reset:
+    post:
+      operationId: authPasswordReset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Password updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Reset password using email token
+      tags:
+      - Auth
+  /api/v1/auth/refresh:
+    post:
+      operationId: authRefresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+          description: Refreshed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Rotate refresh token and issue a new access token
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      description: Creates an unverified account and personal workspace (US-1.1).
+      operationId: authRegister
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                message: verification_email_sent
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Registered
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Register with email and password
+      tags:
+      - Auth
+  /api/v1/billing/checkout:
+    post:
+      operationId: billingCheckout
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+          description: Checkout session
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create YooKassa checkout session (US-6.3)
+      tags:
+      - Billing
+  /api/v1/billing/invoices:
+    get:
+      operationId: billingListInvoices
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Invoices page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List invoices for a workspace
+      tags:
+      - Billing
+  /api/v1/billing/plans:
+    get:
+      operationId: billingListPlans
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+          description: Plans
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List public billing plans (US-6.1)
+      tags:
+      - Billing
+  /api/v1/billing/promo/apply:
+    post:
+      operationId: billingApplyPromo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyPromoRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyPromoResponse"
+          description: Promo applied
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Apply a promo code to a workspace (US-6.6)
+      tags:
+      - Billing
+  /api/v1/billing/subscription:
+    get:
+      operationId: billingGetSubscription
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: Subscription
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get current workspace subscription
+      tags:
+      - Billing
+  /api/v1/calendar:
+    get:
+      description: Returns lightweight DTOs for month/week/list views (US-4.6).
+      operationId: calendarList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: from
+        required: true
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: to
+        required: true
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: projectId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: network
+        required: false
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          description: Aggregate post status
+          enum:
+          - draft
+          - pending_approval
+          - approved
+          - scheduled
+          - publishing
+          - published
+          - partially_published
+          - failed
+          - paused
+          - archived
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarItem"
+          description: Calendar items
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List calendar items in a time range
+      tags:
+      - Calendar
+  /api/v1/calendar/{postId}/move:
+    post:
+      operationId: calendarMove
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveCalendarItemRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Moved
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Move a scheduled post via drag-and-drop
+      tags:
+      - Calendar
+  /api/v1/channel-sets:
+    get:
+      operationId: channelSetsList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Channel sets page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List channel sets in a workspace
+      tags:
+      - Channel sets
+    post:
+      operationId: channelSetsCreate
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChannelSetRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSet"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create a channel set (max 50 channels)
+      tags:
+      - Channel sets
+  /api/v1/channel-sets/{setId}:
+    delete:
+      operationId: channelSetsDelete
+      parameters:
+      - in: path
+        name: setId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Delete a channel set
+      tags:
+      - Channel sets
+    get:
+      operationId: channelSetsGet
+      parameters:
+      - in: path
+        name: setId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSet"
+          description: Channel set
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get channel set by id
+      tags:
+      - Channel sets
+    put:
+      operationId: channelSetsUpdate
+      parameters:
+      - in: path
+        name: setId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChannelSetRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSet"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update channel set name or membership
+      tags:
+      - Channel sets
+  /api/v1/channels:
+    get:
+      operationId: channelsList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: projectId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: network
+        required: false
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          description: Channel connection status
+          enum:
+          - active
+          - reauth_required
+          - no_permissions
+          - disabled
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Channels page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List channels in a workspace
+      tags:
+      - Channels
+  /api/v1/channels/connect/{network}/callback:
+    post:
+      operationId: channelsConnectCallback
+      parameters:
+      - in: path
+        name: network
+        required: true
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelConnectCallbackRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Connected channel(s)
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Finish channel connect after OAuth/bot confirmation
+      tags:
+      - Channels
+  /api/v1/channels/connect/{network}/start:
+    post:
+      operationId: channelsConnectStart
+      parameters:
+      - in: path
+        name: network
+        required: true
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: projectId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelConnectStartResponse"
+          description: Connect start payload
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Start channel connect OAuth / bot invite flow
+      tags:
+      - Channels
+  /api/v1/channels/{channelId}:
+    delete:
+      operationId: channelsDelete
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Disconnected
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Disconnect a channel
+      tags:
+      - Channels
+    get:
+      operationId: channelsGet
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+          description: Channel
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get channel by id
+      tags:
+      - Channels
+    put:
+      operationId: channelsUpdate
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChannelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update channel project assignment or timezone
+      tags:
+      - Channels
+  /api/v1/channels/{channelId}/check:
+    post:
+      operationId: channelsCheck
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelCheckResponse"
+          description: Check result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Re-check channel token and permissions (US-3.5)
+      tags:
+      - Channels
+  /api/v1/invitations/accept:
+    post:
+      operationId: invitationsAccept
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+          description: Accepted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Accept an invitation using the email token
+      tags:
+      - Invitations
+  /api/v1/invitations/preview:
+    get:
+      operationId: invitationsPreview
+      parameters:
+      - in: query
+        name: token
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+          description: Invitation preview
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Preview invitation metadata by token (unauthenticated)
+      tags:
+      - Invitations
+  /api/v1/invitations/{invitationId}:
+    delete:
+      operationId: invitationsCancel
+      parameters:
+      - in: path
+        name: invitationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Cancelled
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Cancel a pending invitation
+      tags:
+      - Invitations
+  /api/v1/me:
+    delete:
+      description: Schedules anonymization after a grace period.
+      operationId: meDelete
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deletion scheduled
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Request account deletion / anonymization (152-FZ)
+      tags:
+      - Me
+    get:
+      description: In the `local` profile returns deterministic fixture data for FE/QA.
+        Other profiles return 501 until BE-5.
+      operationId: meGet
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                local:
+                  description: local
+                  value:
+                    id: 019a0000-0002-7000-8000-000000000001
+                    email: local@posts.test
+                    emailVerified: true
+                    name: Local Dev
+                    timezone: Europe/Moscow
+                    locale: ru
+                    totpEnabled: false
+                    memberships:
+                    - workspaceId: 019a0000-0002-7000-8000-000000000002
+                      workspaceName: Личное пространство
+                      role: owner
+                      billingStatus: trial
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+          description: Current user
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get current user profile
+      tags:
+      - Me
+    patch:
+      operationId: meUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: "Update profile fields (name, timezone, locale, avatar)"
+      tags:
+      - Me
+  /api/v1/me/password:
+    post:
+      operationId: meChangePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Password changed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Change password while authenticated
+      tags:
+      - Me
+  /api/v1/me/sessions:
+    delete:
+      operationId: meRevokeOtherSessions
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Other sessions revoked
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Revoke all sessions except the current one
+      tags:
+      - Me
+    get:
+      operationId: meListSessions
+      parameters:
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Sessions page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List active and recent sessions (US-1.5)
+      tags:
+      - Me
+  /api/v1/me/sessions/{sessionId}:
+    delete:
+      operationId: meRevokeSession
+      parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Session revoked
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Revoke a specific session
+      tags:
+      - Me
+  /api/v1/media:
+    get:
+      operationId: mediaList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: kind
+        required: false
+        schema:
+          type: string
+          description: Media asset kind
+          enum:
+          - image
+          - video
+          - doc
+          - audio
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          description: Media processing status
+          enum:
+          - uploading
+          - processing
+          - ready
+          - failed
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Media page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List media assets in a workspace
+      tags:
+      - Media
+  /api/v1/media/uploads:
+    post:
+      description: "Client uploads bytes directly to S3, then calls complete (US-4.2)."
+      operationId: mediaCreateUpload
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateUploadResponse"
+          description: Upload session created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create a media asset and return a presigned upload URL
+      tags:
+      - Media
+  /api/v1/media/{mediaId}:
+    get:
+      operationId: mediaGet
+      parameters:
+      - in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAsset"
+          description: Media asset
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get media asset metadata
+      tags:
+      - Media
+  /api/v1/media/{mediaId}/complete:
+    post:
+      operationId: mediaCompleteUpload
+      parameters:
+      - in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteUploadRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAsset"
+          description: Media asset
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Mark upload complete and enqueue processing
+      tags:
+      - Media
+  /api/v1/networks/capabilities:
+    get:
+      description: "Machine-readable limits/features sourced from docs/api/fixtures/network-capabilities.yaml\
+        \ (AN-2). Network ids use DB keys: vk, tg, ok, max, rutube (YAML `telegram`\
+        \ maps to `tg`)."
+      operationId: networksCapabilities
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkCapabilitiesResponse"
+          description: Capabilities
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get network capabilities snapshot
+      tags:
+      - Networks
+  /api/v1/notification-settings:
+    get:
+      operationId: notificationSettingsGet
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+          description: Settings
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get notification delivery preferences
+      tags:
+      - Notifications
+    put:
+      operationId: notificationSettingsUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationSettingsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+          description: Updated settings
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update notification delivery preferences
+      tags:
+      - Notifications
+  /api/v1/notifications:
+    get:
+      operationId: notificationsList
+      parameters:
+      - in: query
+        name: unreadOnly
+        required: false
+        schema:
+          type: boolean
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Notifications page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List notifications for the current user
+      tags:
+      - Notifications
+  /api/v1/notifications/read:
+    put:
+      operationId: notificationsMarkRead
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkNotificationsReadRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Mark notifications as read
+      tags:
+      - Notifications
   /api/v1/ping:
     get:
-      tags:
-      - System
-      summary: Liveness ping for local and CI smoke checks
+      description: Unauthenticated smoke endpoint used by Makefile/CI.
       operationId: ping
       responses:
         "200":
-          description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 type: object
                 additionalProperties:
                   type: string
-components: {}
+          description: OK
+      summary: Liveness ping for local and CI smoke checks
+      tags:
+      - System
+  /api/v1/posts:
+    get:
+      operationId: postsList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          description: Aggregate post status
+          enum:
+          - draft
+          - pending_approval
+          - approved
+          - scheduled
+          - publishing
+          - published
+          - partially_published
+          - failed
+          - paused
+          - archived
+      - in: query
+        name: channelId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: projectId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: network
+        required: false
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Posts page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List posts with filters and cursor pagination
+      tags:
+      - Posts
+    post:
+      operationId: postsCreate
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create a draft or scheduled post
+      tags:
+      - Posts
+  /api/v1/posts/bulk:
+    post:
+      operationId: postsBulk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkPostsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkPostsResponse"
+          description: Bulk result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Bulk pause/resume/delete/reschedule (US-4.7)
+      tags:
+      - Posts
+  /api/v1/posts/preview:
+    post:
+      operationId: postsPreview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewResponse"
+          description: Preview
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Server-side render/validate a variant for a network
+      tags:
+      - Posts
+  /api/v1/posts/{postId}:
+    delete:
+      operationId: postsDelete
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Soft-delete a post and cancel pending publications
+      tags:
+      - Posts
+    get:
+      operationId: postsGet
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Post
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get post with variants
+      tags:
+      - Posts
+    put:
+      operationId: postsUpdate
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update post (optimistic locking via version)
+      tags:
+      - Posts
+  /api/v1/posts/{postId}/duplicate:
+    post:
+      operationId: postsDuplicate
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Duplicated draft
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Duplicate a post as a new draft
+      tags:
+      - Posts
+  /api/v1/posts/{postId}/pause:
+    post:
+      operationId: postsPause
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostActionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Paused
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Pause scheduled publications for a post
+      tags:
+      - Posts
+  /api/v1/posts/{postId}/publications:
+    get:
+      operationId: postsListPublications
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Publications page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List publications for a post
+      tags:
+      - Posts
+  /api/v1/posts/{postId}/resume:
+    post:
+      operationId: postsResume
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostActionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Resumed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Resume a paused post
+      tags:
+      - Posts
+  /api/v1/posts/{postId}/schedule:
+    post:
+      operationId: postsSchedule
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchedulePostRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Scheduled
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Schedule or reschedule a post
+      tags:
+      - Posts
+  /api/v1/projects/{projectId}:
+    delete:
+      operationId: projectsDelete
+      parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Delete a project
+      tags:
+      - Projects
+    get:
+      operationId: projectsGet
+      parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+          description: Project
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get project by id
+      tags:
+      - Projects
+    put:
+      operationId: projectsUpdate
+      parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update project name/color
+      tags:
+      - Projects
+  /api/v1/projects/{projectId}/members:
+    put:
+      operationId: projectsSetMembers
+      parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectMembersRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Grants updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Replace project membership grants
+      tags:
+      - Projects
+  /api/v1/publications:
+    get:
+      operationId: publicationsList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: postId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: channelId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: state
+        required: false
+        schema:
+          type: string
+          description: Per-channel publication pipeline state
+          enum:
+          - pending
+          - queued
+          - in_progress
+          - succeeded
+          - failed_retryable
+          - failed_permanent
+          - cancelled
+          - waiting_for_channel
+      - in: query
+        name: network
+        required: false
+        schema:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Publications page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List publications for a workspace
+      tags:
+      - Publications
+  /api/v1/publications/{publicationId}:
+    get:
+      operationId: publicationsGet
+      parameters:
+      - in: path
+        name: publicationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Publication"
+          description: Publication
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get a publication by id
+      tags:
+      - Publications
+  /api/v1/workspaces:
+    get:
+      operationId: workspacesList
+      parameters:
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Workspace page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List workspaces for the current user
+      tags:
+      - Workspaces
+    post:
+      operationId: workspacesCreate
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create a workspace
+      tags:
+      - Workspaces
+  /api/v1/workspaces/{workspaceId}:
+    delete:
+      operationId: workspacesDelete
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Delete workspace (Owner only)
+      tags:
+      - Workspaces
+    get:
+      operationId: workspacesGet
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+          description: Workspace
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get workspace by id
+      tags:
+      - Workspaces
+    put:
+      operationId: workspacesUpdate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkspaceRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+          description: Updated
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Rename workspace
+      tags:
+      - Workspaces
+  /api/v1/workspaces/{workspaceId}/invitations:
+    get:
+      operationId: invitationsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Invitations page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List pending invitations for a workspace
+      tags:
+      - Invitations
+    post:
+      operationId: invitationsCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+          description: Invitation created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Invite a user by email (TTL 7 days)
+      tags:
+      - Invitations
+  /api/v1/workspaces/{workspaceId}/members:
+    get:
+      operationId: workspaceMembersList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Members page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List workspace members
+      tags:
+      - Workspaces
+  /api/v1/workspaces/{workspaceId}/members/{userId}:
+    delete:
+      operationId: workspaceMembersRemove
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Removed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Remove a member from the workspace
+      tags:
+      - Workspaces
+    put:
+      operationId: workspaceMembersUpdate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMember"
+          description: Updated member
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update member role and project grants
+      tags:
+      - Workspaces
+  /api/v1/workspaces/{workspaceId}/projects:
+    get:
+      operationId: projectsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPage"
+          description: Projects page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List projects visible to the current member
+      tags:
+      - Projects
+    post:
+      operationId: projectsCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create a project
+      tags:
+      - Projects
+components:
+  schemas:
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    ApplyPromoRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - code
+      - workspaceId
+    ApplyPromoResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        kind:
+          type: string
+          example: percent
+        validUntil:
+          type: string
+          format: date-time
+        value:
+          type: number
+    BulkPostsRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - pause
+          - resume
+          - delete
+          - reschedule
+        postIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+      - action
+      - postIds
+    BulkPostsResponse:
+      type: object
+      properties:
+        affected:
+          type: integer
+          format: int32
+        failedIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CalendarItem:
+      type: object
+      description: Lightweight calendar cell DTO
+      properties:
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        id:
+          type: string
+          format: uuid
+        networks:
+          type: array
+          items:
+            type: string
+            description: Social network identifier (DB / publish routing key)
+            enum:
+            - vk
+            - tg
+            - ok
+            - max
+            - rutube
+        projectId:
+          type: string
+          format: uuid
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Aggregate post status
+          enum:
+          - draft
+          - pending_approval
+          - approved
+          - scheduled
+          - publishing
+          - published
+          - partially_published
+          - failed
+          - paused
+          - archived
+        title:
+          type: string
+    Channel:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+        capabilities:
+          type: object
+          additionalProperties:
+            type: object
+        createdAt:
+          type: string
+          format: date-time
+        externalId:
+          type: string
+        id:
+          type: string
+          format: uuid
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        projectId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Channel connection status
+          enum:
+          - active
+          - reauth_required
+          - no_permissions
+          - disabled
+        statusReason:
+          type: string
+        timezone:
+          type: string
+        title:
+          type: string
+          example: Новости бренда
+        type:
+          type: string
+          description: Channel entity type within a network
+          enum:
+          - group
+          - page
+          - channel
+          - chat
+          - profile
+        username:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+    ChannelCheckResponse:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        checkedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Channel connection status
+          enum:
+          - active
+          - reauth_required
+          - no_permissions
+          - disabled
+        statusReason:
+          type: string
+    ChannelConnectCallbackRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        state:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - code
+      - state
+      - workspaceId
+    ChannelConnectStartResponse:
+      type: object
+      properties:
+        authorizationUrl:
+          type: string
+          example: https://oauth.example/...
+        botInviteUrl:
+          type: string
+          description: Bot deep-link for tg/max when applicable
+        state:
+          type: string
+    ChannelSet:
+      type: object
+      properties:
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Утренние посты
+        workspaceId:
+          type: string
+          format: uuid
+    CheckoutRequest:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Billing period for checkout
+          enum:
+          - month
+          - year
+        planCode:
+          type: string
+          example: pro
+        promoCode:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - period
+      - planCode
+      - workspaceId
+    CheckoutResponse:
+      type: object
+      properties:
+        confirmationUrl:
+          type: string
+          example: https://yookassa.ru/checkout/...
+        paymentId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+    CompleteUploadRequest:
+      type: object
+      properties:
+        etags:
+          type: array
+          items:
+            type: string
+        uploadId:
+          type: string
+          description: S3 multipart upload id when applicable
+    CreateChannelSetRequest:
+      type: object
+      properties:
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 0
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+      required:
+      - channelIds
+      - name
+    CreateInvitationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        projectIds:
+          type: array
+          description: Projects the invitee will join
+          items:
+            type: string
+            format: uuid
+        role:
+          type: string
+          description: Workspace member role
+          enum:
+          - owner
+          - admin
+          - editor
+          - author
+          - viewer
+      required:
+      - email
+      - role
+    CreatePostRequest:
+      type: object
+      properties:
+        ad:
+          type: boolean
+        baseContent:
+          $ref: "#/components/schemas/PostContent"
+        projectId:
+          type: string
+          format: uuid
+        recurrence:
+          $ref: "#/components/schemas/Recurrence"
+        scheduledAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+          maxLength: 200
+          minLength: 0
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostVariantUpsert"
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - baseContent
+      - workspaceId
+    CreateProjectRequest:
+      type: object
+      properties:
+        color:
+          type: string
+          example: "#3B82F6"
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+      required:
+      - name
+    CreateUploadRequest:
+      type: object
+      properties:
+        filename:
+          type: string
+        kind:
+          type: string
+          description: Media asset kind
+          enum:
+          - image
+          - video
+          - doc
+          - audio
+        mime:
+          type: string
+          example: image/jpeg
+        sha256:
+          type: string
+          description: SHA-256 hex of the file
+          maxLength: 64
+          minLength: 64
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - kind
+      - mime
+      - sizeBytes
+      - workspaceId
+    CreateUploadResponse:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        mediaId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          description: Presigned multipart/PUT upload URL
+    CreateWorkspaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Новый клиентский workspace
+          maxLength: 120
+          minLength: 1
+      required:
+      - name
+    CursorPage:
+      type: object
+      description: Cursor page envelope
+      properties:
+        hasMore:
+          type: boolean
+          description: Whether more items exist after this page
+        items:
+          type: array
+          description: Page items
+          items:
+            $ref: "#/components/schemas/Channel"
+        nextCursor:
+          type: string
+          description: Cursor for the next page; null when no more items
+    EmailVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    FeatureFlags:
+      type: object
+      properties:
+        deleteAfterPublish:
+          type: boolean
+        firstComment:
+          type: boolean
+        inlineButtons:
+          type: boolean
+        nativeSchedule:
+          type: boolean
+        pin:
+          type: boolean
+        stories:
+          type: boolean
+        unpin:
+          type: boolean
+    FormattingCapability:
+      type: object
+      properties:
+        features:
+          type: array
+          items:
+            type: string
+        htmlTags:
+          type: array
+          items:
+            type: string
+        mode:
+          type: string
+          example: html
+    Invitation:
+      type: object
+      properties:
+        acceptedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        email:
+          type: string
+          example: new@example.com
+        expiresAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        projectIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        role:
+          type: string
+          description: Workspace member role
+          enum:
+          - owner
+          - admin
+          - editor
+          - author
+          - viewer
+        workspaceId:
+          type: string
+          format: uuid
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: correct-horse-battery
+        totpCode:
+          type: string
+          description: TOTP code when 2FA is enabled
+          example: 123456
+      required:
+      - email
+      - password
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token to revoke; omit to revoke current session cookie
+    MarkNotificationsReadRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - ids
+    MediaAsset:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        derivatives:
+          type: object
+          additionalProperties:
+            type: object
+        durationMs:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: Media asset kind
+          enum:
+          - image
+          - video
+          - doc
+          - audio
+        mime:
+          type: string
+        sha256:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        status:
+          type: string
+          description: Media processing status
+          enum:
+          - uploading
+          - processing
+          - ready
+          - failed
+        uploaderId:
+          type: string
+          format: uuid
+        width:
+          type: integer
+          format: int32
+        workspaceId:
+          type: string
+          format: uuid
+    MediaLimits:
+      type: object
+      properties:
+        maxAttachmentsPerPost:
+          type: integer
+          format: int32
+          example: 10
+        photo:
+          type: object
+          additionalProperties:
+            type: object
+        video:
+          type: object
+          additionalProperties:
+            type: object
+    MembershipSummary:
+      type: object
+      properties:
+        billingStatus:
+          type: string
+          description: Workspace billing status
+          enum:
+          - trial
+          - active
+          - grace
+          - frozen
+        role:
+          type: string
+          description: Workspace member role
+          enum:
+          - owner
+          - admin
+          - editor
+          - author
+          - viewer
+        workspaceId:
+          type: string
+          format: uuid
+        workspaceName:
+          type: string
+          example: Личное пространство
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: ok
+    MoveCalendarItemRequest:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+      required:
+      - scheduledAt
+      - version
+    NetworkCapabilitiesResponse:
+      type: object
+      description: Snapshot of network limits/features for client-side validation
+        (AN-2)
+      properties:
+        checkedAt:
+          type: string
+          example: 2026-11-17
+        networks:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetworkCapability"
+        version:
+          type: string
+          example: 1.0.0
+    NetworkCapability:
+      type: object
+      properties:
+        channelTypes:
+          type: array
+          items:
+            type: string
+        contentTypes:
+          type: array
+          items:
+            type: string
+        features:
+          $ref: "#/components/schemas/FeatureFlags"
+        formatting:
+          $ref: "#/components/schemas/FormattingCapability"
+        id:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        media:
+          $ref: "#/components/schemas/MediaLimits"
+        name:
+          type: string
+          example: ВКонтакте
+        phase:
+          type: string
+          example: mvp
+        rateLimits:
+          $ref: "#/components/schemas/RateLimits"
+        text:
+          $ref: "#/components/schemas/TextLimits"
+    NotificationSettings:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+        inAppEnabled:
+          type: boolean
+        mutedTypes:
+          type: array
+          description: Mute categories
+          example:
+          - billing.reminder
+          items:
+            type: string
+        telegramBotEnabled:
+          type: boolean
+        webPushEnabled:
+          type: boolean
+    OAuthStartResponse:
+      type: object
+      properties:
+        authorizationUrl:
+          type: string
+          example: https://id.vk.ru/authorize?...
+        state:
+          type: string
+          example: xyz
+    PasswordForgotRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+      required:
+      - email
+    PasswordResetRequest:
+      type: object
+      properties:
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 10
+        token:
+          type: string
+          description: Token from email link
+      required:
+      - newPassword
+      - token
+    Plan:
+      type: object
+      properties:
+        code:
+          type: string
+          example: pro
+        id:
+          type: string
+          format: uuid
+        limits:
+          type: object
+          additionalProperties:
+            type: object
+          example:
+            channels: 30
+            seats: 3
+            posts_month: null
+            ai_credits: 1000
+        name:
+          type: string
+          example: Про
+        priceMonth:
+          type: number
+        priceYear:
+          type: number
+    Post:
+      type: object
+      properties:
+        ad:
+          type: boolean
+        authorId:
+          type: string
+          format: uuid
+        baseContent:
+          $ref: "#/components/schemas/PostContent"
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        recurrence:
+          $ref: "#/components/schemas/Recurrence"
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Aggregate post status
+          enum:
+          - draft
+          - pending_approval
+          - approved
+          - scheduled
+          - publishing
+          - published
+          - partially_published
+          - failed
+          - paused
+          - archived
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostVariant"
+        version:
+          type: integer
+          format: int32
+        workspaceId:
+          type: string
+          format: uuid
+    PostActionRequest:
+      type: object
+      properties:
+        version:
+          type: integer
+          format: int32
+      required:
+      - version
+    PostContent:
+      type: object
+      description: Canonical editor content (Tiptap-compatible JSON)
+      properties:
+        doc:
+          type: object
+          additionalProperties:
+            type: object
+          description: Rich entities / Tiptap JSON
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        text:
+          type: string
+          description: Plain/HTML text or structured doc
+    PostVariant:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        content:
+          $ref: "#/components/schemas/PostContent"
+        id:
+          type: string
+          format: uuid
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        options:
+          $ref: "#/components/schemas/PostVariantOptions"
+    PostVariantOptions:
+      type: object
+      properties:
+        buttons:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: object
+        carouselMode:
+          type: string
+        closeComments:
+          type: boolean
+        deleteAfter:
+          type: string
+          format: date-time
+        extra:
+          type: object
+          additionalProperties:
+            type: object
+        firstComment:
+          type: string
+        mute:
+          type: boolean
+        pin:
+          type: boolean
+        signed:
+          type: boolean
+        unpinAt:
+          type: string
+          format: date-time
+    PostVariantUpsert:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        content:
+          $ref: "#/components/schemas/PostContent"
+        id:
+          type: string
+          format: uuid
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        options:
+          $ref: "#/components/schemas/PostVariantOptions"
+      required:
+      - channelId
+      - network
+    PreviewRequest:
+      type: object
+      properties:
+        content:
+          $ref: "#/components/schemas/PostContent"
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        options:
+          $ref: "#/components/schemas/PostVariantOptions"
+      required:
+      - content
+      - network
+    PreviewResponse:
+      type: object
+      properties:
+        html:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationIssue"
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        plainText:
+          type: string
+        valid:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+    ProblemDetail:
+      type: object
+      description: RFC 7807 problem with Posts machine-readable code
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable error code
+          example: not_implemented
+        detail:
+          type: string
+          example: "Operation not implemented yet: workspaces.list"
+        errors:
+          type: array
+          description: Field-level validation errors when code=validation_failed
+          items:
+            type: object
+            additionalProperties:
+              type: string
+        instance:
+          type: string
+          example: /api/v1/workspaces
+        status:
+          type: integer
+          format: int32
+          example: 501
+        title:
+          type: string
+          example: Not Implemented
+        type:
+          type: string
+          format: uri
+          example: https://posts.ru/problems/not_implemented
+    Project:
+      type: object
+      properties:
+        color:
+          type: string
+          example: "#3B82F6"
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Клиент А
+        workspaceId:
+          type: string
+          format: uuid
+    ProjectMembersRequest:
+      type: object
+      properties:
+        userIds:
+          type: array
+          description: User IDs to grant project access
+          items:
+            type: string
+            format: uuid
+    Publication:
+      type: object
+      properties:
+        attempts:
+          type: integer
+          format: int32
+        channelId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        id:
+          type: string
+          format: uuid
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        nextAttemptAt:
+          type: string
+          format: date-time
+        postId:
+          type: string
+          format: uuid
+        publishedAt:
+          type: string
+          format: date-time
+        remotePostId:
+          type: string
+        remoteUrl:
+          type: string
+        runAt:
+          type: string
+          format: date-time
+        state:
+          type: string
+          description: Per-channel publication pipeline state
+          enum:
+          - pending
+          - queued
+          - in_progress
+          - succeeded
+          - failed_retryable
+          - failed_permanent
+          - cancelled
+          - waiting_for_channel
+        variantId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+    RateLimits:
+      type: object
+      properties:
+        extra:
+          type: object
+          additionalProperties:
+            type: object
+        globalRps:
+          type: number
+          format: double
+        perChatRps:
+          type: number
+          format: double
+        perTokenRps:
+          type: number
+          format: double
+    Recurrence:
+      type: object
+      properties:
+        byWeekday:
+          type: array
+          items:
+            type: string
+        freq:
+          type: string
+          example: weekly
+        interval:
+          type: integer
+          format: int32
+          example: 1
+        until:
+          type: string
+          format: date-time
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Opaque refresh token when not using httpOnly cookie
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        locale:
+          type: string
+          example: ru
+        name:
+          type: string
+          example: Иван Иванов
+          maxLength: 120
+          minLength: 1
+        password:
+          type: string
+          example: correct-horse-battery
+          maxLength: 128
+          minLength: 10
+        timezone:
+          type: string
+          example: Europe/Moscow
+      required:
+      - email
+      - name
+      - password
+    SchedulePostRequest:
+      type: object
+      properties:
+        recurrence:
+          $ref: "#/components/schemas/Recurrence"
+        scheduledAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+          description: Optimistic lock version
+      required:
+      - scheduledAt
+      - version
+    Subscription:
+      type: object
+      properties:
+        cancelAtPeriodEnd:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        periodEnd:
+          type: string
+          format: date-time
+        periodStart:
+          type: string
+          format: date-time
+        planCode:
+          type: string
+        status:
+          type: string
+          description: Workspace billing status
+          enum:
+          - trial
+          - active
+          - grace
+          - frozen
+        trialEndsAt:
+          type: string
+          format: date-time
+        workspaceId:
+          type: string
+          format: uuid
+    TextLimits:
+      type: object
+      properties:
+        captionMaxChars:
+          type: integer
+          format: int32
+          description: Max caption length when media is attached
+          example: 1024
+        maxChars:
+          type: integer
+          format: int32
+          description: Max post text length; null when officially unknown
+          example: 4096
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJFUzI1NiJ9...
+        expiresIn:
+          type: integer
+          format: int64
+          description: Access token TTL in seconds
+          example: 900
+        refreshToken:
+          type: string
+          description: Present for non-cookie clients
+        tokenType:
+          type: string
+          example: Bearer
+    TwoFactorConfirmRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 123456
+          maxLength: 8
+          minLength: 6
+      required:
+      - code
+    TwoFactorDisableRequest:
+      type: object
+      properties:
+        password:
+          type: string
+        totpCode:
+          type: string
+          maxLength: 8
+          minLength: 6
+      required:
+      - password
+      - totpCode
+    TwoFactorSetupResponse:
+      type: object
+      properties:
+        backupCodes:
+          type: array
+          description: One-time backup codes (shown once)
+          items:
+            type: string
+        otpauthUrl:
+          type: string
+          description: otpauth:// URI for authenticator apps
+        secret:
+          type: string
+          description: Base32 secret for manual entry
+    UpdateChannelRequest:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        timezone:
+          type: string
+          example: Europe/Moscow
+    UpdateChannelSetRequest:
+      type: object
+      properties:
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 0
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+    UpdateMeRequest:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+        locale:
+          type: string
+          example: ru
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+        timezone:
+          type: string
+          example: Europe/Moscow
+    UpdateMemberRequest:
+      type: object
+      properties:
+        projectIds:
+          type: array
+          description: Assigned project IDs
+          items:
+            type: string
+            format: uuid
+        role:
+          type: string
+          description: Workspace member role
+          enum:
+          - owner
+          - admin
+          - editor
+          - author
+          - viewer
+      required:
+      - role
+    UpdateNotificationSettingsRequest:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+        inAppEnabled:
+          type: boolean
+        mutedTypes:
+          type: array
+          items:
+            type: string
+        telegramBotEnabled:
+          type: boolean
+        webPushEnabled:
+          type: boolean
+    UpdatePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 10
+      required:
+      - currentPassword
+      - newPassword
+    UpdatePostRequest:
+      type: object
+      properties:
+        ad:
+          type: boolean
+        baseContent:
+          $ref: "#/components/schemas/PostContent"
+        projectId:
+          type: string
+          format: uuid
+        recurrence:
+          $ref: "#/components/schemas/Recurrence"
+        scheduledAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+          maxLength: 200
+          minLength: 0
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostVariantUpsert"
+        version:
+          type: integer
+          format: int32
+          description: Optimistic lock version
+      required:
+      - version
+    UpdateProjectRequest:
+      type: object
+      properties:
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+    UpdateWorkspaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+      required:
+      - name
+    UserProfile:
+      type: object
+      description: Current authenticated user (`GET /me`)
+      properties:
+        avatarUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        email:
+          type: string
+          example: local@posts.test
+        emailVerified:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        locale:
+          type: string
+          example: ru
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/MembershipSummary"
+        name:
+          type: string
+          example: Local Dev
+        timezone:
+          type: string
+          example: Europe/Moscow
+        totpEnabled:
+          type: boolean
+    ValidationIssue:
+      type: object
+      properties:
+        code:
+          type: string
+          example: text.max_chars
+        field:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          example: error
+    Workspace:
+      type: object
+      properties:
+        billingStatus:
+          type: string
+          description: Workspace billing status
+          enum:
+          - trial
+          - active
+          - grace
+          - frozen
+        createdAt:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Агентство Ромашка
+        ownerUserId:
+          type: string
+          format: uuid
+        planCode:
+          type: string
+        trialEndsAt:
+          type: string
+          format: date-time
+    WorkspaceMember:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        email:
+          type: string
+          example: editor@example.com
+        name:
+          type: string
+          example: Мария
+        projectIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        role:
+          type: string
+          description: Workspace member role
+          enum:
+          - owner
+          - admin
+          - editor
+          - author
+          - viewer
+        userId:
+          type: string
+          format: uuid
+  securitySchemes:
+    bearer-jwt:
+      bearerFormat: JWT
+      description: Access token (ES256). Issued by Posts auth; JWKS at /.well-known/jwks.json.
+      name: bearer-jwt
+      scheme: bearer
+      type: http

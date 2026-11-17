@@ -36,10 +36,9 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-  info:
-    title: Posts API
-    version: 0.1.0
-    description: Posts SMM platform API (DEV-1 skeleton)
+  show-actuator: false
+  default-produces-media-type: application/json
+  writer-with-order-by-keys: true
 
 logging:
   level:

@@ -13,7 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class PingController {
 
     @GetMapping("/ping")
-    @Operation(summary = "Liveness ping for local and CI smoke checks")
+    @Operation(
+            operationId = "ping",
+            summary = "Liveness ping for local and CI smoke checks",
+            description = "Unauthenticated smoke endpoint used by Makefile/CI.")
     public Map<String, String> ping() {
         return Map.of("status", "ok");
     }
