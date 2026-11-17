@@ -42,7 +42,7 @@ Pattern: `main`
 | Check | Почему |
 |---|---|
 | `changes` | Служебный paths-filter job, не сигнализирует качество |
-| `Analyze` / `Analyze (java)` / `Analyze (javascript-typescript)` | Job из `.github/workflows/codeql.yml`; тяжёлый, идёт параллельно; включать в required позже по решению владельца |
+| `Analyze (java)` / `Analyze (javascript-typescript)` | Job из `.github/workflows/codeql.yml` (`name: Analyze` + matrix); тяжёлый, идёт параллельно; включать в required позже по решению владельца |
 
 > **Path filters:** jobs `backend` / `frontend` / `contract` могут быть **skipped**, если paths-filter не сработал. В современных правилах GitHub skipped required checks **не блокируют** merge. Если защита начнёт требовать «зелёный» даже при skip — добавьте no-op success step или уберите path-filter для required jobs. На `main` эти три job всегда запускаются (`github.ref == refs/heads/main`).
 
