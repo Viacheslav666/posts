@@ -24,8 +24,8 @@
 
 | Файл | Назначение |
 |---|---|
-| [stories/](./stories/) | User stories E1–E6 (36 шт.): Given/When/Then, приоритет, зависимости, DoR |
-| [stories/README.md](./stories/README.md) | Индекс эпиков и сводка P0/P1 |
+| [stories/](./stories/) | User stories E1–E6 (36 шт.) + E8–E22 (AN-5): Given/When/Then, приоритет, зависимости, DoR |
+| [stories/README.md](./stories/README.md) | Индекс эпиков и сводка P0/P1/P2 |
 | [billing-rules.md](./billing-rules.md) | Тарифы, триал, продление, grace/freeze, промокоды, возвраты |
 
 Создание GitHub Issues (идемпотентно, запускает **владелец**, не агент):
@@ -50,8 +50,17 @@
 
 Блокирует реализацию: **BE-15…17**, **FE-12…14**, **QA-10…12** (`docs/specs/agent-tasks.md`).
 
+## Артефакты AN-5 (Фаза 2)
+
+| Файл | Назначение |
+|---|---|
+| [PRD-phase2.md](./PRD-phase2.md) | Черновик PRD Фазы 2: цели, scope, метрики, риски, open questions |
+| [stories/](./stories/) E8–E22 | Stories паритета E10/E11/E17 и связанные эпики |
+| [stories/phase2-parity-dor.md](./stories/phase2-parity-dor.md) | DoR-сводка для P0 stories паритета |
+
 ## Далее
 
 - AN-4: ревью `openapi.yaml` против stories E1–E6
-- AN-5: stories Фазы 2 (E10/E11/E17…) по итогам AN-P
-- Фазы 2–3: `PRD-phase2.md`, `PRD-phase3.md`
+- Груминг оценок BE/FE и Issues владельцем (`gh-stories-issues.sh --apply`)
+- Реализация: BE-15…17, FE-12…14, QA-10…12
+- Фаза 3: `PRD-phase3.md`
