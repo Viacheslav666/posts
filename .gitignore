@@ -1,0 +1,44 @@
+# Java / Gradle
+**/.gradle/
+backend/.gradle/
+backend/**/build/
+backend/build/
+backend/build-logic/.gradle/
+*.class
+*.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
+hs_err_pid*
+
+# Node / Next / pnpm
+node_modules/
+frontend/**/.next/
+frontend/**/out/
+frontend/**/dist/
+frontend/**/coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs / tmp
+*.log
+tmp/
+.temp/
+
+# Testcontainers / Docker
+.docker-java.properties
+
+# Coverage
+**/jacoco/
+**/coverage/

@@ -1,0 +1,22 @@
+{
+  "name": "@posts/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "echo \"api-client lint skipped\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "gen:api": "openapi-typescript ../../../docs/api/openapi.yaml -o src/schema.d.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.13.5"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.5.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.2"
+  }
+}
