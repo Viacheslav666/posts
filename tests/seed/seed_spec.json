@@ -1,0 +1,219 @@
+{
+  "version": "1.0.0",
+  "task": "QA-4",
+  "updated": "2026-11-17",
+  "schema_binding": "TODO after BE-2",
+  "volumes": {
+    "channels_per_load_workspace": 1000,
+    "posts_per_load_workspace": 50000,
+    "post_status_mix": {
+      "draft": 0.15,
+      "scheduled": 0.45,
+      "published": 0.3,
+      "failed": 0.05,
+      "paused": 0.05
+    }
+  },
+  "users": [
+    {
+      "key": "owner_load",
+      "email": "qa-owner-load@posts.test",
+      "display_name": "QA Owner Load",
+      "role_in_primary_workspace": "owner",
+      "timezone": "Europe/Moscow",
+      "email_verified": true,
+      "plan": "agency"
+    },
+    {
+      "key": "admin_main",
+      "email": "qa-admin@posts.test",
+      "display_name": "QA Admin",
+      "role_in_primary_workspace": "admin",
+      "timezone": "Europe/Moscow",
+      "email_verified": true
+    },
+    {
+      "key": "editor_a",
+      "email": "qa-editor-a@posts.test",
+      "display_name": "QA Editor A",
+      "role_in_primary_workspace": "editor",
+      "project_grants": [
+        "project_alpha"
+      ],
+      "timezone": "Asia/Yekaterinburg",
+      "email_verified": true
+    },
+    {
+      "key": "editor_b",
+      "email": "qa-editor-b@posts.test",
+      "display_name": "QA Editor B",
+      "role_in_primary_workspace": "editor",
+      "project_grants": [
+        "project_beta"
+      ],
+      "timezone": "Europe/Moscow",
+      "email_verified": true
+    },
+    {
+      "key": "author_main",
+      "email": "qa-author@posts.test",
+      "display_name": "QA Author",
+      "role_in_primary_workspace": "author",
+      "project_grants": [
+        "project_alpha"
+      ],
+      "timezone": "Europe/Moscow",
+      "email_verified": true
+    },
+    {
+      "key": "viewer_main",
+      "email": "qa-viewer@posts.test",
+      "display_name": "QA Viewer",
+      "role_in_primary_workspace": "viewer",
+      "project_grants": [
+        "project_alpha"
+      ],
+      "timezone": "Europe/Moscow",
+      "email_verified": true
+    },
+    {
+      "key": "owner_foreign",
+      "email": "qa-owner-foreign@posts.test",
+      "display_name": "QA Foreign Owner",
+      "role_in_primary_workspace": "owner",
+      "timezone": "UTC",
+      "email_verified": true,
+      "plan": "free",
+      "notes": "Чужой workspace для TC-IDOR / TC-RBAC"
+    },
+    {
+      "key": "unconfirmed",
+      "email": "qa-unconfirmed@posts.test",
+      "display_name": "QA Unconfirmed",
+      "role_in_primary_workspace": "owner",
+      "timezone": "Europe/Moscow",
+      "email_verified": false,
+      "plan": "free"
+    },
+    {
+      "key": "totp_user",
+      "email": "qa-2fa@posts.test",
+      "display_name": "QA TwoFactor",
+      "role_in_primary_workspace": "owner",
+      "timezone": "Europe/Moscow",
+      "email_verified": true,
+      "totp_enabled": true,
+      "plan": "start"
+    }
+  ],
+  "workspaces": [
+    {
+      "key": "ws_load",
+      "name": "QA Load Workspace",
+      "owner": "owner_load",
+      "plan": "agency",
+      "channel_addons": 36,
+      "projects": [
+        {
+          "key": "project_alpha",
+          "name": "Client Alpha"
+        },
+        {
+          "key": "project_beta",
+          "name": "Client Beta"
+        },
+        {
+          "key": "project_gamma",
+          "name": "Brand Gamma"
+        }
+      ],
+      "members": [
+        {
+          "user": "admin_main",
+          "role": "admin"
+        },
+        {
+          "user": "editor_a",
+          "role": "editor",
+          "projects": [
+            "project_alpha"
+          ]
+        },
+        {
+          "user": "editor_b",
+          "role": "editor",
+          "projects": [
+            "project_beta"
+          ]
+        },
+        {
+          "user": "author_main",
+          "role": "author",
+          "projects": [
+            "project_alpha"
+          ]
+        },
+        {
+          "user": "viewer_main",
+          "role": "viewer",
+          "projects": [
+            "project_alpha"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ws_foreign",
+      "name": "QA Foreign Workspace",
+      "owner": "owner_foreign",
+      "plan": "free",
+      "projects": [
+        {
+          "key": "project_foreign",
+          "name": "Foreign Only"
+        }
+      ],
+      "channels_count": 1,
+      "posts_count": 5
+    }
+  ],
+  "channels": {
+    "distribution": {
+      "vk": 0.4,
+      "telegram": 0.3,
+      "ok": 0.15,
+      "max": 0.15
+    },
+    "status_mix": {
+      "active": 0.9,
+      "reconnect_required": 0.05,
+      "disabled": 0.05
+    }
+  },
+  "posts": {
+    "networks_per_post_mix": {
+      "single": 0.4,
+      "multi_2": 0.3,
+      "multi_3": 0.2,
+      "multi_4": 0.1
+    },
+    "include_variants": true,
+    "seed": 424242
+  },
+  "profiles": {
+    "smoke": {
+      "description": "Минимальный набор для e2e smoke (без объёмов L*)",
+      "channels_per_load_workspace": 8,
+      "posts_per_load_workspace": 40
+    },
+    "load": {
+      "description": "Объёмы QA-4 (1 000 каналов, 50 000 постов)",
+      "channels_per_load_workspace": 1000,
+      "posts_per_load_workspace": 50000
+    },
+    "idor": {
+      "description": "Только ws_load + ws_foreign для IDOR",
+      "include_load_volumes": false
+    }
+  }
+}
