@@ -37,7 +37,21 @@
 
 Маркер **★** в документах — превосходство над Впостером; **≈** — паритет.
 
+## Артефакты AN-P (паритет vposter)
+
+| Файл | Назначение |
+|---|---|
+| [parity-matrix.md](./parity-matrix.md) | Матрица «функция vposter → ТЗ Posts → задача → статус → пробел» |
+| [parity-open-questions.md](./parity-open-questions.md) | Вопросы к заказчику + допущения |
+| [features/scheduled-posts-and-ad-marking.md](./features/scheduled-posts-and-ad-marking.md) | Отложенные посты + маркировка ОРД / ФЗ-38 |
+| [features/scheduled-stories.md](./features/scheduled-stories.md) | Отложенные истории VK/OK |
+| [features/grabber.md](./features/grabber.md) | Граббер / RSS / Ingest (E17) |
+| QA: [`../qa/test-cases/E10-ad-marking.md`](../qa/test-cases/E10-ad-marking.md), [E11-stories.md](../qa/test-cases/E11-stories.md), [E17-grabber.md](../qa/test-cases/E17-grabber.md) | Кейсы приёмки |
+
+Блокирует реализацию: **BE-15…17**, **FE-12…14**, **QA-10…12** (`docs/specs/agent-tasks.md`).
+
 ## Далее
 
 - AN-4: ревью `openapi.yaml` против stories E1–E6
+- AN-5: stories Фазы 2 (E10/E11/E17…) по итогам AN-P
 - Фазы 2–3: `PRD-phase2.md`, `PRD-phase3.md`

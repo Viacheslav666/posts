@@ -18,6 +18,7 @@
 | `docs/product/network-capabilities.md` | нед. 1 | матрица возможностей VK/TG/OK/Max/Rutube (типы контента, лимиты, форматирование, закреп, удаление, истории, первый комментарий, лимиты API) |
 | `docs/product/stories/E*-*.md` | нед. 1–2 и далее по спринтам | stories с AC |
 | `docs/product/billing-rules.md` | нед. 2 | тарифы, пробный период, продление, даунгрейд, возвраты, промокоды, рефералы |
+| `docs/product/parity-matrix.md` + `features/*` + `parity-open-questions.md` | AN-P | полный паритет vposter; спеки отложенных постов+ОРД, историй, граббера |
 | `docs/product/PRD-phase2.md`, `PRD-phase3.md` | к нед. 10 / мес. 6 | |
 
 ## 3. Персоны
