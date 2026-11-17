@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
-import { clearAccessToken, resetApiClient } from '@/shared/api-client';
+import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { server } from '@/mocks/server';
 
 beforeAll(() => {
@@ -14,7 +14,7 @@ afterEach(() => {
   server.resetHandlers();
   resetApiClient();
   clearAccessToken();
-  sessionStorage.clear();
+  clearPendingLogin();
 });
 
 afterAll(() => {

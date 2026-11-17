@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { clearPendingLogin, readPendingLogin } from '@/shared/api-client';
 import { renderWithProviders } from '@/test/render';
 
 import { LoginForm } from './login-form';
@@ -15,7 +16,7 @@ vi.mock('next/navigation', () => ({
 describe('LoginForm', () => {
   beforeEach(() => {
     push.mockReset();
-    sessionStorage.clear();
+    clearPendingLogin();
   });
 
   it('routes to app after successful login', async () => {
@@ -42,7 +43,7 @@ describe('LoginForm', () => {
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith('/two-factor');
     });
-    expect(sessionStorage.getItem('posts.auth.pendingLogin')).toContain('twofa@posts.app');
+    expect(readPendingLogin()?.email).toBe('twofa@posts.app');
   });
 
   it('shows ProblemDetail detail on invalid credentials', async () => {

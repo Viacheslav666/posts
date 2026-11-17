@@ -1,8 +1,10 @@
 /**
- * Access JWT lives only in memory (never localStorage). Refresh uses httpOnly cookie.
+ * Access JWT and short-lived pending login live only in memory (never localStorage/sessionStorage).
+ * Refresh uses httpOnly cookie.
  */
 
 let accessToken: string | null = null;
+let pendingLogin: PendingLogin | null = null;
 
 export function getAccessToken(): string | null {
   return accessToken;
@@ -16,42 +18,20 @@ export function clearAccessToken(): void {
   accessToken = null;
 }
 
-const PENDING_LOGIN_KEY = 'posts.auth.pendingLogin';
-
 export type PendingLogin = {
   email: string;
   password: string;
 };
 
+/** Keep credentials in process memory for the 2FA step (lost on full page reload). */
 export function savePendingLogin(value: PendingLogin): void {
-  if (typeof sessionStorage === 'undefined') {
-    return;
-  }
-  sessionStorage.setItem(PENDING_LOGIN_KEY, JSON.stringify(value));
+  pendingLogin = { email: value.email, password: value.password };
 }
 
 export function readPendingLogin(): PendingLogin | null {
-  if (typeof sessionStorage === 'undefined') {
-    return null;
-  }
-  const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as PendingLogin;
-    if (typeof parsed.email === 'string' && typeof parsed.password === 'string') {
-      return parsed;
-    }
-  } catch {
-    // ignore malformed payload
-  }
-  return null;
+  return pendingLogin;
 }
 
 export function clearPendingLogin(): void {
-  if (typeof sessionStorage === 'undefined') {
-    return;
-  }
-  sessionStorage.removeItem(PENDING_LOGIN_KEY);
+  pendingLogin = null;
 }

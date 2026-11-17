@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   clearAccessToken,
+  clearPendingLogin,
   getAccessToken,
   readPendingLogin,
   resetApiClient,
@@ -14,7 +15,7 @@ describe('auth-api (MSW + typed client)', () => {
   beforeEach(() => {
     resetApiClient();
     clearAccessToken();
-    sessionStorage.clear();
+    clearPendingLogin();
   });
 
   it('stores access token on successful login', async () => {
