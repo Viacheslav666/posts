@@ -14,6 +14,8 @@ dependencies {
 
 // Harden embedded Tomcat beyond the Boot BOM when Trivy reports CRITICAL with fixes.
 extra["tomcat.version"] = "10.1.62"
+// Lettuce/Redis pulls netty-handler; CVE-2026-75595 fixed in 4.1.137+.
+extra["netty.version"] = "4.1.137.Final"
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveClassifier.set("")
