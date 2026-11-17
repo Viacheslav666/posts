@@ -55,6 +55,21 @@ jobs:
         working-directory: backend
         run: ./gradlew spotlessCheck build integrationTest
 
+  migrations:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Squawk lint Flyway migrations
+        uses: sbdchd/squawk-action@v2
+        with:
+          pattern: "backend/libs/persistence/src/main/resources/db/migration/*.sql"
+          config: "backend/.squawk.toml"
+          pg-version: "16.0"
+          fail-on-violations: "true"
+          upload-to-github: "true"
+
   contract:
     needs: changes
     if: ${{ needs.changes.outputs.contract == 'true' || github.ref == 'refs/heads/main' }}
