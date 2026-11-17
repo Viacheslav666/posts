@@ -142,8 +142,8 @@
 
 ### FE-13. UI отложенных историй
 - **Ветка:** `feat/fe-13-scheduled-stories` · **Зависит от:** FE-7, FE-12, BE-16, **AN-P**.
-- **Сделать:** по `docs/product/features/scheduled-stories.md` — создать историю, список/фильтр календаря, VK story-connect, batch, TTL/ссылки, ads.
-- **Приёмка:** e2e TC-STORY P0 на моках; сети TG/Max/IG скрыты с пояснением.
+- **Сделать:** по `docs/product/features/scheduled-stories.md` v1.0.1+ — создать историю, список/фильтр календаря, VK story-connect, batch, TTL/ссылки, ads. Instagram не показывать в UI (Q-STORY-05).
+- **Приёмка:** e2e TC-STORY P0 на моках; сети TG/Max скрыты с пояснением; IG отсутствует в селекторе.
 
 ### FE-14. UI граббера / RSS
 - **Ветка:** `feat/fe-14-grabber` · **Зависит от:** FE-6, BE-17, **AN-P**.

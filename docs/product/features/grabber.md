@@ -373,7 +373,7 @@ posts-ingest
   5. Для каждого кандидата:
        - INSERT grabber_items ON CONFLICT DO NOTHING (remote key)
        - если dedup hash conflict → status=suppressed_dedup
-       - иначе status=pending_moderation | approved (если auto)
+       - иначе status=pending_moderation (default moderate) | approved→publish (если явный auto)
   6. Если auto/draft: создать post + variants (+ attribution) в одной транзакции;
        schedule/publish через существующий API-доменный сервис (тот же outbox)
   7. Обновить next_run_at, consecutive_failures, run stats
