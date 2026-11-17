@@ -8,6 +8,15 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "gen:api": "pnpm --filter @posts/api-client gen:api"
+    "gen:api": "pnpm --filter @posts/api-client gen:api",
+    "storybook": "pnpm --filter @posts/ui storybook",
+    "build-storybook": "pnpm --filter @posts/ui build-storybook"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

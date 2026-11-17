@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "title": "Posts",
+    "description": "SMM-платформа отложенного постинга для команд"
+  },
+  "common": {
+    "brand": "Posts",
+    "loading": "Загрузка…",
+    "retry": "Повторить",
+    "close": "Закрыть",
+    "createPost": "Создать пост",
+    "search": "Поиск",
+    "notifications": "Уведомления",
+    "profile": "Профиль",
+    "themeLight": "Светлая тема",
+    "themeDark": "Тёмная тема",
+    "themeSystem": "Системная тема",
+    "toggleTheme": "Переключить тему",
+    "menu": "Меню",
+    "workspace": "Рабочее пространство"
+  },
+  "nav": {
+    "calendar": "Календарь",
+    "posts": "Посты",
+    "channels": "Каналы",
+    "media": "Медиатека",
+    "analytics": "Аналитика",
+    "inbox": "Инбокс",
+    "automations": "Автоматизации",
+    "ord": "Реклама / ОРД",
+    "team": "Команда",
+    "settings": "Настройки",
+    "billing": "Биллинг",
+    "dashboard": "Дашборд"
+  },
+  "workspaceSwitcher": {
+    "label": "Workspace",
+    "placeholder": "Выберите workspace",
+    "stubHint": "Заглушка FE-1 — данные появятся после auth"
+  },
+  "home": {
+    "headline": "Надёжный планировщик публикаций для команд",
+    "subtitle": "Каркас приложения FE-1: дизайн-система, layout, i18n и тёмная тема.",
+    "cta": "Открыть приложение",
+    "health": "Health"
+  },
+  "app": {
+    "welcomeTitle": "Добро пожаловать в Posts",
+    "welcomeBody": "Каркас готов: шапка, боковое меню и переключатель workspace. Экраны появятся в следующих задачах.",
+    "emptyTitle": "Здесь пока пусто",
+    "emptyDescription": "Подключите канал или создайте первый пост — после FE-2/FE-3."
+  },
+  "errors": {
+    "boundaryTitle": "Что-то пошло не так",
+    "boundaryDescription": "Произошла непредвиденная ошибка. Попробуйте обновить страницу.",
+    "notFoundTitle": "Страница не найдена",
+    "notFoundDescription": "Проверьте адрес или вернитесь на главную.",
+    "offline": "Нет соединения с сетью",
+    "generic": "Не удалось выполнить действие"
+  },
+  "health": {
+    "title": "Health",
+    "status": "status: ok"
+  }
+}

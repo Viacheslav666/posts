@@ -63,3 +63,5 @@ docker stop posts-web
 | `IMAGE_TAGS` | Список тегов через запятую (по умолчанию `latest`) |
 | `GITHUB_SHA` / `IMAGE_REVISION` | OCI label `org.opencontainers.image.revision` |
 | `POSTS_MEDIA_BASE_IMAGE` / `-PpostsMediaBaseImage` | База для media (`docker://…` или registry ref) |
+
+См. также [ADR-0009](../adr/0009-dev3-container-images.md).

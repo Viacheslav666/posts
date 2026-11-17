@@ -115,6 +115,15 @@ jobs:
       - name: Build
         working-directory: frontend
         run: pnpm --filter @posts/web build
+      - name: Build Storybook
+        working-directory: frontend
+        run: pnpm --filter @posts/ui build-storybook
+      - name: Upload Storybook
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-static
+          path: frontend/packages/ui/storybook-static
+          if-no-files-found: error
 
   security:
     runs-on: ubuntu-latest
