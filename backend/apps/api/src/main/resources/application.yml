@@ -50,6 +50,9 @@ springdoc:
   writer-with-order-by-keys: true
 
 posts:
+  # Social Bucket4j/Redis limiter is for publisher (BE-4). API uses in-memory LoginRateLimiter only.
+  ratelimit:
+    enabled: false
   auth:
     hibp-enabled: false
     app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}
