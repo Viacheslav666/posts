@@ -96,7 +96,7 @@
 
 ### BE-15. ОРД и маркировка рекламы + полный паритет опций поста (E10)
 - **Ветка:** `feat/be-15-ord-ad-marking` · **Зависит от:** BE-9, BE-10, **AN-P**.
-- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md`: Flyway `ord_*`, `OrdProvider` (VK, Yandex; stub Ozon), register creative → erid, вставка маркера, job актов/статистики, расширение DTO поста (Donut, co-authors, poll, stop/del_task, ads); OpenAPI + WireMock ORD.
+- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` v1.0.1+: Flyway `ord_*`, `OrdProvider` с **полноценными** адаптерами VK ОРД и ОРД Яндекс (не stub; ОЗОН/др. — позже через тот же интерфейс); клиентский API-ключ ОРД (Posts не субсидирует); register creative → erid, вставка маркера, job актов/статистики, расширение DTO поста (Donut, co-authors, poll, stop/del_task, ads); OpenAPI + WireMock ORD.
 - **Приёмка:** TC-AD-* (интеграционные) зелёные; fail-closed без erid; идемпотентность `external_id`.
 
 ### BE-16. Отложенные истории VK/OK (E11)
@@ -106,8 +106,8 @@
 
 ### BE-17. Граббер + RSS Ingest (E17)
 - **Ветка:** `feat/be-17-grabber-ingest` · **Зависит от:** BE-9, BE-10, apps/ingest, **AN-P**.
-- **Сделать:** по `docs/product/features/grabber.md`: `automation_rules`, runs/items, дедуп, модерация, атрибуция, RSS; публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
-- **Приёмка:** TC-GRAB-* P0; повторный ingest не создаёт дублей публикаций.
+- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+: `automation_rules`, runs/items, дедуп, атрибуция, RSS; **`publish_mode=moderate` по умолчанию и как обязательный режим продукта**, `auto` — опционально; очередь модерации (approve/reject/edit-and-approve); публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
+- **Приёмка:** TC-GRAB-* P0 (в т.ч. default moderate без публикации до approve); повторный ingest не создаёт дублей публикаций.
 
 ---
 
@@ -147,8 +147,8 @@
 
 ### FE-14. UI граббера / RSS
 - **Ветка:** `feat/fe-14-grabber` · **Зависит от:** FE-6, BE-17, **AN-P**.
-- **Сделать:** по `docs/product/features/grabber.md` — правила, активные, ручной run, история, модерация, юр. чекбокс.
-- **Приёмка:** e2e TC-GRAB P0 на моках.
+- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+ — правила, активные, ручной run, история, **очередь модерации как default UX** (`moderate`; переключение на `auto` — опционально с предупреждением), юр. чекбокс.
+- **Приёмка:** e2e TC-GRAB P0 на моках (default moderate; approve path).
 
 ---
 
@@ -226,7 +226,7 @@
 
 ### QA-12. Автотесты граббера / RSS (E17)
 - **Ветка:** `feat/qa-12-grabber-tests` · **Зависит от:** BE-17, FE-14, **AN-P**.
-- **Сделать:** TC-GRAB-*; дедуп; SSRF; модерация; связь с конвейером.
+- **Сделать:** TC-GRAB-* (в т.ч. default `moderate`, опциональный `auto`); дедуп; SSRF; очередь модерации; связь с конвейером.
 - **Приёмка:** P0 TC-GRAB авто зелёные.
 
 ---

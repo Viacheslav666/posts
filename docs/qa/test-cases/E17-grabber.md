@@ -17,7 +17,7 @@
 | AC-G3 | История items + permalink | TC-GRAB-04 | P0 | авто |
 | AC-G4 | Дедуп remote + content_hash | TC-GRAB-05, TC-GRAB-06 | P0 | авто |
 | AC-G5 | Attribution + responsibility | TC-GRAB-07 | P0 | авто |
-| AC-G6 | Очередь модерации / approve | TC-GRAB-08, TC-GRAB-09 | P0 | авто |
+| AC-G6 | Default `moderate` / approve; `auto` опционален | TC-GRAB-08, TC-GRAB-09, TC-GRAB-08b, TC-GRAB-11 | P0 | авто |
 | AC-G7 | Пауза / resume | TC-GRAB-10 | P0 | авто |
 | AC-G8 | RSS → пайплайн | TC-GRAB-11 | P0 | авто |
 | AC-G9 | SSRF block | TC-GRAB-12 | P0 | авто |
@@ -54,7 +54,7 @@
 - Роль Editor (scope проекта).
 
 ### Ожидание
-`POST .../ingest/rules` с `type=grabber`, `source_ids`, `targetChannelId`, `userResponsibilityAccepted=true`, attribution в config → 201; правило в `GET` списке со статусом `draft` или `active` (если `activate=true`); UI «Активные правила» показывает канал и источники.
+`POST .../ingest/rules` с `type=grabber`, `source_ids`, `targetChannelId`, `userResponsibilityAccepted=true`, attribution в config → 201; если `publish_mode` не передан — в config **`moderate`** (Q-GRAB-02); правило в `GET` списке со статусом `draft` или `active` (если `activate=true`); UI «Активные правила» показывает канал и источники.
 
 ---
 
@@ -138,17 +138,30 @@
 
 ---
 
-## TC-GRAB-08 — Режим moderation: item в очереди
+## TC-GRAB-08 — Режим moderate (default): item в очереди
 
 | Поле | Значение |
 |---|---|
 | Story / AC | E17 / AC-G6 |
 | Приоритет | P0 |
 | **Автоматизация** | **авто** |
-| Config | `publish_mode=moderation` |
+| Config | `publish_mode=moderate` (или omit → default) |
 
 ### Ожидание
 Новый пост источника → item `pending_moderation`; **нет** `publications` до approve.
+
+---
+
+## TC-GRAB-08b — Default publish_mode при создании правила
+
+| Поле | Значение |
+|---|---|
+| Story / AC | E17 / AC-G6 (Q-GRAB-02) |
+| Приоритет | P0 |
+| **Автоматизация** | **авто** |
+
+### Ожидание
+Create rule без поля `publish_mode` → в сохранённом config `publish_mode=moderate`. Режим `auto` принимается только при явной передаче; продукт обязан поддерживать `moderate` всегда.
 
 ---
 
@@ -179,17 +192,17 @@ Approve → создан `posts` + variant с футером атрибуции;
 
 ---
 
-## TC-GRAB-11 — RSS 2.0 / Atom → item → publish (auto)
+## TC-GRAB-11 — RSS 2.0 / Atom → item (default moderate) / опциональный auto
 
 | Поле | Значение |
 |---|---|
-| Story / AC | E17 / AC-G8 |
+| Story / AC | E17 / AC-G8, AC-G6 |
 | Приоритет | P0 |
 | **Автоматизация** | **авто** |
 | Фикстуры | локальный feed XML (WireMock / Testcontainers HTTP) |
 
 ### Ожидание
-Парсятся title/description/enclosure; `content_hash` стабилен; при `publish_mode=auto` — пост в пайплайне; повтор опроса того же guid — дедуп.
+Парсятся title/description/enclosure; `content_hash` стабилен; при default/`moderate` — item в очереди без публикации; при **явном** `publish_mode=auto` — пост в пайплайне; повтор опроса того же guid — дедуп.
 
 ---
 

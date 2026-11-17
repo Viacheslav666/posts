@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | **1.0** |
+| Версия | **1.0.1** |
 | Дата | **2026-11-17** |
-| Статус | Черновик на ревью (AN-P / BE-17 / FE-14 / QA-12) |
+| Статус | Готово к реализации (DoR); patch: Q-GRAB-02 — `moderate` default |
 | Эпик | **E17** — RSS-импорт и граббер (единый модуль Ingest) |
 | Задачи | BE-17, BE-17b (сайты P1), FE-14, QA-12 |
 | Конкурент | [vposter.ru](https://vposter.ru/) — раздел «Граббер» / «RSS-парсер» |
@@ -50,7 +50,7 @@
 
 - Автопостинг предложки (E18), антиспам (E19), кросспостинг как отдельный UX (E16) — соседние модули на той же `automation_rules`.
 - AI-рерайт / суммаризация (E15) — ★ дифференциатор, подключается к Ingest как опциональный шаг; контракт — отдельная story.
-- Meta (Instagram*/Facebook*) как источник или приёмник — вне публичного scope без решения владельца.
+- Meta (Instagram*/Facebook*) как источник или приёмник — **окончательно вне scope** (Q-STORY-05 / паритет-матрица).
 - Браузерное расширение «копировать пост» (аналог Впостер Tools) — Фаза 3.
 
 ### 1.4. Принципы
@@ -72,14 +72,14 @@
 4. Настраивает фильтры, интервал, режим публикации (сразу / очередь модерации / по расписанию слотов).
 5. Включает **атрибуцию** (обязательно), подтверждает **чекбокс ответственности** (КоАП 7.12 / УК 146 / ToS VK).
 6. Нажимает «Создать правило» → правило в статусе `active`, появляется в списке активных.
-7. Scheduler/ingest раз в N минут (по `scan_interval_minutes`) опрашивает источники, создаёт `grabber_items`, при `publish_mode=auto` ставит посты в пайплайн.
+7. Scheduler/ingest раз в N минут (по `scan_interval_minutes`) опрашивает источники, создаёт `grabber_items`. По умолчанию (`publish_mode=moderate`) items ждут в очереди модерации; при явно выбранном `auto` — сразу в пайплайн.
 8. Пользователь видит **историю** скопированных постов (статус, ссылка на оригинал, ссылка на публикацию).
 9. Кнопка **«Проверить сейчас»** запускает внеочередной run (с rate-limit).
 
-### 2.2. Очередь модерации
+### 2.2. Очередь модерации (**решение Q-GRAB-02**)
 
-1. В правиле `publish_mode = moderation`.
-2. Новые items попадают в статус `pending_moderation`.
+1. Режим `publish_mode=moderate` — **обязательная возможность продукта** и **значение по умолчанию** при создании правила. Режим `auto` — **опционален** (пользователь может переключить явно; UI предупреждает о рисках копирайта/спама).
+2. При `moderate` новые items → статус `pending_moderation`; публикаций в сеть **нет** до approve.
 3. Editor+ видит очередь: превью, оригинал, предложенный текст с футером атрибуции.
 4. Действия: **Опубликовать** / **Отклонить** / **Редактировать и опубликовать** / массовые «опубликовать выбранные».
 5. Author может создавать/смотреть правила только если выдано право `automations.view` + draft — см. §10; публиковать из очереди — только Editor+.
@@ -136,7 +136,7 @@
 | `website_selector` | CSS-селектор статьи | string | — | optional | `type=website` advanced | **ASSUMPTION** |
 | `scan_interval_minutes` | Интервал проверки | int / select | `180` (3 ч) | ∈ {15,30,60,120,180,360,720,1440}; тариф может резать минимум | всегда | Паритет «раз в несколько часов»; ручной run отдельно |
 | `manual_check_enabled` | Кнопка «Проверить сейчас» | bool (UI) | `true` | rate limit: ≤ 1 / 5 мин / правило | всегда | **ASSUMPTION** лимит |
-| `publish_mode` | Режим публикации | enum `auto` \| `moderation` \| `draft` | `moderation` | required | всегда | **ASSUMPTION** (vposter UI не задокументирован); безопасный default — модерация |
+| `publish_mode` | Режим публикации | enum `moderate` \| `auto` \| `draft` | **`moderate`** | required; значение `moderate` всегда доступно | всегда | **РЕШЕНИЕ Q-GRAB-02** (не ASSUMPTION): default и обязательный режим продукта; `auto` — опционально |
 | `schedule_mode` | Когда публиковать | enum `immediate` \| `delay` \| `slot` | `immediate` | — | `publish_mode≠draft` | **ASSUMPTION** |
 | `publish_delay_minutes` | Задержка после обнаружения | int | `0` | 0–10080 | `schedule_mode=delay` | **ASSUMPTION** |
 | `content_slot_id` | Слот контент-плана | uuid | — | slot of project | `schedule_mode=slot` (E9) | P2, если слоты ещё нет — скрыто |
@@ -302,7 +302,7 @@ CREATE UNIQUE INDEX uq_grabber_items_hash_channel
   "source_ids": ["-123", "club456"],
   "rss_url": null,
   "scan_interval_minutes": 180,
-  "publish_mode": "moderation",
+  "publish_mode": "moderate",
   "schedule_mode": "immediate",
   "publish_delay_minutes": 0,
   "filters": {
@@ -580,7 +580,7 @@ GrabberItem:
 | AC-G3 | История items с permalink источника и статусом | P0 |
 | AC-G4 | Дедуп: повтор того же remote_post_id и того же content_hash не создаёт вторую публикацию | P0 |
 | AC-G5 | Без attribution + responsibility activate → 422 | P0 |
-| AC-G6 | publish_mode=moderation → очередь; approve → один пост в сети | P0 |
+| AC-G6 | Default `publish_mode=moderate` → очередь; approve → один пост; `auto` опционален | P0 |
 | AC-G7 | Пауза останавливает новые runs; resume продолжает | P0 |
 | AC-G8 | RSS 1.0/2.0/Atom → item → пайплайн | P0 |
 | AC-G9 | SSRF на rss_url/website блокируется | P0 |
@@ -618,7 +618,7 @@ GrabberItem:
 |---|---|---|
 | Q-G1 | Полный список UI-полей граббера в ЛК vposter (скриншоты) | Паритет фильтров |
 | Q-G2 | Точный интервал скана «раз в несколько часов» у vposter | Default `scan_interval_minutes` |
-| Q-G3 | Есть ли у vposter очередь модерации для граббера или только auto | Default `publish_mode` |
+| Q-G3 | ~~Очередь модерации vs auto~~ → **закрыто Q-GRAB-02:** default `moderate`, `auto` опционально | — |
 | Q-G4 | Как vposter обрабатывает рекламные посты и репосты | Defaults `exclude_ads` / `exclude_reposts` |
 | Q-G5 | Лимиты «постов в час/сутки» и автопауза — факт или только у нас | Тарифные лимиты |
 | Q-G6 | Формат футера источника у vposter (если есть) | Шаблон attribution |
@@ -638,3 +638,4 @@ GrabberItem:
 | Версия | Дата | Изменение |
 |---|---|---|
 | 1.0 | 2026-11-17 | Первая полная спецификация E17 Ingest/Grabber (AN-P) |
+| 1.0.1 | 2026-11-17 | Q-GRAB-02: `publish_mode=moderate` default и обязателен; `auto` опционально; enum `moderate`\|`auto`\|`draft` |

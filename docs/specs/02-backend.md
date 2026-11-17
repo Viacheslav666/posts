@@ -251,9 +251,9 @@ public interface SocialAdapter {
 12. (Спринт 5) Админ-API; харденинг: нагрузочные и хаос-тесты, профилирование (JFR, pg_stat_statements).
 
 ### 12.1. Паритет vposter (после MVP-ядра; AN-P) — **дополнение, не ломает BE-1…14**
-13. **BE-15 ОРД / маркировка рекламы (E10):** таблицы `ord_*`, интерфейс `OrdProvider` (VK ОРД, ОРД Яндекс; stub Ozon), регистрация креатива → erid, вставка маркера в варианты, ежемесячные акты/статистика, расширение опций поста (Donut, co-authors, poll, stop/del_task). Спека: `docs/product/features/scheduled-posts-and-ad-marking.md`. Зависит от: BE-9, BE-10.
+13. **BE-15 ОРД / маркировка рекламы (E10):** таблицы `ord_*`, интерфейс `OrdProvider` — **полноценные** VK ОРД и ОРД Яндекс (клиентский ключ; Posts не субсидирует); ОЗОН/др. позже через тот же интерфейс; регистрация креатива → erid, вставка маркера, акты/статистика, расширение опций поста (Donut, co-authors, poll, stop/del_task). Спека: `docs/product/features/scheduled-posts-and-ad-marking.md` v1.0.1+. Зависит от: BE-9, BE-10.
 14. **BE-16 Отложенные истории VK/OK (E11):** `content_kind=story`, `publishStory`/`deleteStory` в адаптерах, отдельный story-connect VK, пакетная загрузка, TTL/ссылки. Спека: `docs/product/features/scheduled-stories.md`. Зависит от: BE-7, BE-8, BE-15 (для ads на историях).
-15. **BE-17 Граббер + RSS Ingest (E17):** `automation_rules` type=`grabber`|`rss`, `grabber_runs`/`grabber_items`, дедуп, модерация, атрибуция; публикация только через конвейер. Спека: `docs/product/features/grabber.md`. Зависит от: BE-9, BE-10, apps/ingest. **BE-17b** (P1): HTML/сайты + SSRF-guard.
+15. **BE-17 Граббер + RSS Ingest (E17):** `automation_rules` type=`grabber`|`rss`, `grabber_runs`/`grabber_items`, дедуп, атрибуция; **`publish_mode=moderate` default** (очередь обязательна в продукте; `auto` опционально); публикация только через конвейер. Спека: `docs/product/features/grabber.md` v1.0.1+. Зависит от: BE-9, BE-10, apps/ingest. **BE-17b** (P1): HTML/сайты + SSRF-guard.
 16. Далее по паритету (Фаза 2+): BE-18 предложка · BE-19 антиспам · BE-16x кросспостинг · BE-20 public API · BE-21 партнёрка · BE-22 импорт из vposter API v3.
 
 ## 13. Definition of Done для бэка
