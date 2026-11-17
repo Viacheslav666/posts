@@ -5,7 +5,7 @@
 | Задача | **QA-4** |
 | Источник лимитов | [`../network-capabilities.yaml`](../network-capabilities.yaml) |
 | Схема кейса | [`schema.json`](schema.json) |
-| Набор | [`cases.json`](cases.json) (≥ 50) |
+| Набор | [`cases.json`](cases.json) (≥ 50; QA-4 + дополнения BE-3) |
 | Генератор | [`generate_cases.py`](generate_cases.py) |
 
 ## Назначение

@@ -422,6 +422,35 @@ def build_cases() -> list[dict]:
         notes="VK/OK: formatting_stripped=true + warning (US-4.3 AC3).",
     )
 
+    # --- BE-3 supplements (no duplicates of QA-4 cases above) ---
+    add(
+        title="Telegram expandable blockquote",
+        categories=["quote", "unsupported"],
+        html_in='<blockquote expandable>Длинная цитата</blockquote>',
+        mx=net_render(
+            "<blockquote>Длинная цитата</blockquote>",
+            warnings=["unsupported:blockquote.expandable"],
+        ),
+        notes="BE-3: TG expandable blockquote; Max keeps plain blockquote.",
+        source="BE-3 / US-4.3 / network-capabilities.yaml",
+    )
+    add(
+        title="Max h2 heading; TG strips",
+        categories=["unsupported", "mixed"],
+        html_in="<h2>Подзаголовок</h2>",
+        tg=net_render("Подзаголовок", warnings=["unsupported:h2"]),
+        mx=net_render("<h2>Подзаголовок</h2>"),
+        notes="BE-3: Max headings beyond h1.",
+        source="BE-3 / US-4.3 / network-capabilities.yaml",
+    )
+    add(
+        title="Nested link with bold and emoji near caption boundary",
+        categories=["limits", "links", "emoji", "nested"],
+        html_in='🔥 <a href="https://posts.example"><b>' + ("A" * 1010) + "</b></a>",
+        notes="BE-3: caption-boundary stress with nested markup; plain_length drives caption flag.",
+        source="BE-3 / US-4.3 / network-capabilities.yaml",
+    )
+
     assert len(cases) >= 50, len(cases)
     return cases
 
@@ -446,7 +475,7 @@ def main() -> int:
     validate_ids(cases)
     payload = {
         "version": "1.0.0",
-        "task": "QA-4",
+        "task": "QA-4+BE-3",
         "updated": "2026-11-17",
         "schema": "schema.json",
         "limits_source": "docs/api/fixtures/network-capabilities.yaml",
