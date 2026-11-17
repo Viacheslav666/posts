@@ -109,6 +109,22 @@ services:
       retries: 20
       start_period: 30s
 
+  # QA-3: build locally first — `cd tests/social-emulator && ./gradlew jibDockerBuild`
+  # Distroless image (DEV-3 conventions): no shell/wget; probe from host via /_control/health.
+  social-emulator:
+    image: ghcr.io/viacheslav666/posts-social-emulator:latest
+    profiles: ["emulator", "full"]
+    ports:
+      - "8090:8090"
+    environment:
+      SERVER_PORT: "8090"
+    healthcheck:
+      test: ["CMD", "/usr/bin/java", "-version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
 volumes:
   posts_pg:
   posts_redis:

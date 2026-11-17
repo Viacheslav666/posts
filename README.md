@@ -84,8 +84,11 @@ make images-run-smoke    # docker run → /actuator/health и /health
 | ClickHouse HTTP / native | 8123 / 9009 |
 | Mailpit UI / SMTP | 8025 / 1025 |
 | Grafana (otel-lgtm) | 3001 |
+| Social emulator | 8090 |
 
 Учётки по умолчанию — в [`.env.example`](.env.example).
+
+Эмулятор соцсетей (QA-3): `make emulator` или `make up-emulator` (Jib-образ + compose profile `emulator`). Описание API — [`tests/social-emulator/README.md`](tests/social-emulator/README.md).
 
 ## Документация
 

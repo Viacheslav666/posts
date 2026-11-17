@@ -37,8 +37,12 @@ jobs:
       # Do not restore Gradle build cache here: CodeQL traces javac/kotlinc.
       # Cached/UP-TO-DATE compiles leave an empty DB ("no source code seen").
       - if: matrix.language == 'java'
-        name: Build Java for CodeQL tracing
+        name: Build backend for CodeQL tracing
         working-directory: backend
+        run: ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks
+      - if: matrix.language == 'java'
+        name: Build social-emulator for CodeQL tracing
+        working-directory: tests/social-emulator
         run: ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks
       - uses: github/codeql-action/analyze@v3
         with:
