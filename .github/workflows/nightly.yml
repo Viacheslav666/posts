@@ -1,0 +1,155 @@
+name: Nightly
+
+# QA-2: Schemathesis + e2e smoke + k6 smoke against docker-compose profile `full`.
+# Reports are uploaded as artifacts.
+
+on:
+  schedule:
+    # 02:00 UTC nightly
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  API_BASE_URL: http://127.0.0.1:8080
+  PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+  PLAYWRIGHT_SKIP_WEBSERVER: "1"
+  COMPOSE_FILE: infra/docker-compose/docker-compose.yml
+  REGISTRY: ghcr.io/viacheslav666
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Docker API compatibility for Testcontainers / Jib
+        run: echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend
+
+      - name: Install Schemathesis
+        run: pip install 'schemathesis>=3.39,<5'
+
+      - name: Install k6
+        run: |
+          set -euo pipefail
+          K6_VERSION=v1.3.0
+          curl -fsSL "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz" \
+            | sudo tar -xz --strip-components=1 -C /usr/local/bin
+          k6 version
+
+      - name: Build images for smoke stack (api + web + social-emulator)
+        run: |
+          set -euo pipefail
+          # api/emulator use distroless via Jib; compose expects ghcr.io/...:latest
+          (cd backend && IMAGE_TAGS=latest ./gradlew :apps:api:jibDockerBuild)
+          (cd tests/social-emulator && IMAGE_TAGS=latest ./gradlew jibDockerBuild)
+          docker build -f frontend/apps/web/Dockerfile -t posts-web:local frontend
+
+      - name: Start compose profile full (api + web + deps)
+        run: |
+          set -euo pipefail
+          docker compose -f "${COMPOSE_FILE}" --profile full up -d \
+            postgres redis rabbitmq social-emulator api web
+
+      - name: Wait for API and web
+        run: |
+          set -euo pipefail
+          echo "==> waiting for API /api/v1/ping"
+          ok=0
+          for i in $(seq 1 90); do
+            if curl -sf "${API_BASE_URL}/api/v1/ping" >/tmp/nightly-api-ping.json; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ok" != 1 ]; then
+            echo "API ping failed"
+            docker compose -f "${COMPOSE_FILE}" --profile full logs api --tail=120
+            exit 1
+          fi
+          cat /tmp/nightly-api-ping.json; echo
+          echo "==> waiting for web /health"
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -sf "${PLAYWRIGHT_BASE_URL}/health" >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ok" != 1 ]; then
+            echo "web /health failed"
+            docker compose -f "${COMPOSE_FILE}" --profile full logs web --tail=120
+            exit 1
+          fi
+          echo "web /health OK"
+
+      - name: Schemathesis (contract nightly)
+        run: |
+          chmod +x tests/contract/run-nightly.sh
+          ./tests/contract/run-nightly.sh
+
+      - name: E2E smoke (Playwright)
+        working-directory: tests/e2e
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:smoke
+
+      - name: k6 smoke
+        run: |
+          mkdir -p tests/load/reports
+          k6 run --out json=tests/load/reports/k6-smoke.json tests/load/smoke.js
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-reports-${{ github.run_id }}
+          path: |
+            tests/contract/reports/
+            tests/e2e/playwright-report/
+            tests/e2e/reports/
+            tests/e2e/test-results/
+            tests/load/reports/
+          if-no-files-found: warn
+
+      - name: Compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f "${COMPOSE_FILE}" --profile full ps
+          docker compose -f "${COMPOSE_FILE}" --profile full logs --tail=200
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile full --profile emulator down -v || true

@@ -21,11 +21,15 @@
 
 - Seed-генератор: `tests/seed/`
 - Фикстуры форматирования: `docs/api/fixtures/formatting/` (≥ 50 кейсов)
+- Каркас автотестов (QA-2): `tests/e2e`, `tests/contract`, `tests/load`; nightly — `.github/workflows/nightly.yml`
 
 ## Быстрые ссылки на код тестов
 
-- `tests/e2e` — Playwright  
-- `tests/load` — k6  
+- `tests/e2e` — Playwright (smoke `/health` + `/api/v1/ping`, page objects)  
+- `tests/contract` — Schemathesis по `docs/api/openapi.yaml`  
+- `tests/load` — k6 (smoke + каркас L1/L2)  
 - `tests/chaos` — хаос/DR  
 - `tests/social-emulator` — эмулятор VK/TG/OK/Max  
 - `tests/seed` — генератор логических seed-данных (TODO SQL после BE-2)
+
+Локально: `make e2e-smoke` / `make contract-smoke` / `make load-smoke` (API должен отвечать на ping).
