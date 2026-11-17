@@ -220,6 +220,8 @@ endpoints:
   action: channels.manage
   pathParams:
     network: vk
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: channelsDelete
   method: DELETE
   path: /api/v1/channels/{channelId}
@@ -250,7 +252,7 @@ endpoints:
   path: /api/v1/channels/{channelId}/check
   implementedHint: true
   rbac: matrix
-  action: channels.view
+  action: channels.manage
   pathParams:
     channelId: '{channelId}'
 - operationId: invitationsAccept

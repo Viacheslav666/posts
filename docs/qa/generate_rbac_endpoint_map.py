@@ -75,7 +75,7 @@ ACTION: dict[str, str | None] = {
     "channelsGet": "channels.view",
     "channelsUpdate": "channels.manage",
     "channelsDelete": "channels.manage",
-    "channelsCheck": "channels.view",
+    "channelsCheck": "channels.manage",
     "channelsConnectStart": "channels.manage",
     "channelsConnectConfirm": "channels.manage",
     "channelsConnectCallback": "channels.manage",
@@ -186,6 +186,7 @@ DESTRUCTIVE = {
 
 WORKSPACE_QUERY_OPS = {
     "channelsList",
+    "channelsConnectStart",
     "channelSetsList",
     "postsList",
     "mediaList",

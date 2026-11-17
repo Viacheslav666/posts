@@ -201,11 +201,11 @@ public class ChannelServiceImpl implements ChannelService {
             ApiEnums.Network network,
             ChannelDtos.ChannelConnectConfirmRequest request,
             ClientRequestContext ctx) {
+        access.requirePermission(request.workspaceId(), userId, "channels.manage");
         if (network != ApiEnums.Network.tg && network != ApiEnums.Network.max) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "confirm is only for tg/max bot flows");
         }
-        access.requirePermission(request.workspaceId(), userId, "channels.manage");
         return finishBot(
                 userId,
                 network.name(),
