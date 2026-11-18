@@ -8,7 +8,6 @@ import com.icegreen.greenmail.util.ServerSetup;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -18,7 +17,6 @@ import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoCo
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -40,7 +38,6 @@ import ru.posts.notifications.NotificationsApplication;
             "posts.notifications.retry-poll-interval-ms=60000",
             "server.port=0"
         })
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 abstract class AbstractNotificationsIT {
 
     @ServiceConnection
@@ -53,7 +50,11 @@ abstract class AbstractNotificationsIT {
     static final RabbitMQContainer RABBIT =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
-    static final GreenMail GREEN_MAIL = new GreenMail(new ServerSetup(0, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+    /** Fixed SMTP port so DynamicPropertySource never depends on a stopped GreenMail instance. */
+    static final int SMTP_PORT = ServerSetup.PORT_SMTP + 3100;
+
+    static final GreenMail GREEN_MAIL =
+            new GreenMail(new ServerSetup(SMTP_PORT, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
 
     @RegisterExtension
     static final WireMockExtension TELEGRAM_API = WireMockExtension.newInstance()
@@ -64,11 +65,6 @@ abstract class AbstractNotificationsIT {
         POSTGRES.start();
         RABBIT.start();
         GREEN_MAIL.start();
-    }
-
-    @AfterAll
-    static void stopMail() {
-        GREEN_MAIL.stop();
     }
 
     @Autowired
@@ -85,7 +81,7 @@ abstract class AbstractNotificationsIT {
         registry.add("spring.rabbitmq.publisher-confirm-type", () -> "correlated");
         registry.add("spring.rabbitmq.publisher-returns", () -> "true");
         registry.add("spring.mail.host", () -> "127.0.0.1");
-        registry.add("spring.mail.port", () -> GREEN_MAIL.getSmtp().getPort());
+        registry.add("spring.mail.port", () -> SMTP_PORT);
         registry.add("spring.mail.username", () -> "");
         registry.add("spring.mail.password", () -> "");
         registry.add("posts.notifications.telegram.bot-token", () -> "test-token");
@@ -95,19 +91,15 @@ abstract class AbstractNotificationsIT {
     }
 
     @BeforeEach
-    void cleanNotificationTables() {
+    void cleanNotificationTables() throws Exception {
         jdbcTemplate.update("DELETE FROM notification_deliveries");
         jdbcTemplate.update("DELETE FROM notification_unsubscribe_tokens");
         jdbcTemplate.update("DELETE FROM notification_web_push_subscriptions");
         jdbcTemplate.update("DELETE FROM notification_telegram_links");
         jdbcTemplate.update("DELETE FROM notification_settings");
         jdbcTemplate.update("DELETE FROM notifications");
-        try {
-            GREEN_MAIL.purgeEmailFromAllMailboxes();
-        } catch (Exception ignored) {
-            // mailbox may be empty before first message
-        }
-        TELEGRAM_API.resetAll();
+        GREEN_MAIL.purgeEmailFromAllMailboxes();
+        TELEGRAM_API.resetRequests();
     }
 
     protected SeededUser seedOwner() {
