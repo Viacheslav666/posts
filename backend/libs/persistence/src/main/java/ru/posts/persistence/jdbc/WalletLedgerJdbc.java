@@ -2,6 +2,8 @@ package ru.posts.persistence.jdbc;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -238,9 +240,9 @@ public class WalletLedgerJdbc {
                     .param("kind", kind)
                     .param("isBonus", bonus)
                     .param("idempotencyKey", idempotencyKey)
-                    .param("refId", refId)
+                    .param("refId", refId, Types.OTHER)
                     .param("description", description)
-                    .param("createdAt", Instant.now())
+                    .param("createdAt", Timestamp.from(Instant.now()))
                     .update();
         } catch (DataIntegrityViolationException ex) {
             Optional<UUID> existing = findByIdempotency(idempotencyKey);
