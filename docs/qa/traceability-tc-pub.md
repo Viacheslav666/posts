@@ -1,7 +1,8 @@
-# Матрица трассировки TC-PUB → автотест (QA-5 / BE-10)
+# Матрица трассировки TC-PUB → автотест (QA-5 / QA-13 / BE-10 / BE-23)
 
-Обновлено: 2026-11-18. Сети в CI: **Telegram** (+ social-emulator); изоляция VK очереди — без consumer.  
-Инвариант **0 потерь / 0 дублей**: сверка `publications.state=succeeded` ↔ `GET /_control/posts/count` + `GET /_control/verify`.
+Обновлено: 2026-11-18. Сети в CI: **Telegram** (+ social-emulator); VK/OK — WireMock-контракты + publisher IT.  
+Инвариант **0 потерь / 0 дублей**: сверка `publications.state=succeeded` ↔ `GET /_control/posts/count` + `GET /_control/verify`.  
+Prod-профиль: `application-prod.yml` → `reconciliation-mode=api` (нет `/_control`); ArchUnit + `ProdProfileNoControlPathTest`.
 
 | TC | Автотест | Набор | Статус |
 |---|---|---|---|
@@ -28,6 +29,8 @@
 | reauth_required | `TcPubBe10IT#authMarksChannelReauth` | CI | авто (BE-10) |
 | TC-AD-07 (ads regress) | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` | CI | авто (QA-10) |
 | TC-AD-06 / fail-closed ads | `OrdAdPipelineIT` (см. `traceability-tc-ad.md`) | CI | авто (QA-10) |
+| VK/OK contract (QA-13) | `VkSocialAdapterQa13ContractTest`; `OkSocialAdapterQa13ContractTest` (fixtures `vk-api-5.199` / `ok-api`) | CI | авто |
+| Prod no `/_control` (QA-13) | `ProdProfileNoControlPathTest`; ArchUnit `assertControlApiOnlyInEmulatorPackages` | CI | авто |
 
 ## Запуск
 

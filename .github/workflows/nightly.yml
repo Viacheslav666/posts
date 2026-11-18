@@ -147,19 +147,33 @@ jobs:
           ./gradlew :apps:publisher:integrationTest -PincludeNightly=true
 
       # QA-10: API ORD / WireMock TC-AD P0 (fail-closed, idempotency, RBAC, recurrence).
+      # QA-13: parity E2E ad+media→erid→placement→act/stats (WireMock; never live api.ord.vk.com).
       # UI TC-AD-01…04 runs in PR CI e2e-smoke (MSW); compose `full` web is without mocks.
-      - name: API ORD ad-marking IT (TC-AD)
+      - name: API ORD ad-marking IT (TC-AD) + QA-13 parity E2E
         working-directory: backend
         run: |
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
-          ./gradlew :apps:api:integrationTest --tests 'ru.posts.api.ord.*'
+          ./gradlew :apps:api:integrationTest --tests 'ru.posts.api.ord.*' --tests 'ru.posts.api.qa13.*'
 
-      # QA-12: grabber IT including @Tag("nightly") pipeline linkage (TC-GRAB-14).
+      # QA-12 / QA-13: grabber IT including @Tag("nightly") + filters/similarity.
       - name: Grabber ingest IT (include nightly)
         working-directory: backend
         run: |
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.ingest.*'
+
+      # QA-13: VK/OK official-docs contract fixtures + prod profile guard (unit).
+      - name: Social adapter contract + ORD sandbox guard (unit)
+        working-directory: backend
+        run: |
+          ./gradlew :libs:social-vk:test --tests 'ru.posts.social.vk.VkSocialAdapterQa13ContractTest' \
+            :libs:social-ok:test --tests 'ru.posts.social.ok.OkSocialAdapterQa13ContractTest' \
+            :libs:ord-api:test --tests 'ru.posts.ord.api.OrdSandboxGuardTest' \
+            :apps:publisher:test --tests 'ru.posts.publisher.config.ProdProfileNoControlPathTest'
+
+      # QA-13: P0 AC parity coverage report must stay at 100%.
+      - name: P0 parity AC coverage = 100%
+        run: python3 docs/qa/generate_p0_parity_coverage_report.py
 
       # QA-11: stories API + VK/OK pipeline IT (0 duplicates / waiting_for_channel / ads fail-closed).
       - name: E2E scheduled stories (QA-11 / MSW)

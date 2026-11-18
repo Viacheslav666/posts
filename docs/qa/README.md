@@ -19,9 +19,10 @@
 | [rbac-coverage-report.md](rbac-coverage-report.md) | Покрытие роль × эндпоинт | QA-6 |
 | [traceability-tc-rbac.md](traceability-tc-rbac.md) | Трассировка TC-RBAC/IDOR → автотест | QA-6 |
 | [traceability-tc-pub.md](traceability-tc-pub.md) | Трассировка TC-PUB → автотест | QA-5 |
-| [traceability-tc-ad.md](traceability-tc-ad.md) | Трассировка TC-AD → автотест (ОРД / маркировка) | QA-10 |
-| [traceability-tc-grab.md](traceability-tc-grab.md) | Трассировка TC-GRAB → автотест | QA-12 |
-| [traceability-tc-story.md](traceability-tc-story.md) | Трассировка TC-STORY → автотест | QA-11 |
+| [traceability-tc-ad.md](traceability-tc-ad.md) | Трассировка TC-AD → автотест (ОРД / маркировка) | QA-10 / QA-13 |
+| [traceability-tc-grab.md](traceability-tc-grab.md) | Трассировка TC-GRAB → автотест | QA-12 / QA-13 |
+| [traceability-tc-story.md](traceability-tc-story.md) | Трассировка TC-STORY → автотест | QA-11 / QA-13 |
+| [p0-parity-coverage-report.md](p0-parity-coverage-report.md) | Покрытие P0 AC E10/E11/E17 (=100%) | QA-13 |
 | `release-report-vX.md` | Релизная готовность | перед релизом |
 
 Связанные артефакты вне `docs/qa/`:

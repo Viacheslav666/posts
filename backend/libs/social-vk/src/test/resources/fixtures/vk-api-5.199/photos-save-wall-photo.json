@@ -1,11 +1,13 @@
 {
   "response": [
     {
-      "id": 7,
-      "album_id": -7,
+      "id": 457239017,
+      "album_id": -14,
       "owner_id": -100,
+      "user_id": 100,
       "text": "",
-      "access_key": "abcdef12"
+      "date": 1730000000,
+      "access_key": "accesskey"
     }
   ]
 }
