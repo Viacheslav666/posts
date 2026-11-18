@@ -19,17 +19,17 @@ ALTER TABLE posts
     ADD COLUMN IF NOT EXISTS moderation_status TEXT,
     ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Europe/Moscow';
 
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_content_kind_check;
+-- New-column CHECKs: NOT VALID + VALIDATE (same expand-safe pattern as V4).
 ALTER TABLE posts
     ADD CONSTRAINT posts_content_kind_check
-    CHECK (content_kind IN ('post', 'story'));
+    CHECK (content_kind IN ('post', 'story')) NOT VALID;
+ALTER TABLE posts VALIDATE CONSTRAINT posts_content_kind_check;
 
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_source_type_check;
 ALTER TABLE posts
     ADD CONSTRAINT posts_source_type_check
-    CHECK (source_type IN ('manual', 'grabber', 'rss', 'import', 'api'));
+    CHECK (source_type IN ('manual', 'grabber', 'rss', 'import', 'api')) NOT VALID;
+ALTER TABLE posts VALIDATE CONSTRAINT posts_source_type_check;
 
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_moderation_status_check;
 ALTER TABLE posts
     ADD CONSTRAINT posts_moderation_status_check
     CHECK (
@@ -37,34 +37,39 @@ ALTER TABLE posts
         OR moderation_status IN (
             'pending_moderation', 'approved', 'rejected', 'suppressed_dedup'
         )
-    );
+    ) NOT VALID;
+ALTER TABLE posts VALIDATE CONSTRAINT posts_moderation_status_check;
 
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_story_ttl_check;
 ALTER TABLE posts
     ADD CONSTRAINT posts_story_ttl_check
     CHECK (
         story_ttl IS NULL
         OR story_ttl IN ('ttl_1h', 'ttl_12h', 'ttl_24h', 'ttl_48h')
-    );
+    ) NOT VALID;
+ALTER TABLE posts VALIDATE CONSTRAINT posts_story_ttl_check;
 
--- Align status enum with OpenAPI ApiEnums.PostStatus (deleted_from_network).
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_status_check;
+-- Expand posts.status (add deleted_from_network): wider check first, then drop V2.
 ALTER TABLE posts
-    ADD CONSTRAINT posts_status_check CHECK (status IN (
+    ADD CONSTRAINT posts_status_check_v9 CHECK (status IN (
         'draft', 'pending_approval', 'approved', 'scheduled', 'publishing',
         'published', 'partially_published', 'failed', 'paused', 'archived',
         'deleted_from_network'
-    ));
+    )) NOT VALID;
+ALTER TABLE posts VALIDATE CONSTRAINT posts_status_check_v9;
+-- squawk-ignore ban-drop-constraint
+ALTER TABLE posts DROP CONSTRAINT posts_status_check;
 
 -- ---------------------------------------------------------------------------
 -- publications: waiting_for_channel (channel reauth / missing rights)
 -- ---------------------------------------------------------------------------
-ALTER TABLE publications DROP CONSTRAINT IF EXISTS publications_state_check;
 ALTER TABLE publications
-    ADD CONSTRAINT publications_state_check CHECK (state IN (
+    ADD CONSTRAINT publications_state_check_v9 CHECK (state IN (
         'pending', 'queued', 'in_progress', 'succeeded',
         'failed_retryable', 'failed_permanent', 'cancelled', 'waiting_for_channel'
-    ));
+    )) NOT VALID;
+ALTER TABLE publications VALIDATE CONSTRAINT publications_state_check_v9;
+-- squawk-ignore ban-drop-constraint
+ALTER TABLE publications DROP CONSTRAINT publications_state_check;
 
 -- ---------------------------------------------------------------------------
 -- Calendar / list indexes (100k users ×3): avoid sequential scans + N+1 joins
