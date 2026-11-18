@@ -305,15 +305,27 @@ class OrdAdMarkingIT {
     }
 
     @Test
-    @DisplayName("TC-AD-16: KKTU/OKSM dictionaries")
+    @DisplayName("TC-AD-16: KKTU/OKSM dictionaries (full seed ≥250 KKTU) + VAT calc")
     void dictionariesAvailable() throws Exception {
         String token = registerVerifyLogin("ad-16-" + UUID.randomUUID() + "@example.com", "Owner");
         mockMvc.perform(get("/api/v1/ord/dictionaries/kktu").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").exists());
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(250)));
+        mockMvc.perform(get("/api/v1/ord/dictionaries/kktu").param("q", "ВИНО").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code=='1.1.1')].name").value(org.hamcrest.Matchers.hasItem("ВИНО")));
         mockMvc.perform(get("/api/v1/ord/dictionaries/oksm").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").exists());
+                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(200)));
+        mockMvc.perform(post("/api/v1/ord/vat/calculate")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("amountWithVat", 120, "vatRate", "20"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amountWithoutVat").value(100.0))
+                .andExpect(jsonPath("$.vatAmount").value(20.0));
     }
 
     @Test
@@ -420,6 +432,36 @@ class OrdAdMarkingIT {
                 .andExpect(jsonPath("$.plainText")
                         .value(org.hamcrest.Matchers.containsString("erid: " + OrdWireMockStubs.PREVIEW_ERID)))
                 .andExpect(jsonPath("$.plainText").value(org.hamcrest.Matchers.containsString("Реклама")));
+
+        Map<String, Object> marking = new java.util.LinkedHashMap<>();
+        marking.put("advertiserName", "ИП Тест");
+        marking.put("inn", "500100732259");
+        marking.put("orgType", "ip");
+        marking.put("kktuCodes", List.of("1.1.1"));
+        marking.put("amount", 100);
+        marking.put("roles", List.of("advertiser"));
+        marking.put("placement", "vk_menu");
+        mockMvc.perform(post("/api/v1/posts/preview")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "network",
+                                "vk",
+                                "content",
+                                Map.of("text", "Body", "mediaIds", List.of()),
+                                "ad",
+                                true,
+                                "erid",
+                                OrdWireMockStubs.PREVIEW_ERID,
+                                "adMarking",
+                                marking))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.plainText")
+                        .value(org.hamcrest.Matchers.endsWith("erid: " + OrdWireMockStubs.PREVIEW_ERID)))
+                .andExpect(jsonPath("$.warnings")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString("vk_menu_unsupported"))));
     }
 
     @Test
@@ -643,27 +685,26 @@ class OrdAdMarkingIT {
     }
 
     private void upsertConnection(String token, UUID workspaceId, String provider, String apiKey) throws Exception {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("apiKey", apiKey);
+        body.put("publisherInn", "7707083893");
+        body.put("publisherName", "ООО Паблишер");
+        body.put("orgType", "juridical");
+        body.put("address", "Москва, ул. Тверская, 1");
+        body.put("vatRate", "20");
+        body.put("isForeign", false);
+        body.put("notifyProblems", true);
+        body.put("roles", List.of("advertiser", "publisher"));
+        body.put("isDefault", true);
+        body.put("responsibilityAccepted", true);
         mockMvc.perform(put("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider)
                         .with(csrf())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "apiKey",
-                                apiKey,
-                                "publisherInn",
-                                "7707083893",
-                                "publisherName",
-                                "ООО Паблишер",
-                                "orgType",
-                                "juridical",
-                                "roles",
-                                List.of("publisher"),
-                                "isDefault",
-                                true,
-                                "responsibilityAccepted",
-                                true))))
+                        .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasApiKey").value(true))
+                .andExpect(jsonPath("$.address").value("Москва, ул. Тверская, 1"))
                 .andExpect(jsonPath("$.apiKey").doesNotExist());
 
         mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider + "/test")

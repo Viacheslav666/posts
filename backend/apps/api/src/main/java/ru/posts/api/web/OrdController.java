@@ -181,6 +181,16 @@ public class OrdController {
         return ordService.searchOksm(q);
     }
 
+    @PostMapping("/ord/vat/calculate")
+    @Operation(operationId = "ordVatCalculate", summary = "Split amount with VAT into net + VAT (BE-25)")
+    @ApiResponse(
+            responseCode = "200",
+            description = "VAT breakdown",
+            content = @Content(schema = @Schema(implementation = OrdDtos.VatBreakdown.class)))
+    public OrdDtos.VatBreakdown calculateVat(@Valid @RequestBody OrdDtos.OrdVatCalculateRequest request) {
+        return ordService.calculateVat(request);
+    }
+
     @PostMapping("/posts/{postId}/ord/register")
     @Operation(operationId = "postsOrdRegister", summary = "Register post creative in ORD (idempotent)")
     @ApiResponse(

@@ -43,6 +43,11 @@ public interface OrdService {
 
     List<OrdDtos.DictionaryOksmItem> searchOksm(String q);
 
+    OrdDtos.VatBreakdown calculateVat(OrdDtos.OrdVatCalculateRequest request);
+
+    /** Validates ad marking including KKTU/OKSM dictionary membership (BE-25). */
+    void validateAdMarking(boolean ad, OrdDtos.AdMarking marking);
+
     OrdDtos.OrdRegisterCreativeResponse registerCreative(UUID userId, UUID postId, ClientRequestContext ctx);
 
     OrdDtos.OrdCreativeStatus creativeStatus(UUID userId, UUID postId);

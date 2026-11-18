@@ -69,4 +69,36 @@ describe('AdMarkingForm', () => {
     });
     expect(await screen.findByRole('option', { name: /1\.1\.1/ })).toBeInTheDocument();
   });
+
+  it('exposes six placement modes and vk_menu warning', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<StatefulAdForm hasOrdConnection />);
+
+    const placement = await screen.findByTestId('ad-placement');
+    for (const value of [
+      'vk_menu',
+      'text_start',
+      'text_end',
+      'vk_menu_and_text_end',
+      'click_link_start',
+      'click_link_end',
+    ]) {
+      expect(placement.querySelector(`option[value="${value}"]`)).not.toBeNull();
+    }
+
+    await user.selectOptions(placement, 'vk_menu');
+    expect(await screen.findByTestId('ad-vk-menu-unsupported')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-placement-preview')).toBeInTheDocument();
+  });
+
+  it('toggles social and foreign flags and shows foreign fields', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<StatefulAdForm hasOrdConnection />);
+
+    await user.click(screen.getByTestId('ad-social-ad'));
+    await user.click(screen.getByTestId('ad-social-ad-quota'));
+    await user.click(screen.getByTestId('ad-is-foreign'));
+    expect(await screen.findByTestId('ad-foreign-inn')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-arir-link')).toBeInTheDocument();
+  });
 });

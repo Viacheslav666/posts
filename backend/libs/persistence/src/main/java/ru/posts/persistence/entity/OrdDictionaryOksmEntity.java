@@ -25,6 +25,12 @@ public class OrdDictionaryOksmEntity {
     @Column(name = "synced_at", nullable = false)
     private Instant syncedAt = Instant.now();
 
+    @Column(nullable = false)
+    private String source = "seed";
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
     public String getCode() {
         return code;
     }
@@ -63,5 +69,21 @@ public class OrdDictionaryOksmEntity {
 
     public void setSyncedAt(Instant syncedAt) {
         this.syncedAt = syncedAt;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source == null ? "seed" : source;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

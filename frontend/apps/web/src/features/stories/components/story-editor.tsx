@@ -11,6 +11,10 @@ import { registerPostOrd } from '@/features/editor/api/posts-api';
 import { AdMarkingForm } from '@/features/editor/components/ad-marking-form';
 import { useWorkspaceChannels } from '@/features/channels/hooks/use-workspace-channels';
 import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
+import {
+  type AdFieldErrors,
+  mapServerAdErrors,
+} from '@/features/ord/lib/ad-marking-validation';
 import { isBillingFrozen, isPlanLimitExceeded } from '@/shared/lib/errors';
 import { isValidInn } from '@/shared/lib/inn';
 import { useCan } from '@/shared/hooks/use-can';
@@ -94,6 +98,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
   const [draft, setDraft] = useState<StoryDraft>(() => createStoryDraft(workspaceId));
   const [submitting, setSubmitting] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [adFieldErrors, setAdFieldErrors] = useState<AdFieldErrors>({});
   const [showPaywall, setShowPaywall] = useState(false);
 
   const { channels, isLoading: channelsLoading, refetch } = useWorkspaceChannels(workspaceId);
@@ -207,6 +212,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
 
   const registerErid = async () => {
     setRegistering(true);
+    setAdFieldErrors({});
     try {
       const created = await createStoryPost({
         ...buildCreateRequest(draft, channels, 'draft'),
@@ -220,6 +226,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
         description: result.erid ? `erid: ${result.erid}` : undefined,
       });
     } catch (error) {
+      setAdFieldErrors(mapServerAdErrors(error));
       const message = error instanceof Error ? error.message : t('ad.eridError');
       toast({
         title: t('ad.eridError'),
@@ -337,8 +344,13 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
               eridStatus={eridStatus}
               erid={erid}
               registering={registering}
+              fieldErrors={adFieldErrors}
+              previewBody={draft.linkUrl || 'История https://example.com/offer'}
               onEnabledChange={(isAd) => patchDraft({ isAd })}
-              onAdChange={(ad) => patchDraft({ ad })}
+              onAdChange={(ad) => {
+                setAdFieldErrors({});
+                patchDraft({ ad });
+              }}
               onProviderChange={(ordProvider: OrdProvider) => patchDraft({ ordProvider })}
               onRegister={() => void registerErid()}
             />

@@ -37,7 +37,7 @@
 
 ### Конвейер (хук BE-10)
 
-`OrdPrePublishHook` (`PrePublishHook`): при `is_ad` без erid → `PERMANENT` (`ord_erid_missing`), публикация в сеть не уходит (**fail-closed**). Feature-flag `posts.ord.allow-publish-without-erid` по умолчанию **false**. При наличии erid — префикс `AdMarker` («Реклама. … erid: …»). Регистрация креатива идемпотентна по `external_id = creative:{postId}:{version}` (на schedule / `POST .../ord/register`).
+`OrdPrePublishHook` (`PrePublishHook`): при `is_ad` без erid → `PERMANENT` (`ord_erid_missing`), публикация в сеть не уходит (**fail-closed**). Feature-flag `posts.ord.allow-publish-without-erid` по умолчанию **false**. При наличии erid — `AdMarker` применяет один из 6 режимов размещения (BE-25 / Q-ORD-05): `text_start|text_end|click_link_*|vk_menu*`. VK API `wall.post` поддерживает только `mark_as_ads=1` (без меню advertiser+erid) → `vk_menu*` честно падает в `text_end` + meta/`warnings` `vk_menu_unsupported`. Регистрация креатива идемпотентна по `external_id = creative:{postId}:{version}` (на schedule / `POST .../ord/register`, право `ord.register`).
 
 ### Отчётность
 

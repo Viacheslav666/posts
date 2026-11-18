@@ -44,6 +44,11 @@ public final class ProblemCodes {
     public static final String STORY_CONNECTION_REQUIRED = "story_connection_required";
     public static final String STORY_UNSUPPORTED_NETWORK = "story_unsupported_network";
     public static final String STORY_MEDIA_INVALID = "story_media_invalid";
+    public static final String STORY_MEDIA_ASPECT = "story_media_aspect";
+    public static final String STORY_MEDIA_RESOLUTION = "story_media_resolution";
+    public static final String STORY_MEDIA_DURATION = "story_media_duration";
+    public static final String STORY_MEDIA_SIZE = "story_media_size";
+    public static final String STORY_MEDIA_CODEC = "story_media_codec";
     public static final String STORY_LINK_INVALID = "story_link_invalid";
     public static final String STORY_TTL_UNSUPPORTED = "story_ttl_unsupported";
     public static final String STORY_BATCH_LIMIT = "story_batch_limit";
@@ -90,6 +95,11 @@ public final class ProblemCodes {
             - story_connection_required — VK channel lacks stories scope connection
             - story_unsupported_network — stories only supported for vk/ok (not tg/max/ig)
             - story_media_invalid — story requires exactly one valid photo/video media
+            - story_media_aspect — story media must be 9:16
+            - story_media_resolution — story media must be at least 720×1280
+            - story_media_duration — story video must be ≤ 60 seconds
+            - story_media_size — story video must be ≤ 50 MB
+            - story_media_codec — story video must be H.264/AAC
             - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
             - story_ttl_unsupported — invalid stories_time / TTL enum
             - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)

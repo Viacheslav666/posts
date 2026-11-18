@@ -175,7 +175,7 @@ public class VkSocialAdapter implements SocialAdapter {
         try {
             MultiValueMap<String, String> serverForm = new LinkedMultiValueMap<>();
             serverForm.add("group_id", stripMinus(ctx.externalId()));
-            serverForm.add("add_to_news", "1");
+            serverForm.add("add_to_news", addToNews(content) ? "1" : "0");
             if (idempotencyKey != null && !idempotencyKey.isBlank()) {
                 serverForm.add("guid", idempotencyKey);
             }
@@ -1163,9 +1163,24 @@ public class VkSocialAdapter implements SocialAdapter {
         if (!media.isEmpty() && media.getFirst().hasContentBytes()) {
             return media.getFirst().contentBytes();
         }
-        return video
-                ? new byte[] {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}
-                : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        throw new SocialApiException(
+                ErrorClass.PERMANENT,
+                "VK story publish requires media bytes from S3 (MediaPublishSupport); missing "
+                        + (video ? "video" : "photo")
+                        + " payload");
+    }
+
+    private static boolean addToNews(PostVariantContent content) {
+        Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
+        Object raw = options.get("addToNews");
+        if (raw == null) {
+            return true;
+        }
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        return !"false".equals(s) && !"0".equals(s) && !"no".equals(s);
     }
 
     private static byte[] requireBytes(MediaAssetRef asset, long maxBytes, String kind) {

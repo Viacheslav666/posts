@@ -53,4 +53,9 @@ public record PublicationClaim(
         /**
          * JSON array of VK string attachments from content ({@code stringAttachments}) (BE-29).
          */
-        String stringAttachmentsJson) {}
+        String stringAttachmentsJson,
+        /**
+         * BE-25 placement mode from ad_payload.placement or legacy markingType (0..5 / enum name).
+         * Null → AdMarker defaults to text_start.
+         */
+        String markingPlacement) {}

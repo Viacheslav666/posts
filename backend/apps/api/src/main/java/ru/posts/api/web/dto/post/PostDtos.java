@@ -119,7 +119,7 @@ public final class PostDtos {
         story
     }
 
-    @Schema(name = "StoryOptions", description = "Story-specific options (BE-16 / E11)")
+    @Schema(name = "StoryOptions", description = "Story-specific options (BE-16 / E11 / BE-24)")
     public record StoryOptions(
             ApiEnums.StoryTtl ttl,
             @Schema(description = "VK/OK CTA key", example = "go_to") String linkText,
@@ -130,7 +130,8 @@ public final class PostDtos {
             Boolean deleteAfterPublish,
             @Schema(description = "OK effective TTL after degradation (always ttl_24h)") ApiEnums.StoryTtl effectiveTtl,
             List<String> warnings,
-            @Valid OrdDtos.AdMarking ads) {}
+            @Valid OrdDtos.AdMarking ads,
+            @Schema(description = "VK stories.add_to_news (default true)") Boolean addToNews) {}
 
     @Schema(name = "Post")
     public record Post(

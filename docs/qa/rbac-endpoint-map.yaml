@@ -819,6 +819,11 @@ endpoints:
   action: ord.reports.run
   query:
     workspaceId: '{workspaceId}'
+- operationId: ordVatCalculate
+  method: POST
+  path: /api/v1/ord/vat/calculate
+  implementedHint: true
+  rbac: none
 - operationId: ping
   method: GET
   path: /api/v1/ping

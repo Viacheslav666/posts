@@ -663,9 +663,11 @@ public class OkSocialAdapter implements SocialAdapter {
         if (!media.isEmpty() && media.getFirst().hasContentBytes()) {
             return media.getFirst().contentBytes();
         }
-        return video
-                ? new byte[] {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}
-                : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        throw new SocialApiException(
+                ErrorClass.PERMANENT,
+                "OK moment publish requires media bytes from S3 (MediaPublishSupport); missing "
+                        + (video ? "video" : "photo")
+                        + " payload");
     }
 
     private static String normalizeKind(String kind, String mime) {

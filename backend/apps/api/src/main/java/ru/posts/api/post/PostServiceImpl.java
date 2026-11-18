@@ -218,7 +218,7 @@ public class PostServiceImpl implements PostService {
             OrdDtos.AdMarking marking = request.adMarking() != null
                     ? request.adMarking()
                     : objectMapper.convertValue(adPayload, OrdDtos.AdMarking.class);
-            AdMarkingValidator.requireValidWhenAd(true, marking);
+            ordService.validateAdMarking(true, marking);
         }
 
         Instant now = Instant.now();
@@ -329,7 +329,7 @@ public class PostServiceImpl implements PostService {
             boolean adFlag = request.ad() != null ? request.ad() : post.isAd();
             Map<String, Object> adPayload = resolveAdPayload(adFlag, request.adMarking(), request.adPayload());
             if (adFlag && request.adMarking() != null) {
-                AdMarkingValidator.requireValidWhenAd(true, request.adMarking());
+                ordService.validateAdMarking(true, request.adMarking());
             }
             post.setAdPayload(adPayload);
         }
@@ -647,6 +647,7 @@ public class PostServiceImpl implements PostService {
                         .spintaxSeed(seed)
                         .build());
         String expandedText = text;
+        List<String> placementWarnings = List.of();
         if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
             OrdDtos.AdMarking marking = request.adMarking();
             String name = marking == null ? "" : nullToEmpty(marking.advertiserName());
@@ -654,7 +655,16 @@ public class PostServiceImpl implements PostService {
             String erid =
                     request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
             String marker = AdMarker.format(name, inn, erid);
-            text = AdMarker.prepend(text, marker);
+            String placementName = marking == null || marking.placement() == null
+                    ? null
+                    : marking.placement().name();
+            String markingType = marking == null ? null : marking.markingType();
+            ru.posts.ord.api.MarkingPlacement placement =
+                    ru.posts.ord.api.MarkingPlacement.resolve(placementName, markingType);
+            AdMarker.ApplyResult applied = AdMarker.apply(
+                    text, marker, erid, placement, request.network().name(), null);
+            text = applied.text();
+            placementWarnings = applied.warnings();
         }
         ContentRenderResult rendered = contentRenderer.render(
                 new ContentRenderRequest(request.network().name(), text, hasMedia, limits));
@@ -672,16 +682,35 @@ public class PostServiceImpl implements PostService {
             String erid =
                     request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
             String marker = AdMarker.format(name, inn, erid);
+            String placementName = marking == null || marking.placement() == null
+                    ? null
+                    : marking.placement().name();
+            String markingType = marking == null ? null : marking.markingType();
+            ru.posts.ord.api.MarkingPlacement placement =
+                    ru.posts.ord.api.MarkingPlacement.resolve(placementName, markingType);
             if (plain == null || !plain.contains("erid:")) {
-                plain = AdMarker.prepend(plain, marker);
+                plain = AdMarker.apply(
+                                plain,
+                                marker,
+                                erid,
+                                placement,
+                                request.network().name(),
+                                null)
+                        .text();
             }
             if (html == null || !html.contains("erid:")) {
-                html = AdMarker.prepend(html, marker);
+                html = AdMarker.apply(
+                                html, marker, erid, placement, request.network().name(), null)
+                        .text();
             }
         }
         boolean valid = issues.stream().noneMatch(i -> "error".equals(i.severity())) && rendered.valid();
+        List<String> warnings = new ArrayList<>(rendered.warnings());
+        if (!placementWarnings.isEmpty()) {
+            warnings.addAll(placementWarnings);
+        }
         return new PostDtos.PreviewResponse(
-                request.network(), html, plain, valid, rendered.warnings(), List.copyOf(issues), expandedText);
+                request.network(), html, plain, valid, List.copyOf(warnings), List.copyOf(issues), expandedText);
     }
 
     @Override
@@ -1351,14 +1380,18 @@ public class PostServiceImpl implements PostService {
             }
         }
         String mediaKind = "photo";
+        List<String> mediaWarnings = List.of();
         List<UUID> mediaIds = PostContentMapper.mediaIds(baseContent);
         if (!mediaIds.isEmpty()) {
             MediaAssetEntity asset = mediaAssetRepository
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(workspaceId, mediaIds.getFirst())
                     .orElse(null);
             mediaKind = StorySupport.mediaKindOf(asset);
+            if (asset != null) {
+                mediaWarnings = StorySupport.assertMedia(baseContent, List.of(asset));
+            }
         }
-        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind));
+        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind, mediaWarnings));
     }
 
     private void validateStoryForSchedule(
@@ -1380,7 +1413,24 @@ public class PostServiceImpl implements PostService {
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(post.getWorkspaceId(), mediaId)
                     .ifPresent(assets::add);
         }
-        StorySupport.assertMedia(baseContent, assets);
+        List<String> mediaWarnings = StorySupport.assertMedia(baseContent, assets);
+        if (!mediaWarnings.isEmpty()) {
+            Map<String, Object> opts =
+                    new LinkedHashMap<>(post.getStoryOptions() == null ? Map.of() : post.getStoryOptions());
+            @SuppressWarnings("unchecked")
+            List<String> existing = opts.get("warnings") instanceof List<?> list
+                    ? list.stream()
+                            .map(String::valueOf)
+                            .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+                    : new ArrayList<>();
+            for (String w : mediaWarnings) {
+                if (!existing.contains(w)) {
+                    existing.add(w);
+                }
+            }
+            opts.put("warnings", existing);
+            post.setStoryOptions(opts);
+        }
         List<ApiEnums.Network> networks =
                 variants.stream().map(PostDtos.PostVariantUpsert::network).toList();
         StorySupport.assertLink(
@@ -1488,7 +1538,7 @@ public class PostServiceImpl implements PostService {
         }
         if (post.getAdPayload() != null && !post.getAdPayload().isEmpty()) {
             OrdDtos.AdMarking marking = objectMapper.convertValue(post.getAdPayload(), OrdDtos.AdMarking.class);
-            AdMarkingValidator.requireValidWhenAd(true, marking);
+            ordService.validateAdMarking(true, marking);
         } else {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
