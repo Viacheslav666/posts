@@ -14,6 +14,7 @@ import { Menu, Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
+import { HeaderPlanChip } from '@/features/billing/components/header-plan-chip';
 import { NotificationsBell } from '@/features/notifications/components/notifications-bell';
 import { useMe } from '@/shared/hooks/use-me';
 
@@ -52,6 +53,7 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
       </Link>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <HeaderPlanChip workspaceId={workspaceId} />
         <Button variant="ghost" size="icon" aria-label={t('search')} className="hidden sm:inline-flex">
           <Search aria-hidden />
         </Button>

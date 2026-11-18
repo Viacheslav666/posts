@@ -56,6 +56,7 @@ import {
   PLAN_LIMIT_EXCEEDED_CODE,
   TWO_FACTOR_REQUIRED_CODE,
 } from '@/shared/lib/errors';
+import { listPlans } from './billing-store';
 import {
   can,
   isWorkspaceRole,
@@ -2155,5 +2156,12 @@ export const handlers = [
     const denied = requirePermission(request, 'notifications.manage_self');
     if (denied) return denied;
     return HttpResponse.json(unsubscribeWebPush(workspaceId, endpoint));
+  }),
+
+  // --- Billing (FE-10 scaffold: plans/limits only; balance model → FE-10b / BE-31) ---
+  http.get('/api/v1/billing/plans', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    return HttpResponse.json(listPlans());
   }),
 ];

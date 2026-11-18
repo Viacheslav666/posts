@@ -3,16 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
   ApiProblemError,
   AppError,
+  BILLING_FROZEN_CODE,
   getErrorMessage,
   INGEST_RESPONSIBILITY_REQUIRED_CODE,
   INGEST_SSRF_BLOCKED_CODE,
   INSUFFICIENT_PERMISSIONS_CODE,
+  isBillingFrozen,
   isIngestResponsibilityRequired,
   isIngestSsrfBlocked,
   isInsufficientPermissions,
   isPlanLimitExceeded,
+  isPromoInvalid,
   isTwoFactorRequired,
   PLAN_LIMIT_EXCEEDED_CODE,
+  PROMO_INVALID_CODE,
   toApiProblemError,
   TWO_FACTOR_REQUIRED_CODE,
 } from './errors';
@@ -65,6 +69,19 @@ describe('ApiProblemError', () => {
       status: 402,
     });
     expect(isPlanLimitExceeded(error)).toBe(true);
+  });
+
+  it('detects billing_frozen and promo_invalid', () => {
+    expect(
+      isBillingFrozen(
+        toApiProblemError({ code: BILLING_FROZEN_CODE, detail: 'frozen', status: 402 }),
+      ),
+    ).toBe(true);
+    expect(
+      isPromoInvalid(
+        toApiProblemError({ code: PROMO_INVALID_CODE, detail: 'bad promo', status: 400 }),
+      ),
+    ).toBe(true);
   });
 
   it('detects ingest SSRF / responsibility codes', () => {

@@ -141,6 +141,19 @@ export type TwoFactorSetupResponse = components['schemas']['TwoFactorSetupRespon
 export type TwoFactorConfirmRequest = components['schemas']['TwoFactorConfirmRequest'];
 export type TwoFactorDisableRequest = components['schemas']['TwoFactorDisableRequest'];
 
+/** Billing (BE-12) */
+export type Plan = components['schemas']['Plan'];
+export type Subscription = components['schemas']['Subscription'];
+export type CheckoutRequest = components['schemas']['CheckoutRequest'];
+export type CheckoutResponse = components['schemas']['CheckoutResponse'];
+export type Invoice = components['schemas']['Invoice'];
+export type InvoicePage = components['schemas']['InvoicePage'];
+export type ApplyPromoRequest = components['schemas']['ApplyPromoRequest'];
+export type ApplyPromoResponse = components['schemas']['ApplyPromoResponse'];
+export type StartTrialRequest = components['schemas']['StartTrialRequest'];
+export type BillingPeriod = NonNullable<CheckoutRequest['period']>;
+export type BillingStatus = NonNullable<Subscription['status']>;
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {
