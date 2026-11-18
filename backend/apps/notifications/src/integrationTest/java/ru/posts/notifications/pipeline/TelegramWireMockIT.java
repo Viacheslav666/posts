@@ -12,21 +12,16 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.notify.NotifyDomainEvent;
-import ru.posts.notifications.config.NotificationsProperties;
 
 class TelegramWireMockIT extends AbstractNotificationsIT {
-
-    @Autowired
-    NotificationsProperties notificationsProperties;
 
     @Test
     @DisplayName("Telegram channel calls sendMessage via configurable base URL")
     void sendsTelegramMessage() {
         assertThat(notificationsProperties.telegram().botToken()).isEqualTo("test-token");
-        assertThat(notificationsProperties.telegram().apiBaseUrl()).startsWith("http://");
+        assertThat(notificationsProperties.telegram().apiBaseUrl()).isEqualTo(TELEGRAM_API.baseUrl());
 
         TELEGRAM_API.stubFor(post(urlPathMatching("/bottest-token/sendMessage"))
                 .willReturn(aResponse()
@@ -55,10 +50,13 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
                 """,
                 user.userId());
         assertThat(rows)
-                .as("telegram delivery rows: %s", rows)
+                .as(
+                        "telegram delivery rows=%s apiBaseUrl=%s",
+                        rows, notificationsProperties.telegram().apiBaseUrl())
                 .hasSize(1)
                 .first()
-                .satisfies(row -> assertThat(row.get("status")).isEqualTo("sent"));
+                .extracting(row -> row.get("status"))
+                .isEqualTo("sent");
         TELEGRAM_API.verify(
                 postRequestedFor(urlPathMatching("/bottest-token/sendMessage")).withRequestBody(containing("999001")));
     }

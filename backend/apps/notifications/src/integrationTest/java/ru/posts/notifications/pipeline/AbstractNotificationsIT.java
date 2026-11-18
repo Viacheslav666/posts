@@ -62,9 +62,12 @@ abstract class AbstractNotificationsIT {
     static final GreenMail GREEN_MAIL =
             new GreenMail(new ServerSetup(SMTP_PORT, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
 
+    /** Fixed port so a cached Spring context keeps a valid Telegram API base URL across IT classes. */
+    static final int TELEGRAM_WIREMOCK_PORT = 18089;
+
     @RegisterExtension
     static final WireMockExtension TELEGRAM_API = WireMockExtension.newInstance()
-            .options(wireMockConfig().dynamicPort())
+            .options(wireMockConfig().port(TELEGRAM_WIREMOCK_PORT))
             .build();
 
     static {
@@ -85,6 +88,9 @@ abstract class AbstractNotificationsIT {
     @Autowired
     protected NotificationDeliveryRepository deliveryRepository;
 
+    @Autowired
+    protected ru.posts.notifications.config.NotificationsProperties notificationsProperties;
+
     @DynamicPropertySource
     static void registerProps(DynamicPropertyRegistry registry) {
         registry.add("spring.mail.host", () -> "127.0.0.1");
@@ -92,7 +98,7 @@ abstract class AbstractNotificationsIT {
         registry.add("spring.mail.username", () -> "");
         registry.add("spring.mail.password", () -> "");
         registry.add("posts.notifications.telegram.bot-token", () -> "test-token");
-        registry.add("posts.notifications.telegram.api-base-url", TELEGRAM_API::baseUrl);
+        registry.add("posts.notifications.telegram.api-base-url", () -> "http://127.0.0.1:" + TELEGRAM_WIREMOCK_PORT);
         registry.add("posts.notifications.web-push.vapid-public-key", () -> "");
         registry.add("posts.notifications.web-push.vapid-private-key", () -> "");
     }
@@ -107,6 +113,9 @@ abstract class AbstractNotificationsIT {
         jdbcTemplate.update("DELETE FROM notifications");
         GREEN_MAIL.purgeEmailFromAllMailboxes();
         TELEGRAM_API.resetAll();
+        // Cached Spring context may outlive a WireMock restart across IT classes.
+        notificationsProperties.telegram().setApiBaseUrl(TELEGRAM_API.baseUrl());
+        notificationsProperties.telegram().setBotToken("test-token");
     }
 
     /** Process domain event and drain pending channel deliveries synchronously. */
