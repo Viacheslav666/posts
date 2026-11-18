@@ -104,6 +104,28 @@ export const queryKeys = {
     usage: (workspaceId: string) => [...queryKeys.billing.all(workspaceId), 'usage'] as const,
   },
 
+  admin: {
+    all: () => [...queryKeys.root, 'admin'] as const,
+    users: (filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'users', filters ?? {}] as const,
+    user: (userId: string) => [...queryKeys.admin.all(), 'user', userId] as const,
+    workspaces: (filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'workspaces', filters ?? {}] as const,
+    workspace: (workspaceId: string) =>
+      [...queryKeys.admin.all(), 'workspace', workspaceId] as const,
+    plans: () => [...queryKeys.admin.all(), 'plans'] as const,
+    promos: (filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'promos', filters ?? {}] as const,
+    queues: () => [...queryKeys.admin.all(), 'queues'] as const,
+    queueMessages: (queue: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'queues', queue, 'messages', filters ?? {}] as const,
+    featureFlags: () => [...queryKeys.admin.all(), 'feature-flags'] as const,
+    announcements: (filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'announcements', filters ?? {}] as const,
+    audit: (filters?: Record<string, unknown>) =>
+      [...queryKeys.admin.all(), 'audit', filters ?? {}] as const,
+  },
+
   ord: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'ord'] as const,
     connections: (workspaceId: string) =>
