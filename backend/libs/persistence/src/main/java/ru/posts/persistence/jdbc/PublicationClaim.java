@@ -40,4 +40,9 @@ public record PublicationClaim(
         String storyLinkText,
         String storyLinkUrl,
         /** photo | video — derived from media mime / story_options. */
-        String mediaKind) {}
+        String mediaKind,
+        /**
+         * BE-25 placement mode from ad_payload.placement or legacy markingType (0..5 / enum name).
+         * Null → AdMarker defaults to text_start.
+         */
+        String markingPlacement) {}

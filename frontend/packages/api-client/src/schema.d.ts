@@ -1210,6 +1210,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ord/vat/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Split amount with VAT into net + VAT (BE-25) */
+        post: operations["ordVatCalculate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ping": {
         parameters: {
             query?: never;
@@ -1896,14 +1913,18 @@ export interface components {
         AcceptInvitationRequest: {
             token: string;
         };
-        /** @description Full advertiser / ORD marking block (feature spec §3.4). Stored as posts.ad_payload jsonb. */
+        /** @description Full advertiser / ORD marking block (feature spec §3.4, BE-25). Stored as posts.ad_payload jsonb. */
         AdMarking: {
             address?: string;
             /** @description Advertiser name / FIO */
             advertiserName?: string;
             amount?: number;
+            /** @description Server-computed VAT split for amount (response/preview) */
+            amountVat?: components["schemas"]["VatBreakdown"];
             autoDeleteAfterPeriod?: boolean;
             contractAmount?: number;
+            /** @description Server-computed VAT split for contractAmount */
+            contractAmountVat?: components["schemas"]["VatBreakdown"];
             /** Format: date */
             contractDate?: string;
             /** Format: date */
@@ -1911,22 +1932,31 @@ export interface components {
             contractSerial?: string;
             /** Format: uuid */
             contractorId?: string;
+            /**
+             * @description Customer role
+             * @example advertiser
+             * @enum {string}
+             */
+            customerRole?: "advertiser" | "agency" | "publisher" | "ors";
             description?: string;
             /** Format: int32 */
             displayPeriodDays?: number;
             /** @description Erid after registration; read-only on responses */
             erid?: string;
+            /** @description Executor: self (default) or contractor UUID */
+            executor?: string;
             foreignEpayment?: string;
             foreignInn?: string;
             foreignRegNumber?: string;
-            /** @description INN — 10 or 12 digits */
+            /** @description INN — 10 or 12 digits with checksum; foreign ids when isForeign */
             inn?: string;
             isForeign?: boolean;
             kktuCodes?: string[];
             /** @description KPP; required for juridical */
             kpp?: string;
             /**
-             * @description Marking mode / type_marking
+             * @deprecated
+             * @description Legacy vposter type_marking 0..5; mapped to placement when placement omitted
              * @example 0
              */
             markingType?: string;
@@ -1941,13 +1971,30 @@ export interface components {
              */
             orgType?: "physical" | "ip" | "juridical" | "foreign_physical" | "foreign_juridical";
             phone?: string;
+            /**
+             * @description Preferred placement mode (BE-25)
+             * @enum {string}
+             */
+            placement?: "vk_menu" | "text_start" | "text_end" | "vk_menu_and_text_end" | "click_link_start" | "click_link_end";
+            /**
+             * @description ORD provider override; null = workspace default connection
+             * @enum {string}
+             */
+            provider?: "vk_ord" | "yandex_ord";
             roles?: string[];
             selfPromo?: boolean;
+            /** @description Social advertising flag */
+            socialAd?: boolean;
+            /** @description Social advertising under quota */
+            socialAdQuota?: boolean;
             /**
              * @description VAT rate
              * @example without_vat
+             * @enum {string}
              */
-            vatRate?: string;
+            vatRate?: "without_vat" | "0" | "5" | "7" | "10" | "20" | "22";
+            /** @description Warnings such as vk_menu_unsupported fallback; filled on preview/register responses */
+            warnings?: string[];
         };
         /** @description Lightweight ad marking card fields for list/calendar (full ORD in BE-15). */
         AdMarkingSummary: {
@@ -2829,12 +2876,15 @@ export interface components {
         };
         /** @description ORD connection without plaintext API key */
         OrdConnection: {
+            address?: string;
             /** Format: date-time */
             createdAt?: string;
             hasApiKey?: boolean;
             /** Format: uuid */
             id?: string;
             isDefault?: boolean;
+            isForeign?: boolean;
+            notifyProblems?: boolean;
             orgType?: string;
             phone?: string;
             /**
@@ -2848,6 +2898,11 @@ export interface components {
             status?: string;
             /** Format: date-time */
             updatedAt?: string;
+            /**
+             * @description VAT rate
+             * @enum {string}
+             */
+            vatRate?: "without_vat" | "0" | "5" | "7" | "10" | "20" | "22";
             /** Format: uuid */
             workspaceId?: string;
         };
@@ -2974,6 +3029,14 @@ export interface components {
             /** Format: int32 */
             statisticsCount?: number;
             status?: string;
+        };
+        OrdVatCalculateRequest: {
+            amountWithVat: number;
+            /**
+             * @example 20
+             * @enum {string}
+             */
+            vatRate: "without_vat" | "0" | "5" | "7" | "10" | "20" | "22";
         };
         PasswordForgotRequest: {
             /** @example user@example.com */
@@ -3606,15 +3669,30 @@ export interface components {
             name: string;
         };
         UpsertOrdConnectionRequest: {
+            /** @description Publisher address; required when activating connection */
+            address?: string;
             /** @description Plaintext API key; omit/blank on update to keep existing */
             apiKey?: string;
             isDefault?: boolean;
+            isForeign?: boolean;
+            /**
+             * @description Notify workspace about ORD / marking problems
+             * @default true
+             */
+            notifyProblems: boolean;
             orgType?: string;
             phone?: string;
             publisherInn?: string;
             publisherName?: string;
             responsibilityAccepted: boolean;
+            /** @description Roles: advertiser, publisher (multi) */
             roles?: string[];
+            /**
+             * @description VAT rate
+             * @example without_vat
+             * @enum {string}
+             */
+            vatRate?: "without_vat" | "0" | "5" | "7" | "10" | "20" | "22";
         };
         /** @description Current authenticated user (`GET /me`) */
         UserProfile: {
@@ -3645,6 +3723,12 @@ export interface components {
         };
         VapidPublicKeyResponse: {
             vapidPublicKey?: string;
+        };
+        VatBreakdown: {
+            amountWithVat?: number;
+            amountWithoutVat?: number;
+            vatAmount?: number;
+            vatRate?: string;
         };
         WebPushSubscribeRequest: {
             auth: string;
@@ -10769,6 +10853,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrdReportRunResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ordVatCalculate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrdVatCalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description VAT breakdown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VatBreakdown"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

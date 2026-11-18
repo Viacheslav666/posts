@@ -50,7 +50,8 @@ public class PublicationLifecycleJdbc {
                          THEN 'video'
                        ELSE 'photo'
                      END
-                   ) AS media_kind
+                   ) AS media_kind,
+                   coalesce(p.ad_payload ->> 'placement', p.ad_payload ->> 'markingType') AS marking_placement
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -98,7 +99,8 @@ public class PublicationLifecycleJdbc {
                         null,
                         null,
                         null,
-                        "photo"))
+                        "photo",
+                        null))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -140,7 +142,8 @@ public class PublicationLifecycleJdbc {
                             rs.getString("story_ttl"),
                             rs.getString("story_link_text"),
                             rs.getString("story_link_url"),
-                            rs.getString("media_kind"));
+                            rs.getString("media_kind"),
+                            rs.getString("marking_placement"));
                 })
                 .optional()
                 .orElse(base);

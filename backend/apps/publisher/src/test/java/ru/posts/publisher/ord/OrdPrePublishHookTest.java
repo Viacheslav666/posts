@@ -16,7 +16,7 @@ class OrdPrePublishHookTest {
     @Test
     void nonAdPassesThrough() {
         OrdPrePublishHook hook = new OrdPrePublishHook(false);
-        PublicationClaim claim = claim(false, null, null, null);
+        PublicationClaim claim = claim(false, null, null, null, null);
         PostVariantContent content = new PostVariantContent("hello");
         assertThat(hook.beforePublish(claim, content)).isSameAs(content);
     }
@@ -24,7 +24,7 @@ class OrdPrePublishHookTest {
     @Test
     void adWithoutEridFailClosed() {
         OrdPrePublishHook hook = new OrdPrePublishHook(false);
-        PublicationClaim claim = claim(true, null, "ООО Тест", "7707083893");
+        PublicationClaim claim = claim(true, null, "ООО Тест", "7707083893", null);
         assertThatThrownBy(() -> hook.beforePublish(claim, new PostVariantContent("hello")))
                 .isInstanceOf(SocialApiException.class)
                 .satisfies(ex -> {
@@ -35,23 +35,42 @@ class OrdPrePublishHookTest {
     }
 
     @Test
-    void adWithEridPrependsMarker() {
+    void adWithEridPrependsMarkerByDefault() {
         OrdPrePublishHook hook = new OrdPrePublishHook(false);
-        PublicationClaim claim = claim(true, "test-erid-hook-0001", "ООО Тест", "7707083893");
+        PublicationClaim claim = claim(true, "test-erid-hook-0001", "ООО Тест", "7707083893", null);
         PostVariantContent out = hook.beforePublish(claim, new PostVariantContent("Текст поста"));
         assertThat(out.text()).startsWith("Реклама. ООО Тест. ИНН 7707083893. erid: test-erid-hook-0001");
         assertThat(out.text()).endsWith("Текст поста");
     }
 
     @Test
+    void textEndPlacementAppendsMarker() {
+        OrdPrePublishHook hook = new OrdPrePublishHook(false);
+        PublicationClaim claim = claim(true, "test-erid-hook-0001", "ООО Тест", "7707083893", "text_end");
+        PostVariantContent out = hook.beforePublish(claim, new PostVariantContent("Текст поста"));
+        assertThat(out.text()).startsWith("Текст поста");
+        assertThat(out.text()).endsWith("erid: test-erid-hook-0001");
+    }
+
+    @Test
+    void vkMenuFallsBackWithWarningMeta() {
+        OrdPrePublishHook hook = new OrdPrePublishHook(false);
+        PublicationClaim claim = claim(true, "test-erid-hook-0001", "ООО Тест", "7707083893", "vk_menu");
+        PostVariantContent out = hook.beforePublish(claim, new PostVariantContent("Текст поста"));
+        assertThat(out.text()).endsWith("erid: test-erid-hook-0001");
+        assertThat(out.meta()).containsEntry("vkMarkAsAds", true);
+        assertThat(out.meta().get("ordPlacementWarnings").toString()).contains("vk_menu_unsupported");
+    }
+
+    @Test
     void featureFlagAllowsPublishWithoutErid() {
         OrdPrePublishHook hook = new OrdPrePublishHook(true);
-        PublicationClaim claim = claim(true, null, "ООО Тест", "7707083893");
+        PublicationClaim claim = claim(true, null, "ООО Тест", "7707083893", null);
         PostVariantContent content = new PostVariantContent("hello");
         assertThat(hook.beforePublish(claim, content).text()).isEqualTo("hello");
     }
 
-    private static PublicationClaim claim(boolean ad, String erid, String name, String inn) {
+    private static PublicationClaim claim(boolean ad, String erid, String name, String inn, String placement) {
         return new PublicationClaim(
                 UUID.randomUUID(),
                 Instant.now(),
@@ -77,6 +96,7 @@ class OrdPrePublishHookTest {
                 null,
                 null,
                 null,
-                "photo");
+                "photo",
+                placement);
     }
 }
