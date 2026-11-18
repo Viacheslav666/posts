@@ -117,6 +117,8 @@ CREATE TABLE remote_post_registry (
     publication_id       UUID,
     post_id              UUID,
     root_origin          JSONB NOT NULL DEFAULT '{}'::jsonb,
+    -- hop is a crosspost depth counter (TZ BE-33: smallint); values stay tiny.
+    -- squawk-ignore prefer-bigint-over-smallint
     hop                  SMALLINT NOT NULL DEFAULT 0,
     content_fingerprint  TEXT,
     workspace_id         UUID NOT NULL REFERENCES workspaces (id),
