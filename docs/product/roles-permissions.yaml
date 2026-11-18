@@ -454,6 +454,7 @@ matrix:
     viewer: allow
     scope: workspace
 
+  # --- automations / ingest (BE-17) ---
   - action: automations.view
     owner: allow
     admin: allow
