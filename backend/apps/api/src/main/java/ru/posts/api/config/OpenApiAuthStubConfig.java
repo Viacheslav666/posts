@@ -89,7 +89,7 @@ public class OpenApiAuthStubConfig {
             }
 
             @Override
-            public UserDtos.UserProfile me(UUID userId) {
+            public UserDtos.UserProfile me(ru.posts.security.auth.PostsPrincipal principal) {
                 throw new NotImplementedException("openapi");
             }
 
