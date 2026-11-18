@@ -1,9 +1,16 @@
 package ru.posts.notifications.pipeline;
 
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.ServerSetup;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
@@ -11,6 +18,7 @@ import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoCo
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -19,6 +27,10 @@ import org.testcontainers.utility.DockerImageName;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.notifications.NotificationsApplication;
 
+/**
+ * Shared Spring context for notification ITs so Rabbit consumers are not duplicated across
+ * competing ApplicationContexts (same Testcontainers broker).
+ */
 @SpringBootTest(
         classes = NotificationsApplication.class,
         properties = {
@@ -28,6 +40,7 @@ import ru.posts.notifications.NotificationsApplication;
             "posts.notifications.retry-poll-interval-ms=60000",
             "server.port=0"
         })
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 abstract class AbstractNotificationsIT {
 
     @ServiceConnection
@@ -40,9 +53,22 @@ abstract class AbstractNotificationsIT {
     static final RabbitMQContainer RABBIT =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
+    static final GreenMail GREEN_MAIL = new GreenMail(new ServerSetup(0, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+
+    @RegisterExtension
+    static final WireMockExtension TELEGRAM_API = WireMockExtension.newInstance()
+            .options(wireMockConfig().dynamicPort())
+            .build();
+
     static {
         POSTGRES.start();
         RABBIT.start();
+        GREEN_MAIL.start();
+    }
+
+    @AfterAll
+    static void stopMail() {
+        GREEN_MAIL.stop();
     }
 
     @Autowired
@@ -58,6 +84,14 @@ abstract class AbstractNotificationsIT {
     static void registerProps(DynamicPropertyRegistry registry) {
         registry.add("spring.rabbitmq.publisher-confirm-type", () -> "correlated");
         registry.add("spring.rabbitmq.publisher-returns", () -> "true");
+        registry.add("spring.mail.host", () -> "127.0.0.1");
+        registry.add("spring.mail.port", () -> GREEN_MAIL.getSmtp().getPort());
+        registry.add("spring.mail.username", () -> "");
+        registry.add("spring.mail.password", () -> "");
+        registry.add("posts.notifications.telegram.bot-token", () -> "test-token");
+        registry.add("posts.notifications.telegram.api-base-url", TELEGRAM_API::baseUrl);
+        registry.add("posts.notifications.web-push.vapid-public-key", () -> "");
+        registry.add("posts.notifications.web-push.vapid-private-key", () -> "");
     }
 
     @BeforeEach
@@ -68,6 +102,8 @@ abstract class AbstractNotificationsIT {
         jdbcTemplate.update("DELETE FROM notification_telegram_links");
         jdbcTemplate.update("DELETE FROM notification_settings");
         jdbcTemplate.update("DELETE FROM notifications");
+        GREEN_MAIL.purgeEmailFromAllMailboxes();
+        TELEGRAM_API.resetAll();
     }
 
     protected SeededUser seedOwner() {

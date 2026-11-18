@@ -3,52 +3,22 @@ package ru.posts.notifications.pipeline;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import com.icegreen.greenmail.util.GreenMail;
-import com.icegreen.greenmail.util.ServerSetup;
 import jakarta.mail.internet.MimeMessage;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.notify.NotifyDomainEvent;
 import ru.posts.messaging.topology.NotifyTopology;
 
-/**
- * TC-NOTIF-01: publication.failed → in-app row + email (GreenMail) within SLA window.
- */
+/** TC-NOTIF-01: publication.failed → in-app row + email (GreenMail) within SLA window. */
 class TcNotifPublicationFailedIT extends AbstractNotificationsIT {
-
-    private static final GreenMail GREEN_MAIL =
-            new GreenMail(new ServerSetup(0, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
-
-    static {
-        GREEN_MAIL.start();
-    }
-
-    @AfterAll
-    static void stopMail() {
-        GREEN_MAIL.stop();
-    }
-
-    @DynamicPropertySource
-    static void mailProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.mail.host", () -> "127.0.0.1");
-        registry.add("spring.mail.port", () -> GREEN_MAIL.getSmtp().getPort());
-        registry.add("spring.mail.username", () -> "");
-        registry.add("spring.mail.password", () -> "");
-        registry.add("posts.notifications.web-push.vapid-public-key", () -> "");
-        registry.add("posts.notifications.web-push.vapid-private-key", () -> "");
-    }
 
     @Test
     @DisplayName("TC-NOTIF-01: publication.failed creates in-app + email")
     void publicationFailedCreatesInAppAndEmail() throws Exception {
-        GREEN_MAIL.purgeEmailFromAllMailboxes();
         SeededUser user = seedOwner();
         UUID publicationId = UuidV7.generate();
         NotifyDomainEvent event = new NotifyDomainEvent(
@@ -69,14 +39,17 @@ class TcNotifPublicationFailedIT extends AbstractNotificationsIT {
                     user.userId());
             assertThat(notifications).isEqualTo(1);
 
-            Integer emailDeliveries = jdbcTemplate.queryForObject(
+            var emailRows = jdbcTemplate.queryForList(
                     """
-                    SELECT count(*) FROM notification_deliveries
-                    WHERE user_id = ? AND channel = 'email' AND status = 'sent'
+                    SELECT status, last_error FROM notification_deliveries
+                    WHERE user_id = ? AND channel = 'email'
                     """,
-                    Integer.class,
                     user.userId());
-            assertThat(emailDeliveries).isEqualTo(1);
+            assertThat(emailRows)
+                    .as("email deliveries: %s", emailRows)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(row -> assertThat(row.get("status")).isEqualTo("sent"));
         });
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(GREEN_MAIL.getReceivedMessages())
