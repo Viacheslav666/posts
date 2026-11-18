@@ -79,6 +79,8 @@ ACTION: dict[str, str | None] = {
     "channelsConnectStart": "channels.manage",
     "channelsConnectConfirm": "channels.manage",
     "channelsConnectCallback": "channels.manage",
+    "channelsStoryConnectionGet": "channels.view",
+    "channelsStoryConnectionStart": "channels.manage",
     "channelSetsList": "channel_sets.view",
     "channelSetsGet": "channel_sets.view",
     "channelSetsCreate": "channel_sets.manage",
@@ -96,6 +98,7 @@ ACTION: dict[str, str | None] = {
     "postsBulk": "posts.bulk",
     "postsPreview": "posts.view",
     "postsListPublications": "posts.view",
+    "storiesBatch": "posts.bulk",
     "mediaList": "media.view",
     "mediaGet": "media.view",
     "mediaCreateUpload": "media.manage",
@@ -202,6 +205,8 @@ IMPLEMENTED = {
     "channelsConnectStart",
     "channelsConnectConfirm",
     "channelsConnectCallback",
+    "channelsStoryConnectionGet",
+    "channelsStoryConnectionStart",
     "channelSetsList",
     "channelSetsGet",
     "channelSetsCreate",
@@ -223,6 +228,7 @@ IMPLEMENTED = {
     "postsBulk",
     "postsPreview",
     "postsListPublications",
+    "storiesBatch",
     "calendarList",
     "calendarMove",
     "publicationsList",
@@ -291,12 +297,13 @@ WORKSPACE_QUERY_OPS = {
     "notificationSettingsUpdate",
     "notificationsList",
     "notificationsMarkRead",
-    # postsPreview / postsBulk: no workspaceId query — tenant via body/resource id
+    # postsPreview / postsBulk / storiesBatch: no workspaceId query — tenant via body/resource id
     "mediaCreateUpload",
     "mediaImportUrl",
     "channelSetsCreate",
     "ordReportsRun",
     "ingestPreview",
+    "storiesBatch",
 }
 
 

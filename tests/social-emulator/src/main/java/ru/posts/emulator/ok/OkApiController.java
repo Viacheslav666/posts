@@ -4,13 +4,19 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -20,6 +26,7 @@ public class OkApiController {
 
     private final PostStore postStore;
     private final PublishSupport publishSupport;
+    private final ConcurrentMap<String, String> momentUploads = new ConcurrentHashMap<>();
 
     public OkApiController(PostStore postStore, PublishSupport publishSupport) {
         this.postStore = postStore;
@@ -69,17 +76,72 @@ public class OkApiController {
         return mediatopicPost(null, json == null ? Map.of() : json, rawResponse);
     }
 
+    @PostMapping(
+            path = {"/ok/upload/{uploadId}", "/upload/ok/{uploadId}"},
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadMoment(
+            @PathVariable String uploadId, @RequestPart(name = "file", required = false) MultipartFile file) {
+        momentUploads.put(uploadId, file == null ? "empty" : String.valueOf(file.getSize()));
+        return Map.of("token", "ok-upload-" + uploadId, "success", true);
+    }
+
     private ResponseEntity<?> dispatch(
             String method,
             MultiValueMap<String, String> form,
             Map<String, Object> json,
             HttpServletResponse rawResponse)
             throws IOException {
-        if (method == null || !"mediatopic.post".equals(method)) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error_code", 100, "error_msg", "Unsupported method: " + method));
+        if (method == null) {
+            return ResponseEntity.badRequest().body(Map.of("error_code", 100, "error_msg", "Missing method"));
         }
-        return mediatopicPost(form, json, rawResponse);
+        return switch (method) {
+            case "mediatopic.post" -> mediatopicPost(form, json, rawResponse);
+            case "mediatopic.delete" -> ResponseEntity.ok(Map.of("success", true));
+            case "moments.getUploadUrl" -> ResponseEntity.ok(momentsGetUploadUrl(form, json));
+            case "moments.commit" -> momentsCommit(form, json, rawResponse);
+            case "moments.delete" -> ResponseEntity.ok(Map.of("success", true));
+            default -> ResponseEntity.badRequest()
+                    .body(Map.of("error_code", 100, "error_msg", "Unsupported method: " + method));
+        };
+    }
+
+    private Map<String, Object> momentsGetUploadUrl(MultiValueMap<String, String> form, Map<String, Object> json) {
+        String uploadId = UUID.randomUUID().toString();
+        String uploadUrl = "http://localhost:8090/ok/upload/" + uploadId;
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("upload_url", uploadUrl);
+        body.put("upload_urls", java.util.List.of(uploadUrl));
+        body.put("gid", first(form, json, "gid", "group_id"));
+        body.put("type", first(form, json, "type"));
+        return body;
+    }
+
+    private ResponseEntity<?> momentsCommit(
+            MultiValueMap<String, String> form, Map<String, Object> json, HttpServletResponse rawResponse)
+            throws IOException {
+        String gid = first(form, json, "gid", "group_id", "owner_ref");
+        if (gid != null && gid.startsWith("group:")) {
+            gid = gid.substring("group:".length());
+        }
+        String text = first(form, json, "text", "attachment", "message");
+        String requestedKey = first(form, json, "idempotency_key", "guid");
+        String finalGid = gid == null ? "unknown" : gid;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("contentType", "story");
+        metadata.put("method", "moments.commit");
+        metadata.put("ttl_ms", first(form, json, "ttl_ms"));
+        metadata.put("link_url", first(form, json, "link_url"));
+        metadata.put("link_text", first(form, json, "link_text"));
+
+        return publishSupport.execute(Network.OK, rawResponse, () -> {
+            PostStore.CreateResult result =
+                    postStore.createOrGet(Network.OK, finalGid, requestedKey, text, metadata);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("moment_id", result.post().remotePostId());
+            body.put("id", result.post().remotePostId());
+            body.put("success", true);
+            return ResponseEntity.ok(body);
+        });
     }
 
     private ResponseEntity<?> mediatopicPost(

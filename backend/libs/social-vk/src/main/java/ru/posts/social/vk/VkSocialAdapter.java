@@ -74,7 +74,7 @@ public class VkSocialAdapter implements SocialAdapter {
                 true,
                 true,
                 true,
-                Map.of("wallPost", true, "guidIdempotency", true, "wallPhotoUpload", true));
+                Map.of("wallPost", true, "guidIdempotency", true, "wallPhotoUpload", true, "stories", true));
     }
 
     @Override
@@ -106,7 +106,135 @@ public class VkSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public PublishResult publishStory(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
+        boolean video = content != null && content.isVideo();
+        String uploadMethod = video ? "stories.getVideoUploadServer" : "stories.getPhotoUploadServer";
+        String saveMethod = "stories.save";
+        try {
+            MultiValueMap<String, String> serverForm = new LinkedMultiValueMap<>();
+            serverForm.add("group_id", stripMinus(ctx.externalId()));
+            serverForm.add("add_to_news", "1");
+            if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+                serverForm.add("guid", idempotencyKey);
+            }
+            if (content != null
+                    && content.linkUrl() != null
+                    && !content.linkUrl().isBlank()) {
+                serverForm.add("link_url", content.linkUrl());
+                if (content.linkText() != null && !content.linkText().isBlank()) {
+                    serverForm.add("link_text", content.linkText());
+                }
+            }
+            serverForm.add("access_token", token(ctx));
+            serverForm.add("v", apiVersion);
+            JsonNode serverBody = restClient
+                    .post()
+                    .uri("/method/" + uploadMethod)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(serverForm)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkError(serverBody);
+            String uploadUrl = serverBody.path("response").path("upload_url").asText(null);
+            if (uploadUrl == null || uploadUrl.isBlank()) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "VK stories missing upload_url");
+            }
+
+            MultipartBodyBuilder multipart = new MultipartBodyBuilder();
+            String filename = video ? "story.mp4" : "story.jpg";
+            String mime = video ? "video/mp4" : "image/jpeg";
+            byte[] stubBytes = video
+                    ? new byte[] {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}
+                    : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+            String partName = video ? "video_file" : "file";
+            multipart
+                    .part(partName, new ByteArrayResource(stubBytes) {
+                        @Override
+                        public String getFilename() {
+                            return filename;
+                        }
+                    })
+                    .contentType(MediaType.parseMediaType(mime));
+
+            JsonNode uploadBody = absoluteClient
+                    .post()
+                    .uri(URI.create(uploadUrl))
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(multipart.build())
+                    .retrieve()
+                    .body(JsonNode.class);
+            if (uploadBody == null) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "VK story upload empty response");
+            }
+
+            MultiValueMap<String, String> saveForm = new LinkedMultiValueMap<>();
+            saveForm.add("upload_results", uploadBody.toString());
+            if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+                saveForm.add("guid", idempotencyKey);
+            }
+            saveForm.add("access_token", token(ctx));
+            saveForm.add("v", apiVersion);
+            JsonNode saveBody = restClient
+                    .post()
+                    .uri("/method/" + saveMethod)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(saveForm)
+                    .retrieve()
+                    .body(JsonNode.class);
+            return parseStorySave(saveBody, ctx.externalId());
+        } catch (SocialApiException ex) {
+            throw ex;
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (ResourceAccessException ex) {
+            throw new SocialApiException(
+                    ErrorClass.UNKNOWN_OUTCOME, "VK story call interrupted: " + ex.getMessage(), null, null, ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "VK story transport error: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    @Override
     public Optional<PublishResult> findExisting(ChannelContext ctx, String idempotencyKey, PostVariantContent content) {
+        return findInControl(ctx, idempotencyKey, false);
+    }
+
+    @Override
+    public Optional<PublishResult> findExistingStory(
+            ChannelContext ctx, String idempotencyKey, PostVariantContent content) {
+        return findInControl(ctx, idempotencyKey, true);
+    }
+
+    @Override
+    public void deleteStory(ChannelContext ctx, String remoteStoryId) {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("owner_id", ctx.externalId());
+        form.add("story_id", remoteStoryId);
+        form.add("access_token", token(ctx));
+        form.add("v", apiVersion);
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/method/stories.delete")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkError(body);
+        } catch (RestClientResponseException ex) {
+            int status = ex.getStatusCode().value();
+            if (status == 404) {
+                return;
+            }
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "VK story delete failed: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    private Optional<PublishResult> findInControl(ChannelContext ctx, String idempotencyKey, boolean story) {
         try {
             JsonNode posts = restClient
                     .get()
@@ -114,6 +242,7 @@ public class VkSocialAdapter implements SocialAdapter {
                             .path("/_control/posts")
                             .queryParam("network", "vk")
                             .queryParam("channelId", ctx.externalId())
+                            .queryParam("contentType", story ? "story" : "post")
                             .build())
                     .retrieve()
                     .body(JsonNode.class);
@@ -124,7 +253,9 @@ public class VkSocialAdapter implements SocialAdapter {
                 if (idempotencyKey != null && idempotencyKey.equals(textOrNull(post, "idempotencyKey"))) {
                     String remoteId = textOrNull(post, "remotePostId");
                     if (remoteId != null) {
-                        return Optional.of(new PublishResult(remoteId, remoteUrl(ctx.externalId(), remoteId)));
+                        String url =
+                                story ? storyUrl(ctx.externalId(), remoteId) : remoteUrl(ctx.externalId(), remoteId);
+                        return Optional.of(new PublishResult(remoteId, url));
                     }
                 }
             }
@@ -308,6 +439,29 @@ public class VkSocialAdapter implements SocialAdapter {
         return new PublishResult(postId, remoteUrl(ownerId, postId));
     }
 
+    private PublishResult parseStorySave(JsonNode body, String ownerId) {
+        assertNoVkError(body);
+        JsonNode response = body.path("response");
+        JsonNode items = response.path("items");
+        String storyId = null;
+        if (items.isArray() && !items.isEmpty()) {
+            storyId = items.get(0).path("id").asText(null);
+            if (storyId == null) {
+                storyId = items.get(0).path("story_id").asText(null);
+            }
+        }
+        if (storyId == null) {
+            storyId = response.path("story_id").asText(null);
+        }
+        if (storyId == null) {
+            storyId = response.path("id").asText(null);
+        }
+        if (storyId == null) {
+            throw new SocialApiException(ErrorClass.RETRYABLE, "VK missing story_id");
+        }
+        return new PublishResult(storyId, storyUrl(ownerId, storyId));
+    }
+
     private void assertNoVkError(JsonNode body) {
         if (body == null) {
             throw new SocialApiException(ErrorClass.RETRYABLE, "VK empty response");
@@ -373,6 +527,10 @@ public class VkSocialAdapter implements SocialAdapter {
 
     private static String remoteUrl(String ownerId, String postId) {
         return "https://vk.com/wall" + ownerId + "_" + postId;
+    }
+
+    private static String storyUrl(String ownerId, String storyId) {
+        return "https://vk.com/story" + ownerId + "_" + storyId;
     }
 
     private static String stripMinus(String ownerId) {

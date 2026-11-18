@@ -30,7 +30,25 @@ public final class ChannelDtos {
             String statusReason,
             String timezone,
             Map<String, Object> capabilities,
-            Instant createdAt) {}
+            Instant createdAt,
+            @Schema(description = "VK stories connect status; OK does not require a separate connect")
+                    ApiEnums.StoryConnectionStatus storyConnectionStatus,
+            @Schema(nullable = true) Instant storyConnectedAt,
+            @Schema(nullable = true) String storyConnectionError) {}
+
+    @Schema(name = "StoryConnection")
+    public record StoryConnection(
+            UUID channelId,
+            ApiEnums.Network network,
+            ApiEnums.StoryConnectionStatus status,
+            @Schema(nullable = true) String authorizationUrl,
+            @Schema(nullable = true) Instant connectedAt,
+            @Schema(nullable = true) String error) {}
+
+    @Schema(name = "StartStoryConnectionRequest")
+    public record StartStoryConnectionRequest(
+            @Schema(description = "When true (local/emulator), mark stories connection ready without OAuth redirect")
+                    Boolean confirmReady) {}
 
     @Schema(name = "ChannelConnectStartResponse")
     public record ChannelConnectStartResponse(

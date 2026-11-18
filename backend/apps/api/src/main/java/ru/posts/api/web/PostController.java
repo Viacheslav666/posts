@@ -59,6 +59,7 @@ public class PostController {
             @RequestParam(required = false) UUID authorId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) PostDtos.PostSort sort,
+            @RequestParam(required = false) PostDtos.ContentKind contentKind,
             @Valid @ParameterObject CursorPage.Params page) {
         return postService.list(
                 SecurityAuthSupport.requirePrincipal().userId(),
@@ -72,6 +73,7 @@ public class PostController {
                 authorId,
                 q,
                 sort,
+                contentKind,
                 page);
     }
 

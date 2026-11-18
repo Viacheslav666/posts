@@ -218,6 +218,111 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ChannelDtos.StoryConnection getStoryConnection(UUID userId, UUID channelId) {
+        ChannelEntity channel = requireChannel(channelId);
+        WorkspaceMembership membership = access.requirePermission(channel.getWorkspaceId(), userId, "channels.view");
+        if (!visible(membership, channel)) {
+            throw WorkspaceAccessService.notFound();
+        }
+        return toStoryConnection(channel, null);
+    }
+
+    @Override
+    @Transactional
+    public ChannelDtos.StoryConnection startStoryConnection(
+            UUID userId, UUID channelId, ChannelDtos.StartStoryConnectionRequest request, ClientRequestContext ctx) {
+        ChannelEntity channel = requireChannel(channelId);
+        access.requirePermission(channel.getWorkspaceId(), userId, "channels.manage");
+        if (!"vk".equals(channel.getNetwork())) {
+            if ("ok".equals(channel.getNetwork())) {
+                // OK Moments do not need a separate stories connect — report ready when channel is active.
+                if ("active".equals(channel.getStatus())) {
+                    channel.setStoryConnectionStatus("ready");
+                    channel.setStoryConnectedAt(Instant.now());
+                    channel.setStoryConnectionError(null);
+                    channel.setUpdatedAt(Instant.now());
+                    channelRepository.save(channel);
+                }
+                auditRecorder.record(
+                        channel.getWorkspaceId(),
+                        userId,
+                        "story.connection.ready",
+                        "channel",
+                        channelId,
+                        Map.of("network", "ok", "note", "no_separate_connect"),
+                        ctx == null ? null : ctx.ip());
+                return toStoryConnection(channel, null);
+            }
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.STORY_UNSUPPORTED_NETWORK,
+                    "Story connection is only available for VK (and informational for OK)");
+        }
+
+        boolean confirmReady = request != null && Boolean.TRUE.equals(request.confirmReady());
+        String authorizationUrl = null;
+        if (confirmReady) {
+            channel.setStoryConnectionStatus("ready");
+            channel.setStoryConnectedAt(Instant.now());
+            channel.setStoryConnectionError(null);
+            // Reuse group token as story token for local/emulator community tokens with stories scope.
+            if (channel.getGroupTokenEnc() != null) {
+                channel.setStoryTokenEnc(channel.getGroupTokenEnc());
+            }
+            auditRecorder.record(
+                    channel.getWorkspaceId(),
+                    userId,
+                    "story.connection.ready",
+                    "channel",
+                    channelId,
+                    Map.of("network", "vk", "mode", "confirmReady"),
+                    ctx == null ? null : ctx.ip());
+        } else {
+            channel.setStoryConnectionStatus("pending");
+            channel.setStoryConnectionError(null);
+            authorizationUrl = properties.vkAuthorizationUri()
+                    + (properties.vkAuthorizationUri().contains("?") ? "&" : "?")
+                    + "scope=stories&channel_id="
+                    + channelId;
+            auditRecorder.record(
+                    channel.getWorkspaceId(),
+                    userId,
+                    "story.connection.started",
+                    "channel",
+                    channelId,
+                    Map.of("network", "vk"),
+                    ctx == null ? null : ctx.ip());
+        }
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        return toStoryConnection(channel, authorizationUrl);
+    }
+
+    private ChannelDtos.StoryConnection toStoryConnection(ChannelEntity channel, String authorizationUrl) {
+        ApiEnums.StoryConnectionStatus status;
+        try {
+            status = ApiEnums.StoryConnectionStatus.valueOf(
+                    channel.getStoryConnectionStatus() == null ? "missing" : channel.getStoryConnectionStatus());
+        } catch (IllegalArgumentException ex) {
+            status = ApiEnums.StoryConnectionStatus.missing;
+        }
+        // OK without explicit flag: treat active channel as ready for Moments.
+        if ("ok".equals(channel.getNetwork())
+                && status == ApiEnums.StoryConnectionStatus.missing
+                && "active".equals(channel.getStatus())) {
+            status = ApiEnums.StoryConnectionStatus.ready;
+        }
+        return new ChannelDtos.StoryConnection(
+                channel.getId(),
+                ApiEnums.Network.valueOf(channel.getNetwork()),
+                status,
+                authorizationUrl,
+                channel.getStoryConnectedAt(),
+                channel.getStoryConnectionError());
+    }
+
+    @Override
     @Transactional
     public ChannelDtos.ChannelCheckResponse check(UUID userId, UUID channelId, ClientRequestContext ctx) {
         ChannelEntity channel = requireChannel(channelId);
@@ -543,6 +648,13 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     private ChannelDtos.Channel toDto(ChannelEntity channel) {
+        ApiEnums.StoryConnectionStatus storyStatus;
+        try {
+            storyStatus = ApiEnums.StoryConnectionStatus.valueOf(
+                    channel.getStoryConnectionStatus() == null ? "missing" : channel.getStoryConnectionStatus());
+        } catch (IllegalArgumentException ex) {
+            storyStatus = ApiEnums.StoryConnectionStatus.missing;
+        }
         return new ChannelDtos.Channel(
                 channel.getId(),
                 channel.getWorkspaceId(),
@@ -557,7 +669,10 @@ public class ChannelServiceImpl implements ChannelService {
                 channel.getStatusReason(),
                 channel.getTimezone(),
                 channel.getCapabilities(),
-                channel.getCreatedAt());
+                channel.getCreatedAt(),
+                storyStatus,
+                channel.getStoryConnectedAt(),
+                channel.getStoryConnectionError());
     }
 
     private static String firstNonBlank(String... values) {

@@ -107,7 +107,7 @@ public class PublicationProcessor {
     }
 
     private boolean handleClaim(PublicationClaim claim, Instant startedAt) {
-        PostVariantContent content = new PostVariantContent(claim.contentText());
+        PostVariantContent content = toContent(claim);
         for (PrePublishHook hook : prePublishHooks) {
             content = hook.beforePublish(claim, content);
         }
@@ -227,7 +227,7 @@ public class PublicationProcessor {
                     claim.externalChannelId(),
                     "emulator-token",
                     Network.fromCode(claim.network()));
-            Optional<PublishResult> recovered = findExisting(ctx, claim, new PostVariantContent(claim.contentText()));
+            Optional<PublishResult> recovered = findExisting(ctx, claim, toContent(claim));
             if (recovered.isPresent()) {
                 finishSuccess(claim, recovered.get(), startedAt, "recovered_unknown_outcome");
                 return true;
@@ -324,8 +324,9 @@ public class PublicationProcessor {
     }
 
     private void finishSuccess(PublicationClaim claim, PublishResult result, Instant startedAt, String path) {
+        String metaJson = successMetaJson(claim);
         transactionTemplate.executeWithoutResult(status -> {
-            lifecycleJdbc.markSucceeded(claim.id(), claim.runAt(), result.remotePostId(), result.remoteUrl());
+            lifecycleJdbc.markSucceeded(claim.id(), claim.runAt(), result.remotePostId(), result.remoteUrl(), metaJson);
             lifecycleJdbc.recordAttempt(
                     claim.id(),
                     claim.runAt(),
@@ -353,6 +354,26 @@ public class PublicationProcessor {
                             + "\"}");
         });
         metrics.recordSuccess(claim.network(), claim.runAt(), claim.contentKind());
+    }
+
+    private static PostVariantContent toContent(PublicationClaim claim) {
+        return new PostVariantContent(
+                claim.contentText(),
+                claim.mediaKind(),
+                claim.storyTtl(),
+                claim.storyLinkText(),
+                claim.storyLinkUrl(),
+                java.util.Map.of());
+    }
+
+    /** OK Moments live ~24h regardless of selected TTL — persist effective_ttl in publication.meta. */
+    private static String successMetaJson(PublicationClaim claim) {
+        if (!"story".equals(claim.contentKind())) {
+            return null;
+        }
+        String ttl = claim.storyTtl() == null || claim.storyTtl().isBlank() ? "ttl_24h" : claim.storyTtl();
+        String effective = "ok".equals(claim.network()) ? "ttl_24h" : ttl;
+        return "{\"contentKind\":\"story\",\"storyTtl\":\"" + ttl + "\",\"effective_ttl\":\"" + effective + "\"}";
     }
 
     private ErrorClass classify(Throwable error) {

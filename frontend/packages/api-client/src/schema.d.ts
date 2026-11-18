@@ -540,6 +540,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels/{channelId}/story-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get VK stories connection status (BE-16)
+         * @description OK channels do not require a separate story connect; status is informational.
+         */
+        get: operations["channelsStoryConnectionGet"];
+        put?: never;
+        /**
+         * Start or confirm VK stories connection (BE-16)
+         * @description Requires `channels.manage`. For local/emulator set confirmReady=true to mark ready.
+         */
+        post: operations["channelsStoryConnectionStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest/items/bulk": {
         parameters: {
             query?: never;
@@ -1420,6 +1444,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stories/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch-create scheduled stories
+         * @description Creates up to 50 story posts (best-effort). Requires posts.bulk + posts.schedule.
+         */
+        post: operations["storiesBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -1829,6 +1873,39 @@ export interface components {
             items?: components["schemas"]["AuditLogEntry"][];
             nextCursor?: string;
         };
+        BatchStoriesRequest: {
+            ad?: boolean;
+            adMarking?: components["schemas"]["AdMarking"];
+            channelIds: string[];
+            mediaIds: string[];
+            /** Format: uuid */
+            projectId?: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /**
+             * Format: int32
+             * @description Minutes between consecutive stories
+             * @example 5
+             */
+            stepMinutes?: number;
+            story?: components["schemas"]["StoryOptions"];
+            /** @example Europe/Moscow */
+            timezone?: string;
+            /** Format: uuid */
+            workspaceId: string;
+        };
+        BatchStoriesResponse: {
+            /** Format: int32 */
+            created?: number;
+            failures?: components["schemas"]["BatchStoryFailure"][];
+            postIds?: string[];
+        };
+        BatchStoryFailure: {
+            code?: string;
+            /** Format: uuid */
+            mediaId?: string;
+            message?: string;
+        };
         BulkPostsRequest: {
             /**
              * @description duplicate accepted per FE-8 contract proposal
@@ -1890,6 +1967,14 @@ export interface components {
              */
             status?: "active" | "reauth_required" | "no_permissions" | "disabled";
             statusReason?: string;
+            /** Format: date-time */
+            storyConnectedAt?: string;
+            storyConnectionError?: string;
+            /**
+             * @description VK stories connect status; OK does not require a separate connect
+             * @enum {string}
+             */
+            storyConnectionStatus?: "missing" | "pending" | "ready" | "revoked" | "error";
             timezone?: string;
             /** @example Новости бренда */
             title?: string;
@@ -2059,6 +2144,7 @@ export interface components {
             scheduledAt?: string;
             /** Format: date-time */
             stopAt?: string;
+            story?: components["schemas"]["StoryOptions"];
             /** @example Europe/Moscow */
             timezone?: string;
             title?: string;
@@ -2762,6 +2848,8 @@ export interface components {
             status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
             /** Format: date-time */
             stopAt?: string;
+            /** @description Present when contentKind=story */
+            story?: components["schemas"]["StoryOptions"];
             /** @example Europe/Moscow */
             timezone?: string;
             title?: string;
@@ -3076,9 +3164,60 @@ export interface components {
             items?: components["schemas"]["SessionDto"][];
             nextCursor?: string;
         };
+        StartStoryConnectionRequest: {
+            /** @description When true (local/emulator), mark stories connection ready without OAuth redirect */
+            confirmReady?: boolean;
+        };
         StartTrialRequest: {
             /** Format: uuid */
             workspaceId: string;
+        };
+        StoryConnection: {
+            authorizationUrl?: string;
+            /** Format: uuid */
+            channelId?: string;
+            /** Format: date-time */
+            connectedAt?: string;
+            error?: string;
+            /**
+             * @description Social network identifier (DB / publish routing key)
+             * @enum {string}
+             */
+            network?: "vk" | "tg" | "ok" | "max" | "rutube";
+            /**
+             * @description VK stories connection status (BE-16)
+             * @enum {string}
+             */
+            status?: "missing" | "pending" | "ready" | "revoked" | "error";
+        };
+        /** @description Story-specific options (BE-16 / E11) */
+        StoryOptions: {
+            ads?: components["schemas"]["AdMarking"];
+            /** Format: int32 */
+            autoDeleteAfterMinutes?: number;
+            /** Format: date-time */
+            autoDeleteAt?: string;
+            deleteAfterPublish?: boolean;
+            /**
+             * @description OK effective TTL after degradation (always ttl_24h)
+             * @enum {string}
+             */
+            effectiveTtl?: "ttl_1h" | "ttl_12h" | "ttl_24h" | "ttl_48h";
+            /**
+             * @description VK/OK CTA key
+             * @example go_to
+             */
+            linkText?: string;
+            /** @example https://vk.com/club1 */
+            linkUrl?: string;
+            /** @description photo | video */
+            mediaKind?: string;
+            /**
+             * @description Story display TTL (vposter stories_time)
+             * @enum {string}
+             */
+            ttl?: "ttl_1h" | "ttl_12h" | "ttl_24h" | "ttl_48h";
+            warnings?: string[];
         };
         Subscription: {
             cancelAtPeriodEnd?: boolean;
@@ -3211,6 +3350,7 @@ export interface components {
             scheduledAt?: string;
             /** Format: date-time */
             stopAt?: string;
+            story?: components["schemas"]["StoryOptions"];
             /** @example Europe/Moscow */
             timezone?: string;
             title?: string;
@@ -5016,6 +5156,7 @@ export interface operations {
                 authorId?: string;
                 network?: "vk" | "tg" | "ok" | "max" | "rutube";
                 status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
+                contentKind?: "post" | "story";
                 /** @example Europe/Moscow */
                 timezone?: string;
             };
@@ -6274,6 +6415,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelCheckResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    channelsStoryConnectionGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Story connection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryConnection"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    channelsStoryConnectionStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StartStoryConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Story connection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryConnection"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -9664,6 +9979,7 @@ export interface operations {
                 authorId?: string;
                 q?: string;
                 sort?: "scheduledAt_asc" | "scheduledAt_desc" | "title_asc" | "updatedAt_desc";
+                contentKind?: "post" | "story";
                 /**
                  * @description Opaque cursor from a previous response `nextCursor`
                  * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
@@ -11530,6 +11846,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Publication"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    storiesBatch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchStoriesRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch result */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchStoriesResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

@@ -86,6 +86,10 @@ public class VkApiController {
             case "wall.post" -> wallPost(params, rawResponse);
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
+            case "stories.getPhotoUploadServer", "stories.getVideoUploadServer" -> ResponseEntity.ok(
+                    getStoryUploadServer(params, normalized.contains("Video")));
+            case "stories.save" -> storiesSave(params, rawResponse);
+            case "stories.delete" -> storiesDelete(params);
             case "wall.getById", "wall.get" -> ResponseEntity.ok(
                     Map.of("response", Map.of("items", java.util.List.of())));
             default -> ResponseEntity.ok(
@@ -138,6 +142,70 @@ public class VkApiController {
         return Map.of("response", java.util.List.of(photo));
     }
 
+    private Map<String, Object> getStoryUploadServer(MultiValueMap<String, String> params, boolean video) {
+        String uploadId = UUID.randomUUID().toString();
+        String groupId = first(params, "group_id", "owner_id");
+        UploadSession session = new UploadSession(groupId);
+        session.linkText = first(params, "link_text");
+        session.linkUrl = first(params, "link_url");
+        session.guid = first(params, "guid");
+        session.video = video;
+        uploads.put(uploadId, session);
+        String uploadUrl = "http://localhost:8090/vk/upload/" + uploadId;
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("upload_url", uploadUrl);
+        response.put("user_id", 1);
+        return Map.of("response", response);
+    }
+
+    private ResponseEntity<?> storiesSave(MultiValueMap<String, String> params, HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.VK, rawResponse, () -> {
+            String guid = first(params, "guid");
+            String ownerId = first(params, "owner_id", "group_id");
+            if (ownerId == null) {
+                ownerId = "-1";
+            }
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("contentType", "story");
+            metadata.put("link_text", first(params, "link_text"));
+            metadata.put("link_url", first(params, "link_url"));
+            // Prefer link params captured at getPhotoUploadServer when save body is opaque.
+            for (UploadSession session : uploads.values()) {
+                if (session.linkText != null) {
+                    metadata.put("link_text", session.linkText);
+                }
+                if (session.linkUrl != null) {
+                    metadata.put("link_url", session.linkUrl);
+                }
+                if (guid == null && session.guid != null) {
+                    guid = session.guid;
+                }
+                if (session.groupId != null && (ownerId == null || "-1".equals(ownerId))) {
+                    ownerId = session.groupId.startsWith("-") ? session.groupId : "-" + session.groupId;
+                }
+            }
+            PostStore.CreateResult result =
+                    postStore.createOrGet(Network.VK, ownerId, guid, "story", metadata);
+            long storyId;
+            try {
+                storyId = Long.parseLong(result.post().remotePostId());
+            } catch (NumberFormatException ex) {
+                storyId = photoSeq.incrementAndGet();
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", storyId);
+            item.put("owner_id", Long.parseLong(ownerId.replace("-", "")) * -1);
+            item.put("type", "photo");
+            return ResponseEntity.ok(Map.of("response", Map.of("items", java.util.List.of(item))));
+        });
+    }
+
+    private ResponseEntity<?> storiesDelete(MultiValueMap<String, String> params) {
+        // Idempotent delete — always success for emulator.
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
     private static String first(MultiValueMap<String, String> params, String... names) {
         for (String name : names) {
             String value = params.getFirst(name);
@@ -154,6 +222,10 @@ public class VkApiController {
         String server;
         String photo;
         String hash;
+        String linkText;
+        String linkUrl;
+        String guid;
+        boolean video;
 
         UploadSession(String groupId) {
             this.groupId = groupId;

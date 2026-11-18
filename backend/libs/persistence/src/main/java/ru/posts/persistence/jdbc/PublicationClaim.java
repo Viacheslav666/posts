@@ -34,4 +34,10 @@ public record PublicationClaim(
         /** Auto-delete after ORD display period (days); null if not applicable. */
         Integer adDisplayPeriodDays,
         /** Whether to schedule delete after display period (default true for ads). */
-        boolean adAutoDeleteAfterPeriod) {}
+        boolean adAutoDeleteAfterPeriod,
+        /** Story TTL enum: ttl_1h|ttl_12h|ttl_24h|ttl_48h. */
+        String storyTtl,
+        String storyLinkText,
+        String storyLinkUrl,
+        /** photo | video — derived from media mime / story_options. */
+        String mediaKind) {}

@@ -97,6 +97,19 @@ public final class PostDtos {
         story
     }
 
+    @Schema(name = "StoryOptions", description = "Story-specific options (BE-16 / E11)")
+    public record StoryOptions(
+            ApiEnums.StoryTtl ttl,
+            @Schema(description = "VK/OK CTA key", example = "go_to") String linkText,
+            @Schema(example = "https://vk.com/club1") String linkUrl,
+            @Schema(description = "photo | video") String mediaKind,
+            @Min(0) @Max(262920) Integer autoDeleteAfterMinutes,
+            Instant autoDeleteAt,
+            Boolean deleteAfterPublish,
+            @Schema(description = "OK effective TTL after degradation (always ttl_24h)") ApiEnums.StoryTtl effectiveTtl,
+            List<String> warnings,
+            @Valid OrdDtos.AdMarking ads) {}
+
     @Schema(name = "Post")
     public record Post(
             UUID id,
@@ -112,6 +125,7 @@ public final class PostDtos {
             boolean ad,
             @Schema(description = "Lightweight ad card; null when ad=false") AdMarkingSummary adMarking,
             ContentKind contentKind,
+            @Schema(description = "Present when contentKind=story") StoryOptions story,
             @Schema(
                             description = "manual|grabber|rss|import|api — grabber/rss set by BE-17",
                             example = "manual",
@@ -146,6 +160,7 @@ public final class PostDtos {
             Boolean removeAfterPublish,
             @Schema(example = "Europe/Moscow") String timezone,
             ContentKind contentKind,
+            @Valid StoryOptions story,
             @Valid List<PostVariantUpsert> variants) {}
 
     @Schema(name = "UpdatePostRequest")
@@ -166,8 +181,28 @@ public final class PostDtos {
             Instant stopAt,
             Boolean removeAfterPublish,
             @Schema(example = "Europe/Moscow") String timezone,
+            @Valid StoryOptions story,
             @NotNull @Schema(description = "Optimistic lock version") Integer version,
             @Valid List<PostVariantUpsert> variants) {}
+
+    @Schema(name = "BatchStoriesRequest")
+    public record BatchStoriesRequest(
+            @NotNull UUID workspaceId,
+            UUID projectId,
+            @NotEmpty @Size(max = 50) List<UUID> channelIds,
+            @NotEmpty @Size(max = 50) List<UUID> mediaIds,
+            @NotNull Instant scheduledAt,
+            @Schema(description = "Minutes between consecutive stories", example = "5") @Min(0) Integer stepMinutes,
+            @Valid StoryOptions story,
+            @Schema(example = "Europe/Moscow") String timezone,
+            boolean ad,
+            @Valid OrdDtos.AdMarking adMarking) {}
+
+    @Schema(name = "BatchStoriesResponse")
+    public record BatchStoriesResponse(int created, List<UUID> postIds, List<BatchStoryFailure> failures) {}
+
+    @Schema(name = "BatchStoryFailure")
+    public record BatchStoryFailure(UUID mediaId, String code, String message) {}
 
     @Schema(name = "PostVariantUpsert")
     public record PostVariantUpsert(

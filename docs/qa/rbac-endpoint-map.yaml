@@ -255,6 +255,22 @@ endpoints:
   action: channels.manage
   pathParams:
     channelId: '{channelId}'
+- operationId: channelsStoryConnectionGet
+  method: GET
+  path: /api/v1/channels/{channelId}/story-connection
+  implementedHint: true
+  rbac: matrix
+  action: channels.view
+  pathParams:
+    channelId: '{channelId}'
+- operationId: channelsStoryConnectionStart
+  method: POST
+  path: /api/v1/channels/{channelId}/story-connection
+  implementedHint: true
+  rbac: matrix
+  action: channels.manage
+  pathParams:
+    channelId: '{channelId}'
 - operationId: ingestItemsBulk
   method: POST
   path: /api/v1/ingest/items/bulk
@@ -708,6 +724,14 @@ endpoints:
   action: posts.retry_publish
   pathParams:
     publicationId: '{publicationId}'
+- operationId: storiesBatch
+  method: POST
+  path: /api/v1/stories/batch
+  implementedHint: true
+  rbac: matrix
+  action: posts.bulk
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: workspacesList
   method: GET
   path: /api/v1/workspaces

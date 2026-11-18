@@ -38,7 +38,19 @@ public class PublicationLifecycleJdbc {
                    coalesce(oc.advertiser_name, p.ad_payload ->> 'advertiserName') AS advertiser_name,
                    coalesce(oc.advertiser_inn, p.ad_payload ->> 'inn') AS advertiser_inn,
                    oc.display_period_days AS ad_display_period_days,
-                   coalesce(oc.auto_delete_after_period, true) AS ad_auto_delete_after_period
+                   coalesce(oc.auto_delete_after_period, true) AS ad_auto_delete_after_period,
+                   p.story_ttl AS story_ttl,
+                   p.story_link_text AS story_link_text,
+                   p.story_link_url AS story_link_url,
+                   coalesce(
+                     p.story_options ->> 'mediaKind',
+                     pv.content ->> 'mediaKind',
+                     CASE
+                       WHEN coalesce(pv.content ->> 'text', p.base_content ->> 'text', '') ILIKE '%%video%%'
+                         THEN 'video'
+                       ELSE 'photo'
+                     END
+                   ) AS media_kind
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -82,7 +94,11 @@ public class PublicationLifecycleJdbc {
                         null,
                         null,
                         null,
-                        true))
+                        true,
+                        null,
+                        null,
+                        null,
+                        "photo"))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -120,7 +136,11 @@ public class PublicationLifecycleJdbc {
                             rs.getString("advertiser_name"),
                             rs.getString("advertiser_inn"),
                             displayDays,
-                            rs.getBoolean("ad_auto_delete_after_period"));
+                            rs.getBoolean("ad_auto_delete_after_period"),
+                            rs.getString("story_ttl"),
+                            rs.getString("story_link_text"),
+                            rs.getString("story_link_url"),
+                            rs.getString("media_kind"));
                 })
                 .optional()
                 .orElse(base);
@@ -128,6 +148,11 @@ public class PublicationLifecycleJdbc {
 
     @Transactional
     public void markSucceeded(UUID id, Instant runAt, String remotePostId, String remoteUrl) {
+        markSucceeded(id, runAt, remotePostId, remoteUrl, null);
+    }
+
+    @Transactional
+    public void markSucceeded(UUID id, Instant runAt, String remotePostId, String remoteUrl, String metaJson) {
         jdbcClient
                 .sql(
                         """
@@ -140,7 +165,12 @@ public class PublicationLifecycleJdbc {
                             locked_until = NULL,
                             error_code = NULL,
                             error_message = NULL,
-                            next_attempt_at = NULL
+                            next_attempt_at = NULL,
+                            meta = CASE
+                              WHEN CAST(:metaJson AS text) IS NULL OR CAST(:metaJson AS text) = ''
+                                THEN coalesce(meta, '{}'::jsonb)
+                              ELSE CAST(:metaJson AS jsonb)
+                            END
                         WHERE id = :id AND run_at = :runAt
                         """)
                 .param("id", id)
@@ -148,6 +178,7 @@ public class PublicationLifecycleJdbc {
                 .param("remotePostId", remotePostId)
                 .param("remoteUrl", remoteUrl)
                 .param("publishedAt", Timestamp.from(Instant.now()))
+                .param("metaJson", metaJson)
                 .update();
     }
 
