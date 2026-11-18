@@ -622,7 +622,7 @@ public class MediaServiceImpl implements MediaService {
         String ext =
                 switch (kind) {
                     case image -> mime != null && mime.contains("png") ? "png" : "jpg";
-                    case video -> "mp4";
+                    case video, clip -> "mp4";
                     case audio -> "mp3";
                     case doc -> "bin";
                 };

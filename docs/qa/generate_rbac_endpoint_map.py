@@ -73,6 +73,18 @@ ACTION: dict[str, str | None] = {
     "billingApplyPromo": "billing.apply_promo",
     "billingGetSubscription": "billing.view",
     "billingStartTrial": "billing.manage",
+    "billingChangePlan": "billing.manage",
+    "billingDeletePaymentMethod": "billing.manage",
+    "billingGetAutopay": "billing.view",
+    "billingGetPaymentMethod": "billing.view",
+    "billingGetWallet": "billing.view",
+    "billingInvoiceActPdf": "billing.view",
+    "billingInvoicePdf": "billing.view",
+    "billingListPayments": "billing.view",
+    "billingListTransactions": "billing.view",
+    "billingRequestInvoice": "billing.manage",
+    "billingSetAutoRenew": "billing.manage",
+    "billingUpdateAutopay": "billing.manage",
     "channelsList": "channels.view",
     "channelsGet": "channels.view",
     "channelsUpdate": "channels.manage",
@@ -98,6 +110,7 @@ ACTION: dict[str, str | None] = {
     "postsPause": "posts.bulk",
     "postsResume": "posts.bulk",
     "postsBulk": "posts.bulk",
+    "postsBatch": "posts.bulk",
     "postsPreview": "posts.view",
     "postsListPublications": "posts.view",
     "storiesBatch": "posts.bulk",
@@ -134,7 +147,8 @@ ACTION: dict[str, str | None] = {
     "ordContractsCreate": "ord.contractors.manage",
     "ordDictionariesKktu": None,
     "ordDictionariesOksm": None,
-    "postsOrdRegister": "ord.view",
+    "ordVatCalculate": None,
+    "postsOrdRegister": "ord.register",
     "postsOrdStatus": "ord.view",
     "ordReportsRun": "ord.reports.run",
     "ingestRulesList": "automations.view",
@@ -153,6 +167,8 @@ ACTION: dict[str, str | None] = {
     "ingestItemsReject": "automations.moderate",
     "ingestItemsEditAndApprove": "automations.moderate",
     "ingestItemsBulk": "automations.moderate",
+    "ingestItemsExport": "automations.view",
+    "ingestRulesCloneConfig": "automations.manage",
     "ingestPreview": "automations.view",
     # BE-13 platform admin (users.platform_admin) — вне workspace RBAC
     "adminUsersSearch": None,
@@ -276,6 +292,7 @@ IMPLEMENTED = {
     "postsPause",
     "postsResume",
     "postsBulk",
+    "postsBatch",
     "postsPreview",
     "postsListPublications",
     "storiesBatch",
@@ -296,6 +313,7 @@ IMPLEMENTED = {
     "ordContractsCreate",
     "ordDictionariesKktu",
     "ordDictionariesOksm",
+    "ordVatCalculate",
     "postsOrdRegister",
     "postsOrdStatus",
     "ordReportsRun",
@@ -315,7 +333,22 @@ IMPLEMENTED = {
     "ingestItemsReject",
     "ingestItemsEditAndApprove",
     "ingestItemsBulk",
+    "ingestItemsExport",
+    "ingestRulesCloneConfig",
     "ingestPreview",
+    "billingChangePlan",
+    "billingDeletePaymentMethod",
+    "billingGetAutopay",
+    "billingGetPaymentMethod",
+    "billingGetWallet",
+    "billingInvoiceActPdf",
+    "billingInvoicePdf",
+    "billingListPayments",
+    "billingListTransactions",
+    "billingRequestInvoice",
+    "billingSetAutoRenew",
+    "billingUpdateAutopay",
+    "postsBatch",
     "adminUsersSearch",
     "adminUsersGet",
     "adminUsersImpersonate",
@@ -351,6 +384,7 @@ DESTRUCTIVE = {
     "postsDelete",
     "meDelete",
     "mediaDelete",
+    "billingDeletePaymentMethod",
 }
 
 WORKSPACE_QUERY_OPS = {
@@ -366,6 +400,16 @@ WORKSPACE_QUERY_OPS = {
     "billingApplyPromo",
     "billingGetSubscription",
     "billingStartTrial",
+    "billingGetAutopay",
+    "billingUpdateAutopay",
+    "billingGetPaymentMethod",
+    "billingDeletePaymentMethod",
+    "billingGetWallet",
+    "billingListPayments",
+    "billingListTransactions",
+    "billingRequestInvoice",
+    "billingSetAutoRenew",
+    "billingChangePlan",
     "notificationSettingsGet",
     "notificationSettingsUpdate",
     "notificationsList",
@@ -374,7 +418,7 @@ WORKSPACE_QUERY_OPS = {
     "notificationTelegramUnlink",
     "notificationWebPushSubscribe",
     "notificationWebPushUnsubscribe",
-    # postsPreview / postsBulk / storiesBatch: no workspaceId query — tenant via body/resource id
+    # postsPreview / postsBulk / postsBatch: no workspaceId query — tenant via body/resource id
     # notificationVapidPublicKey / notificationUnsubscribe: no workspace query
     "mediaCreateUpload",
     "mediaImportUrl",
@@ -382,6 +426,11 @@ WORKSPACE_QUERY_OPS = {
     "ordReportsRun",
     "ingestPreview",
     "storiesBatch",
+}
+
+# Extra query params beyond workspaceId (probe fixtures / required OpenAPI params).
+EXTRA_QUERY = {
+    "ingestItemsExport": {"format": "csv"},
 }
 
 
@@ -431,6 +480,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
+        # Billing invoice PDF/act paths use generic {id}; probe resolves via {invoiceId}.
+        "{id}": ("id", "{invoiceId}"),
     }
     for token, (key, value) in mapping.items():
         if token in path:
@@ -471,6 +522,10 @@ def main() -> int:
                 entry["pathParams"] = ph
             if oid in WORKSPACE_QUERY_OPS:
                 entry["query"] = {"workspaceId": "{workspaceId}"}
+            if oid in EXTRA_QUERY:
+                q = dict(entry.get("query") or {})
+                q.update(EXTRA_QUERY[oid])
+                entry["query"] = q
             if oid in DESTRUCTIVE:
                 entry["destructive"] = True
         endpoints.append(entry)

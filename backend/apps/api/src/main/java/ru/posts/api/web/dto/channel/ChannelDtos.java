@@ -34,7 +34,10 @@ public final class ChannelDtos {
             @Schema(description = "VK stories connect status; OK does not require a separate connect")
                     ApiEnums.StoryConnectionStatus storyConnectionStatus,
             @Schema(nullable = true) Instant storyConnectedAt,
-            @Schema(nullable = true) String storyConnectionError) {}
+            @Schema(nullable = true) String storyConnectionError,
+            @Schema(description = "Telegram forum topic id (message_thread_id)", nullable = true) String threadId,
+            @Schema(description = "True when a custom bot token is configured for this channel")
+                    boolean customBotToken) {}
 
     @Schema(name = "StoryConnection")
     public record StoryConnection(
@@ -73,7 +76,15 @@ public final class ChannelDtos {
             @Size(min = 1, max = 120) String name, @Size(max = 50) List<UUID> channelIds) {}
 
     @Schema(name = "UpdateChannelRequest")
-    public record UpdateChannelRequest(UUID projectId, @Schema(example = "Europe/Moscow") String timezone) {}
+    public record UpdateChannelRequest(
+            UUID projectId,
+            @Schema(example = "Europe/Moscow") String timezone,
+            @Schema(description = "Telegram forum topic id (message_thread_id)", nullable = true) String threadId,
+            @Schema(
+                            description =
+                                    "Optional custom Telegram/Max bot token (business.max.ru / BotFather); sealed at rest",
+                            nullable = true)
+                    String botToken) {}
 
     @Schema(
             name = "ChannelConnectCallbackRequest",
@@ -87,7 +98,10 @@ public final class ChannelDtos {
             @Schema(description = "Telegram/Max channel or chat @username", example = "@brand_news") String username,
             @Schema(description = "External chat/channel id when known") String chatId,
             @Schema(description = "Forwarded message reference for bot attach flows")
-                    ForwardedMessageRef forwardedMessage) {}
+                    ForwardedMessageRef forwardedMessage,
+            @Schema(description = "Optional custom bot token (Telegram BotFather or Max business.max.ru)")
+                    String botToken,
+            @Schema(description = "Telegram forum topic id (message_thread_id)", example = "42") String threadId) {}
 
     @Schema(name = "ForwardedMessageRef")
     public record ForwardedMessageRef(
@@ -101,5 +115,8 @@ public final class ChannelDtos {
             UUID projectId,
             @Schema(example = "@brand_news") String username,
             String chatId,
-            ForwardedMessageRef forwardedMessage) {}
+            ForwardedMessageRef forwardedMessage,
+            @Schema(description = "Optional custom bot token (Telegram BotFather or Max business.max.ru)")
+                    String botToken,
+            @Schema(description = "Telegram forum topic id (message_thread_id)", example = "42") String threadId) {}
 }

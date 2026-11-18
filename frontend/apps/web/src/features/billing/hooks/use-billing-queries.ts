@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { listChannels } from '@/features/channels/api/channels-api';
 import { listIngestRules } from '@/features/grabber/api/grabber-api';
@@ -10,7 +10,16 @@ import { getWorkspace, listProjects } from '@/features/workspace/api/workspace-a
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
 
-import { listBillingPlans } from '../api/billing-api';
+import {
+  changePlan,
+  createCheckout,
+  getAutopay,
+  getWallet,
+  listBillingPlans,
+  listInvoices,
+  listTransactions,
+  updateAutopay,
+} from '../api/billing-api';
 import { LIMIT_KEYS, readPlanLimit, type UsageMetric } from '../model/limits';
 
 function startOfMonthIso(): string {
@@ -27,6 +36,117 @@ export function useBillingPlans(enabled = true) {
   });
 }
 
+export function useWallet(workspaceId: string, enabled = true) {
+  const canView = useCan('billing.view', workspaceId);
+  return useQuery({
+    queryKey: queryKeys.billing.wallet(workspaceId),
+    queryFn: () => getWallet(workspaceId),
+    enabled: enabled && canView,
+    staleTime: 15_000,
+  });
+}
+
+export function useAutopay(workspaceId: string, enabled = true) {
+  const canView = useCan('billing.view', workspaceId);
+  return useQuery({
+    queryKey: queryKeys.billing.autopay(workspaceId),
+    queryFn: () => getAutopay(workspaceId),
+    enabled: enabled && canView,
+  });
+}
+
+export function useTransactions(
+  workspaceId: string,
+  filters: { kind?: string; cursor?: string; limit?: number } = {},
+  enabled = true,
+) {
+  const canView = useCan('billing.view', workspaceId);
+  return useQuery({
+    queryKey: queryKeys.billing.transactions(workspaceId, {
+      kind: filters.kind,
+      cursor: filters.cursor,
+    }),
+    queryFn: () =>
+      listTransactions({
+        workspaceId,
+        kind: filters.kind,
+        cursor: filters.cursor,
+        limit: filters.limit ?? 20,
+      }),
+    enabled: enabled && canView,
+  });
+}
+
+export function useInvoices(
+  workspaceId: string,
+  filters: { cursor?: string; limit?: number } = {},
+  enabled = true,
+) {
+  const canView = useCan('billing.view', workspaceId);
+  return useQuery({
+    queryKey: queryKeys.billing.invoices(workspaceId, filters.cursor),
+    queryFn: () =>
+      listInvoices({
+        workspaceId,
+        cursor: filters.cursor,
+        limit: filters.limit ?? 20,
+      }),
+    enabled: enabled && canView,
+  });
+}
+
+export function useCheckoutMutation(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { amountKopecks: number; promoCode?: string }) =>
+      createCheckout({
+        workspaceId,
+        amountKopecks: input.amountKopecks,
+        promoCode: input.promoCode,
+        idempotencyKey:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `checkout-${Date.now()}`,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.wallet(workspaceId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.payments(workspaceId) });
+    },
+  });
+}
+
+export function useUpdateAutopayMutation(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      enabled: boolean;
+      thresholdKopecks?: number;
+      topupAmountKopecks?: number;
+    }) =>
+      updateAutopay({
+        workspaceId,
+        enabled: input.enabled,
+        thresholdKopecks: input.thresholdKopecks,
+        topupAmountKopecks: input.topupAmountKopecks,
+      }),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(queryKeys.billing.autopay(workspaceId), data);
+    },
+  });
+}
+
+export function useChangePlanMutation(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (planCode: string) => changePlan(workspaceId, planCode),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.wallet(workspaceId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.detail(workspaceId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.usage(workspaceId) });
+    },
+  });
+}
+
 export function useBillingUsage(workspaceId: string, enabled = true) {
   const canView = useCan('billing.view', workspaceId);
   const plansQuery = useBillingPlans(enabled && canView);
@@ -35,6 +155,7 @@ export function useBillingUsage(workspaceId: string, enabled = true) {
     queryFn: () => getWorkspace(workspaceId),
     enabled: enabled && canView,
   });
+  const walletQuery = useWallet(workspaceId, enabled && canView);
 
   const channelsQuery = useQuery({
     queryKey: queryKeys.channels.list(workspaceId, 'billing-usage'),
@@ -83,7 +204,8 @@ export function useBillingUsage(workspaceId: string, enabled = true) {
     enabled: enabled && canView,
   });
 
-  const planCode = workspaceQuery.data?.planCode ?? 'free';
+  const planCode =
+    walletQuery.data?.planCode ?? workspaceQuery.data?.planCode ?? 'free';
   const plan = plansQuery.data?.find((item) => item.code === planCode);
 
   const metrics: UsageMetric[] = LIMIT_KEYS.map((key) => {
@@ -117,6 +239,7 @@ export function useBillingUsage(workspaceId: string, enabled = true) {
   const isLoading =
     plansQuery.isLoading ||
     workspaceQuery.isLoading ||
+    walletQuery.isLoading ||
     channelsQuery.isLoading ||
     membersQuery.isLoading;
 
@@ -125,7 +248,8 @@ export function useBillingUsage(workspaceId: string, enabled = true) {
     planName: plan?.name,
     plan,
     metrics,
+    wallet: walletQuery.data,
     isLoading,
-    isError: plansQuery.isError || workspaceQuery.isError,
+    isError: plansQuery.isError || workspaceQuery.isError || walletQuery.isError,
   };
 }

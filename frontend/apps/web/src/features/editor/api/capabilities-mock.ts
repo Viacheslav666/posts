@@ -38,6 +38,7 @@ export const MOCK_NETWORK_CAPABILITIES = {
         nativeSchedule: true,
         stories: true,
         repost: true,
+        clips: true,
       },
     },
     {
@@ -99,6 +100,7 @@ export const MOCK_NETWORK_CAPABILITIES = {
         nativeSchedule: false,
         stories: false,
         repost: true,
+        clips: false,
       },
     },
     {
@@ -125,6 +127,7 @@ export const MOCK_NETWORK_CAPABILITIES = {
         nativeSchedule: false,
         stories: true,
         repost: true,
+        clips: false,
       },
     },
     {
@@ -187,6 +190,7 @@ export const MOCK_NETWORK_CAPABILITIES = {
         nativeSchedule: false,
         stories: false,
         repost: false,
+        clips: false,
       },
     },
   ],

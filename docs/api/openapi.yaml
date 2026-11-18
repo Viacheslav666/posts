@@ -51,6 +51,10 @@ info:
     - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
     - story_ttl_unsupported — invalid stories_time / TTL enum
     - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
+    - post_batch_limit — batch exceeds posts.batch_max (default 50)
+    - vk_string_attachment_invalid — string attachment token is not a valid VK attachment id
+    - vk_clips_unavailable — VK shortVideo / clips API not available for token or app
+    - vk_birthdays_forbidden — groups.getMembers with bdate denied (missing rights)
     - platform_admin_required — /admin endpoints require users.platform_admin
     - impersonation_forbidden — dangerous action blocked while impersonating
     - ingest_responsibility_required — grabber activate without legal checkbox
@@ -6964,6 +6968,7 @@ paths:
           - video
           - doc
           - audio
+          - clip
       - in: query
         name: status
         required: false
@@ -8631,6 +8636,76 @@ paths:
       summary: Create a draft or scheduled post
       tags:
       - Posts
+  /api/v1/posts/batch:
+    post:
+      description: "Creates up to 50 posts (one per mediaId) across selected channels.\
+        \ Supports images, videos and clips. Requires posts.bulk + posts.schedule."
+      operationId: postsBatch
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchPostsRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchPostsResponse"
+          description: Batch result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Batch-create scheduled posts from media (P16 / BE-29)
+      tags:
+      - Posts
   /api/v1/posts/bulk:
     post:
       operationId: postsBulk
@@ -8695,6 +8770,10 @@ paths:
       - Posts
   /api/v1/posts/preview:
     post:
+      description: "Expands editor variables ({date}, {time}, {weekday}, {day}, {month},\
+        \ {year}, {group_id}, {group_name}, {hyperlink:text|url}, {json:path}, {birthdays}/{и\
+        менинники}) and [rand]…[/rand] spintax, then validates network limits and\
+        \ VK string attachments."
       operationId: postsPreview
       requestBody:
         content:
@@ -12935,6 +13014,85 @@ components:
         workspaceId:
           type: string
           format: uuid
+    BatchPostFailure:
+      type: object
+      properties:
+        code:
+          type: string
+        mediaId:
+          type: string
+          format: uuid
+        message:
+          type: string
+    BatchPostsRequest:
+      type: object
+      description: "Parity P16: batch-create posts from media (images/videos/clips),\
+        \ one post per media item."
+      properties:
+        ad:
+          type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarking"
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        options:
+          $ref: "#/components/schemas/PostVariantOptions"
+        projectId:
+          type: string
+          format: uuid
+        recurrence:
+          $ref: "#/components/schemas/Recurrence"
+        scheduledAt:
+          type: string
+          format: date-time
+        stepMinutes:
+          type: integer
+          format: int32
+          description: Minutes between consecutive posts
+          example: 5
+          minimum: 0
+        stringAttachments:
+          type: array
+          description: Optional VK string attachments applied to every post
+          items:
+            type: string
+        text:
+          type: string
+          description: Optional shared text / variable template for each post
+        timezone:
+          type: string
+          example: Europe/Moscow
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - channelIds
+      - mediaIds
+      - scheduledAt
+      - workspaceId
+    BatchPostsResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+          format: int32
+        failures:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchPostFailure"
+        postIds:
+          type: array
+          items:
+            type: string
+            format: uuid
     BatchStoriesRequest:
       type: object
       properties:
@@ -13153,6 +13311,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        customBotToken:
+          type: boolean
+          description: True when a custom bot token is configured for this channel
         externalId:
           type: string
         id:
@@ -13194,6 +13355,9 @@ components:
           - ready
           - revoked
           - error
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
         timezone:
           type: string
         title:
@@ -13238,6 +13402,9 @@ components:
         provide code+state; for bot flows provide username and/or forwardedMessage/chatId
         (US-3.2/3.4).
       properties:
+        botToken:
+          type: string
+          description: Optional custom bot token (Telegram BotFather or Max business.max.ru)
         chatId:
           type: string
           description: External chat/channel id when known
@@ -13253,6 +13420,10 @@ components:
         state:
           type: string
           description: OAuth state (VK/OK)
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
+          example: 42
         username:
           type: string
           description: Telegram/Max channel or chat @username
@@ -13267,6 +13438,9 @@ components:
       description: Dedicated bot-flow confirm for Telegram/Max after the bot is added
         as admin
       properties:
+        botToken:
+          type: string
+          description: Optional custom bot token (Telegram BotFather or Max business.max.ru)
         chatId:
           type: string
         forwardedMessage:
@@ -13274,6 +13448,10 @@ components:
         projectId:
           type: string
           format: uuid
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
+          example: 42
         username:
           type: string
           example: '@brand_news'
@@ -13565,6 +13743,7 @@ components:
           - video
           - doc
           - audio
+          - clip
         mime:
           type: string
           example: image/jpeg
@@ -13650,6 +13829,9 @@ components:
     FeatureFlags:
       type: object
       properties:
+        clips:
+          type: boolean
+          description: VK Clips via shortVideo API when available (BE-29)
         deleteAfterPublish:
           type: boolean
         firstComment:
@@ -14332,6 +14514,7 @@ components:
           - video
           - doc
           - audio
+          - clip
         mime:
           type: string
         sha256:
@@ -15114,6 +15297,12 @@ components:
           items:
             type: string
             format: uuid
+        stringAttachments:
+          type: array
+          description: "VK string attachments (photo-1_2, video…, doc…, clip…). Validated\
+            \ on create/update."
+          items:
+            type: string
         text:
           type: string
           description: Plain/HTML text or structured doc
@@ -15232,16 +15421,37 @@ components:
       - network
     PreviewRequest:
       type: object
+      description: "Server-side render/validate. Expands editor variables ({date},\
+        \ {time}, …), [rand] spintax, and validates VK string attachments. Pass timezone/at/group*/json/birthdays\
+        \ for editor preview parity with publish-time rendering."
       properties:
         ad:
           type: boolean
         adMarking:
           $ref: "#/components/schemas/AdMarking"
+        at:
+          type: string
+          format: date-time
+          description: Instant used for date/time variables; defaults to now
+        birthdays:
+          type: string
+          description: "Pre-resolved birthday list for {birthdays}/{именинники}"
         content:
           $ref: "#/components/schemas/PostContent"
         erid:
           type: string
           description: Optional erid for preview marker
+        groupId:
+          type: string
+          description: "Channel external id for {group_id}"
+        groupName:
+          type: string
+          description: "Channel title for {group_name}"
+        json:
+          type: object
+          additionalProperties:
+            type: object
+          description: "JSON map for {json:path} variables"
         network:
           type: string
           description: Social network identifier (DB / publish routing key)
@@ -15253,12 +15463,24 @@ components:
           - rutube
         options:
           $ref: "#/components/schemas/PostVariantOptions"
+        spintaxSeed:
+          type: string
+          description: "Stable seed for [rand] (defaults to content hash). Retries\
+            \ with the same seed must expand to the same text."
+        timezone:
+          type: string
+          description: "Post timezone for {date}/{time}/…"
+          example: Europe/Moscow
       required:
       - content
       - network
     PreviewResponse:
       type: object
       properties:
+        expandedText:
+          type: string
+          description: "Text after variable/[rand] expansion, before network HTML\
+            \ filter"
         html:
           type: string
         issues:
@@ -15487,6 +15709,9 @@ components:
           format: double
     Recurrence:
       type: object
+      description: "Recurrence rule. Optional times[] (HH:mm in post timezone) expands\
+        \ multiple runs per day; when omitted, the time-of-day from scheduledAt is\
+        \ used (backward compatible)."
       properties:
         byWeekday:
           type: array
@@ -15509,6 +15734,15 @@ components:
           type: integer
           format: int32
           example: 1
+        times:
+          type: array
+          description: "Clock times in post timezone, format HH:mm (e.g. 09:00, 18:30)"
+          example:
+          - 09:00
+          - 18:30
+          items:
+            type: string
+            pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
         until:
           type: string
           format: date-time
@@ -15947,9 +16181,16 @@ components:
     UpdateChannelRequest:
       type: object
       properties:
+        botToken:
+          type: string
+          description: Optional custom Telegram/Max bot token (business.max.ru / BotFather);
+            sealed at rest
         projectId:
           type: string
           format: uuid
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
         timezone:
           type: string
           example: Europe/Moscow

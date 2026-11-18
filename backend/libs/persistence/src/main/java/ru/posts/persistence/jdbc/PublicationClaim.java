@@ -46,6 +46,14 @@ public record PublicationClaim(
          * BE-23: publisher resolves these into {@code MediaAssetRef} for upload.
          */
         String mediaIdsJson,
+        /** Post timezone for variable rendering (BE-29). */
+        String timezone,
+        /** Channel title for {@code {group_name}} (BE-29). */
+        String channelTitle,
+        /**
+         * JSON array of VK string attachments from content ({@code stringAttachments}) (BE-29).
+         */
+        String stringAttachmentsJson,
         /**
          * BE-25 placement mode from ad_payload.placement or legacy markingType (0..5 / enum name).
          * Null → AdMarker defaults to text_start.

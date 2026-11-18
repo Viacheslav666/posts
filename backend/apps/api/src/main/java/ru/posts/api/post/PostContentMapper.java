@@ -31,12 +31,15 @@ public final class PostContentMapper {
         if (content.mediaIds() != null) {
             map.put("mediaIds", content.mediaIds().stream().map(UUID::toString).toList());
         }
+        if (content.stringAttachments() != null && !content.stringAttachments().isEmpty()) {
+            map.put("stringAttachments", List.copyOf(content.stringAttachments()));
+        }
         return map;
     }
 
     public static PostDtos.PostContent mapToContent(Map<String, Object> map) {
         if (map == null || map.isEmpty()) {
-            return new PostDtos.PostContent("", null, List.of());
+            return new PostDtos.PostContent("", null, List.of(), null);
         }
         String text = map.get("text") == null ? "" : String.valueOf(map.get("text"));
         @SuppressWarnings("unchecked")
@@ -50,7 +53,24 @@ public final class PostContentMapper {
                 }
             }
         }
-        return new PostDtos.PostContent(text, doc, List.copyOf(mediaIds));
+        List<String> stringAttachments = new ArrayList<>();
+        Object rawAttachments = map.get("stringAttachments");
+        if (rawAttachments instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    String value = String.valueOf(item).trim();
+                    if (!value.isEmpty()) {
+                        stringAttachments.add(value);
+                    }
+                }
+            }
+        }
+        return new PostDtos.PostContent(
+                text, doc, List.copyOf(mediaIds), stringAttachments.isEmpty() ? null : List.copyOf(stringAttachments));
+    }
+
+    public static List<String> stringAttachments(PostDtos.PostContent content) {
+        return content == null || content.stringAttachments() == null ? List.of() : content.stringAttachments();
     }
 
     public static Map<String, Object> optionsToMap(PostDtos.PostVariantOptions options, ObjectMapper mapper) {

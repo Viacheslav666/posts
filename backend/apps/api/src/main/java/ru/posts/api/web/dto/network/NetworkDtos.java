@@ -59,7 +59,8 @@ public final class NetworkDtos {
             boolean inlineButtons,
             boolean nativeSchedule,
             boolean stories,
-            @Schema(description = "Repost of existing network objects (VK/TG/OK; false for Max)") boolean repost) {}
+            @Schema(description = "Repost of existing network objects (VK/TG/OK; false for Max)") boolean repost,
+            @Schema(description = "VK Clips via shortVideo API when available (BE-29)") boolean clips) {}
 
     @Schema(name = "RateLimits")
     public record RateLimits(

@@ -1,5 +1,6 @@
 package ru.posts.social.api;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -59,5 +60,14 @@ public interface SocialAdapter {
 
     default Optional<TokenSet> refreshToken(TokenRefreshRequest request) {
         return Optional.empty();
+    }
+
+    /**
+     * BE-29: resolve today's birthday members for {@code {birthdays}} / {@code {именинники}}.
+     * Default empty. VK uses {@code groups.getMembers} with {@code bdate}; missing rights → permanent
+     * error with a clear message.
+     */
+    default String resolveBirthdays(ChannelContext ctx, Instant at, String timezone) {
+        return "";
     }
 }

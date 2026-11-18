@@ -1,13 +1,15 @@
 'use client';
 
 import { Badge, Skeleton } from '@posts/ui';
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
-import { getWorkspace } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
+import { useQuery } from '@tanstack/react-query';
+
+import { getWallet } from '../api/billing-api';
+import { formatKopecks, isLowBalance } from '../model/money';
 
 type HeaderPlanChipProps = {
   workspaceId: string;
@@ -15,34 +17,48 @@ type HeaderPlanChipProps = {
 
 const PLAN_NAME_KEYS = new Set(['free', 'start', 'pro', 'agency']);
 
-/** Lightweight plan code chip (not a subscription/balance widget — those land in FE-10b). */
+/** Баланс / тариф в шапке (FE-10b) с русским названием тарифа. */
 export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
   const t = useTranslations('billing.header');
   const tPlans = useTranslations('pricing.plans');
   const canView = useCan('billing.view', workspaceId);
 
-  const workspaceQuery = useQuery({
-    queryKey: queryKeys.workspaces.detail(workspaceId),
-    queryFn: () => getWorkspace(workspaceId),
+  const walletQuery = useQuery({
+    queryKey: queryKeys.billing.wallet(workspaceId),
+    queryFn: () => getWallet(workspaceId),
+    enabled: canView,
+    staleTime: 30_000,
   });
 
-  if (workspaceQuery.isLoading) {
-    return <Skeleton className="hidden h-7 w-16 sm:block" />;
+  if (!canView) {
+    return null;
   }
 
-  const planCode = (workspaceQuery.data?.planCode ?? 'free').toLowerCase();
+  if (walletQuery.isLoading) {
+    return <Skeleton className="hidden h-7 w-24 sm:block" />;
+  }
+
+  const wallet = walletQuery.data;
+  const planCode = (wallet?.planCode ?? 'free').toLowerCase();
   const planLabel = PLAN_NAME_KEYS.has(planCode)
     ? tPlans(`${planCode}.name` as 'pro.name')
     : planCode;
+  const frozen = wallet?.billingStatus === 'frozen';
+  const low = wallet ? isLowBalance(wallet) : false;
+  const balanceLabel =
+    wallet?.balanceKopecks != null ? formatKopecks(wallet.balanceKopecks) : planLabel;
+
   const chip = (
-    <Badge variant="secondary" className="hidden sm:inline-flex" data-testid="header-plan-chip">
-      {t('plan', { plan: planLabel })}
+    <Badge
+      variant={frozen ? 'failed' : 'secondary'}
+      className="hidden max-w-[12rem] truncate sm:inline-flex"
+      data-testid="header-plan-chip"
+      data-frozen={frozen ? 'true' : 'false'}
+      data-low={low ? 'true' : 'false'}
+    >
+      {t('balance', { balance: balanceLabel, plan: planLabel })}
     </Badge>
   );
-
-  if (!canView) {
-    return chip;
-  }
 
   return (
     <Link

@@ -147,13 +147,24 @@ export type TwoFactorSetupResponse = components['schemas']['TwoFactorSetupRespon
 export type TwoFactorConfirmRequest = components['schemas']['TwoFactorConfirmRequest'];
 export type TwoFactorDisableRequest = components['schemas']['TwoFactorDisableRequest'];
 
-/** Billing (BE-12) */
+/** Billing (BE-12 / BE-12b / BE-31) */
 export type Plan = components['schemas']['Plan'];
 export type Subscription = components['schemas']['Subscription'];
+export type Wallet = components['schemas']['Wallet'];
+export type Transaction = components['schemas']['Transaction'];
+export type TransactionPage = components['schemas']['TransactionPage'];
+export type PaymentListItem = components['schemas']['PaymentListItem'];
+export type PaymentPage = components['schemas']['PaymentPage'];
+export type PaymentMethod = components['schemas']['PaymentMethod'];
+export type AutopaySettings = components['schemas']['AutopaySettings'];
+export type UpdateAutopayRequest = components['schemas']['UpdateAutopayRequest'];
 export type CheckoutRequest = components['schemas']['CheckoutRequest'];
 export type CheckoutResponse = components['schemas']['CheckoutResponse'];
 export type Invoice = components['schemas']['Invoice'];
 export type InvoicePage = components['schemas']['InvoicePage'];
+export type RequestInvoiceRequest = components['schemas']['RequestInvoiceRequest'];
+export type BuyerRequisites = components['schemas']['BuyerRequisites'];
+export type ChangePlanRequest = components['schemas']['ChangePlanRequest'];
 export type ApplyPromoRequest = components['schemas']['ApplyPromoRequest'];
 export type ApplyPromoResponse = components['schemas']['ApplyPromoResponse'];
 export type StartTrialRequest = components['schemas']['StartTrialRequest'];

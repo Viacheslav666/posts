@@ -1798,6 +1798,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/posts/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch-create scheduled posts from media (P16 / BE-29)
+         * @description Creates up to 50 posts (one per mediaId) across selected channels. Supports images, videos and clips. Requires posts.bulk + posts.schedule.
+         */
+        post: operations["postsBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/bulk": {
         parameters: {
             query?: never;
@@ -1824,7 +1844,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Server-side render/validate a variant for a network */
+        /**
+         * Server-side render/validate a variant for a network
+         * @description Expands editor variables ({date}, {time}, {weekday}, {day}, {month}, {year}, {group_id}, {group_name}, {hyperlink:text|url}, {json:path}, {birthdays}/{именинники}) and [rand]…[/rand] spintax, then validates network limits and VK string attachments.
+         */
         post: operations["postsPreview"];
         delete?: never;
         options?: never;
@@ -2949,6 +2972,45 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        BatchPostFailure: {
+            code?: string;
+            /** Format: uuid */
+            mediaId?: string;
+            message?: string;
+        };
+        /** @description Parity P16: batch-create posts from media (images/videos/clips), one post per media item. */
+        BatchPostsRequest: {
+            ad?: boolean;
+            adMarking?: components["schemas"]["AdMarking"];
+            channelIds: string[];
+            mediaIds: string[];
+            options?: components["schemas"]["PostVariantOptions"];
+            /** Format: uuid */
+            projectId?: string;
+            recurrence?: components["schemas"]["Recurrence"];
+            /** Format: date-time */
+            scheduledAt: string;
+            /**
+             * Format: int32
+             * @description Minutes between consecutive posts
+             * @example 5
+             */
+            stepMinutes?: number;
+            /** @description Optional VK string attachments applied to every post */
+            stringAttachments?: string[];
+            /** @description Optional shared text / variable template for each post */
+            text?: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
+            /** Format: uuid */
+            workspaceId: string;
+        };
+        BatchPostsResponse: {
+            /** Format: int32 */
+            created?: number;
+            failures?: components["schemas"]["BatchPostFailure"][];
+            postIds?: string[];
+        };
         BatchStoriesRequest: {
             ad?: boolean;
             adMarking?: components["schemas"]["AdMarking"];
@@ -3043,6 +3105,8 @@ export interface components {
             };
             /** Format: date-time */
             createdAt?: string;
+            /** @description True when a custom bot token is configured for this channel */
+            customBotToken?: boolean;
             externalId?: string;
             /** Format: uuid */
             id?: string;
@@ -3067,6 +3131,8 @@ export interface components {
              * @enum {string}
              */
             storyConnectionStatus?: "missing" | "pending" | "ready" | "revoked" | "error";
+            /** @description Telegram forum topic id (message_thread_id) */
+            threadId?: string;
             timezone?: string;
             /** @example Новости бренда */
             title?: string;
@@ -3093,6 +3159,8 @@ export interface components {
         };
         /** @description OAuth callback (VK/OK) or bot-flow confirm (TG/Max). For OAuth provide code+state; for bot flows provide username and/or forwardedMessage/chatId (US-3.2/3.4). */
         ChannelConnectCallbackRequest: {
+            /** @description Optional custom bot token (Telegram BotFather or Max business.max.ru) */
+            botToken?: string;
             /** @description External chat/channel id when known */
             chatId?: string;
             /** @description OAuth authorization code (VK/OK) */
@@ -3104,6 +3172,11 @@ export interface components {
             /** @description OAuth state (VK/OK) */
             state?: string;
             /**
+             * @description Telegram forum topic id (message_thread_id)
+             * @example 42
+             */
+            threadId?: string;
+            /**
              * @description Telegram/Max channel or chat @username
              * @example @brand_news
              */
@@ -3113,10 +3186,17 @@ export interface components {
         };
         /** @description Dedicated bot-flow confirm for Telegram/Max after the bot is added as admin */
         ChannelConnectConfirmRequest: {
+            /** @description Optional custom bot token (Telegram BotFather or Max business.max.ru) */
+            botToken?: string;
             chatId?: string;
             forwardedMessage?: components["schemas"]["ForwardedMessageRef"];
             /** Format: uuid */
             projectId?: string;
+            /**
+             * @description Telegram forum topic id (message_thread_id)
+             * @example 42
+             */
+            threadId?: string;
             /** @example @brand_news */
             username?: string;
             /** Format: uuid */
@@ -3268,7 +3348,7 @@ export interface components {
              * @description Media asset kind
              * @enum {string}
              */
-            kind: "image" | "video" | "doc" | "audio";
+            kind: "image" | "video" | "doc" | "audio" | "clip";
             /** @example image/jpeg */
             mime: string;
             /** @description SHA-256 hex of the file */
@@ -3312,6 +3392,8 @@ export interface components {
             token: string;
         };
         FeatureFlags: {
+            /** @description VK Clips via shortVideo API when available (BE-29) */
+            clips?: boolean;
             deleteAfterPublish?: boolean;
             firstComment?: boolean;
             inlineButtons?: boolean;
@@ -3680,7 +3762,7 @@ export interface components {
              * @description Media asset kind
              * @enum {string}
              */
-            kind?: "image" | "video" | "doc" | "audio";
+            kind?: "image" | "video" | "doc" | "audio" | "clip";
             mime?: string;
             sha256?: string;
             /** Format: int64 */
@@ -4133,6 +4215,8 @@ export interface components {
                 [key: string]: Record<string, never>;
             };
             mediaIds?: string[];
+            /** @description VK string attachments (photo-1_2, video…, doc…, clip…). Validated on create/update. */
+            stringAttachments?: string[];
             /** @description Plain/HTML text or structured doc */
             text?: string;
         };
@@ -4202,20 +4286,45 @@ export interface components {
             network: "vk" | "tg" | "ok" | "max" | "rutube";
             options?: components["schemas"]["PostVariantOptions"];
         };
+        /** @description Server-side render/validate. Expands editor variables ({date}, {time}, …), [rand] spintax, and validates VK string attachments. Pass timezone/at/group*\/json/birthdays for editor preview parity with publish-time rendering. */
         PreviewRequest: {
             ad?: boolean;
             adMarking?: components["schemas"]["AdMarking"];
+            /**
+             * Format: date-time
+             * @description Instant used for date/time variables; defaults to now
+             */
+            at?: string;
+            /** @description Pre-resolved birthday list for {birthdays}/{именинники} */
+            birthdays?: string;
             content: components["schemas"]["PostContent"];
             /** @description Optional erid for preview marker */
             erid?: string;
+            /** @description Channel external id for {group_id} */
+            groupId?: string;
+            /** @description Channel title for {group_name} */
+            groupName?: string;
+            /** @description JSON map for {json:path} variables */
+            json?: {
+                [key: string]: Record<string, never>;
+            };
             /**
              * @description Social network identifier (DB / publish routing key)
              * @enum {string}
              */
             network: "vk" | "tg" | "ok" | "max" | "rutube";
             options?: components["schemas"]["PostVariantOptions"];
+            /** @description Stable seed for [rand] (defaults to content hash). Retries with the same seed must expand to the same text. */
+            spintaxSeed?: string;
+            /**
+             * @description Post timezone for {date}/{time}/…
+             * @example Europe/Moscow
+             */
+            timezone?: string;
         };
         PreviewResponse: {
+            /** @description Text after variable/[rand] expansion, before network HTML filter */
+            expandedText?: string;
             html?: string;
             issues?: components["schemas"]["ValidationIssue"][];
             /**
@@ -4362,6 +4471,7 @@ export interface components {
             /** Format: double */
             perTokenRps?: number;
         };
+        /** @description Recurrence rule. Optional times[] (HH:mm in post timezone) expands multiple runs per day; when omitted, the time-of-day from scheduledAt is used (backward compatible). */
         Recurrence: {
             byWeekday?: string[];
             /**
@@ -4374,6 +4484,14 @@ export interface components {
              * @example 1
              */
             interval?: number;
+            /**
+             * @description Clock times in post timezone, format HH:mm (e.g. 09:00, 18:30)
+             * @example [
+             *       "09:00",
+             *       "18:30"
+             *     ]
+             */
+            times?: string[];
             /** Format: date-time */
             until?: string;
         };
@@ -4637,8 +4755,12 @@ export interface components {
             workspaceId: string;
         };
         UpdateChannelRequest: {
+            /** @description Optional custom Telegram/Max bot token (business.max.ru / BotFather); sealed at rest */
+            botToken?: string;
             /** Format: uuid */
             projectId?: string;
+            /** @description Telegram forum topic id (message_thread_id) */
+            threadId?: string;
             /** @example Europe/Moscow */
             timezone?: string;
         };
@@ -13533,7 +13655,7 @@ export interface operations {
         parameters: {
             query: {
                 workspaceId: string;
-                kind?: "image" | "video" | "doc" | "audio";
+                kind?: "image" | "video" | "doc" | "audio" | "clip";
                 status?: "uploading" | "processing" | "ready" | "failed";
                 q?: string;
                 folder?: string;
@@ -15514,6 +15636,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Post"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    postsBatch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchPostsRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch result */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchPostsResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

@@ -1,13 +1,19 @@
 'use client';
 
-import { Badge, EmptyState, Skeleton } from '@posts/ui';
+import { EmptyState } from '@posts/ui';
 import { ShieldOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useCan } from '@/shared/hooks/use-can';
 
 import { useBillingUsage } from '../hooks/use-billing-queries';
+import { AutopayForm } from './autopay-form';
+import { BalanceCard } from './balance-card';
+import { InvoicesPanel } from './invoices-panel';
 import { LegalRequisitesForm } from './legal-requisites-form';
+import { PlanPicker } from './plan-picker';
+import { TopupForm } from './topup-form';
+import { TransactionsHistory } from './transactions-history';
 import { UsageLimits } from './usage-limits';
 
 type BillingPageProps = {
@@ -15,8 +21,7 @@ type BillingPageProps = {
 };
 
 /**
- * FE-10 scaffold: limits + paywall plumbing + legal requisites form.
- * Balance / top-up / channel tariffs / ledger / autopay — FE-10b after BE-31.
+ * FE-10b: баланс + посуточное списание, пополнение ЮKassa, автоплатёж, история, счета.
  */
 export function BillingPage({ workspaceId }: BillingPageProps) {
   const t = useTranslations('billing');
@@ -36,39 +41,23 @@ export function BillingPage({ workspaceId }: BillingPageProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6" data-testid="billing-page">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6" data-testid="billing-page">
       <div className="space-y-2">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
-          {t('title')}
-        </h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('description')}</p>
-        <p
-          className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
-          data-testid="billing-coming-soon"
-        >
-          {t('comingSoon')}
-        </p>
       </div>
 
-      <section
-        className="rounded-xl border border-border bg-gradient-to-br from-muted/40 to-background p-4"
-        data-testid="billing-current-plan"
-      >
-        <p className="text-sm text-muted-foreground">{t('current.label')}</p>
-        {usage.isLoading ? (
-          <Skeleton className="mt-2 h-8 w-40" />
-        ) : (
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-2xl font-semibold text-foreground">
-              {usage.planName ?? usage.planCode}
-            </h2>
-            <Badge variant="secondary" data-testid="billing-plan-code">
-              {usage.planCode}
-            </Badge>
-          </div>
-        )}
-        <p className="mt-2 text-xs text-muted-foreground">{t('current.hint')}</p>
-      </section>
+      <BalanceCard wallet={usage.wallet} planName={usage.planName} isLoading={usage.isLoading} />
+
+      <TopupForm workspaceId={workspaceId} canManage={canManage} />
+
+      <PlanPicker workspaceId={workspaceId} currentPlanCode={usage.planCode} canManage={canManage} />
+
+      <AutopayForm workspaceId={workspaceId} canManage={canManage} />
+
+      <TransactionsHistory workspaceId={workspaceId} />
+
+      <InvoicesPanel workspaceId={workspaceId} canManage={canManage} />
 
       <UsageLimits metrics={usage.metrics} isLoading={usage.isLoading} />
 

@@ -213,6 +213,12 @@ networks:
         value: true
         source: "https://dev.vk.ru/ru/method/wall.repost"
         checked_at: "2026-11-17"
+      clips:
+        status: confirmed
+        value: true
+        source: "https://dev.vk.ru/ru/method/shortVideo.create"
+        checked_at: "2026-11-18"
+        note: "BE-29: shortVideo.create/publish when available for the app/token; otherwise vk_clips_unavailable."
       signed_author:
         status: confirmed
         value: true
@@ -541,6 +547,11 @@ networks:
         source: "https://core.telegram.org/bots/api#forwardmessage"
         checked_at: "2026-11-17"
         note: "forwardMessage / copyMessage."
+      clips:
+        status: confirmed
+        value: false
+        source: "https://core.telegram.org/bots/api"
+        checked_at: "2026-11-18"
       idempotency_key:
         status: unknown
         value: null
@@ -819,6 +830,11 @@ networks:
         source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
         checked_at: "2026-11-17"
         note: "Решара: media type=topic / movie-reshare."
+      clips:
+        status: confirmed
+        value: false
+        source: "https://apiok.ru/dev/methods/"
+        checked_at: "2026-11-18"
       idempotency_key:
         status: unknown
         value: null
@@ -1087,6 +1103,11 @@ networks:
         value: null
         source: "https://dev.max.ru/docs-api"
         checked_at: "2026-11-17"
+      clips:
+        status: confirmed
+        value: false
+        source: "https://dev.max.ru/docs-api"
+        checked_at: "2026-11-18"
       idempotency_key:
         status: unknown
         value: null
@@ -1366,6 +1387,11 @@ networks:
         value: false
         source: "https://r2b.su/"
         checked_at: "2026-11-17"
+      clips:
+        status: confirmed
+        value: false
+        source: "https://r2b.su/"
+        checked_at: "2026-11-18"
       idempotency_key:
         status: unknown
         value: null

@@ -19,6 +19,22 @@ export class BillingPage {
     return this.page.getByTestId('billing-page');
   }
 
+  balance() {
+    return this.page.getByTestId('billing-balance');
+  }
+
+  lowBalanceAlert() {
+    return this.page.getByTestId('billing-low-balance-alert');
+  }
+
+  topup() {
+    return this.page.getByTestId('billing-topup');
+  }
+
+  transactions() {
+    return this.page.getByTestId('billing-transactions');
+  }
+
   usage() {
     return this.page.getByTestId('billing-usage');
   }
