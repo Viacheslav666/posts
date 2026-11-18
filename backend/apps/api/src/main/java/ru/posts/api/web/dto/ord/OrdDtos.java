@@ -74,9 +74,7 @@ public final class OrdDtos {
                             example = "without_vat")
                     String vatRate,
             Boolean isForeign,
-            @Schema(
-                            description =
-                                    "Notify workspace about ORD / marking problems; omit to keep existing / default true")
+            @Schema(description = "Notify workspace about ORD / marking problems; omit to keep existing / default true")
                     Boolean notifyProblems,
             @Schema(description = "Roles: advertiser, publisher (multi)") List<String> roles,
             Boolean isDefault,
