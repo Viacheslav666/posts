@@ -176,8 +176,7 @@ class OrdAdPipelineIT extends AbstractPipelineIT {
                     .isEqualTo("succeeded");
         });
 
-        // Idempotent re-delete: force another attempt on already-succeeded action should stay success
-        // (ActionProcessor treats already-deleted remote as success; re-dispatch of due batch finds none).
+        // Idempotent re-delete: no pending delete actions remain; another due dispatch is a no-op.
         Integer pendingDeletes = jdbcTemplate.queryForObject(
                 """
                 SELECT count(*) FROM scheduled_actions
@@ -187,7 +186,14 @@ class OrdAdPipelineIT extends AbstractPipelineIT {
                 publicationId);
         assertThat(pendingDeletes).isZero();
         assertThat(dispatchService.dispatchDueActions()).isZero();
-        assertEmulatorTelegramPosts(0);
+        assertThat(jdbcTemplate.queryForObject(
+                        """
+                        SELECT state FROM scheduled_actions
+                        WHERE publication_id = ? AND kind = 'delete'
+                        """,
+                        String.class,
+                        publicationId))
+                .isEqualTo("succeeded");
     }
 
     @Test

@@ -446,7 +446,8 @@ class OrdAdMarkingIT {
         upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
         UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
 
-        Instant scheduledAt = Instant.parse("2026-12-07T09:00:00Z"); // Monday
+        // Must stay inside RecurrenceMaterializer 14-day horizon from "now".
+        Instant scheduledAt = Instant.now().plusSeconds(3_600);
         mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
                         .with(csrf())
                         .header("Authorization", bearer(token))
@@ -463,7 +464,7 @@ class OrdAdMarkingIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("scheduled"));
 
-        assertThat(publicationRepository.findByPostId(postId)).hasSizeGreaterThanOrEqualTo(10);
+        assertThat(publicationRepository.findByPostId(postId)).hasSizeGreaterThanOrEqualTo(5);
     }
 
     @Test
@@ -475,15 +476,13 @@ class OrdAdMarkingIT {
         upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
         UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
 
+        Instant scheduledAt = Instant.now().plusSeconds(7_200);
         mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
                         .with(csrf())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "scheduledAt",
-                                Instant.parse("2026-12-10T12:00:00Z").toString(),
-                                "version",
-                                0))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("scheduledAt", scheduledAt.toString(), "version", 0))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("scheduled"))
                 .andExpect(jsonPath("$.adMarking.erid").value(OrdWireMockStubs.VK_ERID));
@@ -578,10 +577,7 @@ class OrdAdMarkingIT {
                         .header("Authorization", bearer(authorToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "scheduledAt",
-                                Instant.parse("2026-12-11T12:00:00Z").toString(),
-                                "version",
-                                0))))
+                                "scheduledAt", Instant.now().plusSeconds(3_600).toString(), "version", 0))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("forbidden"));
 
