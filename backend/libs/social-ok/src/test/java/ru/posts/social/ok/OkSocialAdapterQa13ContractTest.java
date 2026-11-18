@@ -7,7 +7,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -19,9 +21,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import ru.posts.social.api.ChannelContext;
+import ru.posts.social.api.MediaAssetRef;
 import ru.posts.social.api.Network;
 import ru.posts.social.api.PostVariantContent;
 import ru.posts.social.api.PublishResult;
+import ru.posts.social.api.RemoteMediaRef;
 
 /**
  * QA-13: OK adapter contract tests against fixtures shaped like official OK API docs.
@@ -74,6 +78,28 @@ class OkSocialAdapterQa13ContractTest {
 
         assertThat(found).isPresent();
         assertThat(found.get().remotePostId()).isEqualTo("topic-9");
+        assertNoControlCalls();
+    }
+
+    @Test
+    @DisplayName("photosV2.getUploadUrl fixture drives uploadMedia")
+    void photoUploadFromOfficialFixture() throws Exception {
+        JsonNode uploadServer = MAPPER.readTree(fixture("photos-v2-getUploadUrl.json"));
+        String uploadPath = "/ok/upload";
+        ((ObjectNode) uploadServer).put("upload_url", wireMock.baseUrl() + uploadPath);
+        stubFbDo(MAPPER.writeValueAsString(uploadServer));
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo(uploadPath))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"photos\":{\"photo\":{\"token\":\"tok-ok-1\"}}}")));
+
+        byte[] jpeg = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        MediaAssetRef asset = new MediaAssetRef("m1", "image", "image/jpeg", jpeg.length, "sha", null, jpeg);
+        RemoteMediaRef remote = adapter.uploadMedia(ctx, asset);
+
+        assertThat(remote.attachmentId()).isEqualTo("tok-ok-1");
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/ok/fb.do"))
+                .withRequestBody(containing("method=photosV2.getUploadUrl")));
         assertNoControlCalls();
     }
 
