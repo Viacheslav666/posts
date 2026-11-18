@@ -2,14 +2,16 @@
 
 import { Button, FileDropzone } from '@posts/ui';
 import { GripVertical, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { NetworkId } from '@posts/domain';
 
 import { useNetworkCapabilities } from '@/features/editor/hooks/use-network-capabilities';
+import type { PublicationKind } from '@/features/editor/model/types';
 import { useCan } from '@/shared/hooks/use-can';
 
 import { useUploadQueue } from '../hooks/use-upload-queue';
+import { kindFromMime } from '../lib/kind-from-mime';
 import { validateMediaAgainstCapabilities } from '../lib/media-limits';
 import type { CropPreset, EditorMediaItem, MediaLibraryItem } from '../model/types';
 import { ImageCropper } from './image-cropper';
@@ -20,13 +22,18 @@ type EditorMediaBlockProps = {
   items: EditorMediaItem[];
   selectedNetworks: NetworkId[];
   onChange: (items: EditorMediaItem[]) => void;
+  publicationKind?: PublicationKind;
 };
 
-function toEditorItem(asset: MediaLibraryItem): EditorMediaItem {
+function toEditorItem(asset: MediaLibraryItem, asClip = false): EditorMediaItem {
+  const kind =
+    asClip && (asset.kind === 'video' || asset.kind === 'clip')
+      ? 'clip'
+      : (asset.kind ?? 'image');
   return {
     id: crypto.randomUUID(),
     mediaId: asset.id!,
-    kind: asset.kind ?? 'image',
+    kind,
     mime: asset.mime ?? 'application/octet-stream',
     filename: asset.filename ?? asset.id!,
     previewUrl: asset.previewUrl,
@@ -41,11 +48,42 @@ export function EditorMediaBlock({
   items,
   selectedNetworks,
   onChange,
+  publicationKind = 'post',
 }: EditorMediaBlockProps) {
   const t = useTranslations('media.editor');
+  const tQueue = useTranslations('media.queue');
+  const tStatus = useTranslations('media.status');
   const canManage = useCan('media.manage', workspaceId);
   const capabilitiesQuery = useNetworkCapabilities();
-  const { enqueue, items: uploads } = useUploadQueue(workspaceId);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const attachedLocalIds = useRef(new Set<string>());
+
+  const { enqueue, items: uploads, retry, cancel } = useUploadQueue(workspaceId, {
+    preferredKind: publicationKind === 'clip' ? 'clip' : undefined,
+    onReady: (upload) => {
+      if (!upload.mediaId || attachedLocalIds.current.has(upload.localId)) return;
+      attachedLocalIds.current.add(upload.localId);
+      const kind =
+        publicationKind === 'clip' && upload.file.type.startsWith('video/')
+          ? 'clip'
+          : kindFromMime(upload.file.type);
+      const next: EditorMediaItem = {
+        id: crypto.randomUUID(),
+        mediaId: upload.mediaId,
+        kind,
+        mime: upload.file.type || 'application/octet-stream',
+        filename: upload.file.name,
+        sizeBytes: upload.file.size,
+        previewUrl: upload.file.type.startsWith('image/')
+          ? URL.createObjectURL(upload.file)
+          : undefined,
+      };
+      onChangeRef.current([...itemsRef.current, next]);
+    },
+  });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cropId, setCropId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -57,9 +95,9 @@ export function EditorMediaBlock({
 
   const appendAssets = useCallback(
     (assets: MediaLibraryItem[]) => {
-      onChange([...items, ...assets.map(toEditorItem)]);
+      onChange([...items, ...assets.map((asset) => toEditorItem(asset, publicationKind === 'clip'))]);
     },
-    [items, onChange],
+    [items, onChange, publicationKind],
   );
 
   const removeAt = (index: number) => {
@@ -86,7 +124,32 @@ export function EditorMediaBlock({
     [canManage, enqueue],
   );
 
+  useEffect(() => {
+    // Keep clip/video kind in sync when publication kind toggles.
+    if (publicationKind === 'clip') {
+      const needs = items.some((item) => item.kind === 'video');
+      if (needs) {
+        onChange(
+          items.map((item) =>
+            item.kind === 'video' ? { ...item, kind: 'clip' as const } : item,
+          ),
+        );
+      }
+    }
+  }, [publicationKind]); // eslint-disable-line react-hooks/exhaustive-deps -- sync on kind change only
+
   const cropping = items.find((item) => item.id === cropId);
+  const activeUploads = uploads.filter((item) => item.status !== 'cancelled');
+
+  const statusLabel = (status: string) => {
+    if (status === 'queued' || status === 'hashing' || status === 'creating' || status === 'completing') {
+      return tStatus('uploading');
+    }
+    if (status === 'uploading') return tStatus('uploading');
+    if (status === 'processing' || status === 'ready') return tStatus(status === 'ready' ? 'ready' : 'processing');
+    if (status === 'failed') return tStatus('failed');
+    return status;
+  };
 
   return (
     <section
@@ -113,22 +176,64 @@ export function EditorMediaBlock({
       {canManage ? (
         <FileDropzone
           label={t('dropLabel')}
-          hint={t('dropHint')}
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"
+          hint={
+            publicationKind === 'clip' ? t('dropHintClip') : t('dropHint')
+          }
+          accept={
+            publicationKind === 'clip'
+              ? 'video/mp4,video/quicktime'
+              : 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime'
+          }
+          multiple
           onFiles={(files) => enqueue(files)}
+          data-testid="editor-media-dropzone"
         />
       ) : null}
 
-      {uploads.some((item) => item.status === 'uploading' || item.status === 'ready') ? (
-        <ul className="space-y-1 text-xs text-muted-foreground">
-          {uploads
-            .filter((item) => item.status !== 'cancelled')
-            .slice(0, 4)
-            .map((item) => (
-              <li key={item.localId}>
-                {item.file.name}: {Math.round(item.progress * 100)}% ({item.status})
-              </li>
-            ))}
+      {activeUploads.length > 0 ? (
+        <ul
+          className="space-y-2"
+          aria-label={tQueue('label')}
+          data-testid="editor-media-upload-queue"
+        >
+          {activeUploads.slice(0, 12).map((item) => (
+            <li
+              key={item.localId}
+              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs"
+            >
+              <span className="min-w-0 flex-1 truncate font-medium">{item.file.name}</span>
+              <span className="text-muted-foreground">
+                {Math.round(item.progress * 100)}% · {statusLabel(item.status)}
+              </span>
+              {item.status === 'failed' ? (
+                <>
+                  <span className="text-destructive" role="alert">
+                    {item.error === 'unsupported_format'
+                      ? t('unsupportedFormat')
+                      : item.error || tStatus('failed')}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    data-testid={`upload-retry-${item.localId}`}
+                    onClick={() => retry(item.localId)}
+                  >
+                    {tQueue('retry')}
+                  </Button>
+                </>
+              ) : item.status !== 'ready' ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => cancel(item.localId)}
+                >
+                  {tQueue('cancel')}
+                </Button>
+              ) : null}
+            </li>
+          ))}
         </ul>
       ) : null}
 
@@ -164,7 +269,11 @@ export function EditorMediaBlock({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.filename}</p>
                 <p className="text-xs text-muted-foreground">
-                  {item.cropPreset ? t('cropped', { preset: item.cropPreset }) : item.mime}
+                  {item.kind === 'clip'
+                    ? t('kindClip')
+                    : item.cropPreset
+                      ? t('cropped', { preset: item.cropPreset })
+                      : item.mime}
                 </p>
               </div>
               {item.kind === 'image' ? (

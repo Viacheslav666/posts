@@ -175,6 +175,7 @@ export function MediaPicker({
                   <SelectItem value="all">{t('kinds.all')}</SelectItem>
                   <SelectItem value="image">{t('kinds.image')}</SelectItem>
                   <SelectItem value="video">{t('kinds.video')}</SelectItem>
+                  <SelectItem value="clip">{t('kinds.clip')}</SelectItem>
                   <SelectItem value="doc">{t('kinds.doc')}</SelectItem>
                   <SelectItem value="audio">{t('kinds.audio')}</SelectItem>
                 </SelectContent>

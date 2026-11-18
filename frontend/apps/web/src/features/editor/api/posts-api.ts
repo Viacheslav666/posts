@@ -1,7 +1,11 @@
 import type {
+  BatchPostsRequest,
+  BatchPostsResponse,
   CreatePostRequest,
   OrdRegisterCreativeResponse,
   Post,
+  PreviewRequest,
+  PreviewResponse,
   UpdatePostRequest,
 } from '@posts/api-client';
 
@@ -27,6 +31,24 @@ export async function registerPostOrd(postId: string): Promise<OrdRegisterCreati
   return unwrapApi(
     await client.POST('/api/v1/posts/{postId}/ord/register', {
       params: { path: { postId } },
+    }),
+  );
+}
+
+export async function previewPost(body: PreviewRequest): Promise<PreviewResponse> {
+  const client = getApiClient();
+  return unwrapApi(await client.POST('/api/v1/posts/preview', { body }));
+}
+
+export async function batchCreatePosts(
+  body: BatchPostsRequest,
+  idempotencyKey?: string,
+): Promise<BatchPostsResponse> {
+  const client = getApiClient();
+  return unwrapApi(
+    await client.POST('/api/v1/posts/batch', {
+      body,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     }),
   );
 }

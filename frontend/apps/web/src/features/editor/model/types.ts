@@ -44,6 +44,9 @@ export type EditorPostOptions = {
   ordProvider: 'vk_ord' | 'yandex_ord';
 };
 
+/** Wall post vs VK clip publication (media kind=clip when clip). */
+export type PublicationKind = 'post' | 'clip';
+
 export type EditorDraft = {
   id: string;
   workspaceId: string;
@@ -55,6 +58,10 @@ export type EditorDraft = {
   previewNetwork: 'vk' | 'tg' | 'ok' | 'max';
   activeVariant: 'base' | NetworkId;
   media: EditorMediaItem[];
+  /** VK string attachments (photo-1_2, …) — only meaningful for VK channels. */
+  stringAttachments: string[];
+  /** Publication type: wall post or VK clip. */
+  publicationKind: PublicationKind;
   options: EditorPostOptions;
 };
 

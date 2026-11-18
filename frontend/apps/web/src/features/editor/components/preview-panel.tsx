@@ -2,27 +2,33 @@
 
 import {
   renderFromCanonicalHtml,
-  type NetworkId,
-  unicodeLength,
   stripTags,
+  unicodeLength,
+  type NetworkId,
 } from '@posts/domain';
 import { AdMarkingSlot, Button, PostPreview, type PostPreviewNetwork } from '@posts/ui';
-import { useDeferredValue, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import type { EditorMediaItem } from '@/features/media/model/types';
 
+import { previewPost } from '../api/posts-api';
+import { containsSpintax } from '../lib/spintax';
 import { sanitizePreviewHtml } from '../lib/sanitize';
+import { renderEditorVariables } from '../lib/variables';
 
 type PreviewPanelProps = {
   html: string;
   network: NetworkId;
   onNetworkChange: (network: 'vk' | 'tg' | 'ok' | 'max') => void;
   channelName?: string;
+  channelExternalId?: string;
   media?: EditorMediaItem[];
   adEnabled?: boolean;
   erid?: string;
   advertiserName?: string;
+  timezone?: string;
+  scheduledAt?: string;
 };
 
 const PREVIEW_NETWORKS: Array<'vk' | 'tg' | 'ok' | 'max'> = ['vk', 'tg', 'ok', 'max'];
@@ -34,21 +40,84 @@ const toPreviewNetwork: Record<'vk' | 'tg' | 'ok' | 'max', PostPreviewNetwork> =
   max: 'max',
 };
 
+function newSpintaxSeed(): string {
+  return `preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function PreviewPanel({
   html,
   network,
   onNetworkChange,
   channelName,
+  channelExternalId,
   media = [],
   adEnabled = false,
   erid,
   advertiserName,
+  timezone = 'Europe/Moscow',
+  scheduledAt,
 }: PreviewPanelProps) {
   const t = useTranslations('editor.preview');
   const deferredHtml = useDeferredValue(html);
   const deferredMedia = useDeferredValue(media);
+  const [spintaxSeed, setSpintaxSeed] = useState('preview');
+  const [serverExpanded, setServerExpanded] = useState<string | null>(null);
+  const [previewSource, setPreviewSource] = useState<'server' | 'client'>('client');
 
-  const rendered = useMemo(() => renderFromCanonicalHtml(deferredHtml), [deferredHtml]);
+  const plainSource = useMemo(() => stripTags(deferredHtml), [deferredHtml]);
+  const hasSpintax = containsSpintax(plainSource);
+
+  const clientExpanded = useMemo(
+    () =>
+      renderEditorVariables(plainSource, {
+        at: scheduledAt,
+        timezone,
+        groupId: channelExternalId,
+        groupName: channelName,
+        htmlNetwork: network === 'tg' || network === 'max',
+        spintaxSeed,
+      }),
+    [plainSource, scheduledAt, timezone, channelExternalId, channelName, network, spintaxSeed],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const previewNetwork = network === 'rutube' ? 'vk' : network;
+    void (async () => {
+      try {
+        const response = await previewPost({
+          content: { text: deferredHtml },
+          network: previewNetwork,
+          timezone,
+          at: scheduledAt,
+          groupId: channelExternalId,
+          groupName: channelName,
+          spintaxSeed,
+        });
+        if (cancelled) return;
+        setServerExpanded(response.expandedText ?? response.plainText ?? null);
+        setPreviewSource('server');
+      } catch {
+        if (cancelled) return;
+        setServerExpanded(null);
+        setPreviewSource('client');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deferredHtml, network, timezone, scheduledAt, channelExternalId, channelName, spintaxSeed]);
+
+  const expandedPlain = serverExpanded ?? clientExpanded;
+
+  const rendered = useMemo(() => {
+    // Re-wrap expanded plain into a minimal HTML paragraph for network renderers.
+    const htmlForRender =
+      deferredHtml.includes('<') && !serverExpanded
+        ? deferredHtml.replace(plainSource, expandedPlain)
+        : `<p>${escapeHtml(expandedPlain)}</p>`;
+    return renderFromCanonicalHtml(htmlForRender);
+  }, [deferredHtml, plainSource, expandedPlain, serverExpanded]);
 
   const previewNetwork: 'vk' | 'tg' | 'ok' | 'max' =
     network === 'rutube' ? 'vk' : network;
@@ -57,25 +126,25 @@ export function PreviewPanel({
     previewNetwork === 'tg'
       ? {
           html: sanitizePreviewHtml(rendered.telegram.html),
-          text: rendered.telegram.plain_text,
-          length: rendered.telegram.plain_length,
+          text: rendered.telegram.plain_text || expandedPlain,
+          length: unicodeLength(rendered.telegram.plain_text || expandedPlain),
         }
       : previewNetwork === 'max'
         ? {
             html: sanitizePreviewHtml(rendered.max.html),
-            text: rendered.max.plain_text,
-            length: rendered.max.plain_length,
+            text: rendered.max.plain_text || expandedPlain,
+            length: unicodeLength(rendered.max.plain_text || expandedPlain),
           }
         : previewNetwork === 'ok'
           ? {
               html: undefined,
-              text: rendered.ok.plain,
-              length: unicodeLength(rendered.ok.plain),
+              text: expandedPlain || rendered.ok.plain,
+              length: unicodeLength(expandedPlain || rendered.ok.plain),
             }
           : {
               html: undefined,
-              text: rendered.vk.plain,
-              length: unicodeLength(stripTags(deferredHtml)),
+              text: expandedPlain || rendered.vk.plain,
+              length: unicodeLength(expandedPlain || stripTags(deferredHtml)),
             };
 
   return (
@@ -98,6 +167,30 @@ export function PreviewPanel({
           ))}
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span data-testid="preview-timezone">
+          {t('timezone', { zone: timezone })}
+        </span>
+        {channelName ? (
+          <span data-testid="preview-channel">{t('channel', { name: channelName })}</span>
+        ) : null}
+        <span data-testid="preview-source">
+          {previewSource === 'server' ? t('sourceServer') : t('sourceClient')}
+        </span>
+        {hasSpintax ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="preview-rand-reroll"
+            onClick={() => setSpintaxSeed(newSpintaxSeed())}
+          >
+            {t('anotherRand')}
+          </Button>
+        ) : null}
+      </div>
+
       <AdMarkingSlot
         enabled={adEnabled}
         erid={erid}
@@ -149,4 +242,12 @@ export function PreviewPanel({
       <p className="text-xs text-muted-foreground">{t('length', { count: content.length })}</p>
     </section>
   );
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

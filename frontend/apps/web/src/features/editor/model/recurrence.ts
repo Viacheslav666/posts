@@ -72,6 +72,7 @@ export function recurrenceFromPreset(
   preset: RecurrencePresetId,
   interval?: number,
   until?: string | null,
+  times?: string[] | null,
 ): Recurrence {
   const base = { ...PRESET_TO_RECURRENCE[preset] };
   if (preset === 'every_n_days' && interval != null) {
@@ -79,6 +80,9 @@ export function recurrenceFromPreset(
   }
   if (until) {
     base.until = until;
+  }
+  if (times?.length) {
+    base.times = [...times];
   }
   return base;
 }
@@ -113,7 +117,7 @@ export function presetFromRecurrence(recurrence: Recurrence): RecurrencePresetId
   return 'once';
 }
 
-/** Materialize occurrence timestamps for the next `days` (default 14). */
+/** Materialize occurrence timestamps for the next `days` (default 14). Honors `times[]` (HH:mm). */
 export function materializeOccurrences(
   startIso: string,
   recurrence: Recurrence,
@@ -128,8 +132,13 @@ export function materializeOccurrences(
   const hardStop = seriesUntil < untilLimit ? seriesUntil : untilLimit;
   const freq = recurrence.freq ?? 'once';
   const interval = Math.max(1, recurrence.interval ?? 1);
-  const out: string[] = [start.toISOString()];
+  const times = normalizeTimes(recurrence.times);
 
+  if (times.length > 0) {
+    return materializeWithTimes(start, freq, interval, recurrence.byWeekday, times, hardStop);
+  }
+
+  const out: string[] = [start.toISOString()];
   if (freq === 'once') {
     return out;
   }
@@ -142,6 +151,64 @@ export function materializeOccurrences(
       break;
     }
     out.push(cursor.toISOString());
+  }
+  return out;
+}
+
+function normalizeTimes(raw: string[] | null | undefined): Array<{ h: number; m: number }> {
+  if (!raw?.length) return [];
+  const out: Array<{ h: number; m: number }> = [];
+  const seen = new Set<string>();
+  for (const value of raw) {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec((value ?? '').trim());
+    if (!match) continue;
+    const key = match[0];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ h: Number(match[1]), m: Number(match[2]) });
+  }
+  return out;
+}
+
+function atLocalTime(day: Date, h: number, m: number): Date {
+  const d = new Date(day);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function materializeWithTimes(
+  start: Date,
+  freq: NonNullable<Recurrence['freq']>,
+  interval: number,
+  byWeekday: string[] | null | undefined,
+  times: Array<{ h: number; m: number }>,
+  hardStop: Date,
+): string[] {
+  const out: string[] = [];
+  const pushDay = (day: Date) => {
+    for (const t of times) {
+      const instant = atLocalTime(day, t.h, t.m);
+      if (instant >= start && instant <= hardStop) {
+        out.push(instant.toISOString());
+      }
+    }
+  };
+
+  if (freq === 'once') {
+    pushDay(start);
+    return out;
+  }
+
+  let cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+  pushDay(cursor);
+  const max = 60;
+  for (let i = 0; i < max; i += 1) {
+    cursor = nextOccurrence(cursor, freq, interval, byWeekday);
+    cursor.setHours(0, 0, 0, 0);
+    if (cursor > hardStop) break;
+    pushDay(cursor);
+    if (out.length >= 120) break;
   }
   return out;
 }
