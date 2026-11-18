@@ -127,8 +127,15 @@ posts:
       max-redirects: 5
 
   billing:
+    model: balance
     grace-days: 3
     trial-days: 7
+    registration-bonus-kopecks: 0
+    autopay-default-threshold-kopecks: 10000
+    autopay-default-topup-kopecks: 50000
+    autopay-min-topup-kopecks: 10000
+    daily-charge-batch-size: 500
+    low-balance-days-threshold: 3
     yookassa:
       shop-id: ${POSTS_YOOKASSA_SHOP_ID:test-shop-id-00000000}
       secret-key: ${POSTS_YOOKASSA_SECRET_KEY:test-secret-key-not-a-real-credential}

@@ -46,7 +46,7 @@ public class ScenarioEngine {
                     .body(Map.of("error", "emulated_5xx", "network", network.id())));
             case HTTP_429 -> new Outcome.Respond(rateLimitResponse(network, scenario));
             case HTTP_FORBIDDEN -> new Outcome.Respond(forbiddenResponse(network, scenario));
-            case VK_6, VK_9, VK_10, VK_15, VK_100 -> {
+            case VK_5, VK_6, VK_9, VK_10, VK_15, VK_100 -> {
                 if (network != Network.VK) {
                     // On non-VK networks VK_* codes map to permanent 403 (access denied semantics).
                     yield new Outcome.Respond(forbiddenResponse(network, scenario));
@@ -145,6 +145,7 @@ public class ScenarioEngine {
     private static ResponseEntity<?> vkError(ScenarioFault fault) {
         int code =
                 switch (fault) {
+                    case VK_5 -> 5;
                     case VK_6 -> 6;
                     case VK_9 -> 9;
                     case VK_10 -> 10;
@@ -154,6 +155,7 @@ public class ScenarioEngine {
                 };
         String message =
                 switch (code) {
+                    case 5 -> "User authorization failed: invalid access_token";
                     case 6 -> "Too many requests per second";
                     case 9 -> "Flood control: message sent too quickly";
                     case 10 -> "Internal server error";

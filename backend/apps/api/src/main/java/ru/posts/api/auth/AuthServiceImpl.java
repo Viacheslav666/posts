@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.posts.api.admin.FeatureFlagResolver;
+import ru.posts.api.admin.ImpersonationGuard;
 import ru.posts.api.auth.crypto.SecretBox;
 import ru.posts.api.auth.mail.AuthMailSender;
 import ru.posts.api.auth.oauth.OAuthProviderClient;
@@ -35,6 +37,7 @@ import ru.posts.persistence.entity.UserEntity;
 import ru.posts.persistence.entity.UserIdentityEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.entity.WorkspaceMemberEntity;
+import ru.posts.persistence.repository.AnnouncementRepository;
 import ru.posts.persistence.repository.AuthTokenRepository;
 import ru.posts.persistence.repository.OauthLinkChallengeRepository;
 import ru.posts.persistence.repository.OauthStateRepository;
@@ -46,6 +49,7 @@ import ru.posts.persistence.repository.UserRepository;
 import ru.posts.persistence.repository.WorkspaceMemberRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 import ru.posts.ratelimit.login.LoginRateLimiter;
+import ru.posts.security.auth.PostsPrincipal;
 import ru.posts.security.crypto.SecureTokens;
 import ru.posts.security.crypto.TokenHasher;
 import ru.posts.security.jwt.JwtProperties;
@@ -84,6 +88,9 @@ public class AuthServiceImpl implements AuthService {
     private final LoginRateLimiter loginRateLimiter;
     private final OAuthProviderClient oauthProviderClient;
     private final AuthTxHelper authTxHelper;
+    private final ImpersonationGuard impersonationGuard;
+    private final FeatureFlagResolver featureFlagResolver;
+    private final AnnouncementRepository announcementRepository;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -105,7 +112,10 @@ public class AuthServiceImpl implements AuthService {
             AuthProperties authProperties,
             LoginRateLimiter loginRateLimiter,
             OAuthProviderClient oauthProviderClient,
-            AuthTxHelper authTxHelper) {
+            AuthTxHelper authTxHelper,
+            ImpersonationGuard impersonationGuard,
+            FeatureFlagResolver featureFlagResolver,
+            AnnouncementRepository announcementRepository) {
         this.userRepository = userRepository;
         this.userIdentityRepository = userIdentityRepository;
         this.sessionRepository = sessionRepository;
@@ -126,6 +136,9 @@ public class AuthServiceImpl implements AuthService {
         this.loginRateLimiter = loginRateLimiter;
         this.oauthProviderClient = oauthProviderClient;
         this.authTxHelper = authTxHelper;
+        this.impersonationGuard = impersonationGuard;
+        this.featureFlagResolver = featureFlagResolver;
+        this.announcementRepository = announcementRepository;
     }
 
     @Override
@@ -454,11 +467,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDtos.UserProfile me(UUID userId) {
+    public UserDtos.UserProfile me(PostsPrincipal principal) {
         UserEntity user = userRepository
-                .findById(userId)
+                .findById(principal.userId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "User not found"));
-        return toProfile(user);
+        return toProfile(user, principal);
     }
 
     @Override
@@ -479,12 +492,13 @@ public class AuthServiceImpl implements AuthService {
             user.setAvatarUrl(request.avatarUrl());
         }
         user.setUpdatedAt(Instant.now());
-        return toProfile(user);
+        return toProfile(user, null);
     }
 
     @Override
     public AuthDtos.MessageResponse changePassword(
             UUID userId, UUID currentSessionId, UserDtos.UpdatePasswordRequest request) {
+        impersonationGuard.forbidIfImpersonating("change_password");
         UserEntity user = userRepository
                 .findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "User not found"));
@@ -508,6 +522,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthDtos.MessageResponse deleteMe(UUID userId) {
+        impersonationGuard.forbidIfImpersonating("delete_account");
         UserEntity user = userRepository
                 .findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "User not found"));
@@ -659,7 +674,7 @@ public class AuthServiceImpl implements AuthService {
         userIdentityRepository.save(identity);
     }
 
-    private UserDtos.UserProfile toProfile(UserEntity user) {
+    private UserDtos.UserProfile toProfile(UserEntity user, PostsPrincipal principal) {
         List<UserDtos.MembershipSummary> memberships = workspaceMemberRepository.findByUserId(user.getId()).stream()
                 .map(member -> {
                     WorkspaceEntity workspace = workspaceRepository
@@ -674,6 +689,15 @@ public class AuthServiceImpl implements AuthService {
                                     : ApiEnums.BillingStatus.valueOf(workspace.getBillingStatus()));
                 })
                 .toList();
+        UserDtos.ImpersonationBanner impersonation = null;
+        if (principal != null && principal.impersonating()) {
+            impersonation = new UserDtos.ImpersonationBanner(
+                    true, principal.actorUserId(), principal.impersonationReason(), principal.expiresAt());
+        }
+        List<UserDtos.AnnouncementBanner> announcements = announcementRepository.findActiveAt(Instant.now()).stream()
+                .map(a -> new UserDtos.AnnouncementBanner(
+                        a.getId(), a.getTitle(), a.getBody(), a.getSeverity(), a.getEndsAt()))
+                .toList();
         return new UserDtos.UserProfile(
                 user.getId(),
                 user.getEmail(),
@@ -684,7 +708,11 @@ public class AuthServiceImpl implements AuthService {
                 user.getLocale(),
                 user.isTotpEnabled(),
                 user.getCreatedAt(),
-                memberships);
+                memberships,
+                user.isPlatformAdmin(),
+                featureFlagResolver.globalFeatures(),
+                impersonation,
+                announcements);
     }
 
     private static String normalizeEmail(String email) {

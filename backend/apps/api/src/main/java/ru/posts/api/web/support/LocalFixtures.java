@@ -2,6 +2,7 @@ package ru.posts.api.web.support;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.user.UserDtos;
@@ -29,6 +30,10 @@ public final class LocalFixtures {
                         LOCAL_WORKSPACE_ID,
                         "Личное пространство",
                         ApiEnums.MemberRole.owner,
-                        ApiEnums.BillingStatus.trial)));
+                        ApiEnums.BillingStatus.trial)),
+                false,
+                Map.of(),
+                null,
+                List.of());
     }
 }

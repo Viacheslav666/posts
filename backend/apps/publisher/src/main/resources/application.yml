@@ -71,6 +71,7 @@ posts:
       read-timeout: 15s
     vk:
       base-url: ${POSTS_SOCIAL_VK_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
+      token-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}/oauth2/auth
       api-version: "5.199"
       read-timeout: 15s
       reconciliation-mode: ${POSTS_SOCIAL_VK_RECONCILIATION:emulator}

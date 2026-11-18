@@ -101,8 +101,7 @@ export const queryKeys = {
   billing: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'billing'] as const,
     plans: () => [...queryKeys.root, 'billing', 'plans'] as const,
-    subscription: (workspaceId: string) =>
-      [...queryKeys.billing.all(workspaceId), 'subscription'] as const,
+    usage: (workspaceId: string) => [...queryKeys.billing.all(workspaceId), 'usage'] as const,
   },
 
   ord: {

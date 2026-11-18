@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import ru.posts.api.web.dto.admin.AdminDtos;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.billing.BillingDtos;
 import ru.posts.api.web.dto.channel.ChannelDtos;
@@ -72,6 +73,12 @@ public final class CursorPage {
     @Schema(name = "InvoicePage")
     public record InvoicePage(List<BillingDtos.Invoice> items, String nextCursor, boolean hasMore) {}
 
+    @Schema(name = "TransactionPage")
+    public record TransactionPage(List<BillingDtos.Transaction> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "PaymentPage")
+    public record PaymentPage(List<BillingDtos.PaymentListItem> items, String nextCursor, boolean hasMore) {}
+
     @Schema(name = "AuditLogPage")
     public record AuditLogPage(List<WorkspaceDtos.AuditLogEntry> items, String nextCursor, boolean hasMore) {}
 
@@ -92,4 +99,22 @@ public final class CursorPage {
 
     @Schema(name = "GrabberItemPage")
     public record GrabberItemPage(List<IngestDtos.GrabberItem> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminUserPage")
+    public record AdminUserPage(List<AdminDtos.UserSummary> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminWorkspacePage")
+    public record AdminWorkspacePage(List<AdminDtos.WorkspaceSummary> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminPromoPage")
+    public record AdminPromoPage(List<AdminDtos.PromoCode> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminQueueMessagePage")
+    public record AdminQueueMessagePage(List<AdminDtos.QueueMessage> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminAuditPage")
+    public record AdminAuditPage(List<AdminDtos.AuditEntry> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "AdminAnnouncementPage")
+    public record AdminAnnouncementPage(List<AdminDtos.Announcement> items, String nextCursor, boolean hasMore) {}
 }

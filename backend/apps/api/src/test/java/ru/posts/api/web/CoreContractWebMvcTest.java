@@ -46,7 +46,8 @@ class CoreContractWebMvcTest {
     @Test
     void meReturnsProfile() throws Exception {
         UUID userId = UUID.fromString("019a0000-0002-7000-8000-000000000001");
-        when(authService.me(userId))
+        PostsPrincipal principal = new PostsPrincipal(userId, null);
+        when(authService.me(principal))
                 .thenReturn(new UserDtos.UserProfile(
                         userId,
                         "local@posts.test",
@@ -61,10 +62,14 @@ class CoreContractWebMvcTest {
                                 UUID.fromString("019a0000-0002-7000-8000-000000000002"),
                                 "Личное пространство",
                                 ApiEnums.MemberRole.owner,
-                                ApiEnums.BillingStatus.trial))));
+                                ApiEnums.BillingStatus.trial)),
+                        false,
+                        java.util.Map.of(),
+                        null,
+                        List.of()));
 
         try (MockedStatic<SecurityAuthSupport> mocked = Mockito.mockStatic(SecurityAuthSupport.class)) {
-            mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(new PostsPrincipal(userId, null));
+            mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(principal);
             mockMvc.perform(get("/api/v1/me"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.email").value("local@posts.test"))

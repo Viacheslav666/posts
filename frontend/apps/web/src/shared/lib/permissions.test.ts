@@ -23,6 +23,7 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'audit.export': ['owner', 'admin'],
   'billing.view': ['owner'],
   'billing.manage': ['owner'],
+  'billing.apply_promo': ['owner'],
   'channels.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'channels.manage': ['owner', 'admin'],
   'channel_sets.view': ['owner', 'admin', 'editor', 'author', 'viewer'],

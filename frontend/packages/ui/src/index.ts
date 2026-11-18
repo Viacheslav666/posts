@@ -95,6 +95,9 @@ export type { NetworkIconProps, SocialNetwork } from './components/network-icon'
 export { Skeleton } from './components/skeleton';
 export type { SkeletonProps } from './components/skeleton';
 
+export { Progress } from './components/progress';
+export type { ProgressProps } from './components/progress';
+
 export { EmptyState } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
 
@@ -103,3 +106,12 @@ export type { PostPreviewNetwork, PostPreviewProps } from './components/post-pre
 
 export { FileDropzone } from './components/file-dropzone';
 export type { FileDropzoneProps } from './components/file-dropzone';
+
+export { SettingsSection } from './components/settings-section';
+export type { SettingsSectionProps } from './components/settings-section';
+
+export { PendingFeatureNotice } from './components/pending-feature-notice';
+export type { PendingFeatureNoticeProps } from './components/pending-feature-notice';
+
+export { MacroHints } from './components/macro-hints';
+export type { MacroHintsProps } from './components/macro-hints';

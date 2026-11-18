@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
 import ru.posts.persistence.jdbc.ChannelMediaCacheJdbc;
+import ru.posts.persistence.jdbc.DailyBillingJdbc;
 import ru.posts.persistence.jdbc.MediaAssetLoadJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.OutboxRelayJdbc;
@@ -18,6 +19,7 @@ import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
 import ru.posts.persistence.jdbc.ScheduledActionDispatcherJdbc;
 import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
+import ru.posts.persistence.jdbc.WalletLedgerJdbc;
 
 /**
  * Registers hot-path JDBC beans. Entity/repository discovery is handled by the consuming app via
@@ -80,5 +82,17 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(MediaAssetLoadJdbc.class)
     MediaAssetLoadJdbc mediaAssetLoadJdbc(DataSource dataSource) {
         return new MediaAssetLoadJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(WalletLedgerJdbc.class)
+    WalletLedgerJdbc walletLedgerJdbc(DataSource dataSource) {
+        return new WalletLedgerJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DailyBillingJdbc.class)
+    DailyBillingJdbc dailyBillingJdbc(DataSource dataSource, WalletLedgerJdbc walletLedgerJdbc) {
+        return new DailyBillingJdbc(JdbcClient.create(dataSource), walletLedgerJdbc);
     }
 }

@@ -10,4 +10,8 @@ public interface PlanRepository extends JpaRepository<PlanEntity, UUID> {
     Optional<PlanEntity> findByCode(String code);
 
     List<PlanEntity> findAllByOrderByPriceMonthAsc();
+
+    List<PlanEntity> findAllByActiveTrueAndBillingModelOrderByPriceDayKopecksAsc(String billingModel);
+
+    List<PlanEntity> findAllByActiveTrueOrderByPriceMonthAsc();
 }

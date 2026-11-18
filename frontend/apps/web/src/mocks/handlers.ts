@@ -56,6 +56,7 @@ import {
   PLAN_LIMIT_EXCEEDED_CODE,
   TWO_FACTOR_REQUIRED_CODE,
 } from '@/shared/lib/errors';
+import { listPlans } from './billing-store';
 import {
   can,
   isWorkspaceRole,
@@ -88,8 +89,10 @@ import {
   approveItem,
   archiveRule,
   bulkModerate,
+  cloneRuleConfig,
   createRule,
   editAndApproveItem,
+  exportItemsCsv,
   getItem,
   getRule,
   listItems,
@@ -2037,6 +2040,50 @@ export const handlers = [
     return HttpResponse.json(result);
   }),
 
+  http.post('/api/v1/ingest/rules/:ruleId/clone-config', async ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as { sourceRuleId?: string };
+    if (!body.sourceRuleId) {
+      return problem(400, 'validation_failed', 'sourceRuleId is required');
+    }
+    const result = cloneRuleConfig(String(params.ruleId), body.sourceRuleId);
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/ingest/rules/:ruleId/items/export', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    if (!getRule(String(params.ruleId))) return problem(404, 'not_found', 'Rule not found');
+    const url = new URL(request.url);
+    const status = (url.searchParams.get('status') as ItemStatus | null) ?? undefined;
+    const format = url.searchParams.get('format') ?? 'csv';
+    const csv = exportItemsCsv(String(params.ruleId), status);
+    if (format === 'xlsx') {
+      // MSW: serve CSV bytes with xlsx content-type (enough for FE download path).
+      return new HttpResponse(csv, {
+        status: 200,
+        headers: {
+          'Content-Type':
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="grabber-${params.ruleId}.xlsx"`,
+        },
+      });
+    }
+    return new HttpResponse(csv, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="grabber-${params.ruleId}.csv"`,
+      },
+    });
+  }),
+
   // --- Notifications (FE-9 / BE-11) ---
   http.get('/api/v1/notifications', ({ request }) => {
     const url = new URL(request.url);
@@ -2155,5 +2202,12 @@ export const handlers = [
     const denied = requirePermission(request, 'notifications.manage_self');
     if (denied) return denied;
     return HttpResponse.json(unsubscribeWebPush(workspaceId, endpoint));
+  }),
+
+  // --- Billing (FE-10 scaffold: plans/limits only; balance model → FE-10b / BE-31) ---
+  http.get('/api/v1/billing/plans', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    return HttpResponse.json(listPlans());
   }),
 ];

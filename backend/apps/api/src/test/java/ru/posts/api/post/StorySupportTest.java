@@ -45,4 +45,24 @@ class StorySupportTest {
         assertThat(map.get("effectiveTtl")).isEqualTo("ttl_24h");
         assertThat(map.get("warnings")).asList().isNotEmpty();
     }
+
+    @Test
+    @DisplayName("TC-STORY-17/30: bmp rejected; video over 350MB rejected")
+    void mediaLimits() {
+        ru.posts.persistence.entity.MediaAssetEntity bmp = new ru.posts.persistence.entity.MediaAssetEntity();
+        bmp.setMime("image/bmp");
+        bmp.setSizeBytes(1024L);
+        assertThatThrownBy(() -> StorySupport.assertMedia(
+                        new PostDtos.PostContent("", null, List.of(java.util.UUID.randomUUID())), List.of(bmp)))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_MEDIA_INVALID));
+
+        ru.posts.persistence.entity.MediaAssetEntity huge = new ru.posts.persistence.entity.MediaAssetEntity();
+        huge.setMime("video/mp4");
+        huge.setSizeBytes(350L * 1024L * 1024L + 1L);
+        assertThatThrownBy(() -> StorySupport.assertMedia(
+                        new PostDtos.PostContent("", null, List.of(java.util.UUID.randomUUID())), List.of(huge)))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_MEDIA_INVALID));
+    }
 }

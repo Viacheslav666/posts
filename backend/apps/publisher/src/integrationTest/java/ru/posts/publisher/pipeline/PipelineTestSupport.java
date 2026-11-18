@@ -267,7 +267,25 @@ final class PipelineTestSupport {
             String text,
             String storyTtl)
             throws Exception {
-        ensurePost(jdbc, workspaceId, postId, channelId, variantId, text, "story", storyTtl);
+        return insertStoryPublication(
+                jdbc, workspaceId, postId, variantId, channelId, network, runAt, text, storyTtl, null, false, null);
+    }
+
+    static UUID insertStoryPublication(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID variantId,
+            UUID channelId,
+            String network,
+            Instant runAt,
+            String text,
+            String storyTtl,
+            Instant deleteAfter,
+            boolean ad,
+            String erid)
+            throws Exception {
+        ensureStoryPost(jdbc, workspaceId, postId, channelId, variantId, text, storyTtl, deleteAfter, ad, erid);
         UUID id = UuidV7.generate();
         String key = sha256(variantId + "|" + runAt + "|story");
         jdbc.update(
@@ -286,6 +304,80 @@ final class PipelineTestSupport {
                 Timestamp.from(runAt),
                 key);
         return id;
+    }
+
+    static void ensureStoryPost(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID channelId,
+            UUID variantId,
+            String text,
+            String storyTtl,
+            Instant deleteAfter,
+            boolean ad,
+            String erid) {
+        Integer posts = jdbc.queryForObject("SELECT count(*) FROM posts WHERE id = ?", Integer.class, postId);
+        if (posts != null && posts > 0) {
+            return;
+        }
+        UUID creativeId = null;
+        if (ad && erid != null && !erid.isBlank()) {
+            creativeId = UuidV7.generate();
+            jdbc.update(
+                    """
+                    INSERT INTO ord_creatives (
+                        id, workspace_id, post_id, external_id, erid, provider, status,
+                        advertiser_name, advertiser_inn, display_period_days, auto_delete_after_period,
+                        registered_at)
+                    VALUES (?, ?, ?, ?, ?, 'vk_ord', 'registered', 'ООО Тест', '7707083893', 30, false, now())
+                    """,
+                    creativeId,
+                    workspaceId,
+                    postId,
+                    "creative:" + postId + ":story",
+                    erid);
+        }
+        String adPayload = ad
+                ? "{\"advertiserName\":\"ООО Тест\",\"inn\":\"7707083893\""
+                        + (erid == null || erid.isBlank() ? "" : ",\"erid\":\"" + escapeJson(erid) + "\"")
+                        + "}"
+                : null;
+        jdbc.update(
+                """
+                INSERT INTO posts (
+                    id, workspace_id, title, base_content, status, content_kind, story_ttl, story_options,
+                    is_ad, ad_payload, ord_creative_id)
+                VALUES (?, ?, 'story-pipeline', ?::jsonb, 'scheduled', 'story', ?, '{}'::jsonb, ?, ?::jsonb, ?)
+                """,
+                postId,
+                workspaceId,
+                "{\"text\":\"" + escapeJson(text) + "\"}",
+                storyTtl,
+                ad,
+                adPayload,
+                creativeId);
+        String network = jdbc.queryForObject("SELECT network FROM channels WHERE id = ?", String.class, channelId);
+        if (network == null) {
+            network = "vk";
+        }
+        String optionsJson = deleteAfter == null ? "{}" : "{\"deleteAfter\":\"" + deleteAfter.toString() + "\"}";
+        jdbc.update(
+                """
+                INSERT INTO post_variants (id, post_id, channel_id, network, content, options)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb)
+                """,
+                variantId,
+                postId,
+                channelId,
+                network,
+                "{\"text\":\"" + escapeJson(text) + "\",\"mediaKind\":\"photo\"}",
+                optionsJson);
+    }
+
+    static void setStoryConnectionStatus(JdbcTemplate jdbc, UUID channelId, String status) {
+        jdbc.update(
+                "UPDATE channels SET story_connection_status = ?, updated_at = now() WHERE id = ?", status, channelId);
     }
 
     static String sha256(String value) throws Exception {

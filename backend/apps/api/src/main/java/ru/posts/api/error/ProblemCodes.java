@@ -17,6 +17,8 @@ public final class ProblemCodes {
     public static final String PROMO_INVALID = "promo_invalid";
     public static final String PAYMENT_PROVIDER_ERROR = "payment_provider_error";
     public static final String BILLING_FROZEN = "billing_frozen";
+    public static final String BILLING_INSUFFICIENT_FUNDS = "billing_insufficient_funds";
+    public static final String BILLING_REQUISITES_INVALID = "billing_requisites_invalid";
     public static final String EMAIL_NOT_VERIFIED = "email_not_verified";
     public static final String CHANNEL_REAUTH_REQUIRED = "channel_reauth_required";
     public static final String OPTIMISTIC_LOCK_CONFLICT = "optimistic_lock_conflict";
@@ -46,6 +48,9 @@ public final class ProblemCodes {
     public static final String STORY_TTL_UNSUPPORTED = "story_ttl_unsupported";
     public static final String STORY_BATCH_LIMIT = "story_batch_limit";
 
+    public static final String PLATFORM_ADMIN_REQUIRED = "platform_admin_required";
+    public static final String IMPERSONATION_FORBIDDEN = "impersonation_forbidden";
+
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
             """
@@ -65,6 +70,8 @@ public final class ProblemCodes {
             - promo_invalid — promo code inactive, expired, or not applicable
             - payment_provider_error — YooKassa / payment provider failure
             - billing_frozen — workspace frozen for non-payment; mutations blocked
+            - billing_insufficient_funds — wallet balance too low for daily charge / operation
+            - billing_requisites_invalid — INN/KPP/OGRN validation failed for legal invoice
             - email_not_verified — action requires verified email
             - channel_reauth_required — channel token revoked/expired
             - totp_required — password ok, TOTP/backup code required (401)
@@ -82,6 +89,8 @@ public final class ProblemCodes {
             - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
             - story_ttl_unsupported — invalid stories_time / TTL enum
             - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
+            - platform_admin_required — /admin endpoints require users.platform_admin
+            - impersonation_forbidden — dangerous action blocked while impersonating
             - ingest_responsibility_required — grabber activate without legal checkbox
             - ingest_attribution_required — grabber activate without attribution
             - ingest_ssrf_blocked — RSS/website URL targets private network

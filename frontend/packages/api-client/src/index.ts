@@ -105,6 +105,7 @@ export type OrdReportRunResponse = components['schemas']['OrdReportRunResponse']
 export type OrdProvider = NonNullable<OrdConnection['provider']>;
 
 export type GrabberConfig = components['schemas']['GrabberConfig'];
+export type GrabberCloneConfigRequest = components['schemas']['GrabberCloneConfigRequest'];
 export type GrabberRule = components['schemas']['GrabberRule'];
 export type GrabberRuleCreate = components['schemas']['GrabberRuleCreate'];
 export type GrabberRulePatch = components['schemas']['GrabberRulePatch'];
@@ -140,6 +141,19 @@ export type SessionDto = components['schemas']['SessionDto'];
 export type TwoFactorSetupResponse = components['schemas']['TwoFactorSetupResponse'];
 export type TwoFactorConfirmRequest = components['schemas']['TwoFactorConfirmRequest'];
 export type TwoFactorDisableRequest = components['schemas']['TwoFactorDisableRequest'];
+
+/** Billing (BE-12) */
+export type Plan = components['schemas']['Plan'];
+export type Subscription = components['schemas']['Subscription'];
+export type CheckoutRequest = components['schemas']['CheckoutRequest'];
+export type CheckoutResponse = components['schemas']['CheckoutResponse'];
+export type Invoice = components['schemas']['Invoice'];
+export type InvoicePage = components['schemas']['InvoicePage'];
+export type ApplyPromoRequest = components['schemas']['ApplyPromoRequest'];
+export type ApplyPromoResponse = components['schemas']['ApplyPromoResponse'];
+export type StartTrialRequest = components['schemas']['StartTrialRequest'];
+export type BillingPeriod = NonNullable<CheckoutRequest['period']>;
+export type BillingStatus = NonNullable<Subscription['status']>;
 
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 

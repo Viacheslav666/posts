@@ -68,8 +68,54 @@ public final class IngestDtos {
             Map<String, Object> attribution,
             Map<String, Object> limits,
             Map<String, Object> reliability,
+            @Schema(
+                            description = "Working window (timezone, days, hours)",
+                            nullable = true,
+                            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    Map<String, Object> schedule,
+            @Schema(
+                            description = "First comment draft; pending_be23 until VK comment adapters (BE-23)",
+                            nullable = true,
+                            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    Map<String, Object> firstComment,
+            @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Map<String, Object> macros,
             Boolean aiRewriteEnabled,
-            Integer rssMaxItemsPerRun) {}
+            Integer rssMaxItemsPerRun,
+            @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer configVersion) {}
+
+    @Schema(name = "GrabberCloneConfigRequest")
+    public record GrabberCloneConfigRequest(@NotNull UUID sourceRuleId) {}
+
+    @Schema(name = "GrabberExportFormat")
+    public enum ExportFormat {
+        csv,
+        xlsx
+    }
+
+    /** Binary export payload (not part of OpenAPI JSON schemas). */
+    public static final class GrabberItemsExport {
+        private final String filename;
+        private final String contentType;
+        private final byte[] body;
+
+        public GrabberItemsExport(String filename, String contentType, byte[] body) {
+            this.filename = filename;
+            this.contentType = contentType;
+            this.body = body;
+        }
+
+        public String filename() {
+            return filename;
+        }
+
+        public String contentType() {
+            return contentType;
+        }
+
+        public byte[] body() {
+            return body;
+        }
+    }
 
     @Schema(name = "GrabberRuleCreate")
     public record GrabberRuleCreate(

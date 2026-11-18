@@ -248,6 +248,10 @@ jobs:
       - name: Playwright ad-marking (TC-AD P0 UI)
         working-directory: tests/e2e
         run: pnpm test:ad-marking
+      # QA-11: TC-STORY P0 UI историй на MSW (IG absent; TG/Max disabled).
+      - name: Playwright scheduled-stories (TC-STORY P0 UI)
+        working-directory: tests/e2e
+        run: pnpm test:stories
       - name: Schemathesis smoke
         run: |
           chmod +x tests/contract/run-smoke.sh
