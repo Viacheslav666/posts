@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
     implementation(project(":libs:ratelimit"))
+    implementation(project(":libs:content"))
     implementation(project(":libs:social-api"))
     implementation(project(":libs:social-telegram"))
     implementation(project(":libs:social-vk"))

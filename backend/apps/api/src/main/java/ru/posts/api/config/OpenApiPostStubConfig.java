@@ -98,6 +98,12 @@ public class OpenApiPostStubConfig {
             }
 
             @Override
+            public PostDtos.BatchPostsResponse batchPosts(
+                    UUID userId, PostDtos.BatchPostsRequest request, String idempotencyKey, ClientRequestContext ctx) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
             public CursorPage.PublicationPage listPublications(UUID userId, UUID postId, CursorPage.Params page) {
                 return new CursorPage.PublicationPage(List.of(), null, false);
             }

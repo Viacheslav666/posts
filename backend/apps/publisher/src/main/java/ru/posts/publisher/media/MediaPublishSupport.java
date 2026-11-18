@@ -133,6 +133,9 @@ public class MediaPublishSupport {
             }
         }
 
+        // BE-29: passthrough VK string attachments (photo-1_2, …) already validated by API.
+        attachments.addAll(parseStringList(claim.stringAttachmentsJson()));
+
         if (!attachments.isEmpty()) {
             meta.put(PostVariantMeta.ATTACHMENTS, attachments);
         }
@@ -266,6 +269,25 @@ public class MediaPublishSupport {
             return out;
         } catch (Exception ex) {
             log.warn("Failed to parse mediaIds JSON: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> parseStringList(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+            return List.of();
+        }
+        try {
+            List<String> raw = objectMapper.readValue(json, STRING_LIST);
+            List<String> out = new ArrayList<>();
+            for (String value : raw) {
+                if (value != null && !value.isBlank()) {
+                    out.add(value.trim());
+                }
+            }
+            return List.copyOf(out);
+        } catch (Exception ex) {
+            log.warn("Failed to parse stringAttachments JSON: {}", ex.getMessage());
             return List.of();
         }
     }

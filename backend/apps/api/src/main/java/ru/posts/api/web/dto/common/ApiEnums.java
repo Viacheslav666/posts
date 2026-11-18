@@ -114,7 +114,9 @@ public final class ApiEnums {
         image,
         video,
         doc,
-        audio
+        audio,
+        /** VK Clips / short video (BE-29). */
+        clip
     }
 
     @Schema(description = "Media processing status")
