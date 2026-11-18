@@ -33,6 +33,14 @@ public class SchedulerMetrics {
         }
     }
 
+    public void recordModerationActionsDispatched(int count) {
+        if (count > 0) {
+            meterRegistry
+                    .counter("posts_scheduler_moderation_actions_dispatched_total")
+                    .increment(count);
+        }
+    }
+
     public void recordConfirmFailures(int count) {
         meterRegistry.counter("posts_scheduler_confirm_failures_total").increment(count);
     }

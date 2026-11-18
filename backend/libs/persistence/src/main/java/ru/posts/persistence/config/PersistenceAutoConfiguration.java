@@ -17,9 +17,13 @@ import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.OutboxRelayJdbc;
 import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
+import ru.posts.persistence.jdbc.RemotePostRegistryJdbc;
 import ru.posts.persistence.jdbc.ScheduledActionDispatcherJdbc;
 import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
+import ru.posts.persistence.jdbc.SocialRemoteActionDispatcherJdbc;
+import ru.posts.persistence.jdbc.SocialRemoteActionLifecycleJdbc;
 import ru.posts.persistence.jdbc.WalletLedgerJdbc;
+import ru.posts.persistence.service.RemoteActionService;
 
 /**
  * Registers hot-path JDBC beans. Entity/repository discovery is handled by the consuming app via
@@ -94,5 +98,29 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(DailyBillingJdbc.class)
     DailyBillingJdbc dailyBillingJdbc(DataSource dataSource, WalletLedgerJdbc walletLedgerJdbc) {
         return new DailyBillingJdbc(JdbcClient.create(dataSource), walletLedgerJdbc);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SocialRemoteActionDispatcherJdbc.class)
+    SocialRemoteActionDispatcherJdbc socialRemoteActionDispatcherJdbc(DataSource dataSource) {
+        return new SocialRemoteActionDispatcherJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SocialRemoteActionLifecycleJdbc.class)
+    SocialRemoteActionLifecycleJdbc socialRemoteActionLifecycleJdbc(DataSource dataSource) {
+        return new SocialRemoteActionLifecycleJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RemotePostRegistryJdbc.class)
+    RemotePostRegistryJdbc remotePostRegistryJdbc(DataSource dataSource) {
+        return new RemotePostRegistryJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RemoteActionService.class)
+    RemoteActionService remoteActionService(SocialRemoteActionLifecycleJdbc socialRemoteActionLifecycleJdbc) {
+        return new RemoteActionService(socialRemoteActionLifecycleJdbc);
     }
 }

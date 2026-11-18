@@ -114,6 +114,7 @@ public class VkSocialAdapter implements SocialAdapter {
         features.put("coOwners", false);
         features.put("actionButton", false);
         features.put("clips", true);
+        features.putAll(VkSocialModerationAdapter.allModerationFeatures(true));
         return new NetworkCapabilities(Network.VK, true, true, true, Map.copyOf(features));
     }
 

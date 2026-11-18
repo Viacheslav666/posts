@@ -3,13 +3,19 @@ package ru.posts.emulator.vk;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import ru.posts.emulator.config.EmulatorProperties;
+import ru.posts.emulator.store.EmulatedPost;
+import ru.posts.emulator.store.ModerationStore;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -26,7 +34,11 @@ import ru.posts.emulator.web.PublishSupport;
 @RestController
 public class VkApiController {
 
+    private static final Pattern EXECUTE_API_CALL =
+            Pattern.compile("API\\.([a-zA-Z0-9_.]+)\\s*\\(\\s*(\\{[^}]*\\}|)\\s*\\)");
+
     private final PostStore postStore;
+    private final ModerationStore moderationStore;
     private final PublishSupport publishSupport;
     private final WallSourceStore wallSourceStore;
     private final StoryTokenStore storyTokenStore;
@@ -36,12 +48,14 @@ public class VkApiController {
 
     public VkApiController(
             PostStore postStore,
+            ModerationStore moderationStore,
             PublishSupport publishSupport,
             WallSourceStore wallSourceStore,
             StoryTokenStore storyTokenStore,
             VkUploadSessionStore uploadSessions,
             EmulatorProperties emulatorProperties) {
         this.postStore = postStore;
+        this.moderationStore = moderationStore;
         this.publishSupport = publishSupport;
         this.wallSourceStore = wallSourceStore;
         this.storyTokenStore = storyTokenStore;
@@ -120,10 +134,24 @@ public class VkApiController {
         String normalized = method == null ? "" : method.trim();
         return switch (normalized) {
             case "wall.post" -> wallPost(params, rawResponse);
+            case "wall.delete" -> moderation(rawResponse, () -> wallDelete(params));
             case "wall.pin", "wall.unpin" -> ResponseEntity.ok(Map.of("response", 1));
-            case "wall.createComment" -> ResponseEntity.ok(Map.of(
-                    "response",
-                    Map.of("comment_id", photoSeq.incrementAndGet(), "parents_stack", java.util.List.of())));
+            case "wall.createComment" -> moderation(rawResponse, () -> wallCreateComment(params));
+            case "wall.deleteComment" -> moderation(rawResponse, () -> deleteComment("wall", params));
+            case "wall.restoreComment" -> moderation(rawResponse, () -> restoreComment("wall", params));
+            case "photos.deleteComment" -> moderation(rawResponse, () -> deleteComment("photo", params));
+            case "photos.restoreComment" -> moderation(rawResponse, () -> restoreComment("photo", params));
+            case "video.deleteComment" -> moderation(rawResponse, () -> deleteComment("video", params));
+            case "video.restoreComment" -> moderation(rawResponse, () -> restoreComment("video", params));
+            case "market.deleteComment" -> moderation(rawResponse, () -> deleteComment("market", params));
+            case "market.restoreComment" -> moderation(rawResponse, () -> restoreComment("market", params));
+            case "board.deleteComment" -> moderation(rawResponse, () -> deleteComment("board", params));
+            case "board.restoreComment" -> moderation(rawResponse, () -> restoreComment("board", params));
+            case "groups.ban" -> moderation(rawResponse, () -> groupsBan(params));
+            case "groups.unban" -> moderation(rawResponse, () -> groupsUnban(params));
+            case "messages.send" -> moderation(rawResponse, () -> messagesSend(params));
+            case "messages.isMessagesFromGroupAllowed" -> moderation(rawResponse, () -> messagesAllowed(params));
+            case "execute" -> moderation(rawResponse, () -> executeBatch(params));
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
             case "video.save" -> ResponseEntity.ok(videoSave(params));
@@ -135,14 +163,21 @@ public class VkApiController {
             case "stories.save" -> storiesSave(params, rawResponse);
             case "stories.delete" -> storiesDelete(params);
             case "wall.get" -> ResponseEntity.ok(wallGet(params));
-            case "wall.getById" -> ResponseEntity.ok(Map.of("response", Map.of("items", java.util.List.of())));
+            case "wall.getById" -> ResponseEntity.ok(wallGetById(params));
             default -> ResponseEntity.ok(
                     Map.of("error", Map.of("error_code", 3, "error_msg", "Unknown method passed: " + normalized)));
         };
     }
 
+    private ResponseEntity<?> moderation(
+            HttpServletResponse rawResponse, java.util.function.Supplier<ResponseEntity<?>> success)
+            throws IOException {
+        return publishSupport.execute(Network.VK, rawResponse, success);
+    }
+
     private Map<String, Object> wallGet(MultiValueMap<String, String> params) {
         String ownerId = first(params, "owner_id", "domain");
+        String filter = first(params, "filter");
         String countRaw = first(params, "count");
         int count = 20;
         if (countRaw != null) {
@@ -152,7 +187,73 @@ public class VkApiController {
                 count = 20;
             }
         }
-        return wallSourceStore.wallGet(ownerId == null ? "0" : ownerId, count);
+        String owner = ownerId == null ? "0" : ownerId;
+        if (filter != null && filter.equalsIgnoreCase("suggests")) {
+            List<ModerationStore.SuggestedPost> suggests = moderationStore.listSuggests(owner);
+            int limit = count <= 0 ? suggests.size() : Math.min(count, suggests.size());
+            List<Map<String, Object>> items = suggests.stream()
+                    .limit(limit)
+                    .map(ModerationStore.SuggestedPost::toWallItem)
+                    .toList();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("count", suggests.size());
+            response.put("items", items);
+            return Map.of("response", response);
+        }
+        return wallSourceStore.wallGet(owner, count);
+    }
+
+    private Map<String, Object> wallGetById(MultiValueMap<String, String> params) {
+        String postsParam = first(params, "posts", "post_ids");
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (postsParam != null && !postsParam.isBlank()) {
+            for (String token : postsParam.split(",")) {
+                String trimmed = token.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                String ownerId;
+                String postId;
+                int underscore = trimmed.lastIndexOf('_');
+                if (underscore > 0) {
+                    ownerId = trimmed.substring(0, underscore);
+                    postId = trimmed.substring(underscore + 1);
+                } else {
+                    ownerId = first(params, "owner_id");
+                    postId = trimmed;
+                }
+                Optional<EmulatedPost> found = postStore.findByRemoteId(Network.VK, ownerId, postId);
+                if (found.isPresent()) {
+                    EmulatedPost post = found.get();
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", Long.parseLong(post.remotePostId()));
+                    item.put(
+                            "owner_id",
+                            post.channelId() == null
+                                    ? 0L
+                                    : Long.parseLong(post.channelId().replace("+", "")));
+                    item.put("text", post.text() == null ? "" : post.text());
+                    item.put("date", post.createdAt().getEpochSecond());
+                    items.add(item);
+                } else {
+                    // Also check wall source fixtures.
+                    Map<String, Object> wall = wallSourceStore.wallGet(ownerId == null ? "0" : ownerId, 100);
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> response = (Map<String, Object>) wall.get("response");
+                    if (response != null && response.get("items") instanceof List<?> list) {
+                        for (Object raw : list) {
+                            if (raw instanceof Map<?, ?> m
+                                    && String.valueOf(m.get("id")).equals(postId)) {
+                                Map<String, Object> item = new LinkedHashMap<>();
+                                m.forEach((k, v) -> item.put(String.valueOf(k), v));
+                                items.add(item);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Map.of("response", Map.of("items", items));
     }
 
     private ResponseEntity<?> wallPost(MultiValueMap<String, String> params, HttpServletResponse rawResponse)
@@ -162,6 +263,7 @@ public class VkApiController {
             String message = first(params, "message", "text");
             String guid = first(params, "guid");
             String attachments = first(params, "attachments");
+            String postIdParam = first(params, "post_id");
 
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("attachments", attachments);
@@ -177,15 +279,41 @@ public class VkApiController {
             metadata.put("guid", guid);
             metadata.put("access_token_present", first(params, "access_token") != null);
 
-            PostStore.CreateResult result =
-                    postStore.createOrGet(Network.VK, ownerId == null ? "0" : ownerId, guid, message, metadata);
+            String owner = ownerId == null ? "0" : ownerId;
+
+            // BE-33: wall.post with post_id publishes a suggested post.
+            if (postIdParam != null && !postIdParam.isBlank()) {
+                long suggestId = Long.parseLong(postIdParam);
+                Optional<ModerationStore.SuggestedPost> suggest = moderationStore.removeSuggest(owner, suggestId);
+                metadata.put("published_suggest_id", suggestId);
+                metadata.put("contentType", "suggest_published");
+                String text = message;
+                if ((text == null || text.isBlank()) && suggest.isPresent()) {
+                    Object suggestText = suggest.get().fields().get("text");
+                    text = suggestText == null ? "" : String.valueOf(suggestText);
+                }
+                // Keep the same post id as the suggest when publishing.
+                EmulatedPost post = postStore.seed(Network.VK, owner, postIdParam, text, null, metadata);
+                Map<String, Object> wallItem = new LinkedHashMap<>();
+                wallItem.put("id", Long.parseLong(post.remotePostId()));
+                wallItem.put("text", text == null ? "" : text);
+                wallItem.put("date", System.currentTimeMillis() / 1000L);
+                wallItem.put("post_type", "post");
+                wallSourceStore.add(owner, wallItem);
+
+                Map<String, Object> response = new LinkedHashMap<>();
+                response.put("post_id", Long.parseLong(post.remotePostId()));
+                return ResponseEntity.ok(Map.of("response", response));
+            }
+
+            PostStore.CreateResult result = postStore.createOrGet(Network.VK, owner, guid, message, metadata);
 
             // Mirror into wall.get fixtures so API-mode findExisting works against the emulator.
             Map<String, Object> wallItem = new LinkedHashMap<>();
             wallItem.put("id", Long.parseLong(result.post().remotePostId()));
             wallItem.put("text", message == null ? "" : message);
             wallItem.put("date", System.currentTimeMillis() / 1000L);
-            wallSourceStore.add(ownerId == null ? "0" : ownerId, wallItem);
+            wallSourceStore.add(owner, wallItem);
 
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("post_id", Long.parseLong(result.post().remotePostId()));
@@ -194,6 +322,223 @@ public class VkApiController {
             }
             return ResponseEntity.ok(Map.of("response", response));
         });
+    }
+
+    private ResponseEntity<?> wallDelete(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id");
+        String postId = first(params, "post_id");
+        postStore.deleteByRemoteId(Network.VK, ownerId, postId);
+        if (postId != null) {
+            try {
+                moderationStore.removeSuggest(ownerId == null ? "0" : ownerId, Long.parseLong(postId));
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> wallCreateComment(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id");
+        String text = first(params, "message", "text");
+        String replyTo = first(params, "reply_to_comment");
+        ModerationStore.EmulatedComment comment =
+                moderationStore.putComment(Network.VK, ownerId, null, "wall", text, null, false);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("comment_id", Long.parseLong(comment.commentId()));
+        response.put("parents_stack", List.of());
+        if (replyTo != null) {
+            response.put("reply_to_comment", replyTo);
+        }
+        return ResponseEntity.ok(Map.of("response", response));
+    }
+
+    private ResponseEntity<?> deleteComment(String type, MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id", "group_id");
+        String commentId = first(params, "comment_id");
+        if (commentId == null) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of("error_code", 100, "error_msg", "comment_id is required", "request_params", List.of())));
+        }
+        moderationStore.deleteComment(Network.VK, ownerId, commentId, type);
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> restoreComment(String type, MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id", "group_id");
+        String commentId = first(params, "comment_id");
+        if (commentId == null) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of("error_code", 100, "error_msg", "comment_id is required", "request_params", List.of())));
+        }
+        Optional<ModerationStore.EmulatedComment> restored =
+                moderationStore.restoreComment(Network.VK, ownerId, commentId);
+        if (restored.isEmpty()) {
+            // Create as restored for idempotent restore of unknown comments.
+            moderationStore.putComment(Network.VK, ownerId, commentId, type, "", null, false);
+        }
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> groupsBan(MultiValueMap<String, String> params) {
+        // VK: group_id = community, owner_id = user being banned.
+        String groupId = first(params, "group_id");
+        String userId = first(params, "owner_id", "user_id");
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("end_date", first(params, "end_date"));
+        payload.put("reason", first(params, "reason"));
+        payload.put("comment", first(params, "comment"));
+        payload.put("comment_visible", first(params, "comment_visible"));
+        moderationStore.ban(Network.VK, groupId, userId, payload);
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> groupsUnban(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        String userId = first(params, "owner_id", "user_id");
+        moderationStore.unban(Network.VK, groupId, userId);
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> messagesSend(MultiValueMap<String, String> params) {
+        long messageId = photoSeq.incrementAndGet();
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("message_id", messageId);
+        String peerId = first(params, "peer_id", "user_id");
+        if (peerId != null) {
+            response.put("peer_id", peerId);
+        }
+        return ResponseEntity.ok(Map.of("response", messageId));
+    }
+
+    private ResponseEntity<?> messagesAllowed(MultiValueMap<String, String> params) {
+        // Emulator defaults to allowed unless scenario forced an error earlier.
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> executeBatch(MultiValueMap<String, String> params) {
+        String code = first(params, "code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.ok(Map.of(
+                    "error", Map.of("error_code", 100, "error_msg", "code is required", "request_params", List.of())));
+        }
+        Matcher matcher = EXECUTE_API_CALL.matcher(code);
+        List<Object> results = new ArrayList<>();
+        int count = 0;
+        while (matcher.find() && count < 25) {
+            String method = matcher.group(1);
+            String argsJson = matcher.group(2);
+            MultiValueMap<String, String> callParams = parseExecuteArgs(argsJson);
+            // Carry over access_token from outer execute call.
+            if (first(params, "access_token") != null && callParams.getFirst("access_token") == null) {
+                callParams.add("access_token", first(params, "access_token"));
+            }
+            ResponseEntity<?> result = dispatchSync(method, callParams);
+            Object body = result.getBody();
+            if (body instanceof Map<?, ?> map && map.containsKey("response")) {
+                results.add(map.get("response"));
+            } else if (body instanceof Map<?, ?> map && map.containsKey("error")) {
+                results.add(map);
+            } else {
+                results.add(body);
+            }
+            count++;
+        }
+        return ResponseEntity.ok(Map.of("response", results));
+    }
+
+    /** Execute nested API calls without re-entering scenario faults / HTTP layer. */
+    private ResponseEntity<?> dispatchSync(String method, MultiValueMap<String, String> params) {
+        String normalized = method == null ? "" : method.trim();
+        return switch (normalized) {
+            case "wall.delete" -> wallDelete(params);
+            case "wall.createComment" -> wallCreateComment(params);
+            case "wall.deleteComment" -> deleteComment("wall", params);
+            case "wall.restoreComment" -> restoreComment("wall", params);
+            case "photos.deleteComment" -> deleteComment("photo", params);
+            case "photos.restoreComment" -> restoreComment("photo", params);
+            case "video.deleteComment" -> deleteComment("video", params);
+            case "video.restoreComment" -> restoreComment("video", params);
+            case "market.deleteComment" -> deleteComment("market", params);
+            case "market.restoreComment" -> restoreComment("market", params);
+            case "board.deleteComment" -> deleteComment("board", params);
+            case "board.restoreComment" -> restoreComment("board", params);
+            case "groups.ban" -> groupsBan(params);
+            case "groups.unban" -> groupsUnban(params);
+            case "messages.send" -> messagesSend(params);
+            case "messages.isMessagesFromGroupAllowed" -> messagesAllowed(params);
+            case "wall.get" -> ResponseEntity.ok(wallGet(params));
+            case "wall.getById" -> ResponseEntity.ok(wallGetById(params));
+            case "wall.post" -> {
+                // Nested wall.post without publishSupport (fault already applied on execute).
+                try {
+                    yield wallPostNested(params);
+                } catch (Exception ex) {
+                    yield ResponseEntity.ok(Map.of(
+                            "error",
+                            Map.of("error_code", 10, "error_msg", ex.getMessage(), "request_params", List.of())));
+                }
+            }
+            default -> ResponseEntity.ok(
+                    Map.of("error", Map.of("error_code", 3, "error_msg", "Unknown method passed: " + normalized)));
+        };
+    }
+
+    private ResponseEntity<?> wallPostNested(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id", "from_group");
+        String message = first(params, "message", "text");
+        String guid = first(params, "guid");
+        String postIdParam = first(params, "post_id");
+        String owner = ownerId == null ? "0" : ownerId;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("guid", guid);
+        metadata.put("from_group", first(params, "from_group"));
+        metadata.put("signed", first(params, "signed"));
+        if (postIdParam != null && !postIdParam.isBlank()) {
+            long suggestId = Long.parseLong(postIdParam);
+            Optional<ModerationStore.SuggestedPost> suggest = moderationStore.removeSuggest(owner, suggestId);
+            String text = message;
+            if ((text == null || text.isBlank()) && suggest.isPresent()) {
+                Object suggestText = suggest.get().fields().get("text");
+                text = suggestText == null ? "" : String.valueOf(suggestText);
+            }
+            EmulatedPost post = postStore.seed(Network.VK, owner, postIdParam, text, null, metadata);
+            wallSourceStore.add(
+                    owner, Map.of("id", Long.parseLong(post.remotePostId()), "text", text == null ? "" : text));
+            return ResponseEntity.ok(Map.of("response", Map.of("post_id", Long.parseLong(post.remotePostId()))));
+        }
+        PostStore.CreateResult result = postStore.createOrGet(Network.VK, owner, guid, message, metadata);
+        return ResponseEntity.ok(Map.of(
+                "response", Map.of("post_id", Long.parseLong(result.post().remotePostId()))));
+    }
+
+    private static MultiValueMap<String, String> parseExecuteArgs(String argsJson) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        if (argsJson == null || argsJson.isBlank() || "{}".equals(argsJson.trim())) {
+            return params;
+        }
+        // Simple key:value parser for API.method({owner_id: -1, comment_id: 5}) / JSON-ish.
+        String body = argsJson.trim();
+        if (body.startsWith("{") && body.endsWith("}")) {
+            body = body.substring(1, body.length() - 1);
+        }
+        if (body.isBlank()) {
+            return params;
+        }
+        for (String part : body.split(",")) {
+            String[] kv = part.split(":", 2);
+            if (kv.length != 2) {
+                continue;
+            }
+            String key = kv[0].trim().replace("\"", "").replace("'", "");
+            String value = kv[1].trim().replace("\"", "").replace("'", "");
+            if (!key.isEmpty()) {
+                params.add(key, value);
+            }
+        }
+        return params;
     }
 
     private Map<String, Object> getWallUploadServer(MultiValueMap<String, String> params) {

@@ -46,10 +46,11 @@ public class ScenarioEngine {
                     .body(Map.of("error", "emulated_5xx", "network", network.id())));
             case HTTP_429 -> new Outcome.Respond(rateLimitResponse(network, scenario));
             case HTTP_FORBIDDEN -> new Outcome.Respond(forbiddenResponse(network, scenario));
-            case VK_5, VK_6, VK_9, VK_10, VK_15, VK_100 -> {
+            case ACCESS_DENIED -> new Outcome.Respond(accessDeniedResponse(network, scenario));
+            case VK_5, VK_6, VK_9, VK_10, VK_15, VK_27, VK_203, VK_100 -> {
                 if (network != Network.VK) {
                     // On non-VK networks VK_* codes map to permanent 403 (access denied semantics).
-                    yield new Outcome.Respond(forbiddenResponse(network, scenario));
+                    yield new Outcome.Respond(accessDeniedResponse(network, scenario));
                 }
                 yield new Outcome.Respond(vkError(fault));
             }
@@ -108,7 +109,7 @@ public class ScenarioEngine {
 
     private ResponseEntity<?> forbiddenResponse(Network network, NetworkScenario scenario) {
         int status = pickForbidden(scenario);
-        if (network == Network.TELEGRAM || network == Network.MAX) {
+        if (network == Network.TELEGRAM) {
             return ResponseEntity.status(status)
                     .body(Map.of(
                             "ok",
@@ -118,8 +119,34 @@ public class ScenarioEngine {
                             "description",
                             "Forbidden: bot was kicked / no rights to post"));
         }
+        if (network == Network.MAX) {
+            return accessDeniedResponse(network, scenario);
+        }
         return ResponseEntity.status(status)
                 .body(Map.of("error", "forbidden", "network", network.id(), "httpStatus", status));
+    }
+
+    private ResponseEntity<?> accessDeniedResponse(Network network, NetworkScenario scenario) {
+        int status = pickForbidden(scenario);
+        if (network == Network.MAX) {
+            return ResponseEntity.status(status)
+                    .body(Map.of("code", "access.denied", "message", "Access denied: insufficient permissions"));
+        }
+        if (network == Network.TELEGRAM) {
+            return ResponseEntity.status(status)
+                    .body(Map.of(
+                            "ok",
+                            false,
+                            "error_code",
+                            status,
+                            "description",
+                            "Forbidden: bot was kicked / no rights to post"));
+        }
+        if (network == Network.VK) {
+            return vkError(ScenarioFault.VK_15);
+        }
+        return ResponseEntity.status(status)
+                .body(Map.of("error", "access.denied", "network", network.id(), "httpStatus", status));
     }
 
     private ResponseEntity<?> rateLimitResponse(Network network, NetworkScenario scenario) {
@@ -150,6 +177,8 @@ public class ScenarioEngine {
                     case VK_9 -> 9;
                     case VK_10 -> 10;
                     case VK_15 -> 15;
+                    case VK_27 -> 27;
+                    case VK_203 -> 203;
                     case VK_100 -> 100;
                     default -> 10;
                 };
@@ -160,6 +189,8 @@ public class ScenarioEngine {
                     case 9 -> "Flood control: message sent too quickly";
                     case 10 -> "Internal server error";
                     case 15 -> "Access denied";
+                    case 27 -> "Group authorization failed: group auth is disabled";
+                    case 203 -> "Access to wall's posts denied";
                     case 100 -> "One of the parameters specified was missing or invalid";
                     default -> "Emulated VK error";
                 };

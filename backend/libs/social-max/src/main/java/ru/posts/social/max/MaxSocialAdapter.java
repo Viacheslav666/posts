@@ -59,22 +59,14 @@ public class MaxSocialAdapter implements SocialAdapter {
 
     @Override
     public NetworkCapabilities capabilities() {
-        return new NetworkCapabilities(
-                Network.MAX,
-                true,
-                true,
-                false,
-                Map.of(
-                        "messages",
-                        true,
-                        "uploads",
-                        true,
-                        "bearerAuth",
-                        true,
-                        "inlineKeyboard",
-                        true,
-                        "disableNotification",
-                        true));
+        Map<String, Boolean> features = new LinkedHashMap<>();
+        features.put("messages", true);
+        features.put("uploads", true);
+        features.put("bearerAuth", true);
+        features.put("inlineKeyboard", true);
+        features.put("disableNotification", true);
+        features.putAll(MaxSocialModerationAdapter.moderationFeatures());
+        return new NetworkCapabilities(Network.MAX, true, true, false, Map.copyOf(features));
     }
 
     @Override

@@ -408,6 +408,70 @@ final class PipelineTestSupport {
                 "UPDATE channels SET story_connection_status = ?, updated_at = now() WHERE id = ?", status, channelId);
     }
 
+    /**
+     * Inserts a pending {@code social_remote_actions} row due immediately (BE-33). Returns the new
+     * action id.
+     */
+    static UUID enqueueRemoteAction(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID channelId,
+            String kind,
+            String targetJson,
+            String payloadJson,
+            String idempotencyKey,
+            String source) {
+        UUID id = UuidV7.generate();
+        jdbc.update(
+                """
+                INSERT INTO social_remote_actions (
+                    id, workspace_id, channel_id, kind, target_ref, payload,
+                    idempotency_key, state, run_at, source, source_ref)
+                VALUES (
+                    ?, ?, ?, ?, ?::jsonb, ?::jsonb,
+                    ?, 'pending', now() - interval '1 second', ?, '{}'::jsonb)
+                """,
+                id,
+                workspaceId,
+                channelId,
+                kind,
+                targetJson == null || targetJson.isBlank() ? "{}" : targetJson,
+                payloadJson == null || payloadJson.isBlank() ? "{}" : payloadJson,
+                idempotencyKey,
+                source == null || source.isBlank() ? "manual" : source);
+        return id;
+    }
+
+    /** Inserts a pending VK publication (network=vk) for registry / publish ITs. */
+    static UUID insertVkPublication(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID variantId,
+            UUID channelId,
+            Instant runAt,
+            String text)
+            throws Exception {
+        ensurePost(jdbc, workspaceId, postId, channelId, variantId, text);
+        UUID id = UuidV7.generate();
+        String key = sha256(variantId + "|" + runAt + "|vk");
+        jdbc.update(
+                """
+                INSERT INTO publications (
+                    id, workspace_id, post_id, variant_id, channel_id, network,
+                    run_at, idempotency_key, state)
+                VALUES (?, ?, ?, ?, ?, 'vk', ?, ?, 'pending')
+                """,
+                id,
+                workspaceId,
+                postId,
+                variantId,
+                channelId,
+                Timestamp.from(runAt),
+                key);
+        return id;
+    }
+
     static String sha256(String value) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         return HexFormat.of().formatHex(digest);
