@@ -11,16 +11,20 @@ import static org.awaitility.Awaitility.await;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.notify.NotifyDomainEvent;
 import ru.posts.messaging.topology.NotifyTopology;
+import ru.posts.notifications.config.NotificationsProperties;
 
 class TelegramWireMockIT extends AbstractNotificationsIT {
 
@@ -28,6 +32,9 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
     static WireMockExtension telegramApi = WireMockExtension.newInstance()
             .options(wireMockConfig().dynamicPort())
             .build();
+
+    @Autowired
+    NotificationsProperties notificationsProperties;
 
     @DynamicPropertySource
     static void telegramProps(DynamicPropertyRegistry registry) {
@@ -37,6 +44,16 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
         registry.add("posts.notifications.web-push.vapid-private-key", () -> "");
         registry.add("spring.mail.host", () -> "127.0.0.1");
         registry.add("spring.mail.port", () -> "3025");
+    }
+
+    @BeforeEach
+    void assertTelegramPropsBound() {
+        assertThat(notificationsProperties.telegram().botToken())
+                .as("posts.notifications.telegram.bot-token must bind for IT")
+                .isEqualTo("test-token");
+        assertThat(notificationsProperties.telegram().apiBaseUrl())
+                .as("posts.notifications.telegram.api-base-url must bind to WireMock")
+                .startsWith("http://");
     }
 
     @Test
@@ -64,14 +81,17 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
                 NotifyTopology.NOTIFY_EXCHANGE, NotifyTopology.eventRoutingKey("publication.failed"), event);
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            Integer sent = jdbcTemplate.queryForObject(
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     """
-                    SELECT count(*) FROM notification_deliveries
-                    WHERE user_id = ? AND channel = 'telegram' AND status = 'sent'
+                    SELECT channel, status, last_error FROM notification_deliveries
+                    WHERE user_id = ? AND channel = 'telegram'
                     """,
-                    Integer.class,
                     user.userId());
-            assertThat(sent).isEqualTo(1);
+            assertThat(rows)
+                    .as("telegram delivery rows: %s", rows)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(row -> assertThat(row.get("status")).isEqualTo("sent"));
             telegramApi.verify(postRequestedFor(urlPathMatching("/bottest-token/sendMessage"))
                     .withRequestBody(containing("999001")));
         });

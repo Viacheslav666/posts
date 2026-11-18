@@ -2,6 +2,7 @@ package ru.posts.notifications.config;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 @ConfigurationProperties(prefix = "posts.notifications")
 public class NotificationsProperties {
@@ -11,81 +12,134 @@ public class NotificationsProperties {
     private int maxAttempts = 8;
     private int retryBatchSize = 100;
     private long retryPollIntervalMs = 2000;
+
+    @NestedConfigurationProperty
     private final Mail mail = new Mail();
+
+    @NestedConfigurationProperty
     private final Telegram telegram = new Telegram();
+
+    @NestedConfigurationProperty
     private final WebPush webPush = new WebPush();
+
+    @NestedConfigurationProperty
     private final RateLimits rateLimits = new RateLimits();
 
-    public String appBaseUrl() {
+    public String getAppBaseUrl() {
         return appBaseUrl;
+    }
+
+    /** Alias used by delivery code. */
+    public String appBaseUrl() {
+        return getAppBaseUrl();
     }
 
     public void setAppBaseUrl(String appBaseUrl) {
         this.appBaseUrl = appBaseUrl;
     }
 
-    public int prefetch() {
+    public int getPrefetch() {
         return prefetch;
+    }
+
+    public int prefetch() {
+        return getPrefetch();
     }
 
     public void setPrefetch(int prefetch) {
         this.prefetch = prefetch;
     }
 
-    public int maxAttempts() {
+    public int getMaxAttempts() {
         return maxAttempts;
+    }
+
+    public int maxAttempts() {
+        return getMaxAttempts();
     }
 
     public void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = maxAttempts;
     }
 
-    public int retryBatchSize() {
+    public int getRetryBatchSize() {
         return retryBatchSize;
+    }
+
+    public int retryBatchSize() {
+        return getRetryBatchSize();
     }
 
     public void setRetryBatchSize(int retryBatchSize) {
         this.retryBatchSize = retryBatchSize;
     }
 
-    public long retryPollIntervalMs() {
+    public long getRetryPollIntervalMs() {
         return retryPollIntervalMs;
+    }
+
+    public long retryPollIntervalMs() {
+        return getRetryPollIntervalMs();
     }
 
     public void setRetryPollIntervalMs(long retryPollIntervalMs) {
         this.retryPollIntervalMs = retryPollIntervalMs;
     }
 
-    public Mail mail() {
+    public Mail getMail() {
         return mail;
     }
 
-    public Telegram telegram() {
+    public Mail mail() {
+        return getMail();
+    }
+
+    public Telegram getTelegram() {
         return telegram;
     }
 
-    public WebPush webPush() {
+    public Telegram telegram() {
+        return getTelegram();
+    }
+
+    public WebPush getWebPush() {
         return webPush;
     }
 
-    public RateLimits rateLimits() {
+    public WebPush webPush() {
+        return getWebPush();
+    }
+
+    public RateLimits getRateLimits() {
         return rateLimits;
+    }
+
+    public RateLimits rateLimits() {
+        return getRateLimits();
     }
 
     public static final class Mail {
         private String from = "noreply@posts.local";
         private String fromName = "Posts";
 
-        public String from() {
+        public String getFrom() {
             return from;
+        }
+
+        public String from() {
+            return getFrom();
         }
 
         public void setFrom(String from) {
             this.from = from;
         }
 
-        public String fromName() {
+        public String getFromName() {
             return fromName;
+        }
+
+        public String fromName() {
+            return getFromName();
         }
 
         public void setFromName(String fromName) {
@@ -99,32 +153,48 @@ public class NotificationsProperties {
         private String webhookSecret = "";
         private String apiBaseUrl = "https://api.telegram.org";
 
-        public String botToken() {
+        public String getBotToken() {
             return botToken;
+        }
+
+        public String botToken() {
+            return getBotToken();
         }
 
         public void setBotToken(String botToken) {
             this.botToken = botToken;
         }
 
-        public String botUsername() {
+        public String getBotUsername() {
             return botUsername;
+        }
+
+        public String botUsername() {
+            return getBotUsername();
         }
 
         public void setBotUsername(String botUsername) {
             this.botUsername = botUsername;
         }
 
-        public String webhookSecret() {
+        public String getWebhookSecret() {
             return webhookSecret;
+        }
+
+        public String webhookSecret() {
+            return getWebhookSecret();
         }
 
         public void setWebhookSecret(String webhookSecret) {
             this.webhookSecret = webhookSecret;
         }
 
-        public String apiBaseUrl() {
+        public String getApiBaseUrl() {
             return apiBaseUrl;
+        }
+
+        public String apiBaseUrl() {
+            return getApiBaseUrl();
         }
 
         public void setApiBaseUrl(String apiBaseUrl) {
@@ -137,24 +207,36 @@ public class NotificationsProperties {
         private String vapidPrivateKey = "";
         private String vapidSubject = "mailto:noreply@posts.local";
 
-        public String vapidPublicKey() {
+        public String getVapidPublicKey() {
             return vapidPublicKey;
+        }
+
+        public String vapidPublicKey() {
+            return getVapidPublicKey();
         }
 
         public void setVapidPublicKey(String vapidPublicKey) {
             this.vapidPublicKey = vapidPublicKey;
         }
 
-        public String vapidPrivateKey() {
+        public String getVapidPrivateKey() {
             return vapidPrivateKey;
+        }
+
+        public String vapidPrivateKey() {
+            return getVapidPrivateKey();
         }
 
         public void setVapidPrivateKey(String vapidPrivateKey) {
             this.vapidPrivateKey = vapidPrivateKey;
         }
 
-        public String vapidSubject() {
+        public String getVapidSubject() {
             return vapidSubject;
+        }
+
+        public String vapidSubject() {
+            return getVapidSubject();
         }
 
         public void setVapidSubject(String vapidSubject) {
@@ -173,16 +255,24 @@ public class NotificationsProperties {
         private int telegramPerSecond = 25;
         private Duration telegramMinInterval = Duration.ofMillis(40);
 
-        public int telegramPerSecond() {
+        public int getTelegramPerSecond() {
             return telegramPerSecond;
+        }
+
+        public int telegramPerSecond() {
+            return getTelegramPerSecond();
         }
 
         public void setTelegramPerSecond(int telegramPerSecond) {
             this.telegramPerSecond = telegramPerSecond;
         }
 
-        public Duration telegramMinInterval() {
+        public Duration getTelegramMinInterval() {
             return telegramMinInterval;
+        }
+
+        public Duration telegramMinInterval() {
+            return getTelegramMinInterval();
         }
 
         public void setTelegramMinInterval(Duration telegramMinInterval) {
