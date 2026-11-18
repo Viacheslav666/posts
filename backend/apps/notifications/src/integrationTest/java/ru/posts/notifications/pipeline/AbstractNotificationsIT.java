@@ -62,12 +62,17 @@ abstract class AbstractNotificationsIT {
     static final GreenMail GREEN_MAIL =
             new GreenMail(new ServerSetup(SMTP_PORT, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
 
-    /** Fixed port so a cached Spring context keeps a valid Telegram API base URL across IT classes. */
+    /**
+     * Fixed 127.0.0.1 bind: GitHub runners resolve {@code localhost} to IPv6 (::1) while WireMock
+     * listens on IPv4, which makes RestClient calls fail with connection refused.
+     */
     static final int TELEGRAM_WIREMOCK_PORT = 18089;
+
+    static final String TELEGRAM_API_BASE_URL = "http://127.0.0.1:" + TELEGRAM_WIREMOCK_PORT;
 
     @RegisterExtension
     static final WireMockExtension TELEGRAM_API = WireMockExtension.newInstance()
-            .options(wireMockConfig().port(TELEGRAM_WIREMOCK_PORT))
+            .options(wireMockConfig().port(TELEGRAM_WIREMOCK_PORT).bindAddress("127.0.0.1"))
             .build();
 
     static {
@@ -98,7 +103,7 @@ abstract class AbstractNotificationsIT {
         registry.add("spring.mail.username", () -> "");
         registry.add("spring.mail.password", () -> "");
         registry.add("posts.notifications.telegram.bot-token", () -> "test-token");
-        registry.add("posts.notifications.telegram.api-base-url", () -> "http://127.0.0.1:" + TELEGRAM_WIREMOCK_PORT);
+        registry.add("posts.notifications.telegram.api-base-url", () -> TELEGRAM_API_BASE_URL);
         registry.add("posts.notifications.web-push.vapid-public-key", () -> "");
         registry.add("posts.notifications.web-push.vapid-private-key", () -> "");
     }
@@ -113,8 +118,8 @@ abstract class AbstractNotificationsIT {
         jdbcTemplate.update("DELETE FROM notifications");
         GREEN_MAIL.purgeEmailFromAllMailboxes();
         TELEGRAM_API.resetAll();
-        // Cached Spring context may outlive a WireMock restart across IT classes.
-        notificationsProperties.telegram().setApiBaseUrl(TELEGRAM_API.baseUrl());
+        // Keep IPv4 loopback even if WireMock reports localhost; refresh after class restarts.
+        notificationsProperties.telegram().setApiBaseUrl(TELEGRAM_API_BASE_URL);
         notificationsProperties.telegram().setBotToken("test-token");
     }
 

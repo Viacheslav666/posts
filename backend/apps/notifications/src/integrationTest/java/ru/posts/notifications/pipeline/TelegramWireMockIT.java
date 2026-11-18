@@ -21,7 +21,7 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
     @DisplayName("Telegram channel calls sendMessage via configurable base URL")
     void sendsTelegramMessage() {
         assertThat(notificationsProperties.telegram().botToken()).isEqualTo("test-token");
-        assertThat(notificationsProperties.telegram().apiBaseUrl()).isEqualTo(TELEGRAM_API.baseUrl());
+        assertThat(notificationsProperties.telegram().apiBaseUrl()).isEqualTo(TELEGRAM_API_BASE_URL);
 
         TELEGRAM_API.stubFor(post(urlPathMatching("/bottest-token/sendMessage"))
                 .willReturn(aResponse()
@@ -53,10 +53,10 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
                 .as(
                         "telegram delivery rows=%s apiBaseUrl=%s",
                         rows, notificationsProperties.telegram().apiBaseUrl())
-                .hasSize(1)
-                .first()
-                .extracting(row -> row.get("status"))
-                .isEqualTo("sent");
+                .singleElement()
+                .satisfies(row -> assertThat(row.get("status"))
+                        .as("last_error=%s", row.get("last_error"))
+                        .isEqualTo("sent"));
         TELEGRAM_API.verify(
                 postRequestedFor(urlPathMatching("/bottest-token/sendMessage")).withRequestBody(containing("999001")));
     }

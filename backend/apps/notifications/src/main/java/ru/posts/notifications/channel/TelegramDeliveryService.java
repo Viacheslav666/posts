@@ -1,5 +1,6 @@
 package ru.posts.notifications.channel;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -46,12 +47,16 @@ public class TelegramDeliveryService {
 
         throttle();
         String text = formatMessage(command);
-        String url = properties.telegram().apiBaseUrl() + "/bot" + token + "/sendMessage";
+        String base = properties.telegram().apiBaseUrl();
+        if (base != null && base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        URI uri = URI.create(base + "/bot" + token + "/sendMessage");
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restClient
                     .post()
-                    .uri(url)
+                    .uri(uri)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("chat_id", link.getChatId(), "text", text, "disable_web_page_preview", true))
                     .retrieve()
