@@ -31,8 +31,9 @@ import ru.posts.persistence.entity.NotificationDeliveryEntity;
 import ru.posts.persistence.repository.NotificationDeliveryRepository;
 
 /**
- * Notification ITs run with Rabbit listeners disabled and invoke the pipeline synchronously to
- * avoid competing consumers / cross-test mailbox races on shared Testcontainers brokers.
+ * Fast notification ITs: Rabbit listeners disabled; pipeline invoked synchronously via
+ * {@link DomainEventProcessor} + {@link ChannelDeliveryHandler}. Broker E2E (listeners on,
+ * redelivery) lives in {@link RabbitNotifyPipelineIT} with a dedicated broker/DB/SMTP.
  */
 @SpringBootTest(
         classes = NotificationsApplication.class,
