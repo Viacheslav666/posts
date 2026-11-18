@@ -59,6 +59,12 @@ dependencies {
 
 tasks.named<Test>("integrationTest") {
     systemProperty("posts.repo.root", rootProject.projectDir.parentFile.absolutePath)
+    // QA-12: heavy pipeline linkage (@Tag("nightly")) via -PincludeNightly=true.
+    useJUnitPlatform {
+        if (!project.hasProperty("includeNightly")) {
+            excludeTags("nightly")
+        }
+    }
 }
 
 // Custom OpenAPI export (ADR-0008): springdoc-openapi-gradle-plugin 1.9 has

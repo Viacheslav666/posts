@@ -27,12 +27,14 @@ public class VkApiController {
 
     private final PostStore postStore;
     private final PublishSupport publishSupport;
+    private final WallSourceStore wallSourceStore;
     private final ConcurrentMap<String, UploadSession> uploads = new ConcurrentHashMap<>();
     private final AtomicLong photoSeq = new AtomicLong();
 
-    public VkApiController(PostStore postStore, PublishSupport publishSupport) {
+    public VkApiController(PostStore postStore, PublishSupport publishSupport, WallSourceStore wallSourceStore) {
         this.postStore = postStore;
         this.publishSupport = publishSupport;
+        this.wallSourceStore = wallSourceStore;
     }
 
     @GetMapping({"/method/{method}", "/vk/method/{method}"})
@@ -90,11 +92,25 @@ public class VkApiController {
                     getStoryUploadServer(params, normalized.contains("Video")));
             case "stories.save" -> storiesSave(params, rawResponse);
             case "stories.delete" -> storiesDelete(params);
-            case "wall.getById", "wall.get" -> ResponseEntity.ok(
-                    Map.of("response", Map.of("items", java.util.List.of())));
+            case "wall.get" -> ResponseEntity.ok(wallGet(params));
+            case "wall.getById" -> ResponseEntity.ok(Map.of("response", Map.of("items", java.util.List.of())));
             default -> ResponseEntity.ok(
                     Map.of("error", Map.of("error_code", 3, "error_msg", "Unknown method passed: " + normalized)));
         };
+    }
+
+    private Map<String, Object> wallGet(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id", "domain");
+        String countRaw = first(params, "count");
+        int count = 20;
+        if (countRaw != null) {
+            try {
+                count = Integer.parseInt(countRaw);
+            } catch (NumberFormatException ignored) {
+                count = 20;
+            }
+        }
+        return wallSourceStore.wallGet(ownerId == null ? "0" : ownerId, count);
     }
 
     private ResponseEntity<?> wallPost(MultiValueMap<String, String> params, HttpServletResponse rawResponse)

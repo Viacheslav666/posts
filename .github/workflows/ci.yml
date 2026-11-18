@@ -238,12 +238,12 @@ jobs:
       - name: Install frontend deps
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Playwright smoke
+      - name: Playwright smoke + grabber P0 (MSW)
         working-directory: tests/e2e
         run: |
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
-          pnpm test:smoke
+          pnpm test:p0
       # QA-10: TC-AD-01…04 UI маркировки на MSW (webServer NEXT_PUBLIC_API_MOCKING=true).
       - name: Playwright ad-marking (TC-AD P0 UI)
         working-directory: tests/e2e
