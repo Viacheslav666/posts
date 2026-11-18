@@ -23,7 +23,11 @@ test.describe('ORD reporting (FE-16)', () => {
 
     const ord = new OrdPage(page);
     await ord.goto(demoWorkspace);
-    if (!(await ord.heading().isVisible().catch(() => false))) {
+
+    const loginHeading = page.getByRole('heading', { name: 'Вход' });
+    const ordHeading = ord.heading();
+    await ordHeading.or(loginHeading).first().waitFor({ state: 'visible' });
+    if (!(await ordHeading.isVisible().catch(() => false))) {
       test.skip();
       return;
     }
@@ -55,7 +59,11 @@ test.describe('ORD reporting (FE-16)', () => {
 
     const ord = new OrdPage(page);
     await ord.goto(demoWorkspace);
-    if (!(await ord.heading().isVisible().catch(() => false))) {
+
+    const loginHeading = page.getByRole('heading', { name: 'Вход' });
+    const ordHeading = ord.heading();
+    await ordHeading.or(loginHeading).first().waitFor({ state: 'visible' });
+    if (!(await ordHeading.isVisible().catch(() => false))) {
       test.skip();
       return;
     }
@@ -69,6 +77,6 @@ test.describe('ORD reporting (FE-16)', () => {
     const serious = results.violations.filter(
       (v) => v.impact === 'serious' || v.impact === 'critical',
     );
-    expect(serious).toEqual([]);
+    expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
   });
 });
