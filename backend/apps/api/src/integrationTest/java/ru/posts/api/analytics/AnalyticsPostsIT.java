@@ -20,12 +20,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -97,6 +99,9 @@ class AnalyticsPostsIT {
 
     @Autowired
     AnalyticsPostsAggregator aggregator;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void setUp() {
@@ -245,25 +250,40 @@ class AnalyticsPostsIT {
     }
 
     @Test
-    @DisplayName("BE-30: volume — recompute 5_000 publications for one month within budget")
-    void volumeRecomputeBudget() throws Exception {
+    @DisplayName("BE-30: volume smoke — recompute 500 publications within budget (PR CI)")
+    void volumeRecomputeBudgetSmoke() throws Exception {
         String token = registerVerifyLogin("be30-vol-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
         ChannelEntity channel = seedChannel(workspaceId, "vk");
         PostEntity post = seedPost(workspaceId, false, null);
         Instant base =
                 YearMonth.of(2026, 10).atDay(1).atTime(10, 0).atZone(MOSCOW).toInstant();
-        for (int i = 0; i < 5_000; i++) {
-            seedPublication(
-                    workspaceId,
-                    post.getId(),
-                    channel.getId(),
-                    i % 2 == 0 ? "vk" : "tg",
-                    i % 17 == 0 ? "failed_retryable" : "succeeded",
-                    base.plusSeconds(i),
-                    i % 17 == 0 ? "timeout" : null,
-                    i % 17 == 0 ? "timeout" : null);
-        }
+        bulkSeedPublications(workspaceId, post.getId(), channel.getId(), base, 500);
+        long t0 = System.nanoTime();
+        aggregator.recomputeMonth(workspaceId, 2026, 10);
+        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+        assertThat(elapsedMs).as("500 pubs recompute elapsedMs=%s", elapsedMs).isLessThan(10_000L);
+        System.out.println("BE-30_500_pubs_recompute_ms=" + elapsedMs);
+
+        mockMvc.perform(get("/api/v1/analytics/posts")
+                        .header("Authorization", bearer(token))
+                        .param("workspaceId", workspaceId.toString())
+                        .param("year", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.months[9].regularCount").value(500));
+    }
+
+    @Test
+    @Tag("nightly")
+    @DisplayName("BE-30: volume — recompute 5_000 publications within budget (nightly)")
+    void volumeRecomputeBudgetNightly() throws Exception {
+        String token = registerVerifyLogin("be30-vol5k-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        PostEntity post = seedPost(workspaceId, false, null);
+        Instant base =
+                YearMonth.of(2026, 10).atDay(1).atTime(10, 0).atZone(MOSCOW).toInstant();
+        bulkSeedPublications(workspaceId, post.getId(), channel.getId(), base, 5_000);
         long t0 = System.nanoTime();
         aggregator.recomputeMonth(workspaceId, 2026, 10);
         long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
@@ -276,6 +296,42 @@ class AnalyticsPostsIT {
                         .param("year", "2026"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.months[9].regularCount").value(5_000));
+    }
+
+    /** JDBC batch insert — avoids O(n) Hibernate sessions under CI memory pressure. */
+    private void bulkSeedPublications(UUID workspaceId, UUID postId, UUID channelId, Instant base, int count) {
+        jdbcTemplate.batchUpdate(
+                """
+                INSERT INTO publications (
+                  id, run_at, workspace_id, post_id, variant_id, channel_id, network,
+                  idempotency_key, state, attempts, error_code, error_message, published_at, created_at, meta
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CAST('{}' AS jsonb))
+                """,
+                new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(java.sql.PreparedStatement ps, int i) throws java.sql.SQLException {
+                        boolean failed = i % 17 == 0;
+                        Instant runAt = base.plusSeconds(i);
+                        ps.setObject(1, UuidV7.generate());
+                        ps.setTimestamp(2, java.sql.Timestamp.from(runAt));
+                        ps.setObject(3, workspaceId);
+                        ps.setObject(4, postId);
+                        ps.setObject(5, UuidV7.generate());
+                        ps.setObject(6, channelId);
+                        ps.setString(7, i % 2 == 0 ? "vk" : "tg");
+                        ps.setString(8, "be30-bulk-" + UUID.randomUUID());
+                        ps.setString(9, failed ? "failed_retryable" : "succeeded");
+                        ps.setString(10, failed ? "timeout" : null);
+                        ps.setString(11, failed ? "timeout" : null);
+                        ps.setTimestamp(12, failed ? null : java.sql.Timestamp.from(runAt));
+                        ps.setTimestamp(13, java.sql.Timestamp.from(Instant.now()));
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return count;
+                    }
+                });
     }
 
     private PostEntity seedPost(UUID workspaceId, boolean ad, Map<String, Object> repost) {
