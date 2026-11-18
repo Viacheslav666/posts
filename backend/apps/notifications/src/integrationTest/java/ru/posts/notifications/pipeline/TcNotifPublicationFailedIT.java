@@ -59,7 +59,8 @@ class TcNotifPublicationFailedIT extends AbstractNotificationsIT {
                 Map.of("workspaceId", user.workspaceId().toString(), "network", "tg", "result", "auth"),
                 "trace-notif-01");
 
-        rabbitTemplate.convertAndSend(NotifyTopology.NOTIFY_EXCHANGE, "publication.failed", event);
+        rabbitTemplate.convertAndSend(
+                NotifyTopology.NOTIFY_EXCHANGE, NotifyTopology.eventRoutingKey("publication.failed"), event);
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             Integer notifications = jdbcTemplate.queryForObject(

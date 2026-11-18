@@ -311,6 +311,9 @@ final class RbacHttpProbeSupport {
         if ("ingestPreview".equals(endpoint.operationId())) {
             out.putIfAbsent("workspaceId", values.get("{workspaceId}"));
         }
+        if ("notificationWebPushUnsubscribe".equals(endpoint.operationId())) {
+            out.putIfAbsent("endpoint", "https://example.com/push/rbac-probe");
+        }
         return out;
     }
 

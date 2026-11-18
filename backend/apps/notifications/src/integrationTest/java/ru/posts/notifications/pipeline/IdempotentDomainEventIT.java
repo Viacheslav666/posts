@@ -38,8 +38,9 @@ class IdempotentDomainEventIT extends AbstractNotificationsIT {
                 Map.of("workspaceId", user.workspaceId().toString(), "network", "tg", "result", "auth"),
                 "trace-idem");
 
-        rabbitTemplate.convertAndSend(NotifyTopology.NOTIFY_EXCHANGE, "publication.failed", event);
-        rabbitTemplate.convertAndSend(NotifyTopology.NOTIFY_EXCHANGE, "publication.failed", event);
+        String rk = NotifyTopology.eventRoutingKey("publication.failed");
+        rabbitTemplate.convertAndSend(NotifyTopology.NOTIFY_EXCHANGE, rk, event);
+        rabbitTemplate.convertAndSend(NotifyTopology.NOTIFY_EXCHANGE, rk, event);
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             Integer notifications = jdbcTemplate.queryForObject(
