@@ -1,4 +1,5 @@
 import type {
+  BulkPostsRequest,
   ChannelConnectCallbackRequest,
   ChannelConnectConfirmRequest,
   CompleteUploadRequest,
@@ -9,9 +10,11 @@ import type {
   CreateWorkspaceRequest,
   EmailVerifyRequest,
   LoginRequest,
+  MoveCalendarItemRequest,
   OAuthStartResponse,
   PasswordForgotRequest,
   PasswordResetRequest,
+  PostActionRequest,
   ProblemDetail,
   ProjectMembersRequest,
   RegisterRequest,
@@ -68,6 +71,23 @@ import {
   listMedia,
   receivePart,
 } from './media-store';
+import {
+  bulkDuplicate,
+  bulkPosts,
+  deletePost,
+  duplicatePost,
+  getPost,
+  getPublication,
+  listCalendar,
+  listPosts,
+  listPublicationsForPost,
+  moveCalendarItem,
+  pausePost,
+  resumePost,
+  retryPublication,
+  toApiPost,
+  type ListPostsFilters,
+} from './post-store';
 import {
   acceptInvitation,
   cancelInvitation,
@@ -983,5 +1003,207 @@ export const handlers = [
       status: 200,
       headers: { ETag: `"${result.etag}"` },
     });
+  }),
+
+  // --- FE-8: calendar + posts + publications ---
+
+  http.get('/api/v1/calendar', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    const from = url.searchParams.get('from');
+    const to = url.searchParams.get('to');
+    if (!workspaceId || !from || !to) {
+      return problem(400, 'validation_failed', 'workspaceId, from and to are required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'calendar.view');
+    if (deniedView) return deniedView;
+    const items = listCalendar({
+      workspaceId,
+      from,
+      to,
+      projectId: url.searchParams.get('projectId') ?? undefined,
+      channelId: url.searchParams.get('channelId') ?? undefined,
+      authorId: url.searchParams.get('authorId') ?? undefined,
+      network: url.searchParams.get('network') ?? undefined,
+      status: url.searchParams.get('status') ?? undefined,
+    });
+    return HttpResponse.json(items);
+  }),
+
+  http.post('/api/v1/calendar/:postId/move', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedMove = requirePermission(request, 'calendar.move');
+    if (deniedMove) return deniedMove;
+    const body = (await request.json()) as MoveCalendarItemRequest;
+    const result = moveCalendarItem(String(params.postId), body);
+    if (!result) {
+      return problem(404, 'not_found', 'Post not found', 'Not found');
+    }
+    if ('conflict' in result) {
+      return problem(409, 'optimistic_lock_conflict', 'Post version conflict', 'Conflict');
+    }
+    return HttpResponse.json(toApiPost(result));
+  }),
+
+  http.get('/api/v1/posts', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required', 'Validation failed');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'posts.view');
+    if (deniedView) return deniedView;
+
+    const sort = url.searchParams.get('sort') as ListPostsFilters['sort'] | null;
+    const page = listPosts({
+      workspaceId,
+      from: url.searchParams.get('from') ?? undefined,
+      to: url.searchParams.get('to') ?? undefined,
+      status: url.searchParams.get('status') ?? undefined,
+      channelId: url.searchParams.get('channelId') ?? undefined,
+      projectId: url.searchParams.get('projectId') ?? undefined,
+      network: url.searchParams.get('network') ?? undefined,
+      authorId: url.searchParams.get('authorId') ?? undefined,
+      q: url.searchParams.get('q') ?? undefined,
+      cursor: url.searchParams.get('cursor') ?? undefined,
+      limit: url.searchParams.get('limit')
+        ? Number(url.searchParams.get('limit'))
+        : undefined,
+      sort: sort ?? undefined,
+    });
+
+    return HttpResponse.json({
+      items: page.items.map(toApiPost),
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
+    });
+  }),
+
+  http.post('/api/v1/posts/bulk', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.bulk');
+    if (denied) return denied;
+    const body = (await request.json()) as BulkPostsRequest;
+    if (!body.action || !body.postIds?.length) {
+      return problem(400, 'validation_failed', 'action and postIds are required', 'Validation failed');
+    }
+    return HttpResponse.json(bulkPosts(body));
+  }),
+
+  /** Proposed contract extension — not in OpenAPI yet (see PR notes). */
+  http.post('/api/v1/posts/bulk-duplicate', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.bulk');
+    if (denied) return denied;
+    const body = (await request.json()) as { postIds?: string[] };
+    if (!body.postIds?.length) {
+      return problem(400, 'validation_failed', 'postIds are required', 'Validation failed');
+    }
+    return HttpResponse.json(bulkDuplicate(body.postIds));
+  }),
+
+  http.get('/api/v1/posts/:postId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'posts.view');
+    if (deniedView) return deniedView;
+    const post = getPost(String(params.postId));
+    if (!post || post.status === 'archived') {
+      return problem(404, 'not_found', 'Post not found', 'Not found');
+    }
+    return HttpResponse.json(toApiPost(post));
+  }),
+
+  http.delete('/api/v1/posts/:postId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedDelete = requirePermission(request, 'posts.delete');
+    if (deniedDelete) return deniedDelete;
+    if (!deletePost(String(params.postId))) {
+      return problem(404, 'not_found', 'Post not found', 'Not found');
+    }
+    const post = getPost(String(params.postId));
+    return HttpResponse.json(post ? toApiPost(post) : { message: 'deleted' });
+  }),
+
+  http.post('/api/v1/posts/:postId/pause', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.schedule');
+    if (denied) return denied;
+    const body = (await request.json()) as PostActionRequest;
+    const result = pausePost(String(params.postId), body.version);
+    if (!result) return problem(404, 'not_found', 'Post not found', 'Not found');
+    if ('conflict' in result) {
+      return problem(409, 'optimistic_lock_conflict', 'Post version conflict', 'Conflict');
+    }
+    return HttpResponse.json(toApiPost(result));
+  }),
+
+  http.post('/api/v1/posts/:postId/resume', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.schedule');
+    if (denied) return denied;
+    const body = (await request.json()) as PostActionRequest;
+    const result = resumePost(String(params.postId), body.version);
+    if (!result) return problem(404, 'not_found', 'Post not found', 'Not found');
+    if ('conflict' in result) {
+      return problem(409, 'optimistic_lock_conflict', 'Post version conflict', 'Conflict');
+    }
+    return HttpResponse.json(toApiPost(result));
+  }),
+
+  http.post('/api/v1/posts/:postId/duplicate', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.create');
+    if (denied) return denied;
+    const copy = duplicatePost(String(params.postId));
+    if (!copy) return problem(404, 'not_found', 'Post not found', 'Not found');
+    return HttpResponse.json(toApiPost(copy), { status: 201 });
+  }),
+
+  http.get('/api/v1/posts/:postId/publications', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'posts.view');
+    if (deniedView) return deniedView;
+    const url = new URL(request.url);
+    const page = listPublicationsForPost(
+      String(params.postId),
+      url.searchParams.get('cursor') ?? undefined,
+      url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : 50,
+    );
+    return HttpResponse.json(page);
+  }),
+
+  http.get('/api/v1/publications/:publicationId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'posts.view');
+    if (deniedView) return deniedView;
+    const pub = getPublication(String(params.publicationId));
+    if (!pub) return problem(404, 'not_found', 'Publication not found', 'Not found');
+    return HttpResponse.json(pub);
+  }),
+
+  http.post('/api/v1/publications/:publicationId/retry', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.retry_publish');
+    if (denied) return denied;
+    const result = retryPublication(String(params.publicationId));
+    if (!result) {
+      return problem(404, 'not_found', 'Publication not found or not retryable', 'Not found');
+    }
+    return HttpResponse.json(result);
   }),
 ];
