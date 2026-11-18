@@ -17,7 +17,64 @@ export type ItemStatus =
 
 export const SCAN_INTERVALS = [15, 30, 60, 120, 180, 360, 720, 1440] as const;
 
+/** BE-27: max 20 sources per rule. */
+export const MAX_SOURCES_PER_RULE = 20;
+
 export const DEFAULT_ATTRIBUTION_TEMPLATE = 'Источник: {source_name} — {source_url}';
+
+/** ISO day numbers Monday=1 … Sunday=7 (matches backend WorkingWindow). */
+export const DAYS_OF_WEEK = [1, 2, 3, 4, 5, 6, 7] as const;
+
+export const SKIP_IF_NO_ATTACHMENT_FLAGS = [
+  'skipIfNoMusic',
+  'skipIfNoPhoto',
+  'skipIfNoVideo',
+  'skipIfNoClip',
+  'skipIfNoProduct',
+  'skipIfNoFile',
+  'skipIfNoPoll',
+] as const;
+
+export const SKIP_IF_HAS_ATTACHMENT_FLAGS = [
+  'skipIfHasArticle',
+  'skipIfHasVideo',
+  'skipIfHasClip',
+  'skipIfHasPhoto',
+  'skipIfHasMusic',
+  'skipIfHasFile',
+  'skipIfHasProduct',
+  'skipIfHasPoll',
+] as const;
+
+export const STRIP_FLAGS = [
+  'stripPhoto',
+  'stripVideo',
+  'stripClip',
+  'stripMusic',
+  'stripPlaylist',
+  'stripFile',
+  'stripPoll',
+  'stripAlbum',
+  'stripProduct',
+  'stripMarketAlbum',
+  'stripWiki',
+  'stripArticle',
+  'stripAllLinks',
+  'stripHashtags',
+  'stripMentions',
+  'stripAllText',
+  'stripPhones',
+] as const;
+
+export const TEXT_MACROS = [
+  '[name_of_the_source]',
+  '[id_of_the_source]',
+  '[post_id_of_the_source]',
+  '[rand]вариант1|вариант2[/rand]',
+  '[keyText]',
+  '[keyTextEntry]',
+  '[keyTextEntryNotFound]',
+] as const;
 
 export function isWebsiteSourceEnabled(): boolean {
   if (process.env.NEXT_PUBLIC_GRABBER_WEBSITE_ENABLED === 'true') {

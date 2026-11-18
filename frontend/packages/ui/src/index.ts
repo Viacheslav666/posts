@@ -106,3 +106,12 @@ export type { PostPreviewNetwork, PostPreviewProps } from './components/post-pre
 
 export { FileDropzone } from './components/file-dropzone';
 export type { FileDropzoneProps } from './components/file-dropzone';
+
+export { SettingsSection } from './components/settings-section';
+export type { SettingsSectionProps } from './components/settings-section';
+
+export { PendingFeatureNotice } from './components/pending-feature-notice';
+export type { PendingFeatureNoticeProps } from './components/pending-feature-notice';
+
+export { MacroHints } from './components/macro-hints';
+export type { MacroHintsProps } from './components/macro-hints';

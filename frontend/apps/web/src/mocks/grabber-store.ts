@@ -577,6 +577,89 @@ export function bulkModerate(body: GrabberBulkModerationRequest): GrabberBulkMod
   return { succeeded, failed: failedIds.length, failedIds };
 }
 
+const CLONE_KEYS = [
+  'filters',
+  'transform',
+  'attribution',
+  'limits',
+  'reliability',
+  'schedule',
+  'firstComment',
+  'macros',
+] as const;
+
+export function cloneRuleConfig(
+  ruleId: string,
+  sourceRuleId: string,
+): GrabberRule | GrabberMutationError {
+  const target = findRule(ruleId);
+  if (!target) {
+    return { status: 404, code: 'not_found', detail: 'Rule not found' };
+  }
+  if (target.status === 'archived') {
+    return { status: 409, code: 'conflict', detail: 'Rule is archived' };
+  }
+  const source = findRule(sourceRuleId);
+  if (!source || source.workspaceId !== target.workspaceId) {
+    return { status: 404, code: 'not_found', detail: 'Source rule not found' };
+  }
+  const nextConfig: GrabberConfig = { ...(target.config ?? {}) };
+  const sourceConfig = source.config ?? {};
+  for (const key of CLONE_KEYS) {
+    if (sourceConfig[key] != null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (nextConfig as any)[key] = sourceConfig[key];
+    }
+  }
+  const updated: GrabberRule = {
+    ...target,
+    config: nextConfig,
+    configVersion: (target.configVersion ?? 1) + 1,
+    version: (target.version ?? 1) + 1,
+    updatedAt: nowIso(),
+  };
+  state.rules = state.rules.map((item) => (item.id === ruleId ? updated : item));
+  return updated;
+}
+
+export function exportItemsCsv(ruleId: string, status?: ItemStatus): string {
+  const rows = listItems(ruleId, status);
+  const header = [
+    'group',
+    'remote_post_id',
+    'source_id',
+    'post_id',
+    'detected_at',
+    'status',
+    'skip_reason',
+    'permalink',
+  ];
+  const rule = findRule(ruleId);
+  const lines = [
+    header.join(','),
+    ...rows.map((item) =>
+      [
+        csvEscape(rule?.name ?? ''),
+        csvEscape(item.remotePostId ?? ''),
+        csvEscape(item.sourceId ?? ''),
+        csvEscape(item.postId ?? ''),
+        csvEscape(item.detectedAt ?? ''),
+        csvEscape(item.status ?? ''),
+        csvEscape(item.skipReason ?? ''),
+        csvEscape(item.sourcePermalink ?? ''),
+      ].join(','),
+    ),
+  ];
+  return lines.join('\n');
+}
+
+function csvEscape(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
 export function previewSource(
   workspaceId: string,
   body: IngestPreviewRequest,
