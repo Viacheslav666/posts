@@ -9,5 +9,7 @@ import ru.posts.persistence.entity.PostVariantEntity;
 public interface PostVariantRepository extends JpaRepository<PostVariantEntity, UUID> {
     List<PostVariantEntity> findByPostId(UUID postId);
 
+    List<PostVariantEntity> findByPostIdIn(java.util.Collection<UUID> postIds);
+
     Optional<PostVariantEntity> findByPostIdAndChannelId(UUID postId, UUID channelId);
 }

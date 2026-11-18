@@ -227,20 +227,16 @@ function PublicationRow({
   );
 }
 
-/** Read future ad-marking fields without breaking when OpenAPI lacks them. */
 function readAdMarking(post: Post): {
   enabled: boolean;
   erid?: string;
   advertiserName?: string;
 } {
-  const extended = post as Post & {
-    adMarking?: { enabled?: boolean; erid?: string; advertiserName?: string };
-  };
-  if (extended.adMarking) {
+  if (post.adMarking) {
     return {
-      enabled: Boolean(extended.adMarking.enabled || extended.ad),
-      erid: extended.adMarking.erid,
-      advertiserName: extended.adMarking.advertiserName,
+      enabled: Boolean(post.adMarking.enabled || post.ad),
+      erid: post.adMarking.erid,
+      advertiserName: post.adMarking.advertiserName,
     };
   }
   return { enabled: Boolean(post.ad) };

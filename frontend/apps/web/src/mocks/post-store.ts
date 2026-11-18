@@ -1,10 +1,12 @@
 import type {
+  AdMarkingSummary,
   BulkPostsRequest,
   BulkPostsResponse,
   CalendarItem,
   MoveCalendarItemRequest,
   Post,
   Publication,
+  PublicationAttempt,
 } from '@posts/api-client';
 
 import { CHANNEL_IDS } from './channel-store';
@@ -39,17 +41,13 @@ export type Network = NonNullable<CalendarItem['networks']>[number];
 export type StoredPost = Post & {
   channelIds: string[];
   networks: Network[];
-  /** MSW-only: future ad marking fields (FE-12). */
-  adMarking?: {
-    enabled: boolean;
-    erid?: string;
-    advertiserName?: string;
-  };
+  adMarking?: AdMarkingSummary;
 };
 
 type PostStoreState = {
   posts: StoredPost[];
   publications: Publication[];
+  attempts: PublicationAttempt[];
   seq: number;
 };
 
@@ -245,7 +243,45 @@ function createInitialState(): PostStoreState {
     },
   ];
 
-  return { posts, publications, seq: 100 };
+  const attempts: PublicationAttempt[] = [
+    {
+      id: '019a0000-attm-7000-8000-000000000001',
+      publicationId: PUBLICATION_IDS.failedVk,
+      attemptNo: 1,
+      startedAt: hoursFromNow(-3),
+      finishedAt: hoursFromNow(-3),
+      errorCode: 'vk_api_6',
+      httpStatus: 429,
+    },
+    {
+      id: '019a0000-attm-7000-8000-000000000002',
+      publicationId: PUBLICATION_IDS.failedVk,
+      attemptNo: 2,
+      startedAt: hoursFromNow(-2.5),
+      finishedAt: hoursFromNow(-2.5),
+      errorCode: 'vk_api_6',
+      httpStatus: 429,
+    },
+    {
+      id: '019a0000-attm-7000-8000-000000000003',
+      publicationId: PUBLICATION_IDS.failedVk,
+      attemptNo: 3,
+      startedAt: hoursFromNow(-2),
+      finishedAt: hoursFromNow(-2),
+      errorCode: 'vk_api_6',
+      httpStatus: 429,
+    },
+    {
+      id: '019a0000-attm-7000-8000-000000000004',
+      publicationId: PUBLICATION_IDS.publishedOk,
+      attemptNo: 1,
+      startedAt: hoursFromNow(-26),
+      finishedAt: hoursFromNow(-26),
+      httpStatus: 200,
+    },
+  ];
+
+  return { posts, publications, attempts, seq: 100 };
 }
 
 let state = createInitialState();
@@ -254,7 +290,7 @@ export function resetPostStore(): void {
   state = createInitialState();
 }
 
-function nextId(prefix: 'post' | 'publ'): string {
+function nextId(prefix: 'post' | 'publ' | 'attm'): string {
   state.seq += 1;
   return `019a0000-${prefix}-7000-8000-${String(state.seq).padStart(12, '0')}`;
 }
@@ -271,7 +307,6 @@ export type ListPostsFilters = {
   q?: string;
   cursor?: string;
   limit?: number;
-  /** Client sort — MSW extension until OpenAPI adds `sort`. */
   sort?: 'scheduledAt_asc' | 'scheduledAt_desc' | 'title_asc' | 'updatedAt_desc';
 };
 
@@ -365,6 +400,10 @@ export function listCalendar(filters: CalendarFilters): CalendarItem[] {
       projectId: post.projectId,
       channelIds: post.channelIds,
       networks: post.networks,
+      authorId: post.authorId,
+      ad: post.ad,
+      adMarking: post.adMarking,
+      contentKind: post.contentKind ?? 'post',
     }));
 }
 
@@ -394,6 +433,12 @@ export function listPublicationsForPost(
 
 export function getPublication(publicationId: string): Publication | undefined {
   return state.publications.find((p) => p.id === publicationId);
+}
+
+export function listPublicationAttempts(publicationId: string): PublicationAttempt[] {
+  return state.attempts
+    .filter((a) => a.publicationId === publicationId)
+    .sort((a, b) => (a.attemptNo ?? 0) - (b.attemptNo ?? 0));
 }
 
 export function moveCalendarItem(
@@ -525,23 +570,17 @@ export function bulkPosts(body: BulkPostsRequest): BulkPostsResponse {
         else affected += 1;
         break;
       }
+      case 'duplicate': {
+        const copy = duplicatePost(id);
+        if (copy) affected += 1;
+        else failedIds.push(id);
+        break;
+      }
       default:
         failedIds.push(id);
     }
   }
 
-  return { affected, failedIds };
-}
-
-/** MSW extension: bulk duplicate via individual clones (not in OpenAPI BulkPostsRequest). */
-export function bulkDuplicate(postIds: string[]): BulkPostsResponse {
-  const failedIds: string[] = [];
-  let affected = 0;
-  for (const id of postIds) {
-    const copy = duplicatePost(id);
-    if (copy) affected += 1;
-    else failedIds.push(id);
-  }
   return { affected, failedIds };
 }
 
@@ -557,10 +596,18 @@ export function retryPublication(publicationId: string): Publication | null {
   pub.errorMessage = undefined;
   pub.nextAttemptAt = new Date(Date.now() + 30_000).toISOString();
 
+  const now = new Date().toISOString();
+  state.attempts.push({
+    id: nextId('attm'),
+    publicationId,
+    attemptNo: pub.attempts,
+    startedAt: now,
+  });
+
   const post = getPost(pub.postId ?? '');
   if (post && (post.status === 'failed' || post.status === 'partially_published')) {
     post.status = 'publishing';
-    post.updatedAt = new Date().toISOString();
+    post.updatedAt = now;
   }
   return { ...pub };
 }
@@ -577,7 +624,10 @@ export function applyPublicationUpdate(
 }
 
 export function toApiPost(post: StoredPost): Post {
-  const { channelIds: _c, networks: _n, adMarking, ...rest } = post;
-  // `adMarking` is an MSW / FE-12 preview extension — not in OpenAPI Post yet.
-  return { ...rest, ...(adMarking ? { adMarking } : {}) } as Post;
+  const { channelIds: _c, networks: _n, ...rest } = post;
+  return {
+    ...rest,
+    contentKind: post.contentKind ?? 'post',
+    ...(post.adMarking ? { adMarking: post.adMarking } : {}),
+  };
 }

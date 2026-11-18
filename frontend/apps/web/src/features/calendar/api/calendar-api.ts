@@ -11,6 +11,7 @@ export type ListCalendarParams = {
   authorId?: string;
   network?: string;
   status?: string;
+  timezone?: string;
 };
 
 export async function listCalendar(params: ListCalendarParams): Promise<CalendarItem[]> {
@@ -42,6 +43,7 @@ export async function listCalendar(params: ListCalendarParams): Promise<Calendar
               | 'deleted_from_network'
               | undefined
             ),
+          timezone: params.timezone,
         },
       },
     }),

@@ -1,44 +1,35 @@
 # FE-8: предложения по контракту OpenAPI
 
 Задача FE-8 реализована на существующем `docs/api/openapi.yaml` без breaking changes.
-Ниже — расширения, которые MSW уже поддерживает и которые желательно добавить бэкендом (BE-9).
+Ниже — расширения, которые MSW уже поддерживает, и решения BE-9 по каждому пункту.
 
-## 1. Фильтр автора в списке постов
+## 1. Фильтр автора в списке постов — **принято**
 
-`GET /api/v1/posts` сейчас не принимает `authorId` (есть только в `GET /api/v1/calendar`).
-FE передаёт `authorId` как query-параметр; MSW фильтрует, реальный API до контракта может игнорировать.
+`GET /api/v1/posts` принимает optional `authorId` (uuid), как `GET /api/v1/calendar`.
 
-**Предложение:** добавить optional `authorId` (uuid) в `postsList`.
+## 2. Сортировка списка постов — **принято**
 
-## 2. Сортировка списка постов
-
-**Предложение:** optional `sort` enum:
+Optional `sort` enum:
 `scheduledAt_asc | scheduledAt_desc | title_asc | updatedAt_desc`
-(сейчас сортировка — MSW-расширение / клиентский fallback).
+(default: `scheduledAt_desc`).
 
-## 3. Bulk duplicate
+## 3. Bulk duplicate — **принято**
 
-`BulkPostsRequest.action` = `pause | resume | delete | reschedule`.
-UI «Дублировать» вызывает MSW `POST /api/v1/posts/bulk-duplicate` либо fallback на
-последовательные `POST /api/v1/posts/{id}/duplicate`.
+`BulkPostsRequest.action` расширен значением `duplicate` (без отдельного
+`POST /api/v1/posts/bulk-duplicate`).
 
-**Предложение:** либо `action: duplicate` в `postsBulk`, либо задокументированный
-`POST /api/v1/posts/bulk-duplicate`.
+## 4. Хронология попыток публикации — **принято**
 
-## 4. Хронология попыток публикации
+Добавлен `GET /api/v1/publications/{publicationId}/attempts` → `PublicationAttempt[]`
+(`operationId: publicationsListAttempts`).
 
-`Publication.attempts` — счётчик. Для UI «хронология попыток» нужен список
-`PublicationAttempt[]` (время, результат, код ошибки).
+## 5. Слоты-«призраки» контент-плана — **отклонено (BE-9)**
 
-**Предложение:** `GET /api/v1/publications/{id}/attempts` или вложенный массив в DTO.
+Фаза 2 (рубрики / `content_slots`). Календарь UI может держать локальный MSW-fallback.
+В BE-9 не добавляем `kind: post | slot` в `CalendarItem`, чтобы не тащить модель слотов
+до появления таблиц рубрик. Вернёмся в задачах Фазы 2 / E9.
 
-## 5. Слоты-«призраки» контент-плана
+## 6. Маркировка рекламы на карточке — **частично принято**
 
-Фаза 2 (рубрики/слоты). Календарь UI готов принимать `ghosts[]`, в контракте пока нет.
-
-**Предложение:** optional `kind: post | slot` в `CalendarItem` + поля рубрики.
-
-## 6. Маркировка рекламы на карточке
-
-`AdMarkingSlot` читает `post.ad` и опциональный MSW-объект `adMarking: { enabled, erid, advertiserName }`.
-Полные поля — в FE-12 / BE-15.
+Добавлен lightweight `AdMarkingSummary` (`enabled`, `erid`, `advertiserName`) на `Post`
+и `CalendarItem` при `ad=true`. Полный блок ОРД / `ads_items` — BE-15 / FE-12.

@@ -30,11 +30,7 @@ import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
 import { usePublicationUpdates } from '@/shared/ws/use-publication-updates';
 
-import {
-  bulkDuplicatePosts,
-  bulkPosts,
-  listPosts,
-} from '../api/posts-api';
+import { bulkPosts, listPosts } from '../api/posts-api';
 import {
   clearSelection,
   selectAll,
@@ -116,14 +112,16 @@ export function PostsListPage({ workspaceId }: PostsListPageProps) {
       scheduledAt?: string;
     }) => {
       const postIds = [...selected];
-      if (action === 'duplicate') {
-        return bulkDuplicatePosts(postIds);
-      }
+      const contractedAction =
+        action === 'pause' ||
+        action === 'resume' ||
+        action === 'delete' ||
+        action === 'reschedule' ||
+        action === 'duplicate'
+          ? action
+          : 'pause';
       return bulkPosts({
-        action:
-          action === 'pause' || action === 'resume' || action === 'delete' || action === 'reschedule'
-            ? action
-            : 'pause',
+        action: contractedAction,
         postIds,
         scheduledAt,
       });

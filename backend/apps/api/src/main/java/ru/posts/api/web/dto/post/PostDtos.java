@@ -61,6 +61,26 @@ public final class PostDtos {
             @Schema(example = "https://example.com") String url,
             @Schema(description = "Callback data for bot buttons", nullable = true) String callbackData) {}
 
+    @Schema(
+            name = "AdMarkingSummary",
+            description = "Lightweight ad marking card fields for list/calendar (full ORD in BE-15).")
+    public record AdMarkingSummary(
+            boolean enabled, @Schema(nullable = true) String erid, @Schema(nullable = true) String advertiserName) {}
+
+    @Schema(name = "PostSort", description = "Sort order for postsList (FE-8)")
+    public enum PostSort {
+        scheduledAt_asc,
+        scheduledAt_desc,
+        title_asc,
+        updatedAt_desc
+    }
+
+    @Schema(name = "ContentKind")
+    public enum ContentKind {
+        post,
+        story
+    }
+
     @Schema(name = "Post")
     public record Post(
             UUID id,
@@ -74,6 +94,17 @@ public final class PostDtos {
             Recurrence recurrence,
             @Schema(description = "Repost mode payload; null for regular posts") RepostTarget repost,
             boolean ad,
+            @Schema(description = "Lightweight ad card; null when ad=false") AdMarkingSummary adMarking,
+            ContentKind contentKind,
+            @Schema(
+                            description = "manual|grabber|rss|import|api — grabber/rss set by BE-17",
+                            example = "manual",
+                            allowableValues = {"manual", "grabber", "rss", "import", "api"})
+                    String sourceType,
+            @Schema(nullable = true) Map<String, Object> sourceRef,
+            @Schema(nullable = true) Instant stopAt,
+            boolean removeAfterPublish,
+            @Schema(example = "Europe/Moscow") String timezone,
             int version,
             List<PostVariant> variants,
             Instant createdAt,
@@ -89,6 +120,11 @@ public final class PostDtos {
             @Valid Recurrence recurrence,
             @Valid RepostTarget repost,
             boolean ad,
+            @Schema(nullable = true) Map<String, Object> adPayload,
+            Instant stopAt,
+            Boolean removeAfterPublish,
+            @Schema(example = "Europe/Moscow") String timezone,
+            ContentKind contentKind,
             @Valid List<PostVariantUpsert> variants) {}
 
     @Schema(name = "UpdatePostRequest")
@@ -100,6 +136,10 @@ public final class PostDtos {
             @Valid Recurrence recurrence,
             @Valid RepostTarget repost,
             Boolean ad,
+            @Schema(nullable = true) Map<String, Object> adPayload,
+            Instant stopAt,
+            Boolean removeAfterPublish,
+            @Schema(example = "Europe/Moscow") String timezone,
             @NotNull @Schema(description = "Optimistic lock version") Integer version,
             @Valid List<PostVariantUpsert> variants) {}
 
@@ -115,6 +155,7 @@ public final class PostDtos {
     public record SchedulePostRequest(
             @NotNull Instant scheduledAt,
             @Valid Recurrence recurrence,
+            @Schema(example = "Europe/Moscow") String timezone,
             @NotNull @Schema(description = "Optimistic lock version") Integer version) {}
 
     @Schema(name = "PostActionRequest")
@@ -123,7 +164,11 @@ public final class PostDtos {
     @Schema(name = "BulkPostsRequest")
     public record BulkPostsRequest(
             @NotEmpty List<UUID> postIds,
-            @NotNull @Schema(allowableValues = {"pause", "resume", "delete", "reschedule"}) String action,
+            @NotNull
+                    @Schema(
+                            allowableValues = {"pause", "resume", "delete", "reschedule", "duplicate"},
+                            description = "duplicate accepted per FE-8 contract proposal")
+                    String action,
             Instant scheduledAt) {}
 
     @Schema(name = "BulkPostsResponse")
@@ -157,7 +202,11 @@ public final class PostDtos {
             Instant scheduledAt,
             List<ApiEnums.Network> networks,
             UUID projectId,
-            List<UUID> channelIds) {}
+            List<UUID> channelIds,
+            ContentKind contentKind,
+            boolean ad,
+            @Schema(nullable = true) AdMarkingSummary adMarking,
+            UUID authorId) {}
 
     @Schema(name = "Publication")
     public record Publication(
@@ -178,6 +227,20 @@ public final class PostDtos {
             Instant publishedAt,
             Instant createdAt) {}
 
+    @Schema(name = "PublicationAttempt", description = "Single publish attempt timeline entry (FE-8)")
+    public record PublicationAttempt(
+            UUID id,
+            UUID publicationId,
+            int attemptNo,
+            Instant startedAt,
+            Instant finishedAt,
+            Integer httpStatus,
+            String errorCode,
+            Map<String, Object> responseExcerpt) {}
+
     @Schema(name = "MoveCalendarItemRequest")
-    public record MoveCalendarItemRequest(@NotNull Instant scheduledAt, @NotNull Integer version) {}
+    public record MoveCalendarItemRequest(
+            @NotNull Instant scheduledAt,
+            @Schema(example = "Europe/Moscow") String timezone,
+            @NotNull Integer version) {}
 }

@@ -31,14 +31,16 @@ export function postsFiltersToQuery(filters: PostsFiltersState): Record<string, 
 
 export const POST_STATUS_OPTIONS = [
   'draft',
+  'pending_approval',
+  'approved',
   'scheduled',
   'publishing',
   'published',
   'partially_published',
   'failed',
   'paused',
-  'pending_approval',
   'archived',
+  'deleted_from_network',
 ] as const;
 
 export function filterScheduledTabDefault(): PostsFiltersState {

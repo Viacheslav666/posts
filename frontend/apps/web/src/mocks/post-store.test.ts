@@ -56,4 +56,26 @@ describe('post-store MSW', () => {
     });
     expect(page.items.some((p) => p.id === POST_IDS.morning)).toBe(true);
   });
+
+  it('supports bulk duplicate via contracted postsBulk action', () => {
+    const before = listPosts({ workspaceId: PERSONAL_WORKSPACE_ID }).items.length;
+    const result = bulkPosts({
+      action: 'duplicate',
+      postIds: [POST_IDS.morning],
+    });
+    expect(result.affected).toBe(1);
+    const after = listPosts({ workspaceId: PERSONAL_WORKSPACE_ID }).items.length;
+    expect(after).toBe(before + 1);
+  });
+
+  it('returns calendar adMarking and authorId from contract fields', () => {
+    const from = new Date(Date.now() - 7 * 86400000).toISOString();
+    const to = new Date(Date.now() + 14 * 86400000).toISOString();
+    const items = listCalendar({ workspaceId: PERSONAL_WORKSPACE_ID, from, to });
+    const failed = items.find((item) => item.id === POST_IDS.failed);
+    expect(failed?.authorId).toBeTruthy();
+    expect(failed?.ad).toBe(true);
+    expect(failed?.adMarking?.erid).toBe('LjN8K2xxxx');
+    expect(failed?.contentKind).toBe('post');
+  });
 });

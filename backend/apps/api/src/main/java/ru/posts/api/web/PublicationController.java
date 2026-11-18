@@ -1,11 +1,14 @@
 package ru.posts.api.web;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
@@ -16,10 +19,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.auth.ClientRequestContexts;
+import ru.posts.api.post.PublicationService;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.post.PostDtos;
-import ru.posts.api.web.support.ApiStub;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @Validated
@@ -27,6 +32,12 @@ import ru.posts.api.web.support.ApiStub;
 @Tag(name = "Publications", description = "Per-channel publication attempts and live status")
 @OpenApiResponses
 public class PublicationController {
+
+    private final PublicationService publicationService;
+
+    public PublicationController(PublicationService publicationService) {
+        this.publicationService = publicationService;
+    }
 
     @GetMapping
     @Operation(operationId = "publicationsList", summary = "List publications for a workspace")
@@ -38,7 +49,8 @@ public class PublicationController {
             @RequestParam(required = false) ApiEnums.PublicationState state,
             @RequestParam(required = false) ApiEnums.Network network,
             @Valid @ParameterObject CursorPage.Params page) {
-        throw ApiStub.notImplemented("publicationsList");
+        return publicationService.list(
+                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, postId, channelId, state, network, page);
     }
 
     @GetMapping("/{publicationId}")
@@ -48,7 +60,7 @@ public class PublicationController {
             description = "Publication",
             content = @Content(schema = @Schema(implementation = PostDtos.Publication.class)))
     public PostDtos.Publication get(@PathVariable UUID publicationId) {
-        throw ApiStub.notImplemented("publicationsGet");
+        return publicationService.get(SecurityAuthSupport.requirePrincipal().userId(), publicationId);
     }
 
     @PostMapping("/{publicationId}/retry")
@@ -61,7 +73,26 @@ public class PublicationController {
             responseCode = "200",
             description = "Publication queued for retry",
             content = @Content(schema = @Schema(implementation = PostDtos.Publication.class)))
-    public PostDtos.Publication retry(@PathVariable UUID publicationId) {
-        throw ApiStub.notImplemented("publicationsRetry");
+    public PostDtos.Publication retry(@PathVariable UUID publicationId, HttpServletRequest httpRequest) {
+        return publicationService.retry(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                publicationId,
+                ClientRequestContexts.from(httpRequest));
+    }
+
+    @GetMapping("/{publicationId}/attempts")
+    @Operation(
+            operationId = "publicationsListAttempts",
+            summary = "List publication attempt timeline (FE-8)",
+            description = "Chronology of publish attempts for UI history.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Attempts",
+            content =
+                    @Content(
+                            array = @ArraySchema(schema = @Schema(implementation = PostDtos.PublicationAttempt.class))))
+    public List<PostDtos.PublicationAttempt> listAttempts(@PathVariable UUID publicationId) {
+        return publicationService.listAttempts(
+                SecurityAuthSupport.requirePrincipal().userId(), publicationId);
     }
 }

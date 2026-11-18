@@ -134,7 +134,7 @@ endpoints:
 - operationId: calendarList
   method: GET
   path: /api/v1/calendar
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: calendar.view
   query:
@@ -142,7 +142,7 @@ endpoints:
 - operationId: calendarMove
   method: POST
   path: /api/v1/calendar/{postId}/move
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: calendar.move
   pathParams:
@@ -403,7 +403,7 @@ endpoints:
 - operationId: postsList
   method: GET
   path: /api/v1/posts
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.view
   query:
@@ -411,29 +411,25 @@ endpoints:
 - operationId: postsCreate
   method: POST
   path: /api/v1/posts
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.create
 - operationId: postsBulk
   method: POST
   path: /api/v1/posts/bulk
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.bulk
-  query:
-    workspaceId: '{workspaceId}'
 - operationId: postsPreview
   method: POST
   path: /api/v1/posts/preview
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.view
-  query:
-    workspaceId: '{workspaceId}'
 - operationId: postsDelete
   method: DELETE
   path: /api/v1/posts/{postId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.delete
   pathParams:
@@ -442,7 +438,7 @@ endpoints:
 - operationId: postsGet
   method: GET
   path: /api/v1/posts/{postId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.view
   pathParams:
@@ -450,7 +446,7 @@ endpoints:
 - operationId: postsUpdate
   method: PUT
   path: /api/v1/posts/{postId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.update
   pathParams:
@@ -458,7 +454,7 @@ endpoints:
 - operationId: postsDuplicate
   method: POST
   path: /api/v1/posts/{postId}/duplicate
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.create
   pathParams:
@@ -466,7 +462,7 @@ endpoints:
 - operationId: postsPause
   method: POST
   path: /api/v1/posts/{postId}/pause
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.bulk
   pathParams:
@@ -474,7 +470,7 @@ endpoints:
 - operationId: postsListPublications
   method: GET
   path: /api/v1/posts/{postId}/publications
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.view
   pathParams:
@@ -482,7 +478,7 @@ endpoints:
 - operationId: postsResume
   method: POST
   path: /api/v1/posts/{postId}/resume
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.bulk
   pathParams:
@@ -490,7 +486,7 @@ endpoints:
 - operationId: postsSchedule
   method: POST
   path: /api/v1/posts/{postId}/schedule
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.schedule
   pathParams:
@@ -531,7 +527,7 @@ endpoints:
 - operationId: publicationsList
   method: GET
   path: /api/v1/publications
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.view
   query:
@@ -539,7 +535,15 @@ endpoints:
 - operationId: publicationsGet
   method: GET
   path: /api/v1/publications/{publicationId}
-  implementedHint: false
+  implementedHint: true
+  rbac: matrix
+  action: posts.view
+  pathParams:
+    publicationId: '{publicationId}'
+- operationId: publicationsListAttempts
+  method: GET
+  path: /api/v1/publications/{publicationId}/attempts
+  implementedHint: true
   rbac: matrix
   action: posts.view
   pathParams:
@@ -547,7 +551,7 @@ endpoints:
 - operationId: publicationsRetry
   method: POST
   path: /api/v1/publications/{publicationId}/retry
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: posts.retry_publish
   pathParams:

@@ -72,6 +72,8 @@ export const queryKeys = {
       [...queryKeys.publications.all(workspaceId), 'post', postId] as const,
     detail: (workspaceId: string, publicationId: string) =>
       [...queryKeys.publications.all(workspaceId), publicationId] as const,
+    attempts: (workspaceId: string, publicationId: string) =>
+      [...queryKeys.publications.detail(workspaceId, publicationId), 'attempts'] as const,
   },
 
   media: {

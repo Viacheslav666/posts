@@ -65,7 +65,9 @@ export type MoveCalendarItemRequest = components['schemas']['MoveCalendarItemReq
 export type BulkPostsRequest = components['schemas']['BulkPostsRequest'];
 export type BulkPostsResponse = components['schemas']['BulkPostsResponse'];
 export type Publication = components['schemas']['Publication'];
+export type PublicationAttempt = components['schemas']['PublicationAttempt'];
 export type PublicationPage = components['schemas']['PublicationPage'];
+export type AdMarkingSummary = components['schemas']['AdMarkingSummary'];
 export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;

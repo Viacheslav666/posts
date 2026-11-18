@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -18,9 +19,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.auth.ClientRequestContexts;
+import ru.posts.api.post.PostService;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.post.PostDtos;
-import ru.posts.api.web.support.ApiStub;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @RequestMapping(path = "/api/v1/calendar", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -28,11 +31,19 @@ import ru.posts.api.web.support.ApiStub;
 @OpenApiResponses
 public class CalendarController {
 
+    private final PostService postService;
+
+    public CalendarController(PostService postService) {
+        this.postService = postService;
+    }
+
     @GetMapping
     @Operation(
             operationId = "calendarList",
             summary = "List calendar items in a time range",
-            description = "Returns lightweight DTOs for month/week/list views (US-4.6).")
+            description = "Returns lightweight DTOs for month/week/list views (US-4.6). "
+                    + "`from`/`to` are UTC instants; optional `timezone` (IANA) documents the "
+                    + "client calendar day boundary used to compute the range.")
     @ApiResponse(
             responseCode = "200",
             description = "Calendar items",
@@ -45,8 +56,19 @@ public class CalendarController {
             @RequestParam(required = false) UUID channelId,
             @RequestParam(required = false) UUID authorId,
             @RequestParam(required = false) ApiEnums.Network network,
-            @RequestParam(required = false) ApiEnums.PostStatus status) {
-        throw ApiStub.notImplemented("calendarList");
+            @RequestParam(required = false) ApiEnums.PostStatus status,
+            @RequestParam(required = false) @Schema(example = "Europe/Moscow") String timezone) {
+        return postService.calendar(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                workspaceId,
+                from,
+                to,
+                projectId,
+                channelId,
+                authorId,
+                network,
+                status,
+                timezone);
     }
 
     @PostMapping("/{postId}/move")
@@ -55,7 +77,14 @@ public class CalendarController {
             responseCode = "200",
             description = "Moved",
             content = @Content(schema = @Schema(implementation = PostDtos.Post.class)))
-    public PostDtos.Post move(@PathVariable UUID postId, @Valid @RequestBody PostDtos.MoveCalendarItemRequest request) {
-        throw ApiStub.notImplemented("calendarMove");
+    public PostDtos.Post move(
+            @PathVariable UUID postId,
+            @Valid @RequestBody PostDtos.MoveCalendarItemRequest request,
+            HttpServletRequest httpRequest) {
+        return postService.moveCalendar(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                postId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 }

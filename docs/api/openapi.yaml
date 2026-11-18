@@ -1349,7 +1349,9 @@ paths:
       - Billing
   /api/v1/calendar:
     get:
-      description: Returns lightweight DTOs for month/week/list views (US-4.6).
+      description: Returns lightweight DTOs for month/week/list views (US-4.6). `from`/`to`
+        are UTC instants; optional `timezone` (IANA) documents the client calendar
+        day boundary used to compute the range.
       operationId: calendarList
       parameters:
       - in: query
@@ -1420,6 +1422,13 @@ paths:
           - paused
           - archived
           - deleted_from_network
+      - example: Europe/Moscow
+        in: query
+        name: timezone
+        required: false
+        schema:
+          type: string
+          example: Europe/Moscow
       responses:
         "200":
           content:
@@ -3978,10 +3987,27 @@ paths:
           - max
           - rutube
       - in: query
+        name: authorId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: q
         required: false
         schema:
           type: string
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          description: Sort order for postsList (FE-8)
+          enum:
+          - scheduledAt_asc
+          - scheduledAt_desc
+          - title_asc
+          - updatedAt_desc
       - description: Opaque cursor from a previous response `nextCursor`
         example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
         in: query
@@ -4183,7 +4209,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Bulk pause/resume/delete/reschedule (US-4.7)
+      summary: "Bulk pause/resume/delete/reschedule/duplicate (US-4.7, FE-8)"
       tags:
       - Posts
   /api/v1/posts/preview:
@@ -5243,6 +5269,72 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Get a publication by id
+      tags:
+      - Publications
+  /api/v1/publications/{publicationId}/attempts:
+    get:
+      description: Chronology of publish attempts for UI history.
+      operationId: publicationsListAttempts
+      parameters:
+      - in: path
+        name: publicationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicationAttempt"
+          description: Attempts
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List publication attempt timeline (FE-8)
       tags:
       - Publications
   /api/v1/publications/{publicationId}/retry:
@@ -6402,6 +6494,17 @@ components:
           type: string
       required:
       - token
+    AdMarkingSummary:
+      type: object
+      description: Lightweight ad marking card fields for list/calendar (full ORD
+        in BE-15).
+      properties:
+        advertiserName:
+          type: string
+        enabled:
+          type: boolean
+        erid:
+          type: string
     ApplyPromoRequest:
       type: object
       properties:
@@ -6475,11 +6578,13 @@ components:
       properties:
         action:
           type: string
+          description: duplicate accepted per FE-8 contract proposal
           enum:
           - pause
           - resume
           - delete
           - reschedule
+          - duplicate
         postIds:
           type: array
           items:
@@ -6506,11 +6611,23 @@ components:
       type: object
       description: Lightweight calendar cell DTO
       properties:
+        ad:
+          type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarkingSummary"
+        authorId:
+          type: string
+          format: uuid
         channelIds:
           type: array
           items:
             type: string
             format: uuid
+        contentKind:
+          type: string
+          enum:
+          - post
+          - story
         id:
           type: string
           format: uuid
@@ -6814,18 +6931,35 @@ components:
       properties:
         ad:
           type: boolean
+        adPayload:
+          type: object
+          additionalProperties:
+            type: object
         baseContent:
           $ref: "#/components/schemas/PostContent"
+        contentKind:
+          type: string
+          enum:
+          - post
+          - story
         projectId:
           type: string
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        removeAfterPublish:
+          type: boolean
         repost:
           $ref: "#/components/schemas/RepostTarget"
         scheduledAt:
           type: string
           format: date-time
+        stopAt:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          example: Europe/Moscow
         title:
           type: string
           maxLength: 200
@@ -7277,6 +7411,9 @@ components:
         scheduledAt:
           type: string
           format: date-time
+        timezone:
+          type: string
+          example: Europe/Moscow
         version:
           type: integer
           format: int32
@@ -7450,11 +7587,19 @@ components:
       properties:
         ad:
           type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarkingSummary"
+          description: Lightweight ad card; null when ad=false
         authorId:
           type: string
           format: uuid
         baseContent:
           $ref: "#/components/schemas/PostContent"
+        contentKind:
+          type: string
+          enum:
+          - post
+          - story
         createdAt:
           type: string
           format: date-time
@@ -7466,12 +7611,28 @@ components:
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        removeAfterPublish:
+          type: boolean
         repost:
           $ref: "#/components/schemas/RepostTarget"
           description: Repost mode payload; null for regular posts
         scheduledAt:
           type: string
           format: date-time
+        sourceRef:
+          type: object
+          additionalProperties:
+            type: object
+        sourceType:
+          type: string
+          description: manual|grabber|rss|import|api — grabber/rss set by BE-17
+          enum:
+          - manual
+          - grabber
+          - rss
+          - import
+          - api
+          example: manual
         status:
           type: string
           description: Aggregate post status. `deleted_from_network` = removed from
@@ -7489,6 +7650,12 @@ components:
           - paused
           - archived
           - deleted_from_network
+        stopAt:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          example: Europe/Moscow
         title:
           type: string
         updatedAt:
@@ -7793,6 +7960,34 @@ components:
         workspaceId:
           type: string
           format: uuid
+    PublicationAttempt:
+      type: object
+      description: Single publish attempt timeline entry (FE-8)
+      properties:
+        attemptNo:
+          type: integer
+          format: int32
+        errorCode:
+          type: string
+        finishedAt:
+          type: string
+          format: date-time
+        httpStatus:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        publicationId:
+          type: string
+          format: uuid
+        responseExcerpt:
+          type: object
+          additionalProperties:
+            type: object
+        startedAt:
+          type: string
+          format: date-time
     PublicationPage:
       type: object
       properties:
@@ -7914,6 +8109,9 @@ components:
         scheduledAt:
           type: string
           format: date-time
+        timezone:
+          type: string
+          example: Europe/Moscow
         version:
           type: integer
           format: int32
@@ -8150,6 +8348,10 @@ components:
       properties:
         ad:
           type: boolean
+        adPayload:
+          type: object
+          additionalProperties:
+            type: object
         baseContent:
           $ref: "#/components/schemas/PostContent"
         projectId:
@@ -8157,11 +8359,19 @@ components:
           format: uuid
         recurrence:
           $ref: "#/components/schemas/Recurrence"
+        removeAfterPublish:
+          type: boolean
         repost:
           $ref: "#/components/schemas/RepostTarget"
         scheduledAt:
           type: string
           format: date-time
+        stopAt:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          example: Europe/Moscow
         title:
           type: string
           maxLength: 200

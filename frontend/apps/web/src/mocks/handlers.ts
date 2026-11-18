@@ -72,7 +72,6 @@ import {
   receivePart,
 } from './media-store';
 import {
-  bulkDuplicate,
   bulkPosts,
   deletePost,
   duplicatePost,
@@ -80,6 +79,7 @@ import {
   getPublication,
   listCalendar,
   listPosts,
+  listPublicationAttempts,
   listPublicationsForPost,
   moveCalendarItem,
   pausePost,
@@ -1096,19 +1096,6 @@ export const handlers = [
     return HttpResponse.json(bulkPosts(body));
   }),
 
-  /** Proposed contract extension — not in OpenAPI yet (see PR notes). */
-  http.post('/api/v1/posts/bulk-duplicate', async ({ request }) => {
-    const unauthorized = requireBearer(request);
-    if (unauthorized) return unauthorized;
-    const denied = requirePermission(request, 'posts.bulk');
-    if (denied) return denied;
-    const body = (await request.json()) as { postIds?: string[] };
-    if (!body.postIds?.length) {
-      return problem(400, 'validation_failed', 'postIds are required', 'Validation failed');
-    }
-    return HttpResponse.json(bulkDuplicate(body.postIds));
-  }),
-
   http.get('/api/v1/posts/:postId', ({ request, params }) => {
     const unauthorized = requireBearer(request);
     if (unauthorized) return unauthorized;
@@ -1129,8 +1116,7 @@ export const handlers = [
     if (!deletePost(String(params.postId))) {
       return problem(404, 'not_found', 'Post not found', 'Not found');
     }
-    const post = getPost(String(params.postId));
-    return HttpResponse.json(post ? toApiPost(post) : { message: 'deleted' });
+    return HttpResponse.json({ message: 'deleted' });
   }),
 
   http.post('/api/v1/posts/:postId/pause', async ({ request, params }) => {
@@ -1193,6 +1179,16 @@ export const handlers = [
     const pub = getPublication(String(params.publicationId));
     if (!pub) return problem(404, 'not_found', 'Publication not found', 'Not found');
     return HttpResponse.json(pub);
+  }),
+
+  http.get('/api/v1/publications/:publicationId/attempts', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'posts.view');
+    if (deniedView) return deniedView;
+    const pub = getPublication(String(params.publicationId));
+    if (!pub) return problem(404, 'not_found', 'Publication not found', 'Not found');
+    return HttpResponse.json(listPublicationAttempts(String(params.publicationId)));
   }),
 
   http.post('/api/v1/publications/:publicationId/retry', ({ request, params }) => {
