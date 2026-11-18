@@ -6,12 +6,20 @@ import type {
   OrdContract,
   OrdContractor,
   OrdCreativeStatus,
+  OrdEridCheckResponse,
   OrdProvider,
   OrdRegisterCreativeResponse,
+  OrdReportRow,
+  OrdReportRunResponse,
   UpdateOrdContractorRequest,
   UpsertOrdConnectionRequest,
 } from '@posts/api-client';
 
+import { buildOrdReportsCsv } from '@/features/ord/model/report-export';
+import {
+  filterOrdReportRows,
+  type OrdReportApiQuery,
+} from '@/features/ord/model/report-filters';
 import { isValidInn, normalizeInn } from '@/shared/lib/inn';
 
 import { PERSONAL_WORKSPACE_ID } from './workspace-store';
@@ -43,11 +51,17 @@ const CONTRACTOR_IDS = {
   posts: '019a0000-ordc-7000-8000-000000000001',
 } as const;
 
+export type StoredOrdReportRow = OrdReportRow & {
+  workspaceId: string;
+  deleted?: boolean;
+};
+
 type OrdStoreState = {
   connections: StoredOrdConnection[];
   contractors: OrdContractor[];
   contracts: OrdContract[];
   creatives: StoredOrdCreative[];
+  reports: StoredOrdReportRow[];
   seq: number;
 };
 
@@ -119,7 +133,82 @@ function createInitialState(): OrdStoreState {
         updatedAt: now,
       },
     ],
-    creatives: [],
+    creatives: [
+      {
+        id: '019a0000-ordr-7000-8000-000000000101',
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        postId: '019a0000-post-7000-8000-000000000101',
+        provider: 'vk_ord',
+        externalId: 'creative:demo-report:1',
+        erid: 'EridDemoVk01',
+        status: 'registered',
+        registeredAt: now,
+      },
+      {
+        id: '019a0000-ordr-7000-8000-000000000102',
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        postId: '019a0000-post-7000-8000-000000000102',
+        provider: 'yandex_ord',
+        externalId: 'creative:demo-yandex:1',
+        erid: 'EridDemoYa01',
+        status: 'registered',
+        registeredAt: now,
+      },
+    ],
+    reports: [
+      {
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        statisticsId: '019a0000-ords-7000-8000-000000000201',
+        creativeId: '019a0000-ordr-7000-8000-000000000101',
+        invoiceId: '019a0000-ordi-7000-8000-000000000301',
+        periodYear: 2026,
+        periodMonth: 11,
+        erid: 'EridDemoVk01',
+        creativeExternalId: 'creative:demo-report:1',
+        platformName: 'VK',
+        platformExternalId: 'vk-platform-1',
+        impressions: 1250,
+        viewsSource: 'vk',
+        amount: 1500.5,
+        status: 'submitted',
+        provider: 'vk_ord',
+      },
+      {
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        statisticsId: '019a0000-ords-7000-8000-000000000202',
+        creativeId: '019a0000-ordr-7000-8000-000000000102',
+        invoiceId: '019a0000-ordi-7000-8000-000000000302',
+        periodYear: 2026,
+        periodMonth: 11,
+        erid: 'EridDemoYa01',
+        creativeExternalId: 'creative:demo-yandex:1',
+        platformName: 'Yandex',
+        platformExternalId: 'ya-platform-1',
+        impressions: 890,
+        viewsSource: 'yandex',
+        amount: 980,
+        status: 'error',
+        error: 'ERIR validation failed: invalid platform stats',
+        provider: 'yandex_ord',
+      },
+      {
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        statisticsId: '019a0000-ords-7000-8000-000000000203',
+        creativeId: '019a0000-ordr-7000-8000-000000000101',
+        invoiceId: '019a0000-ordi-7000-8000-000000000303',
+        periodYear: 2026,
+        periodMonth: 10,
+        erid: 'EridDemoVk01',
+        creativeExternalId: 'creative:demo-report:1',
+        platformName: 'VK',
+        platformExternalId: 'vk-platform-1',
+        impressions: 420,
+        viewsSource: 'vk',
+        amount: 400,
+        status: 'draft',
+        provider: 'vk_ord',
+      },
+    ],
   };
 }
 
@@ -389,3 +478,133 @@ export function registerCreative(input: {
 }
 
 export const DEMO_CONTRACTOR_ID = CONTRACTOR_IDS.posts;
+
+function toPublicReportRow(row: StoredOrdReportRow): OrdReportRow {
+  const { workspaceId: _ws, deleted: _deleted, ...rest } = row;
+  return rest;
+}
+
+export function listOrdReports(
+  workspaceId: string,
+  filters: OrdReportApiQuery = {},
+): { items: OrdReportRow[]; nextCursor: null; hasMore: false } {
+  const rows = state.reports
+    .filter((row) => row.workspaceId === workspaceId && !row.deleted)
+    .map(toPublicReportRow);
+  return {
+    items: filterOrdReportRows(rows, filters),
+    nextCursor: null,
+    hasMore: false,
+  };
+}
+
+export function runOrdReport(input: {
+  workspaceId: string;
+  year: number;
+  month: number;
+  provider?: OrdProvider;
+}): OrdReportRunResponse {
+  const provider: OrdProvider = input.provider ?? 'vk_ord';
+  const creative =
+    state.creatives.find(
+      (item) => item.workspaceId === input.workspaceId && item.provider === provider,
+    ) ??
+    state.creatives.find((item) => item.workspaceId === input.workspaceId);
+
+  const existing = state.reports.find(
+    (row) =>
+      row.workspaceId === input.workspaceId &&
+      row.periodYear === input.year &&
+      row.periodMonth === input.month &&
+      row.provider === provider &&
+      !row.deleted,
+  );
+
+  if (!existing) {
+    state.reports.push({
+      workspaceId: input.workspaceId,
+      statisticsId: nextId('ords'),
+      creativeId: creative?.id ?? nextId('ordr'),
+      invoiceId: nextId('ordi'),
+      periodYear: input.year,
+      periodMonth: input.month,
+      erid: creative?.erid ?? `EridRun${input.month}`,
+      creativeExternalId: creative?.externalId ?? `creative:run:${input.year}-${input.month}`,
+      platformName: provider === 'yandex_ord' ? 'Yandex' : 'VK',
+      platformExternalId: provider === 'yandex_ord' ? 'ya-platform-1' : 'vk-platform-1',
+      impressions: 100,
+      viewsSource: provider === 'yandex_ord' ? 'yandex' : 'vk',
+      amount: 100,
+      status: 'submitted',
+      provider,
+    });
+  }
+
+  return {
+    id: nextId('ordrun'),
+    status: 'succeeded',
+    invoicesCount: 1,
+    statisticsCount: 1,
+    periodYear: input.year,
+    periodMonth: input.month,
+  };
+}
+
+export function checkOrdErid(input: {
+  workspaceId: string;
+  erid: string;
+  provider?: OrdProvider;
+}): OrdEridCheckResponse {
+  const needle = input.erid.trim().toLowerCase();
+  const creative = state.creatives.find((item) => {
+    if (item.workspaceId !== input.workspaceId) return false;
+    if (input.provider && item.provider !== input.provider) return false;
+    return (item.erid ?? '').toLowerCase() === needle;
+  });
+  if (!creative) {
+    return {
+      erid: input.erid,
+      found: false,
+      status: 'not_found',
+    };
+  }
+  return {
+    erid: creative.erid,
+    found: true,
+    status: creative.status ?? 'registered',
+    creativeExternalId: creative.externalId,
+    localCreativeId: creative.id,
+  };
+}
+
+export function deleteOrdInvoice(invoiceId: string): boolean {
+  const row = state.reports.find((item) => item.invoiceId === invoiceId && !item.deleted);
+  if (!row) return false;
+  row.deleted = true;
+  row.status = 'draft';
+  row.error = undefined;
+  return true;
+}
+
+export function exportOrdReportsBinary(
+  workspaceId: string,
+  filters: OrdReportApiQuery,
+  format: 'csv' | 'xlsx',
+): { body: Uint8Array; contentType: string; filename: string } {
+  const { items } = listOrdReports(workspaceId, filters);
+  if (format === 'xlsx') {
+    // Minimal zip marker for MSW — enough for download smoke tests.
+    const payload = new TextEncoder().encode(`PK\u0003\u0004ord-reports:${items.length}`);
+    return {
+      body: payload,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename: 'ord-reports.xlsx',
+    };
+  }
+  const csv = buildOrdReportsCsv(items);
+  return {
+    body: new TextEncoder().encode(csv),
+    contentType: 'text/csv; charset=utf-8',
+    filename: 'ord-reports.csv',
+  };
+}

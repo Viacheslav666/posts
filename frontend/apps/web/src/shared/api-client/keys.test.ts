@@ -26,6 +26,17 @@ describe('queryKeys', () => {
     ]);
   });
 
+  it('scopes ORD reports under workspace with stable filters', () => {
+    expect(queryKeys.ord.reports('ws-1', { year: 2026, month: 11 })).toEqual([
+      'posts',
+      'workspaces',
+      'ws-1',
+      'ord',
+      'reports',
+      { year: 2026, month: 11 },
+    ]);
+  });
+
   it('scopes notification keys under workspace', () => {
     expect(queryKeys.notifications.list('ws-1', { unreadOnly: true })).toEqual([
       'posts',
