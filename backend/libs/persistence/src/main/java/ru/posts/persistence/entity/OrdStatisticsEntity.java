@@ -35,6 +35,9 @@ public class OrdStatisticsEntity extends BaseUuidEntity {
     @Column(name = "imps_fact", nullable = false)
     private long impsFact;
 
+    @Column(name = "views_source")
+    private String viewsSource;
+
     private BigDecimal amount;
 
     @Column(nullable = false)
@@ -107,6 +110,14 @@ public class OrdStatisticsEntity extends BaseUuidEntity {
 
     public void setImpsFact(long impsFact) {
         this.impsFact = impsFact;
+    }
+
+    public String getViewsSource() {
+        return viewsSource;
+    }
+
+    public void setViewsSource(String viewsSource) {
+        this.viewsSource = viewsSource;
     }
 
     public BigDecimal getAmount() {

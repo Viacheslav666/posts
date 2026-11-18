@@ -49,6 +49,9 @@ public class OrdInvoiceEntity extends BaseUuidEntity {
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> meta = Map.of();
@@ -153,6 +156,14 @@ public class OrdInvoiceEntity extends BaseUuidEntity {
 
     public void setSubmittedAt(Instant submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 
     public Map<String, Object> getMeta() {

@@ -151,6 +151,11 @@ ACTION: dict[str, str | None] = {
     "postsOrdRegister": "ord.register",
     "postsOrdStatus": "ord.view",
     "ordReportsRun": "ord.reports.run",
+    "ordReportsList": "ord.view",
+    "ordReportsExport": "ord.view",
+    "ordCreativesList": "ord.view",
+    "ordEridCheck": "ord.view",
+    "ordInvoicesDelete": "ord.reports.run",
     "ingestRulesList": "automations.view",
     "ingestRulesCreate": "automations.manage",
     "ingestRulesGet": "automations.view",
@@ -317,6 +322,11 @@ IMPLEMENTED = {
     "postsOrdRegister",
     "postsOrdStatus",
     "ordReportsRun",
+    "ordReportsList",
+    "ordReportsExport",
+    "ordCreativesList",
+    "ordEridCheck",
+    "ordInvoicesDelete",
     "ingestRulesList",
     "ingestRulesCreate",
     "ingestRulesGet",
@@ -384,6 +394,7 @@ DESTRUCTIVE = {
     "postsDelete",
     "meDelete",
     "mediaDelete",
+    "ordInvoicesDelete",
     "billingDeletePaymentMethod",
 }
 
@@ -424,6 +435,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaImportUrl",
     "channelSetsCreate",
     "ordReportsRun",
+    "ordCreativesList",
     "ingestPreview",
     "storiesBatch",
 }
@@ -480,6 +492,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
+        "{invoiceId}": ("invoiceId", "{invoiceId}"),
+        "{contractId}": ("contractId", "{contractId}"),
         # Billing invoice PDF/act paths use generic {id}; probe resolves via {invoiceId}.
         "{id}": ("id", "{invoiceId}"),
     }

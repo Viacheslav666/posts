@@ -7,7 +7,15 @@ dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
+    implementation(project(":libs:security"))
     implementation(project(":libs:yookassa"))
+    implementation(project(":libs:ord-api"))
+    implementation(project(":libs:ord-vk"))
+    implementation(project(":libs:ord-yandex"))
+    implementation(project(":libs:ord-reporting"))
+    implementation(project(":libs:social-api"))
+    implementation(project(":libs:social-vk"))
+    implementation(project(":libs:social-ok"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)
@@ -17,6 +25,7 @@ dependencies {
     implementation(libs.flyway.database.postgresql)
     implementation(libs.shedlock.spring)
     implementation(libs.shedlock.provider.redis)
+    implementation("io.micrometer:micrometer-core")
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.test)

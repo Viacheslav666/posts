@@ -45,3 +45,8 @@ posts:
         - 77.75.156.35/32
         - 77.75.154.128/25
         - "2a02:5180::/32"
+
+  ord:
+    reports:
+      impressions-override: 42
+      expiry-warning-days: 3

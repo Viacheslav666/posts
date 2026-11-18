@@ -33,6 +33,7 @@ import ru.posts.persistence.entity.ChannelSetEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.InvoiceEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
+import ru.posts.persistence.entity.OrdInvoiceEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
@@ -44,6 +45,7 @@ import ru.posts.persistence.repository.ChannelSetRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.InvoiceRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
+import ru.posts.persistence.repository.OrdInvoiceRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
@@ -75,6 +77,7 @@ final class RbacHttpProbeSupport {
     private final AutomationRuleRepository automationRuleRepository;
     private final GrabberItemRepository grabberItemRepository;
     private final InvoiceRepository invoiceRepository;
+    private final OrdInvoiceRepository ordInvoiceRepository;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -90,7 +93,8 @@ final class RbacHttpProbeSupport {
             PublicationRepository publicationRepository,
             AutomationRuleRepository automationRuleRepository,
             GrabberItemRepository grabberItemRepository,
-            InvoiceRepository invoiceRepository) {
+            InvoiceRepository invoiceRepository,
+            OrdInvoiceRepository ordInvoiceRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -105,6 +109,7 @@ final class RbacHttpProbeSupport {
         this.automationRuleRepository = automationRuleRepository;
         this.grabberItemRepository = grabberItemRepository;
         this.invoiceRepository = invoiceRepository;
+        this.ordInvoiceRepository = ordInvoiceRepository;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -236,6 +241,12 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "ordInvoicesDelete" -> {
+                UUID disposable = insertOrdInvoice(ids.workspaceId());
+                yield statusOf(delete("/api/v1/ord/invoices/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             default -> performRaw(accessToken, withoutDestructive(endpoint), ids, Scope.OWN);
         };
     }
@@ -274,7 +285,7 @@ final class RbacHttpProbeSupport {
 
     private String resolvePath(RbacEndpointMapLoader.Endpoint endpoint, EndpointIds ids, Scope scope) {
         String path = endpoint.path();
-        Map<String, String> values = placeholderValues(ids, scope);
+        Map<String, String> values = placeholderValues(ids, scope, endpoint);
         for (Map.Entry<String, String> e : endpoint.pathParams().entrySet()) {
             String token = "{" + e.getKey() + "}";
             String template = e.getValue();
@@ -300,6 +311,7 @@ final class RbacHttpProbeSupport {
         path = path.replace("{sessionId}", values.get("{sessionId}"));
         path = path.replace("{contractorId}", randomUuid());
         path = path.replace("{contractId}", randomUuid());
+        path = path.replace("{invoiceId}", values.get("{invoiceId}"));
         path = path.replace("{ruleId}", values.get("{ruleId}"));
         path = path.replace("{itemId}", values.get("{itemId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
@@ -318,7 +330,7 @@ final class RbacHttpProbeSupport {
     }
 
     private Map<String, String> resolveQuery(RbacEndpointMapLoader.Endpoint endpoint, EndpointIds ids, Scope scope) {
-        Map<String, String> values = placeholderValues(ids, scope);
+        Map<String, String> values = placeholderValues(ids, scope, endpoint);
         Map<String, String> out = new LinkedHashMap<>();
         for (Map.Entry<String, String> e : endpoint.query().entrySet()) {
             String template = e.getValue();
@@ -338,7 +350,8 @@ final class RbacHttpProbeSupport {
         return out;
     }
 
-    private Map<String, String> placeholderValues(EndpointIds ids, Scope scope) {
+    private Map<String, String> placeholderValues(
+            EndpointIds ids, Scope scope, RbacEndpointMapLoader.Endpoint endpoint) {
         Map<String, String> values = new LinkedHashMap<>();
         if (scope == Scope.FOREIGN) {
             values.put("{workspaceId}", ids.foreignWorkspaceId().toString());
@@ -400,11 +413,10 @@ final class RbacHttpProbeSupport {
             values.put("{publicationId}", randomUuid());
         }
         values.put("{sessionId}", randomUuid());
-        values.put(
-                "{invoiceId}",
-                scope == Scope.FOREIGN || ids.invoiceId() == null
-                        ? randomUuid()
-                        : ids.invoiceId().toString());
+        boolean ordInvoice = endpoint != null
+                && (endpoint.path().contains("/ord/invoices/") || "ordInvoicesDelete".equals(endpoint.operationId()));
+        UUID invoice = ordInvoice ? ids.ordInvoiceId() : ids.invoiceId();
+        values.put("{invoiceId}", scope == Scope.FOREIGN || invoice == null ? randomUuid() : invoice.toString());
         return values;
     }
 
@@ -666,6 +678,13 @@ final class RbacHttpProbeSupport {
                 node.put("month", 10);
                 yield node.toString();
             }
+            case "ordEridCheck" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("erid", "test-erid-rbac-probe");
+                node.put("provider", "vk_ord");
+                yield node.toString();
+            }
             case "ingestRulesCreate" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("type", "grabber");
@@ -774,6 +793,7 @@ final class RbacHttpProbeSupport {
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
         SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
         UUID invoiceId = insertInvoice(workspaceId);
+        UUID ordInvoiceId = insertOrdInvoice(workspaceId);
 
         return new EndpointIds(
                 workspaceId,
@@ -794,6 +814,7 @@ final class RbacHttpProbeSupport {
                 seededGrabber.itemId(),
                 seededGrabber.ruleVersion(),
                 invoiceId,
+                ordInvoiceId,
                 ownerToken,
                 adminToken,
                 editorToken,
@@ -819,6 +840,22 @@ final class RbacHttpProbeSupport {
         invoice.setCreatedAt(now);
         invoice.setUpdatedAt(now);
         return invoiceRepository.save(invoice).getId();
+    }
+
+    private UUID insertOrdInvoice(UUID workspaceId) {
+        Instant now = Instant.now();
+        OrdInvoiceEntity invoice = new OrdInvoiceEntity();
+        invoice.setId(UuidV7.generate());
+        invoice.setWorkspaceId(workspaceId);
+        invoice.setProvider("vk_ord");
+        invoice.setExternalId("invoice:rbac:" + UUID.randomUUID());
+        invoice.setPeriodYear(2026);
+        invoice.setPeriodMonth(10);
+        invoice.setAmount(java.math.BigDecimal.valueOf(1500));
+        invoice.setStatus("submitted");
+        invoice.setCreatedAt(now);
+        invoice.setUpdatedAt(now);
+        return ordInvoiceRepository.save(invoice).getId();
     }
 
     private SeededGrabber insertGrabber(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
@@ -1114,6 +1151,7 @@ final class RbacHttpProbeSupport {
             UUID itemId,
             int ruleVersion,
             UUID invoiceId,
+            UUID ordInvoiceId,
             String ownerToken,
             String adminToken,
             String editorToken,

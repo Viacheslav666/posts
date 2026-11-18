@@ -801,6 +801,14 @@ endpoints:
   path: /api/v1/notifications/vapid-public-key
   implementedHint: true
   rbac: none
+- operationId: ordCreativesList
+  method: GET
+  path: /api/v1/ord/creatives
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: ordDictionariesKktu
   method: GET
   path: /api/v1/ord/dictionaries/kktu
@@ -811,6 +819,21 @@ endpoints:
   path: /api/v1/ord/dictionaries/oksm
   implementedHint: true
   rbac: none
+- operationId: ordEridCheck
+  method: POST
+  path: /api/v1/ord/erid/check
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+- operationId: ordInvoicesDelete
+  method: DELETE
+  path: /api/v1/ord/invoices/{invoiceId}
+  implementedHint: true
+  rbac: matrix
+  action: ord.reports.run
+  pathParams:
+    invoiceId: '{invoiceId}'
+  destructive: true
 - operationId: ordReportsRun
   method: POST
   path: /api/v1/ord/reports/run
@@ -1175,6 +1198,22 @@ endpoints:
   implementedHint: true
   rbac: matrix
   action: ord.contractors.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordReportsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/reports
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordReportsExport
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/reports/export
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
   pathParams:
     workspaceId: '{workspaceId}'
 - operationId: projectsList

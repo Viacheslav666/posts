@@ -29,10 +29,18 @@ public final class OrdWireMockStubs {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/contract/.*"))
                 .willReturn(aResponse().withStatus(201)));
         stubVkCreativeSuccess(wm, VK_ERID);
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/pad/.*"))
+                .willReturn(aResponse().withStatus(201)));
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/invoice/.*"))
                 .willReturn(aResponse().withStatus(201)));
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.delete(urlPathMatching("/v1/invoice/.*"))
+                .willReturn(aResponse().withStatus(204)));
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/v1/statistics"))
                 .willReturn(aResponse().withStatus(200)));
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathMatching("/v1/erid/.*"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"active\",\"erid\":\"" + VK_ERID + "\"}")));
     }
 
     public static void stubYandexHappyPath(WireMockExtension wm) {
@@ -47,6 +55,22 @@ public final class OrdWireMockStubs {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"status\":\"ok\"}")));
         stubYandexCreativeSuccess(wm, YANDEX_ERID);
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/platforms"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"ok\"}")));
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/invoice"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"ok\"}")));
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/statistics"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"ok\"}")));
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/api/v8/creative"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"active\",\"token\":\"" + YANDEX_ERID + "\",\"id\":\"creative-1\"}")));
     }
 
     public static void stubVkCreativeSuccess(WireMockExtension wm, String erid) {

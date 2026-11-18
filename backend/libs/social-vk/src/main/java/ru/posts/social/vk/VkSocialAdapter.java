@@ -439,6 +439,75 @@ public class VkSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public Optional<Long> fetchImpressions(ChannelContext ctx, String remotePostId) {
+        if (remotePostId == null || remotePostId.isBlank()) {
+            return Optional.empty();
+        }
+        String posts = ctx.externalId() + "_" + remotePostId;
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("posts", posts);
+        form.add("extended", "0");
+        form.add("access_token", token(ctx));
+        form.add("v", apiVersion);
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/method/wall.getById")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkError(body);
+            JsonNode items = body.path("response");
+            if (items.isObject()) {
+                items = items.path("items");
+            }
+            if (!items.isArray() || items.isEmpty()) {
+                return Optional.empty();
+            }
+            long views = items.get(0).path("views").path("count").asLong(-1);
+            return views >= 0 ? Optional.of(views) : Optional.empty();
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<Long> fetchStoryImpressions(ChannelContext ctx, String remoteStoryId) {
+        if (remoteStoryId == null || remoteStoryId.isBlank()) {
+            return Optional.empty();
+        }
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("owner_id", ctx.externalId());
+        form.add("story_ids", remoteStoryId.contains("_") ? remoteStoryId : ctx.externalId() + "_" + remoteStoryId);
+        form.add("extended", "0");
+        form.add("access_token", token(ctx));
+        form.add("v", apiVersion);
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/method/stories.getById")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkError(body);
+            JsonNode items = body.path("response").path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return Optional.empty();
+            }
+            JsonNode story = items.get(0);
+            long views = story.path("views").asLong(-1);
+            if (views < 0) {
+                views = story.path("viewers_count").asLong(-1);
+            }
+            return views >= 0 ? Optional.of(views) : Optional.empty();
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public void pin(ChannelContext ctx, String remotePostId, boolean pinned) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());

@@ -116,6 +116,47 @@ public class OpenApiOrdStubConfig {
                     UUID userId, OrdDtos.OrdReportRunRequest request, ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }
+
+            @Override
+            public CursorPage.OrdReportRowPage listReports(
+                    UUID userId,
+                    UUID workspaceId,
+                    Integer year,
+                    Integer month,
+                    String provider,
+                    String status,
+                    String erid) {
+                return new CursorPage.OrdReportRowPage(List.of(), null, false);
+            }
+
+            @Override
+            public CursorPage.OrdCreativePage listCreatives(
+                    UUID userId, UUID workspaceId, String provider, String status) {
+                return new CursorPage.OrdCreativePage(List.of(), null, false);
+            }
+
+            @Override
+            public OrdDtos.OrdEridCheckResponse checkErid(
+                    UUID userId, OrdDtos.OrdEridCheckRequest request, ClientRequestContext ctx) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
+            public void deleteInvoice(UUID userId, UUID invoiceId, ClientRequestContext ctx) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
+            public OrdDtos.OrdReportsExport exportReports(
+                    UUID userId,
+                    UUID workspaceId,
+                    Integer year,
+                    Integer month,
+                    String provider,
+                    String status,
+                    OrdDtos.OrdExportFormat format) {
+                throw new NotImplementedException("openapi");
+            }
         };
     }
 }

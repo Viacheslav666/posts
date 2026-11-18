@@ -10,8 +10,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -222,5 +225,68 @@ public class OrdController {
             @Valid @RequestBody OrdDtos.OrdReportRunRequest request, HttpServletRequest httpRequest) {
         return ordService.runReport(
                 SecurityAuthSupport.requirePrincipal().userId(), request, ClientRequestContexts.from(httpRequest));
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/ord/reports")
+    @Operation(operationId = "ordReportsList", summary = "ORD reporting table rows for a workspace")
+    @ApiResponse(responseCode = "200", description = "Report rows page")
+    public CursorPage.OrdReportRowPage listReports(
+            @PathVariable UUID workspaceId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String erid) {
+        return ordService.listReports(
+                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, year, month, provider, status, erid);
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/ord/reports/export")
+    @Operation(operationId = "ordReportsExport", summary = "Export ORD reporting table as CSV or XLSX")
+    @ApiResponse(responseCode = "200", description = "Binary export")
+    public ResponseEntity<byte[]> exportReports(
+            @PathVariable UUID workspaceId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "csv") OrdDtos.OrdExportFormat format) {
+        OrdDtos.OrdReportsExport export = ordService.exportReports(
+                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, year, month, provider, status, format);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + export.filename() + "\"")
+                .contentType(MediaType.parseMediaType(export.contentType()))
+                .body(export.body());
+    }
+
+    @GetMapping("/ord/creatives")
+    @Operation(operationId = "ordCreativesList", summary = "List ORD creatives with statuses")
+    @ApiResponse(responseCode = "200", description = "Creatives page")
+    public CursorPage.OrdCreativePage listCreatives(
+            @RequestParam UUID workspaceId,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String status) {
+        return ordService.listCreatives(SecurityAuthSupport.requirePrincipal().userId(), workspaceId, provider, status);
+    }
+
+    @PostMapping("/ord/erid/check")
+    @Operation(operationId = "ordEridCheck", summary = "Check ERID status in ORD provider")
+    @ApiResponse(
+            responseCode = "200",
+            description = "ERID check result",
+            content = @Content(schema = @Schema(implementation = OrdDtos.OrdEridCheckResponse.class)))
+    public OrdDtos.OrdEridCheckResponse checkErid(
+            @Valid @RequestBody OrdDtos.OrdEridCheckRequest request, HttpServletRequest httpRequest) {
+        return ordService.checkErid(
+                SecurityAuthSupport.requirePrincipal().userId(), request, ClientRequestContexts.from(httpRequest));
+    }
+
+    @DeleteMapping("/ord/invoices/{invoiceId}")
+    @Operation(operationId = "ordInvoicesDelete", summary = "Soft-delete ORD invoice/act with provider sync + audit")
+    @ApiResponse(responseCode = "204", description = "Deleted")
+    public ResponseEntity<Void> deleteInvoice(@PathVariable UUID invoiceId, HttpServletRequest httpRequest) {
+        ordService.deleteInvoice(
+                SecurityAuthSupport.requirePrincipal().userId(), invoiceId, ClientRequestContexts.from(httpRequest));
+        return ResponseEntity.noContent().build();
     }
 }

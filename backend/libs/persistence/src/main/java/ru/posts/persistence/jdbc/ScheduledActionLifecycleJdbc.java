@@ -64,7 +64,7 @@ public class ScheduledActionLifecycleJdbc {
         return jdbcClient
                 .sql(
                         """
-                        SELECT p.channel_id, p.network, p.remote_post_id,
+                        SELECT p.channel_id, p.network, p.remote_post_id, p.post_id,
                                c.external_id AS external_channel_id
                         FROM publications p
                         JOIN channels c ON c.id = p.channel_id
@@ -84,7 +84,8 @@ public class ScheduledActionLifecycleJdbc {
                         rs.getString("remote_post_id"),
                         rs.getString("external_channel_id"),
                         base.payloadJson(),
-                        base.attempts()))
+                        base.attempts(),
+                        rs.getObject("post_id", UUID.class)))
                 .optional()
                 .orElse(base);
     }

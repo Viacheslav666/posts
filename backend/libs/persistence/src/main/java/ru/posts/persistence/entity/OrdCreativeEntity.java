@@ -63,6 +63,18 @@ public class OrdCreativeEntity extends BaseUuidEntity {
     @Column(name = "auto_delete_after_period", nullable = false)
     private boolean autoDeleteAfterPeriod = true;
 
+    @Column(name = "display_started_at")
+    private Instant displayStartedAt;
+
+    @Column(name = "display_ended_at")
+    private Instant displayEndedAt;
+
+    @Column(name = "final_stats_pending", nullable = false)
+    private boolean finalStatsPending;
+
+    @Column(name = "expiry_warning_sent_at")
+    private Instant expiryWarningSentAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -195,6 +207,38 @@ public class OrdCreativeEntity extends BaseUuidEntity {
 
     public void setAutoDeleteAfterPeriod(boolean autoDeleteAfterPeriod) {
         this.autoDeleteAfterPeriod = autoDeleteAfterPeriod;
+    }
+
+    public Instant getDisplayStartedAt() {
+        return displayStartedAt;
+    }
+
+    public void setDisplayStartedAt(Instant displayStartedAt) {
+        this.displayStartedAt = displayStartedAt;
+    }
+
+    public Instant getDisplayEndedAt() {
+        return displayEndedAt;
+    }
+
+    public void setDisplayEndedAt(Instant displayEndedAt) {
+        this.displayEndedAt = displayEndedAt;
+    }
+
+    public boolean isFinalStatsPending() {
+        return finalStatsPending;
+    }
+
+    public void setFinalStatsPending(boolean finalStatsPending) {
+        this.finalStatsPending = finalStatsPending;
+    }
+
+    public Instant getExpiryWarningSentAt() {
+        return expiryWarningSentAt;
+    }
+
+    public void setExpiryWarningSentAt(Instant expiryWarningSentAt) {
+        this.expiryWarningSentAt = expiryWarningSentAt;
     }
 
     public Instant getCreatedAt() {

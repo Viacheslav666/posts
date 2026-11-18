@@ -36,6 +36,9 @@ if (project.path != ":libs:test-support") {
 
 tasks.test {
     useJUnitPlatform()
+    // Cap forks so unit-test workers do not compete with 2g integrationTest heaps on CI.
+    maxParallelForks = 2
+    maxHeapSize = "512m"
 }
 
 spotless {

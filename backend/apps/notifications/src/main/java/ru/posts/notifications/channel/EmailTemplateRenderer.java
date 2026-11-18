@@ -30,6 +30,8 @@ public class EmailTemplateRenderer {
             case "channel.no_permissions" -> "Недостаточно прав у канала";
             case "grabber.moderation_queued" -> "Материал на модерации";
             case "ord.error", "ord.erid_failed", "ord.problem" -> "Ошибка ОРД / erid";
+            case "ord.expiry_warning" -> "Скоро окончание срока показа рекламы";
+            case "ord.display_ended" -> "Рекламный пост снят с показа";
             case "invitation.created" -> "Приглашение в workspace";
             case "team.approval_requested" -> "Запрос на согласование";
             case "billing.low_balance" -> "Мало средств на балансе";

@@ -2,6 +2,11 @@ pluginManagement {
     includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
+        // Google CDN mirror of Maven Central — softens 429 storms on shared GH runners.
+        maven {
+            name = "google-maven-central-mirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
         mavenCentral()
     }
 }
@@ -9,6 +14,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        maven {
+            name = "google-maven-central-mirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
         mavenCentral()
     }
 }
@@ -32,6 +41,7 @@ include(
     "libs:ord-api",
     "libs:ord-vk",
     "libs:ord-yandex",
+    "libs:ord-reporting",
     "libs:yookassa",
     "libs:test-support",
     "apps:api",

@@ -63,6 +63,19 @@ public interface SocialAdapter {
     }
 
     /**
+     * BE-26: fetch impression / view count for a published post. Default returns empty — networks
+     * without a stats API skip ORD views_source=unavailable.
+     */
+    default Optional<Long> fetchImpressions(ChannelContext ctx, String remotePostId) {
+        return Optional.empty();
+    }
+
+    /** BE-26: story view count when the network exposes it. */
+    default Optional<Long> fetchStoryImpressions(ChannelContext ctx, String remoteStoryId) {
+        return fetchImpressions(ctx, remoteStoryId);
+    }
+
+    /**
      * BE-29: resolve today's birthday members for {@code {birthdays}} / {@code {именинники}}.
      * Default empty. VK uses {@code groups.getMembers} with {@code bdate}; missing rights → permanent
      * error with a clear message.

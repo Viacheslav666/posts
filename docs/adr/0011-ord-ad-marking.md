@@ -39,15 +39,24 @@
 
 `OrdPrePublishHook` (`PrePublishHook`): при `is_ad` без erid → `PERMANENT` (`ord_erid_missing`), публикация в сеть не уходит (**fail-closed**). Feature-flag `posts.ord.allow-publish-without-erid` по умолчанию **false**. При наличии erid — `AdMarker` применяет один из 6 режимов размещения (BE-25 / Q-ORD-05): `text_start|text_end|click_link_*|vk_menu*`. VK API `wall.post` поддерживает только `mark_as_ads=1` (без меню advertiser+erid) → `vk_menu*` честно падает в `text_end` + meta/`warnings` `vk_menu_unsupported`. Регистрация креатива идемпотентна по `external_id = creative:{postId}:{version}` (на schedule / `POST .../ord/register`, право `ord.register`).
 
-### Отчётность
+### Отчётность (BE-26)
 
-- Ручной `POST /api/v1/ord/reports/run` (Owner/Admin).
-- ShedLock-job scheduler: cron `0 0 3 7 * *` Europe/Moscow → idempotent `ord_report_runs` за предыдущий месяц.
-- Автоудаление после `display_period_days` (default 30) через `scheduled_actions` delete.
+- Ручной `POST /api/v1/ord/reports/run` (Owner/Admin) и ежемесячный ShedLock-job (`0 0 3 7 * *` Europe/Moscow) вызывают **один** сервис `OrdReportRunner` (`libs/ord-reporting`): креативы, видимые в периоде → показы VK/OK/stories → `ord_invoices` / `ord_statistics` → `submitInvoice` / `submitStatistics` с ретраями (`attempts` / `next_retry_at`). Повторный запуск при `succeeded` не дублирует.
+- Площадки: при первом рекламном посте / регистрации креатива — идемпотентный upsert в `ord_platforms` + ORD pad (`external_id = platform:{network}:{channelExternalId}`) для VK ОРД и Яндекс ОРД.
+- API отчётности: `GET /workspaces/{id}/ord/reports`, `GET /ord/creatives`, `POST /ord/erid/check`, `DELETE /ord/invoices/{id}` (soft-delete + audit), экспорт CSV/XLSX.
+- Алерты: просрочка к 25-му (метрика `ord_report_overdue_total` + лог), ошибки ОРД → outbox `ord.problem` / уведомления; Prometheus `ord_report_*`.
+
+### Срок жизни рекламы / статистика (BE-26)
+
+- Статистика по креативу подаётся **каждый месяц, пока пост виден** (окно `display_started_at` … `display_ended_at`), а не только в месяц публикации; месяц снятия включается.
+- Предупреждение владельцу за N дней до конца `display_period_days` / `contract.date_end` (свойство `posts.ord.reports.expiry-warning-days`, default **3**) — outbox `ord.expiry_warning`.
+- После снятия поста (автоудаление `scheduled_actions` delete/delete_story или ручное удаление): фиксируется `display_ended_at`, `final_stats_pending=true`; ближайший отчёт подаёт финальную статистику. **Креатив и erid не удаляются** (хранятся для отчётности / ЕРИР).
 
 ### Схема
 
 Flyway `V12__ord_be15.sql` (после V11 граббера BE-17): `ord_connections`, `ord_contractors`, `ord_contracts`, `ord_creatives`, `ord_platforms`, `ord_invoices`, `ord_statistics`, словари ККТУ/ОКСМ, `ord_report_runs`. Expand-only; CHECK через `NOT VALID` + `VALIDATE`.
+
+BE-26: `V24__ord_be26_reporting.sql` — `ord_invoices.deleted_at`, `ord_statistics.views_source`, `ord_report_runs.attempts/next_retry_at`, поля окна показа на `ord_creatives`, индексы таблицы отчётности.
 
 ## Альтернативы
 
