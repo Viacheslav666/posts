@@ -1,0 +1,11 @@
+{
+  "response": [
+    {
+      "id": 7,
+      "album_id": -7,
+      "owner_id": -100,
+      "text": "",
+      "access_key": "abcdef12"
+    }
+  ]
+}

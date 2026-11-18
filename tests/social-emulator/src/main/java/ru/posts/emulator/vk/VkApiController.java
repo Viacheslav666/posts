@@ -65,19 +65,25 @@ public class VkApiController {
             path = {"/vk/upload/{uploadId}", "/upload/{uploadId}"},
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> uploadPhoto(
-            @PathVariable String uploadId, @RequestPart(name = "photo", required = false) MultipartFile photo) {
+            @PathVariable String uploadId,
+            @RequestPart(name = "photo", required = false) MultipartFile photo,
+            @RequestPart(name = "file", required = false) MultipartFile file,
+            @RequestPart(name = "video_file", required = false) MultipartFile videoFile) {
         UploadSession session = uploads.get(uploadId);
         if (session == null) {
             return Map.of("error", "unknown upload id");
         }
+        MultipartFile part = photo != null ? photo : (file != null ? file : videoFile);
         session.uploaded = true;
         session.server = "emulated";
-        session.photo = photo == null ? "emulated-photo" : photo.getOriginalFilename();
+        session.photo = part == null ? "emulated-photo" : part.getOriginalFilename();
         session.hash = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("server", 1);
         body.put("photo", session.photo);
         body.put("hash", session.hash);
+        body.put("file", "doc-file-" + uploadId);
+        body.put("success", true);
         return body;
     }
 
@@ -86,8 +92,15 @@ public class VkApiController {
         String normalized = method == null ? "" : method.trim();
         return switch (normalized) {
             case "wall.post" -> wallPost(params, rawResponse);
+            case "wall.pin", "wall.unpin" -> ResponseEntity.ok(Map.of("response", 1));
+            case "wall.createComment" -> ResponseEntity.ok(
+                    Map.of("response", Map.of("comment_id", photoSeq.incrementAndGet(), "parents_stack", java.util.List.of())));
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
+            case "video.save" -> ResponseEntity.ok(videoSave(params));
+            case "docs.getWallUploadServer" -> ResponseEntity.ok(getDocUploadServer(params));
+            case "docs.save" -> ResponseEntity.ok(docsSave(params));
+            case "polls.create" -> ResponseEntity.ok(pollsCreate(params));
             case "stories.getPhotoUploadServer", "stories.getVideoUploadServer" -> ResponseEntity.ok(
                     getStoryUploadServer(params, normalized.contains("Video")));
             case "stories.save" -> storiesSave(params, rawResponse);
@@ -123,10 +136,27 @@ public class VkApiController {
 
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("attachments", attachments);
+            metadata.put("from_group", first(params, "from_group"));
+            metadata.put("signed", first(params, "signed"));
+            metadata.put("mute_notifications", first(params, "mute_notifications"));
+            metadata.put("close_comments", first(params, "close_comments"));
+            metadata.put("copyright", first(params, "copyright"));
+            metadata.put("lat", first(params, "lat"));
+            metadata.put("long", first(params, "long"));
+            metadata.put("donut_paid_duration", first(params, "donut_paid_duration"));
+            metadata.put("primary_attachments_mode", first(params, "primary_attachments_mode"));
+            metadata.put("guid", guid);
             metadata.put("access_token_present", first(params, "access_token") != null);
 
             PostStore.CreateResult result =
                     postStore.createOrGet(Network.VK, ownerId == null ? "0" : ownerId, guid, message, metadata);
+
+            // Mirror into wall.get fixtures so API-mode findExisting works against the emulator.
+            Map<String, Object> wallItem = new LinkedHashMap<>();
+            wallItem.put("id", Long.parseLong(result.post().remotePostId()));
+            wallItem.put("text", message == null ? "" : message);
+            wallItem.put("date", System.currentTimeMillis() / 1000L);
+            wallSourceStore.add(ownerId == null ? "0" : ownerId, wallItem);
 
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("post_id", Long.parseLong(result.post().remotePostId()));
@@ -156,6 +186,48 @@ public class VkApiController {
         photo.put("text", "");
         photo.put("access_key", UUID.randomUUID().toString().substring(0, 8));
         return Map.of("response", java.util.List.of(photo));
+    }
+
+    private Map<String, Object> videoSave(MultiValueMap<String, String> params) {
+        String uploadId = UUID.randomUUID().toString();
+        String groupId = first(params, "group_id", "owner_id");
+        uploads.put(uploadId, new UploadSession(groupId));
+        long videoId = photoSeq.incrementAndGet();
+        long owner = groupId == null ? 1L : Long.parseLong(groupId.replace("-", ""));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("upload_url", "http://localhost:8090/vk/upload/" + uploadId);
+        response.put("video_id", videoId);
+        response.put("owner_id", -owner);
+        return Map.of("response", response);
+    }
+
+    private Map<String, Object> getDocUploadServer(MultiValueMap<String, String> params) {
+        String uploadId = UUID.randomUUID().toString();
+        String groupId = first(params, "group_id", "owner_id");
+        uploads.put(uploadId, new UploadSession(groupId));
+        return Map.of("response", Map.of("upload_url", "http://localhost:8090/vk/upload/" + uploadId));
+    }
+
+    private Map<String, Object> docsSave(MultiValueMap<String, String> params) {
+        long id = photoSeq.incrementAndGet();
+        String ownerId = first(params, "group_id", "owner_id");
+        long owner = ownerId == null ? 1L : Long.parseLong(ownerId.replace("-", ""));
+        Map<String, Object> doc = new LinkedHashMap<>();
+        doc.put("id", id);
+        doc.put("owner_id", -owner);
+        doc.put("title", first(params, "title"));
+        return Map.of("response", Map.of("type", "doc", "doc", doc));
+    }
+
+    private Map<String, Object> pollsCreate(MultiValueMap<String, String> params) {
+        long id = photoSeq.incrementAndGet();
+        String ownerId = first(params, "owner_id", "group_id");
+        long owner = ownerId == null ? -1L : Long.parseLong(ownerId);
+        Map<String, Object> poll = new LinkedHashMap<>();
+        poll.put("id", id);
+        poll.put("owner_id", owner);
+        poll.put("question", first(params, "question"));
+        return Map.of("response", poll);
     }
 
     private Map<String, Object> getStoryUploadServer(MultiValueMap<String, String> params, boolean video) {

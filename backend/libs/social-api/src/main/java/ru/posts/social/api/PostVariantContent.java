@@ -22,6 +22,10 @@ public record PostVariantContent(
         return new PostVariantContent(newText, mediaKind, storyTtl, linkText, linkUrl, meta);
     }
 
+    public PostVariantContent withMeta(Map<String, Object> newMeta) {
+        return new PostVariantContent(text, mediaKind, storyTtl, linkText, linkUrl, newMeta);
+    }
+
     public boolean isVideo() {
         return mediaKind != null && mediaKind.toLowerCase(Locale.ROOT).contains("video");
     }

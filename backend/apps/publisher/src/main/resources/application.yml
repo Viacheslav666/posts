@@ -69,6 +69,25 @@ posts:
     telegram:
       base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
       read-timeout: 15s
+    vk:
+      base-url: ${POSTS_SOCIAL_VK_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
+      api-version: "5.199"
+      read-timeout: 15s
+      reconciliation-mode: ${POSTS_SOCIAL_VK_RECONCILIATION:emulator}
+    ok:
+      base-url: ${POSTS_SOCIAL_OK_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
+      read-timeout: 15s
+      reconciliation-mode: ${POSTS_SOCIAL_OK_RECONCILIATION:emulator}
+      application-key: ${POSTS_OK_APPLICATION_KEY:}
+      application-secret: ${POSTS_OK_APPLICATION_SECRET:}
+  s3:
+    enabled: ${POSTS_S3_ENABLED:false}
+    endpoint: ${POSTS_S3_ENDPOINT:http://localhost:9000}
+    region: ${POSTS_S3_REGION:ru-central1}
+    bucket: ${POSTS_S3_BUCKET:posts-media}
+    access-key: ${POSTS_S3_ACCESS_KEY:posts}
+    secret-key: ${POSTS_S3_SECRET_KEY:posts}
+    path-style-access: true
   ratelimit:
     redis-uri: redis://${POSTS_REDIS_HOST:localhost}:${POSTS_REDIS_PORT:6379}
     networks:

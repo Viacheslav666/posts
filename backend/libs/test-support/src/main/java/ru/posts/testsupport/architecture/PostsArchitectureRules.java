@@ -138,6 +138,54 @@ public final class PostsArchitectureRules {
                 .toList();
     }
 
+    /**
+     * BE-23 / ADR-0012: {@code /_control} may only appear in {@code ..emulator..} packages of social
+     * adapters (never in production API reconciliation).
+     */
+    public static void assertControlApiOnlyInEmulatorPackages(JavaClasses classes) {
+        for (JavaClass clazz : classes) {
+            String pkg = clazz.getPackageName();
+            if (!pkg.startsWith("ru.posts.social.")) {
+                continue;
+            }
+            if (pkg.contains(".emulator")) {
+                continue;
+            }
+            assertClassFileDoesNotContainControlPath(clazz);
+        }
+    }
+
+    private static void assertClassFileDoesNotContainControlPath(JavaClass clazz) {
+        String resource = clazz.getName().replace('.', '/') + ".class";
+        ClassLoader loader = null;
+        try {
+            loader = clazz.reflect().getClassLoader();
+        } catch (Exception ignored) {
+            // fall through
+        }
+        if (loader == null) {
+            loader = Thread.currentThread().getContextClassLoader();
+        }
+        if (loader == null) {
+            return;
+        }
+        try (java.io.InputStream in = loader.getResourceAsStream(resource)) {
+            if (in == null) {
+                return;
+            }
+            byte[] bytes = in.readAllBytes();
+            String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+            if (latin1.contains("/_control")) {
+                throw new AssertionError(
+                        clazz.getName() + " contains '/_control' outside emulator package (BE-23 / ADR-0012)");
+            }
+        } catch (AssertionError e) {
+            throw e;
+        } catch (Exception ignored) {
+            // ignore unreadable classes
+        }
+    }
+
     public static void checkAll(JavaClasses classes) {
         domainMustNotDependOnFrameworkAdapters().check(classes);
         domainMustNotDependOnApps().check(classes);
@@ -150,6 +198,7 @@ public final class PostsArchitectureRules {
         for (ArchRule rule : ordAdapterIsolationRules()) {
             rule.check(classes);
         }
+        assertControlApiOnlyInEmulatorPackages(classes);
     }
 
     /** Applies only rules that match the given production packages (module-local tests). */
@@ -175,6 +224,7 @@ public final class PostsArchitectureRules {
                 String adapterRoot = adapter.replace("..", "");
                 if (pkg.equals(adapterRoot) || pkg.startsWith(adapterRoot + ".")) {
                     socialAdapterIsolationRules().get(i).check(classes);
+                    assertControlApiOnlyInEmulatorPackages(classes);
                 }
             }
             for (int i = 0; i < ORD_ADAPTER_PACKAGES.size(); i++) {

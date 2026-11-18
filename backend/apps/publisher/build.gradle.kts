@@ -10,7 +10,10 @@ dependencies {
     implementation(project(":libs:ratelimit"))
     implementation(project(":libs:social-api"))
     implementation(project(":libs:social-telegram"))
+    implementation(project(":libs:social-vk"))
+    implementation(project(":libs:social-ok"))
     implementation(project(":libs:ord-api"))
+    implementation(libs.aws.s3)
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)

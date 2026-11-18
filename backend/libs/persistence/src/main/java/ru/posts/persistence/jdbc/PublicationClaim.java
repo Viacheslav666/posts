@@ -40,4 +40,9 @@ public record PublicationClaim(
         String storyLinkText,
         String storyLinkUrl,
         /** photo | video — derived from media mime / story_options. */
-        String mediaKind) {}
+        String mediaKind,
+        /**
+         * JSON array of media asset UUID strings from variant/base content ({@code mediaIds}).
+         * BE-23: publisher resolves these into {@code MediaAssetRef} for upload.
+         */
+        String mediaIdsJson) {}
