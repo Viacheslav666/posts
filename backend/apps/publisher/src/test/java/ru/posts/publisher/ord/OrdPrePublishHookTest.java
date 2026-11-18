@@ -77,6 +77,7 @@ class OrdPrePublishHookTest {
                 null,
                 null,
                 null,
-                "photo");
+                "photo",
+                "[]");
     }
 }

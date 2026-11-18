@@ -39,6 +39,7 @@ class VkStoryAdapterWireMockTest {
         properties.setBaseUrl(wireMock.baseUrl());
         properties.setTokenUrl(wireMock.baseUrl() + "/oauth2/auth");
         properties.setReadTimeout(Duration.ofSeconds(5));
+        properties.setReconciliationMode("emulator");
         adapter = new VkSocialAdapter(properties, new ObjectMapper());
         ctx = new ChannelContext(UUID.randomUUID(), UUID.randomUUID(), "-100", "token", Network.VK);
     }

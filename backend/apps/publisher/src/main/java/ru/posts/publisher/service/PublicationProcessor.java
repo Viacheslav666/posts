@@ -25,6 +25,7 @@ import ru.posts.persistence.jdbc.PublicationClaim;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
 import ru.posts.publisher.config.PublisherProperties;
 import ru.posts.publisher.extension.PrePublishHook;
+import ru.posts.publisher.media.MediaPublishSupport;
 import ru.posts.publisher.metrics.PublicationMetrics;
 import ru.posts.ratelimit.RateLimitDecision;
 import ru.posts.ratelimit.SocialRateLimiter;
@@ -54,6 +55,7 @@ public class PublicationProcessor {
     private final PublisherProperties properties;
     private final PublicationMetrics metrics;
     private final List<PrePublishHook> prePublishHooks;
+    private final MediaPublishSupport mediaPublishSupport;
 
     public PublicationProcessor(
             PublicationLifecycleJdbc lifecycleJdbc,
@@ -68,7 +70,8 @@ public class PublicationProcessor {
             TransactionTemplate transactionTemplate,
             PublisherProperties properties,
             PublicationMetrics metrics,
-            List<PrePublishHook> prePublishHooks) {
+            List<PrePublishHook> prePublishHooks,
+            MediaPublishSupport mediaPublishSupport) {
         this.lifecycleJdbc = lifecycleJdbc;
         this.outboxJdbc = outboxJdbc;
         this.scheduledActionsFactory = scheduledActionsFactory;
@@ -82,6 +85,7 @@ public class PublicationProcessor {
         this.properties = properties;
         this.metrics = metrics;
         this.prePublishHooks = prePublishHooks;
+        this.mediaPublishSupport = mediaPublishSupport;
     }
 
     /**
@@ -127,6 +131,8 @@ public class PublicationProcessor {
                 return true;
             }
 
+            content = mediaPublishSupport.withOptionsMeta(claim, content);
+
             // findExisting only on retries / unknown prior outcome — first attempt goes straight to publish.
             if (claim.attempts() > 1) {
                 Optional<PublishResult> existing = findExisting(ctx, claim, content);
@@ -156,6 +162,9 @@ public class PublicationProcessor {
                 metrics.recordFailure(claim.network(), "rate_limited");
                 return true;
             }
+
+            // BE-23: options + mediaIds → meta; upload media (channel_media_cache) immediately before publish.
+            content = mediaPublishSupport.enrich(claim, content, socialAdapter, ctx);
 
             PublishResult result = invokeSocial(ctx, content, claim);
             finishSuccess(claim, result, startedAt, "published");
@@ -229,7 +238,8 @@ public class PublicationProcessor {
                     claim.externalChannelId(),
                     "emulator-token",
                     Network.fromCode(claim.network()));
-            Optional<PublishResult> recovered = findExisting(ctx, claim, toContent(claim));
+            Optional<PublishResult> recovered =
+                    findExisting(ctx, claim, mediaPublishSupport.withOptionsMeta(claim, toContent(claim)));
             if (recovered.isPresent()) {
                 finishSuccess(claim, recovered.get(), startedAt, "recovered_unknown_outcome");
                 return true;
@@ -383,6 +393,7 @@ public class PublicationProcessor {
     }
 
     private static PostVariantContent toContent(PublicationClaim claim) {
+        // Options / media are enriched in handleClaim via MediaPublishSupport (BE-23).
         return new PostVariantContent(
                 claim.contentText(),
                 claim.mediaKind(),

@@ -26,7 +26,8 @@ import ru.posts.social.api.SocialApiException;
 
 /**
  * Telegram Bot API adapter (prototype) targeting the social emulator. Sends {@code
- * idempotency_key} so the emulator can dedupe; {@link #findExisting} uses emulator control API.
+ * idempotency_key} so the emulator can dedupe; {@link #findExisting} uses the emulator reconciliation
+ * helper.
  */
 public class TelegramSocialAdapter implements SocialAdapter {
 
@@ -93,31 +94,7 @@ public class TelegramSocialAdapter implements SocialAdapter {
 
     @Override
     public Optional<PublishResult> findExisting(ChannelContext ctx, String idempotencyKey, PostVariantContent content) {
-        try {
-            JsonNode posts = restClient
-                    .get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/_control/posts")
-                            .queryParam("network", "telegram")
-                            .queryParam("channelId", ctx.externalId())
-                            .build())
-                    .retrieve()
-                    .body(JsonNode.class);
-            if (posts == null || !posts.isArray()) {
-                return Optional.empty();
-            }
-            for (JsonNode post : posts) {
-                if (idempotencyKey != null && idempotencyKey.equals(textOrNull(post, "idempotencyKey"))) {
-                    String remoteId = textOrNull(post, "remotePostId");
-                    if (remoteId != null) {
-                        return Optional.of(new PublishResult(remoteId, remoteUrl(ctx.externalId(), remoteId)));
-                    }
-                }
-            }
-            return Optional.empty();
-        } catch (RuntimeException ex) {
-            return Optional.empty();
-        }
+        return ru.posts.social.telegram.emulator.TelegramEmulatorReconciliation.find(restClient, ctx, idempotencyKey);
     }
 
     @Override
@@ -311,11 +288,6 @@ public class TelegramSocialAdapter implements SocialAdapter {
 
     private static String remoteUrl(String chatId, String messageId) {
         return "https://t.me/c/" + chatId + "/" + messageId;
-    }
-
-    private static String textOrNull(JsonNode node, String field) {
-        JsonNode value = node.get(field);
-        return value == null || value.isNull() ? null : value.asText();
     }
 
     private static String trimTrailingSlash(String url) {

@@ -109,6 +109,11 @@
 - **Сделать:** по `docs/product/features/grabber.md` v1.0.1+: `automation_rules`, runs/items, дедуп, атрибуция, RSS; **`publish_mode=moderate` по умолчанию и как обязательный режим продукта**, `auto` — опционально; очередь модерации (approve/reject/edit-and-approve); публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
 - **Приёмка:** TC-GRAB-* P0 (в т.ч. default moderate без публикации до approve); повторный ingest не создаёт дублей публикаций.
 
+### BE-23. Боевые адаптеры VK и OK (медиа, опции, закреп, сверка без эмулятора)
+- **Ветка:** `feat/be-23-vk-ok-adapters-prod` · **Зависит от:** main (BE-7…10, BE-15, BE-16).
+- **Сделать:** реальные upload-серверы VK/OK; `wall.post` / `mediatopic.post` с опциями; pin/comment; `findExisting` через `wall.get` / ленту OK (не `/_control` в prod); кэш `channel_media_cache` (V17); ADR-0012; WireMock-контракты API 5.199 / OK.
+- **Приёмка:** IT/WireMock с медиа и опросом; pin + первый комментарий; TC-PUB-02/03/06/07; 0 дублей на UNKNOWN_OUTCOME; ArchUnit запрещает `/_control` вне `emulator`.
+
 ---
 
 ## Posts Разраб Фронт
