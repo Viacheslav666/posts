@@ -1,17 +1,11 @@
 package ru.posts.ord.reporting;
 
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import ru.posts.persistence.entity.WorkspaceDataKeyEntity;
 import ru.posts.persistence.repository.WorkspaceDataKeyRepository;
 import ru.posts.security.crypto.TokenCryptoService;
 
 /** Default ADR-0006 ORD API key unseal using workspace DEK. */
-@Profile("!openapi")
-@Component
-@ConditionalOnBean(TokenCryptoService.class)
 public class OrdWorkspaceApiKeyResolver implements OrdApiKeyResolver {
 
     private final TokenCryptoService crypto;
