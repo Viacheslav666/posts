@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.spring.boot.starter.oauth2.resource.server)
     implementation(libs.spring.boot.starter.mail)
     implementation(libs.spring.boot.starter.amqp)
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)

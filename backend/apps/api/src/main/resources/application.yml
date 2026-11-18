@@ -67,6 +67,12 @@ posts:
     presign-ttl: 15m
   crypto:
     kek: ${POSTS_DEV_KEK:local-dev-posts-kek}
+  notifications:
+    telegram-bot-username: ${POSTS_NOTIFY_TG_BOT_USERNAME:posts_notify_bot}
+    telegram-webhook-secret: ${POSTS_NOTIFY_TG_WEBHOOK_SECRET:local-notify-tg-secret}
+    vapid-public-key: ${POSTS_NOTIFY_VAPID_PUBLIC_KEY:}
+    telegram-link-code-ttl-minutes: 15
+    unsubscribe-token-ttl-days: 30
   channels:
     social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
     vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:local-vk-channels}

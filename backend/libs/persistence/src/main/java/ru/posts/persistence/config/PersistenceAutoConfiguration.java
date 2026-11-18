@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
+import ru.posts.persistence.jdbc.OutboxRelayJdbc;
 import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
 import ru.posts.persistence.jdbc.ScheduledActionDispatcherJdbc;
@@ -53,6 +54,12 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(OutboxJdbc.class)
     OutboxJdbc outboxJdbc(DataSource dataSource) {
         return new OutboxJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(OutboxRelayJdbc.class)
+    OutboxRelayJdbc outboxRelayJdbc(DataSource dataSource) {
+        return new OutboxRelayJdbc(JdbcClient.create(dataSource));
     }
 
     @Bean

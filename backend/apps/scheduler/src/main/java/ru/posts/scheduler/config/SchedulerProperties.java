@@ -12,6 +12,8 @@ public class SchedulerProperties {
     private Duration confirmTimeout = Duration.ofSeconds(5);
     private long dispatchIntervalMs = 1000;
     private long reaperIntervalMs = 30_000;
+    private long outboxRelayIntervalMs = 1000;
+    private int outboxRelayBatchSize = 200;
 
     public int batchSize() {
         return batchSize;
@@ -59,5 +61,21 @@ public class SchedulerProperties {
 
     public void setReaperIntervalMs(long reaperIntervalMs) {
         this.reaperIntervalMs = reaperIntervalMs;
+    }
+
+    public long outboxRelayIntervalMs() {
+        return outboxRelayIntervalMs;
+    }
+
+    public void setOutboxRelayIntervalMs(long outboxRelayIntervalMs) {
+        this.outboxRelayIntervalMs = outboxRelayIntervalMs;
+    }
+
+    public int outboxRelayBatchSize() {
+        return outboxRelayBatchSize;
+    }
+
+    public void setOutboxRelayBatchSize(int outboxRelayBatchSize) {
+        this.outboxRelayBatchSize = outboxRelayBatchSize;
     }
 }

@@ -24,10 +24,12 @@ import ru.posts.api.workspace.WorkspaceMembership;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelConnectStateEntity;
 import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.SocialAccountEntity;
 import ru.posts.persistence.entity.TelegramBotEntity;
 import ru.posts.persistence.repository.ChannelConnectStateRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.repository.TelegramBotRepository;
 
@@ -45,6 +47,7 @@ public class ChannelServiceImpl implements ChannelService {
     private final SocialConnectClient connectClient;
     private final ChannelProperties properties;
     private final AuditRecorder auditRecorder;
+    private final OutboxRepository outboxRepository;
 
     public ChannelServiceImpl(
             WorkspaceAccessService access,
@@ -56,7 +59,8 @@ public class ChannelServiceImpl implements ChannelService {
             WorkspaceTokenVault tokenVault,
             SocialConnectClient connectClient,
             ChannelProperties properties,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OutboxRepository outboxRepository) {
         this.access = access;
         this.channelRepository = channelRepository;
         this.socialAccountRepository = socialAccountRepository;
@@ -67,6 +71,7 @@ public class ChannelServiceImpl implements ChannelService {
         this.connectClient = connectClient;
         this.properties = properties;
         this.auditRecorder = auditRecorder;
+        this.outboxRepository = outboxRepository;
     }
 
     @Override
@@ -347,6 +352,19 @@ public class ChannelServiceImpl implements ChannelService {
         }
         channel.setUpdatedAt(checkedAt);
         channelRepository.save(channel);
+        if (!ok) {
+            OutboxEntity event = new OutboxEntity();
+            event.setAggregate("channel");
+            event.setAggregateId(channel.getId());
+            event.setEventType("channel.reauth_required");
+            event.setPayload(Map.of(
+                    "workspaceId", channel.getWorkspaceId().toString(),
+                    "channelId", channel.getId().toString(),
+                    "network", channel.getNetwork(),
+                    "reason", channel.getStatusReason() == null ? "token_check_failed" : channel.getStatusReason()));
+            event.setCreatedAt(checkedAt);
+            outboxRepository.save(event);
+        }
         return new ChannelDtos.ChannelCheckResponse(
                 channel.getId(),
                 ApiEnums.ChannelStatus.valueOf(channel.getStatus()),

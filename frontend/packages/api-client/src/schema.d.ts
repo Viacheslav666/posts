@@ -1039,6 +1039,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notification-settings/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unlink Telegram notification bot */
+        delete: operations["notificationTelegramUnlink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-settings/telegram/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Telegram notification-bot account linking */
+        post: operations["notificationTelegramLinkStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-settings/web-push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscribe browser to Web Push */
+        post: operations["notificationWebPushSubscribe"];
+        /** Remove a Web Push subscription */
+        delete: operations["notificationWebPushUnsubscribe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1066,6 +1118,40 @@ export interface paths {
         get?: never;
         /** Mark notifications as read */
         put: operations["notificationsMarkRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One-click email unsubscribe by token */
+        get: operations["notificationUnsubscribe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/vapid-public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get VAPID public key for Web Push */
+        get: operations["notificationVapidPublicKey"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1732,6 +1818,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hooks/telegram-notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram notification-bot webhook (account linking via /start CODE) */
+        post: operations["hooksTelegramNotify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hooks/tg/{botId}": {
         parameters: {
             query?: never;
@@ -2061,6 +2164,12 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["Channel"][];
             nextCursor?: string;
+        };
+        ChannelPreference: {
+            email?: boolean;
+            inApp?: boolean;
+            telegram?: boolean;
+            webPush?: boolean;
         };
         ChannelSet: {
             channelIds?: string[];
@@ -2539,7 +2648,8 @@ export interface components {
             refreshToken?: string;
         };
         MarkNotificationsReadRequest: {
-            ids: string[];
+            /** @description Notification ids to mark read; omit or empty to mark all in workspace */
+            ids?: string[];
         };
         MediaAsset: {
             /** Format: date-time */
@@ -2673,6 +2783,8 @@ export interface components {
             readAt?: string;
             /** @example publication.failed */
             type?: string;
+            /** Format: uuid */
+            workspaceId?: string;
         };
         NotificationPage: {
             hasMore?: boolean;
@@ -2680,7 +2792,9 @@ export interface components {
             nextCursor?: string;
         };
         NotificationSettings: {
+            /** @description Global email master switch (OpenAPI compat) */
             emailEnabled?: boolean;
+            /** @description Global in-app master switch (OpenAPI compat) */
             inAppEnabled?: boolean;
             /**
              * @description Mute categories
@@ -2689,8 +2803,19 @@ export interface components {
              *     ]
              */
             mutedTypes?: string[];
+            /** @description Per-event-type channel preferences */
+            preferences?: {
+                [key: string]: components["schemas"]["ChannelPreference"];
+            };
+            quietHours?: components["schemas"]["QuietHours"];
+            telegram?: components["schemas"]["TelegramLinkStatus"];
+            /** @description Global Telegram bot master switch (OpenAPI compat) */
             telegramBotEnabled?: boolean;
+            vapidPublicKey?: string;
+            /** @description Global Web Push master switch (OpenAPI compat) */
             webPushEnabled?: boolean;
+            /** Format: int32 */
+            webPushSubscriptionCount?: number;
         };
         OAuthLinkRequest: {
             /** @description One-time link token from oauth_link_required response */
@@ -3149,6 +3274,21 @@ export interface components {
             items?: components["schemas"]["Publication"][];
             nextCursor?: string;
         };
+        QuietHours: {
+            enabled?: boolean;
+            /**
+             * @description HH:mm local end
+             * @example 08:00
+             */
+            end?: string;
+            /**
+             * @description HH:mm local start
+             * @example 22:00
+             */
+            start?: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
+        };
         RateLimits: {
             extra?: {
                 [key: string]: Record<string, never>;
@@ -3312,6 +3452,21 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        TelegramLinkStartResponse: {
+            /** @example posts_notify_bot */
+            botUsername?: string;
+            /** Format: date-time */
+            codeExpiresAt?: string;
+            deepLink?: string;
+        };
+        TelegramLinkStatus: {
+            botUsername?: string;
+            deepLink?: string;
+            linked?: boolean;
+            /** Format: date-time */
+            linkedAt?: string;
+            username?: string;
+        };
         TextLimits: {
             /**
              * Format: int32
@@ -3356,6 +3511,10 @@ export interface components {
             /** @description Base32 secret for manual entry */
             secret?: string;
         };
+        UnsubscribeResponse: {
+            /** @example unsubscribed */
+            message?: string;
+        };
         UpdateChannelRequest: {
             /** Format: uuid */
             projectId?: string;
@@ -3387,6 +3546,10 @@ export interface components {
             emailEnabled?: boolean;
             inAppEnabled?: boolean;
             mutedTypes?: string[];
+            preferences?: {
+                [key: string]: components["schemas"]["ChannelPreference"];
+            };
+            quietHours?: components["schemas"]["QuietHours"];
             telegramBotEnabled?: boolean;
             webPushEnabled?: boolean;
         };
@@ -3479,6 +3642,15 @@ export interface components {
             message?: string;
             /** @example error */
             severity?: string;
+        };
+        VapidPublicKeyResponse: {
+            vapidPublicKey?: string;
+        };
+        WebPushSubscribeRequest: {
+            auth: string;
+            endpoint: string;
+            p256dh: string;
+            userAgent?: string;
         };
         Workspace: {
             /**
@@ -9537,7 +9709,9 @@ export interface operations {
     };
     notificationSettingsGet: {
         parameters: {
-            query?: never;
+            query: {
+                workspaceId: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9620,7 +9794,9 @@ export interface operations {
     };
     notificationSettingsUpdate: {
         parameters: {
-            query?: never;
+            query: {
+                workspaceId: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9705,9 +9881,355 @@ export interface operations {
             };
         };
     };
+    notificationTelegramUnlink: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    notificationTelegramLinkStart: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deep link to bot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramLinkStartResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    notificationWebPushSubscribe: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebPushSubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Subscribed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    notificationWebPushUnsubscribe: {
+        parameters: {
+            query: {
+                workspaceId: string;
+                endpoint: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unsubscribed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     notificationsList: {
         parameters: {
-            query?: {
+            query: {
+                workspaceId: string;
                 unreadOnly?: boolean;
                 /**
                  * @description Opaque cursor from a previous response `nextCursor`
@@ -9802,7 +10324,9 @@ export interface operations {
     };
     notificationsMarkRead: {
         parameters: {
-            query?: never;
+            query: {
+                workspaceId: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9820,6 +10344,174 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    notificationUnsubscribe: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unsubscribed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnsubscribeResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    notificationVapidPublicKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description VAPID public key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VapidPublicKeyResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -14373,6 +15065,34 @@ export interface operations {
             path: {
                 botId: string;
             };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    hooksTelegramNotify: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Telegram-Bot-Api-Secret-Token"?: string;
+            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {

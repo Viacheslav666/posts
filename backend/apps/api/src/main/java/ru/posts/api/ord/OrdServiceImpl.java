@@ -37,6 +37,7 @@ import ru.posts.persistence.entity.OrdCreativeEntity;
 import ru.posts.persistence.entity.OrdDictionaryKktuEntity;
 import ru.posts.persistence.entity.OrdDictionaryOksmEntity;
 import ru.posts.persistence.entity.OrdReportRunEntity;
+import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.repository.OrdConnectionRepository;
 import ru.posts.persistence.repository.OrdContractRepository;
@@ -45,6 +46,7 @@ import ru.posts.persistence.repository.OrdCreativeRepository;
 import ru.posts.persistence.repository.OrdDictionaryKktuRepository;
 import ru.posts.persistence.repository.OrdDictionaryOksmRepository;
 import ru.posts.persistence.repository.OrdReportRunRepository;
+import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 
 @Service
@@ -65,6 +67,7 @@ public class OrdServiceImpl implements OrdService {
     private final OrdReportRunRepository reportRunRepository;
     private final PostRepository postRepository;
     private final ObjectMapper objectMapper;
+    private final OutboxRepository outboxRepository;
 
     public OrdServiceImpl(
             WorkspaceAccessService access,
@@ -79,7 +82,8 @@ public class OrdServiceImpl implements OrdService {
             OrdDictionaryOksmRepository oksmRepository,
             OrdReportRunRepository reportRunRepository,
             PostRepository postRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            OutboxRepository outboxRepository) {
         this.access = access;
         this.tokenVault = tokenVault;
         this.auditRecorder = auditRecorder;
@@ -93,6 +97,7 @@ public class OrdServiceImpl implements OrdService {
         this.reportRunRepository = reportRunRepository;
         this.postRepository = postRepository;
         this.objectMapper = objectMapper;
+        this.outboxRepository = outboxRepository;
     }
 
     @Override
@@ -551,6 +556,14 @@ public class OrdServiceImpl implements OrdService {
                 creative.setStatus("error");
                 creative.setLastError("erid missing");
                 creativeRepository.save(creative);
+                writeOrdOutbox(
+                        creative.getId(),
+                        "ord.erid_failed",
+                        Map.of(
+                                "workspaceId", post.getWorkspaceId().toString(),
+                                "postId", post.getId().toString(),
+                                "creativeId", creative.getId().toString(),
+                                "reason", "erid_missing"));
                 throw new ApiException(
                         HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_ERID_MISSING, "ORD returned empty erid");
             }
@@ -590,6 +603,13 @@ public class OrdServiceImpl implements OrdService {
                     post.getId(),
                     Map.of("errorClass", ex.errorClass().name()),
                     ctx == null ? null : ctx.ip());
+            writeOrdOutbox(
+                    post.getId(),
+                    "ord.error",
+                    Map.of(
+                            "workspaceId", post.getWorkspaceId().toString(),
+                            "postId", post.getId().toString(),
+                            "errorClass", ex.errorClass().name()));
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
         } catch (RuntimeException ex) {
             auditRecorder.record(
@@ -600,9 +620,26 @@ public class OrdServiceImpl implements OrdService {
                     post.getId(),
                     Map.of("error", "provider"),
                     ctx == null ? null : ctx.ip());
+            writeOrdOutbox(
+                    post.getId(),
+                    "ord.error",
+                    Map.of(
+                            "workspaceId", post.getWorkspaceId().toString(),
+                            "postId", post.getId().toString(),
+                            "error", "provider"));
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_PROVIDER_UNAVAILABLE, "ORD provider unavailable");
         }
+    }
+
+    private void writeOrdOutbox(UUID aggregateId, String eventType, Map<String, Object> payload) {
+        OutboxEntity event = new OutboxEntity();
+        event.setAggregate("ord");
+        event.setAggregateId(aggregateId);
+        event.setEventType(eventType);
+        event.setPayload(payload);
+        event.setCreatedAt(Instant.now());
+        outboxRepository.save(event);
     }
 
     @Override
