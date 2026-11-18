@@ -8,8 +8,8 @@ class AdMarkerTest {
 
     @Test
     void formatBuildsMarkerLine() {
-        assertThat(AdMarker.format("ООО Ромашка", "7707083893", "2VtzqvwkhtU"))
-                .isEqualTo("Реклама. ООО Ромашка. ИНН 7707083893. erid: 2VtzqvwkhtU");
+        assertThat(AdMarker.format("ООО Ромашка", "7707083893", "test-erid-marker-0001"))
+                .isEqualTo("Реклама. ООО Ромашка. ИНН 7707083893. erid: test-erid-marker-0001");
     }
 
     @Test

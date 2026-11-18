@@ -37,9 +37,9 @@ class OrdPrePublishHookTest {
     @Test
     void adWithEridPrependsMarker() {
         OrdPrePublishHook hook = new OrdPrePublishHook(false);
-        PublicationClaim claim = claim(true, "EridToken1", "ООО Тест", "7707083893");
+        PublicationClaim claim = claim(true, "test-erid-hook-0001", "ООО Тест", "7707083893");
         PostVariantContent out = hook.beforePublish(claim, new PostVariantContent("Текст поста"));
-        assertThat(out.text()).startsWith("Реклама. ООО Тест. ИНН 7707083893. erid: EridToken1");
+        assertThat(out.text()).startsWith("Реклама. ООО Тест. ИНН 7707083893. erid: test-erid-hook-0001");
         assertThat(out.text()).endsWith("Текст поста");
     }
 

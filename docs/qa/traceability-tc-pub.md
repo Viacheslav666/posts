@@ -26,6 +26,8 @@
 | TC-PUB-13 | `TcPubBe10IT#tcPub13OutboxForWebsocket` | CI | авто (outbox ≤ 3 с; UI — FE) |
 | scheduled_actions | `TcPubBe10IT#scheduledActionsFirstCommentAndDelete` | CI | авто (BE-10) |
 | reauth_required | `TcPubBe10IT#authMarksChannelReauth` | CI | авто (BE-10) |
+| TC-AD-07 (ads regress) | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` | CI | авто (QA-10) |
+| TC-AD-06 / fail-closed ads | `OrdAdPipelineIT` (см. `traceability-tc-ad.md`) | CI | авто (QA-10) |
 
 ## Запуск
 

@@ -244,6 +244,10 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
           pnpm test:p0
+      # QA-10: TC-AD-01…04 UI маркировки на MSW (webServer NEXT_PUBLIC_API_MOCKING=true).
+      - name: Playwright ad-marking (TC-AD P0 UI)
+        working-directory: tests/e2e
+        run: pnpm test:ad-marking
       - name: Schemathesis smoke
         run: |
           chmod +x tests/contract/run-smoke.sh

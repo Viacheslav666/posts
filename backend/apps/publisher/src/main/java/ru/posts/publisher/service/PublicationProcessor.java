@@ -108,53 +108,55 @@ public class PublicationProcessor {
 
     private boolean handleClaim(PublicationClaim claim, Instant startedAt) {
         PostVariantContent content = toContent(claim);
-        for (PrePublishHook hook : prePublishHooks) {
-            content = hook.beforePublish(claim, content);
-        }
+        try {
+            // ORD fail-closed (and any other gate) must go through handleFailure — otherwise the
+            // publication stays stuck in in_progress and never becomes failed_permanent.
+            for (PrePublishHook hook : prePublishHooks) {
+                content = hook.beforePublish(claim, content);
+            }
 
-        ChannelContext ctx = new ChannelContext(
-                claim.workspaceId(),
-                claim.channelId(),
-                claim.externalChannelId(),
-                "emulator-token",
-                Network.fromCode(claim.network()));
+            ChannelContext ctx = new ChannelContext(
+                    claim.workspaceId(),
+                    claim.channelId(),
+                    claim.externalChannelId(),
+                    "emulator-token",
+                    Network.fromCode(claim.network()));
 
-        if (claim.remotePostId() != null && !claim.remotePostId().isBlank()) {
-            finishSuccess(claim, new PublishResult(claim.remotePostId(), null), startedAt, "already_remote");
-            return true;
-        }
-
-        // findExisting only on retries / unknown prior outcome — first attempt goes straight to publish.
-        if (claim.attempts() > 1) {
-            Optional<PublishResult> existing = findExisting(ctx, claim, content);
-            if (existing.isPresent()) {
-                finishSuccess(claim, existing.get(), startedAt, "find_existing");
+            if (claim.remotePostId() != null && !claim.remotePostId().isBlank()) {
+                finishSuccess(claim, new PublishResult(claim.remotePostId(), null), startedAt, "already_remote");
                 return true;
             }
-        }
 
-        RateLimitDecision decision =
-                rateLimiter.tryAcquire(claim.network(), claim.channelId().toString(), claim.externalChannelId());
-        if (!decision.allowed()) {
-            Instant next = Instant.now().plus(decision.waitTime());
-            transactionTemplate.executeWithoutResult(status -> {
-                lifecycleJdbc.markFailedRetryable(
-                        claim.id(), claim.runAt(), next, "rate_limited", "waiting for rate limiter");
-                lifecycleJdbc.recordAttempt(
-                        claim.id(),
-                        claim.runAt(),
-                        claim.attempts(),
-                        startedAt,
-                        Instant.now(),
-                        429,
-                        "rate_limited",
-                        "{\"waitMs\":" + decision.waitTime().toMillis() + "}");
-            });
-            metrics.recordFailure(claim.network(), "rate_limited");
-            return true;
-        }
+            // findExisting only on retries / unknown prior outcome — first attempt goes straight to publish.
+            if (claim.attempts() > 1) {
+                Optional<PublishResult> existing = findExisting(ctx, claim, content);
+                if (existing.isPresent()) {
+                    finishSuccess(claim, existing.get(), startedAt, "find_existing");
+                    return true;
+                }
+            }
 
-        try {
+            RateLimitDecision decision =
+                    rateLimiter.tryAcquire(claim.network(), claim.channelId().toString(), claim.externalChannelId());
+            if (!decision.allowed()) {
+                Instant next = Instant.now().plus(decision.waitTime());
+                transactionTemplate.executeWithoutResult(status -> {
+                    lifecycleJdbc.markFailedRetryable(
+                            claim.id(), claim.runAt(), next, "rate_limited", "waiting for rate limiter");
+                    lifecycleJdbc.recordAttempt(
+                            claim.id(),
+                            claim.runAt(),
+                            claim.attempts(),
+                            startedAt,
+                            Instant.now(),
+                            429,
+                            "rate_limited",
+                            "{\"waitMs\":" + decision.waitTime().toMillis() + "}");
+                });
+                metrics.recordFailure(claim.network(), "rate_limited");
+                return true;
+            }
+
             PublishResult result = invokeSocial(ctx, content, claim);
             finishSuccess(claim, result, startedAt, "published");
             return true;

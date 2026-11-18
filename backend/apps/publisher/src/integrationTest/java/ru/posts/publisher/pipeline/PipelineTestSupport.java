@@ -84,6 +84,134 @@ final class PipelineTestSupport {
         return id;
     }
 
+    /**
+     * Seeds an advertising post (+ optional registered ORD creative) and a pending Telegram
+     * publication for TC-AD publisher regression.
+     */
+    static UUID insertAdPublication(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID variantId,
+            UUID channelId,
+            Instant runAt,
+            String text,
+            String erid,
+            String advertiserName,
+            String advertiserInn,
+            int displayPeriodDays,
+            boolean autoDeleteAfterPeriod)
+            throws Exception {
+        ensureAdPost(
+                jdbc,
+                workspaceId,
+                postId,
+                channelId,
+                variantId,
+                text,
+                erid,
+                advertiserName,
+                advertiserInn,
+                displayPeriodDays,
+                autoDeleteAfterPeriod);
+        UUID id = UuidV7.generate();
+        String key = sha256(variantId + "|" + runAt + "|ad");
+        jdbc.update(
+                """
+                INSERT INTO publications (
+                    id, workspace_id, post_id, variant_id, channel_id, network,
+                    run_at, idempotency_key, state)
+                VALUES (?, ?, ?, ?, ?, 'tg', ?, ?, 'pending')
+                """,
+                id,
+                workspaceId,
+                postId,
+                variantId,
+                channelId,
+                Timestamp.from(runAt),
+                key);
+        return id;
+    }
+
+    static void ensureAdPost(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID channelId,
+            UUID variantId,
+            String text,
+            String erid,
+            String advertiserName,
+            String advertiserInn,
+            int displayPeriodDays,
+            boolean autoDeleteAfterPeriod) {
+        Integer posts = jdbc.queryForObject("SELECT count(*) FROM posts WHERE id = ?", Integer.class, postId);
+        if (posts != null && posts > 0) {
+            return;
+        }
+        UUID creativeId = null;
+        if (erid != null && !erid.isBlank()) {
+            creativeId = UuidV7.generate();
+            jdbc.update(
+                    """
+                    INSERT INTO ord_creatives (
+                        id, workspace_id, post_id, external_id, erid, provider, status,
+                        advertiser_name, advertiser_inn, display_period_days, auto_delete_after_period,
+                        registered_at)
+                    VALUES (?, ?, ?, ?, ?, 'vk_ord', 'registered', ?, ?, ?, ?, now())
+                    """,
+                    creativeId,
+                    workspaceId,
+                    postId,
+                    "creative:" + postId + ":0",
+                    erid,
+                    advertiserName,
+                    advertiserInn,
+                    displayPeriodDays,
+                    autoDeleteAfterPeriod);
+        }
+        String adPayload = "{\"advertiserName\":\""
+                + escapeJson(advertiserName)
+                + "\",\"inn\":\""
+                + escapeJson(advertiserInn)
+                + "\""
+                + (erid == null || erid.isBlank() ? "" : ",\"erid\":\"" + escapeJson(erid) + "\"")
+                + "}";
+        jdbc.update(
+                """
+                INSERT INTO posts (
+                    id, workspace_id, title, base_content, status, content_kind, story_options,
+                    is_ad, ad_payload, ord_creative_id)
+                VALUES (?, ?, 'ad-pipeline', ?::jsonb, 'scheduled', 'post', '{}'::jsonb, true, ?::jsonb, ?)
+                """,
+                postId,
+                workspaceId,
+                "{\"text\":\"" + escapeJson(text) + "\"}",
+                adPayload,
+                creativeId);
+        String network = jdbc.queryForObject("SELECT network FROM channels WHERE id = ?", String.class, channelId);
+        if (network == null) {
+            network = "tg";
+        }
+        jdbc.update(
+                """
+                INSERT INTO post_variants (id, post_id, channel_id, network, content, options)
+                VALUES (?, ?, ?, ?, ?::jsonb, '{}'::jsonb)
+                """,
+                variantId,
+                postId,
+                channelId,
+                network,
+                "{\"text\":\"" + escapeJson(text) + "\"}");
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     static void ensurePost(
             JdbcTemplate jdbc, UUID workspaceId, UUID postId, UUID channelId, UUID variantId, String text) {
         ensurePost(jdbc, workspaceId, postId, channelId, variantId, text, "post", null);

@@ -139,11 +139,20 @@ jobs:
           k6 run --out json=tests/load/reports/k6-smoke.json tests/load/smoke.js
 
       # QA-5: full TC-PUB suite including @Tag("nightly") load (TC-PUB-01 / 10k).
+      # QA-10: OrdAdPipelineIT (TC-AD-06/07/12 fail-closed / ads regress) included in publisher IT.
       - name: Publisher pipeline IT (include nightly load)
         working-directory: backend
         run: |
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :apps:publisher:integrationTest -PincludeNightly=true
+
+      # QA-10: API ORD / WireMock TC-AD P0 (fail-closed, idempotency, RBAC, recurrence).
+      # UI TC-AD-01…04 runs in PR CI e2e-smoke (MSW); compose `full` web is without mocks.
+      - name: API ORD ad-marking IT (TC-AD)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:api:integrationTest --tests 'ru.posts.api.ord.*'
 
       # QA-12: grabber IT including @Tag("nightly") pipeline linkage (TC-GRAB-14).
       - name: Grabber ingest IT (include nightly)
@@ -164,6 +173,7 @@ jobs:
             tests/e2e/test-results/
             tests/load/reports/
             backend/apps/publisher/build/reports/tests/integrationTest/
+            backend/apps/api/build/reports/tests/integrationTest/
           if-no-files-found: warn
 
       - name: Compose logs on failure

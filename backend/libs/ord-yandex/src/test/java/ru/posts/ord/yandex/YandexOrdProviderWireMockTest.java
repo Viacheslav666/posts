@@ -30,12 +30,13 @@ class YandexOrdProviderWireMockTest {
             .options(wireMockConfig().dynamicPort())
             .build();
 
+    private OrdYandexProperties properties;
     private YandexOrdProvider provider;
     private OrdCredentials credentials;
 
     @BeforeEach
     void setUp() {
-        OrdYandexProperties properties = new OrdYandexProperties();
+        properties = new OrdYandexProperties();
         properties.setBaseUrl(wireMock.baseUrl());
         properties.setReadTimeout(Duration.ofSeconds(5));
         provider = new YandexOrdProvider(properties, new ObjectMapper());
@@ -93,15 +94,15 @@ class YandexOrdProviderWireMockTest {
                                   "unixtimestamp": 1,
                                   "object_type": "creative",
                                   "status": "Request accepted by ORD",
-                                  "token": "same-token"
+                                  "token": "test-erid-yandex-same"
                                 }
                                 """)));
 
         CreativeRegistrationResult first = provider.registerCreative(credentials, sampleCreative("creative-1"));
         CreativeRegistrationResult second = provider.registerCreative(credentials, sampleCreative("creative-1"));
 
-        assertThat(first.erid()).isEqualTo("same-token");
-        assertThat(second.erid()).isEqualTo("same-token");
+        assertThat(first.erid()).isEqualTo("test-erid-yandex-same");
+        assertThat(second.erid()).isEqualTo("test-erid-yandex-same");
         wireMock.verify(2, postRequestedFor(urlPathEqualTo("/api/v8/creative")));
     }
 
@@ -109,6 +110,39 @@ class YandexOrdProviderWireMockTest {
     void http5xxIsRetryable() {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
                 .willReturn(aResponse().withStatus(500).withBody("{\"detail\":\"boom\"}")));
+
+        assertThatThrownBy(() -> provider.registerCreative(credentials, sampleCreative("creative-1")))
+                .isInstanceOf(OrdApiException.class)
+                .satisfies(ex -> {
+                    OrdApiException ord = (OrdApiException) ex;
+                    assertThat(ord.errorClass()).isEqualTo(OrdErrorClass.RETRYABLE);
+                    assertThat(provider.classifyError(ex)).isEqualTo(OrdErrorClass.RETRYABLE);
+                });
+    }
+
+    @Test
+    void http429IsRateLimited() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
+                .willReturn(aResponse().withStatus(429).withBody("{\"detail\":\"rate limit\"}")));
+
+        assertThatThrownBy(() -> provider.registerCreative(credentials, sampleCreative("creative-1")))
+                .isInstanceOf(OrdApiException.class)
+                .satisfies(ex -> {
+                    OrdApiException ord = (OrdApiException) ex;
+                    assertThat(ord.errorClass()).isEqualTo(OrdErrorClass.RATE_LIMITED);
+                    assertThat(provider.classifyError(ex)).isEqualTo(OrdErrorClass.RATE_LIMITED);
+                });
+    }
+
+    @Test
+    void httpTimeoutIsRetryable() {
+        properties.setReadTimeout(Duration.ofMillis(200));
+        provider = new YandexOrdProvider(properties, new ObjectMapper());
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
+                .willReturn(aResponse()
+                        .withFixedDelay(1_500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"token\":\"test-erid-yandex-timeout\",\"status\":\"Request accepted by ORD\"}")));
 
         assertThatThrownBy(() -> provider.registerCreative(credentials, sampleCreative("creative-1")))
                 .isInstanceOf(OrdApiException.class)

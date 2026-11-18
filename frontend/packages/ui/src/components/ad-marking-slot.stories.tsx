@@ -17,7 +17,7 @@ export const Disabled: Story = {
 export const Enabled: Story = {
   args: {
     enabled: true,
-    erid: '2SDnje3xKzY',
+    erid: 'test-erid-story-0001',
     advertiserName: 'ООО «Бренд»',
   },
 };

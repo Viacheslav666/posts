@@ -356,7 +356,7 @@ export function registerCreative(input: {
   }
 
   const now = nowIso();
-  const erid = existing?.erid ?? `EridMock${input.postId.slice(-8)}`;
+  const erid = existing?.erid ?? `test-erid-msw-${input.postId.slice(-8)}`;
   const creative: StoredOrdCreative = {
     id: existing?.id ?? nextId('ordr'),
     workspaceId: input.workspaceId,
