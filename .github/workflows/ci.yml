@@ -66,6 +66,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - name: Install ffmpeg (posts-media integration tests)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Docker API compatibility for Testcontainers
         run: echo 'api.version=1.44' > "$HOME/.docker-java.properties"
       - uses: gradle/actions/setup-gradle@v4

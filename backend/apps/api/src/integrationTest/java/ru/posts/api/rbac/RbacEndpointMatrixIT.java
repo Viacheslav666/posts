@@ -27,6 +27,7 @@ import ru.posts.api.rbac.RbacHttpProbeSupport.EndpointIds;
 import ru.posts.api.rbac.RbacHttpProbeSupport.Scope;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 import ru.posts.security.rbac.RbacRole;
@@ -71,6 +72,9 @@ class RbacEndpointMatrixIT {
     @Autowired
     private ChannelSetRepository channelSetRepository;
 
+    @Autowired
+    private MediaAssetRepository mediaAssetRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -84,7 +88,8 @@ class RbacEndpointMatrixIT {
                     planRepository,
                     workspaceRepository,
                     channelRepository,
-                    channelSetRepository);
+                    channelSetRepository,
+                    mediaAssetRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();

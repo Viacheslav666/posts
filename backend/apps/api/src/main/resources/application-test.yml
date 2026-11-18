@@ -7,6 +7,17 @@ spring:
       - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
 
 posts:
+  s3:
+    endpoint: http://127.0.0.1:9000
+    region: us-east-1
+    bucket: posts-media
+    access-key: posts
+    secret-key: postsposts
+    path-style-access: true
+    presign-ttl: 15m
+  media:
+    clamav:
+      enabled: false
   auth:
     hibp-enabled: false
     refresh-cookie-secure: false
