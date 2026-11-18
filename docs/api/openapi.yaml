@@ -43,6 +43,11 @@ info:
     - story_connection_required — VK channel lacks stories scope connection
     - story_unsupported_network — stories only supported for vk/ok (not tg/max/ig)
     - story_media_invalid — story requires exactly one valid photo/video media
+    - story_media_aspect — story media must be 9:16
+    - story_media_resolution — story media must be at least 720×1280
+    - story_media_duration — story video must be ≤ 60 seconds
+    - story_media_size — story video must be ≤ 50 MB
+    - story_media_codec — story video must be H.264/AAC
     - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
     - story_ttl_unsupported — invalid stories_time / TTL enum
     - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
@@ -15695,8 +15700,11 @@ components:
           - error
     StoryOptions:
       type: object
-      description: Story-specific options (BE-16 / E11)
+      description: Story-specific options (BE-16 / E11 / BE-24)
       properties:
+        addToNews:
+          type: boolean
+          description: VK stories.add_to_news (default true)
         ads:
           $ref: "#/components/schemas/AdMarking"
         autoDeleteAfterMinutes:

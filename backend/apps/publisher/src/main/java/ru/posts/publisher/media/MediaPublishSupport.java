@@ -79,6 +79,9 @@ public class MediaPublishSupport {
     public PostVariantContent enrich(
             PublicationClaim claim, PostVariantContent base, SocialAdapter adapter, ChannelContext ctx) {
         PostVariantContent withMeta = withOptionsMeta(claim, base);
+        if ("story".equals(claim.contentKind())) {
+            return enrichStory(claim, withMeta);
+        }
         Map<String, Object> meta = new LinkedHashMap<>(withMeta.meta());
 
         List<UUID> mediaIds = parseMediaIds(claim.mediaIdsJson());
@@ -113,6 +116,30 @@ public class MediaPublishSupport {
         if (!attachments.isEmpty()) {
             meta.put(PostVariantMeta.ATTACHMENTS, attachments);
         }
+        return withMeta.withMeta(meta);
+    }
+
+    /**
+     * Stories upload via {@code publishStory} (VK stories.* / OK moments.*), not wall
+     * {@code uploadMedia}. Load original bytes from S3 into {@link PostVariantMeta#MEDIA}.
+     */
+    private PostVariantContent enrichStory(PublicationClaim claim, PostVariantContent withMeta) {
+        Map<String, Object> meta = new LinkedHashMap<>(withMeta.meta());
+        List<UUID> mediaIds = parseMediaIds(claim.mediaIdsJson());
+        List<MediaAssetRef> assets = loadAssets(claim.workspaceId(), mediaIds);
+        List<MediaAssetRef> withBytes = new ArrayList<>();
+        for (MediaAssetRef asset : assets) {
+            withBytes.add(ensureBytes(asset));
+        }
+        if (!withBytes.isEmpty()) {
+            meta.put(PostVariantMeta.MEDIA, List.copyOf(withBytes));
+        }
+        // Default VK add_to_news=true unless variant options override.
+        Map<String, Object> options = new LinkedHashMap<>(PostVariantMeta.options(meta));
+        if (!options.containsKey("addToNews")) {
+            options.put("addToNews", true);
+        }
+        meta.put(PostVariantMeta.OPTIONS, options);
         return withMeta.withMeta(meta);
     }
 

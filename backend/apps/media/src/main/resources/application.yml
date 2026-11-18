@@ -71,6 +71,8 @@ posts:
       doc-max-bytes: 104857600
       audio-max-bytes: 104857600
     preview-max-edge: 1280
+    stories:
+      transcode: ${POSTS_MEDIA_STORIES_TRANSCODE:false}
 
 logging:
   level:
