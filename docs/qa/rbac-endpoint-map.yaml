@@ -136,6 +136,12 @@ endpoints:
   path: /api/v1/admin/workspaces/{workspaceId}/subscription
   implementedHint: true
   rbac: none
+- operationId: analyticsPostsGet
+  method: GET
+  path: /api/v1/analytics/posts
+  implementedHint: false
+  rbac: matrix
+  action: analytics.view
 - operationId: auth2faConfirm
   method: POST
   path: /api/v1/auth/2fa/confirm

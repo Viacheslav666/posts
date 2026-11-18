@@ -158,6 +158,7 @@ ACTION: dict[str, str | None] = {
     "ordCreativesList": "ord.view",
     "ordEridCheck": "ord.view",
     "ordInvoicesDelete": "ord.reports.run",
+    "analyticsPostsGet": "analytics.view",
     "ingestRulesList": "automations.view",
     "ingestRulesCreate": "automations.manage",
     "ingestRulesGet": "automations.view",

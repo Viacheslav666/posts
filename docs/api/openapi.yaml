@@ -125,6 +125,8 @@ tags:
   name: ORD
 - description: Current user profile and sessions
   name: Me
+- description: Workspace publication analytics (materialised monthly aggregates)
+  name: Analytics
 - description: "Registration, login, OAuth, 2FA, password recovery"
   name: Auth
 paths:
@@ -1780,6 +1782,82 @@ paths:
       summary: Manually adjust subscription/plan
       tags:
       - Admin
+  /api/v1/analytics/posts:
+    get:
+      description: |
+        Returns 12 months of counts (regular / ad / repost), per-network succeeded/failed
+        publications, top errors (with retry link), and ORD ad revenue (with VAT, without VAT,
+        VAT, 3% fee). Data comes from `analytics_posts_monthly` (Europe/Moscow buckets).
+        Requires `analytics.view`.
+      operationId: analyticsPostsGet
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
+        required: true
+        schema:
+          type: integer
+          format: int32
+          maximum: 2100
+          minimum: 2000
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostsAnalyticsResponse"
+          description: Monthly analytics
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Monthly post analytics for a workspace/year
+      tags:
+      - Analytics
   /api/v1/auth/2fa/confirm:
     post:
       operationId: auth2faConfirm
@@ -12676,6 +12754,28 @@ components:
           type: boolean
         erid:
           type: string
+    AdRevenue:
+      type: object
+      description: ORD invoice totals for the month (amounts include VAT when taxed)
+      properties:
+        amountWithVat:
+          type: number
+          example: 120.0
+        amountWithoutVat:
+          type: number
+          example: 100.0
+        fee3Pct:
+          type: number
+          description: "3% advertising levy on amountWithVat (HALF_UP, scale 2)"
+          example: 3.6
+        vatAmount:
+          type: number
+          example: 20.0
+      required:
+      - amountWithVat
+      - amountWithoutVat
+      - fee3Pct
+      - vatAmount
     AdminAdjustBalanceRequest:
       type: object
       properties:
@@ -15157,6 +15257,22 @@ components:
           $ref: "#/components/schemas/RateLimits"
         text:
           $ref: "#/components/schemas/TextLimits"
+    NetworkPublicationStats:
+      type: object
+      properties:
+        failed:
+          type: integer
+          format: int64
+        network:
+          type: string
+          example: vk
+        succeeded:
+          type: integer
+          format: int64
+      required:
+      - failed
+      - network
+      - succeeded
     Notification:
       type: object
       properties:
@@ -16010,6 +16126,74 @@ components:
       required:
       - channelId
       - network
+    PostsAnalyticsMonth:
+      type: object
+      properties:
+        adCount:
+          type: integer
+          format: int64
+          description: Publications of is_ad posts
+        computedAt:
+          type: string
+          format: date-time
+        month:
+          type: integer
+          format: int32
+          maximum: 12
+          minimum: 1
+        networks:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetworkPublicationStats"
+        regularCount:
+          type: integer
+          format: int64
+          description: "Non-ad, non-repost publications"
+        repostCount:
+          type: integer
+          format: int64
+          description: Publications with base_content.repost
+        revenue:
+          $ref: "#/components/schemas/AdRevenue"
+        topErrors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopPublicationError"
+      required:
+      - adCount
+      - month
+      - networks
+      - regularCount
+      - repostCount
+      - revenue
+      - topErrors
+    PostsAnalyticsResponse:
+      type: object
+      description: Monthly post analytics for a workspace/year
+      properties:
+        computedAt:
+          type: string
+          format: date-time
+        months:
+          type: array
+          description: Always 12 months (1..12)
+          items:
+            $ref: "#/components/schemas/PostsAnalyticsMonth"
+        timezone:
+          type: string
+          example: Europe/Moscow
+        workspaceId:
+          type: string
+          format: uuid
+        year:
+          type: integer
+          format: int32
+          example: 2026
+      required:
+      - months
+      - timezone
+      - workspaceId
+      - year
     PreviewRequest:
       type: object
       description: "Server-side render/validate. Expands editor variables ({date},\
@@ -16661,6 +16845,33 @@ components:
         tokenType:
           type: string
           example: Bearer
+    TopPublicationError:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        network:
+          type: string
+        postId:
+          type: string
+          format: uuid
+        publicationId:
+          type: string
+          format: uuid
+        retryPath:
+          type: string
+          description: API path to retry the sample publication
+        runAt:
+          type: string
+          format: date-time
+      required:
+      - count
+      - errorCode
     Transaction:
       type: object
       properties:

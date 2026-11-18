@@ -351,6 +351,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly post analytics for a workspace/year
+         * @description Returns 12 months of counts (regular / ad / repost), per-network succeeded/failed
+         *     publications, top errors (with retry link), and ORD ad revenue (with VAT, without VAT,
+         *     VAT, 3% fee). Data comes from `analytics_posts_monthly` (Europe/Moscow buckets).
+         *     Requires `analytics.view`.
+         */
+        get: operations["analyticsPostsGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/2fa/confirm": {
         parameters: {
             query?: never;
@@ -2677,6 +2700,20 @@ export interface components {
             enabled?: boolean;
             erid?: string;
         };
+        /** @description ORD invoice totals for the month (amounts include VAT when taxed) */
+        AdRevenue: {
+            /** @example 120 */
+            amountWithVat: number;
+            /** @example 100 */
+            amountWithoutVat: number;
+            /**
+             * @description 3% advertising levy on amountWithVat (HALF_UP, scale 2)
+             * @example 3.6
+             */
+            fee3Pct: number;
+            /** @example 20 */
+            vatAmount: number;
+        };
         AdminAdjustBalanceRequest: {
             amount: number;
             /** @example admin_credit */
@@ -4003,6 +4040,14 @@ export interface components {
             rateLimits?: components["schemas"]["RateLimits"];
             text?: components["schemas"]["TextLimits"];
         };
+        NetworkPublicationStats: {
+            /** Format: int64 */
+            failed: number;
+            /** @example vk */
+            network: string;
+            /** Format: int64 */
+            succeeded: number;
+        };
         Notification: {
             /** Format: date-time */
             createdAt?: string;
@@ -4503,6 +4548,46 @@ export interface components {
             network: "vk" | "tg" | "ok" | "max" | "rutube";
             options?: components["schemas"]["PostVariantOptions"];
         };
+        PostsAnalyticsMonth: {
+            /**
+             * Format: int64
+             * @description Publications of is_ad posts
+             */
+            adCount: number;
+            /** Format: date-time */
+            computedAt?: string;
+            /** Format: int32 */
+            month: number;
+            networks: components["schemas"]["NetworkPublicationStats"][];
+            /**
+             * Format: int64
+             * @description Non-ad, non-repost publications
+             */
+            regularCount: number;
+            /**
+             * Format: int64
+             * @description Publications with base_content.repost
+             */
+            repostCount: number;
+            revenue: components["schemas"]["AdRevenue"];
+            topErrors: components["schemas"]["TopPublicationError"][];
+        };
+        /** @description Monthly post analytics for a workspace/year */
+        PostsAnalyticsResponse: {
+            /** Format: date-time */
+            computedAt?: string;
+            /** @description Always 12 months (1..12) */
+            months: components["schemas"]["PostsAnalyticsMonth"][];
+            /** @example Europe/Moscow */
+            timezone: string;
+            /** Format: uuid */
+            workspaceId: string;
+            /**
+             * Format: int32
+             * @example 2026
+             */
+            year: number;
+        };
         /** @description Server-side render/validate. Expands editor variables ({date}, {time}, …), [rand] spintax, and validates VK string attachments. Pass timezone/at/group*\/json/birthdays for editor preview parity with publish-time rendering. */
         PreviewRequest: {
             ad?: boolean;
@@ -4909,6 +4994,21 @@ export interface components {
             refreshToken?: string;
             /** @example Bearer */
             tokenType?: string;
+        };
+        TopPublicationError: {
+            /** Format: int64 */
+            count: number;
+            errorCode: string;
+            errorMessage?: string;
+            network?: string;
+            /** Format: uuid */
+            postId?: string;
+            /** Format: uuid */
+            publicationId?: string;
+            /** @description API path to retry the sample publication */
+            retryPath?: string;
+            /** Format: date-time */
+            runAt?: string;
         };
         Transaction: {
             actUrl?: string;
@@ -7235,6 +7335,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminWorkspaceCard"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    analyticsPostsGet: {
+        parameters: {
+            query: {
+                workspaceId: string;
+                year: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monthly analytics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostsAnalyticsResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
