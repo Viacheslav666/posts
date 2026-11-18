@@ -66,7 +66,7 @@ public final class WebsiteHtmlExtractor {
         raw.put("siteName", siteName);
         raw.put("selector", cssSelector);
 
-        return new SourceCandidate(
+        return SourceCandidate.of(
                 "website",
                 sourceId,
                 remoteId,

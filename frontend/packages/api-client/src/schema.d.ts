@@ -718,6 +718,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ingest/rules/{ruleId}/clone-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import settings (filters/transform/schedule/limits/first_comment) from another grabber rule */
+        post: operations["ingestRulesCloneConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest/rules/{ruleId}/items": {
         parameters: {
             query?: never;
@@ -727,6 +744,23 @@ export interface paths {
         };
         /** List grabber items / moderation queue */
         get: operations["ingestItemsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ingest/rules/{ruleId}/items/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export grabber item history as CSV or XLSX */
+        get: operations["ingestItemsExport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2380,15 +2414,28 @@ export interface components {
             /** Format: int32 */
             succeeded?: number;
         };
+        GrabberCloneConfigRequest: {
+            /** Format: uuid */
+            sourceRuleId: string;
+        };
         GrabberConfig: {
             aiRewriteEnabled?: boolean;
             attribution?: {
                 [key: string]: Record<string, never>;
             };
+            /** Format: int32 */
+            configVersion?: number;
             filters?: {
                 [key: string]: Record<string, never>;
             };
+            /** @description First comment draft; pending_be23 until VK comment adapters (BE-23) */
+            firstComment?: {
+                [key: string]: Record<string, never>;
+            };
             limits?: {
+                [key: string]: Record<string, never>;
+            };
+            macros?: {
                 [key: string]: Record<string, never>;
             };
             /** Format: int32 */
@@ -2403,6 +2450,10 @@ export interface components {
             rssUrl?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            /** @description Working window (timezone, days, hours) */
+            schedule?: {
+                [key: string]: Record<string, never>;
+            };
             scheduleMode?: string;
             sourceIds?: string[];
             transform?: {
@@ -7778,6 +7829,95 @@ export interface operations {
             };
         };
     };
+    ingestRulesCloneConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrabberCloneConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     ingestItemsList: {
         parameters: {
             query?: {
@@ -7808,6 +7948,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GrabberItemPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ingestItemsExport: {
+        parameters: {
+            query?: {
+                status?: "discovered" | "filtered_out" | "suppressed_dedup" | "pending_moderation" | "rejected" | "approved" | "scheduled" | "published" | "publish_failed" | "failed_validation" | "failed_ingest";
+                format?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
             /** @description Validation failed (`validation_failed`) */

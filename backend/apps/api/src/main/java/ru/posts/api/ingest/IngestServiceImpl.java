@@ -29,6 +29,7 @@ import ru.posts.grabber.GrabberRunProcessor;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.config.SourceIdNormalizer;
+import ru.posts.grabber.export.GrabberHistoryExporter;
 import ru.posts.grabber.fetch.RssFetcher;
 import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
@@ -731,6 +732,15 @@ public class IngestServiceImpl implements IngestService {
             if (dto.reliability() != null) {
                 raw.put("reliability", dto.reliability());
             }
+            if (dto.schedule() != null) {
+                raw.put("schedule", dto.schedule());
+            }
+            if (dto.firstComment() != null) {
+                raw.put("first_comment", dto.firstComment());
+            }
+            if (dto.macros() != null) {
+                raw.put("macros", dto.macros());
+            }
             if (dto.aiRewriteEnabled() != null) {
                 raw.put("ai_rewrite_enabled", dto.aiRewriteEnabled());
             }
@@ -752,9 +762,17 @@ public class IngestServiceImpl implements IngestService {
         } catch (IllegalArgumentException ex) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }
+        int minInterval = GrabberConfigSupport.minIntervalMinutes(config);
+        if (minInterval < 0 || minInterval > 120) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.VALIDATION_FAILED,
+                    "limits.min_interval_minutes must be 0..120");
+        }
         if (type == IngestDtos.RuleType.grabber) {
             try {
-                SourceIdNormalizer.requireValid(GrabberConfigSupport.sourceIds(config), 50);
+                SourceIdNormalizer.requireValid(
+                        GrabberConfigSupport.sourceIds(config), GrabberConfigSupport.MAX_SOURCES_PER_RULE);
             } catch (IllegalArgumentException ex) {
                 throw new ApiException(
                         HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
@@ -857,8 +875,94 @@ public class IngestServiceImpl implements IngestService {
                 (Map<String, Object>) c.get("attribution"),
                 (Map<String, Object>) c.get("limits"),
                 (Map<String, Object>) c.get("reliability"),
+                (Map<String, Object>) c.get("schedule"),
+                (Map<String, Object>) c.get("first_comment"),
+                (Map<String, Object>) c.get("macros"),
                 Boolean.TRUE.equals(c.get("ai_rewrite_enabled")),
-                c.get("rss_max_items_per_run") instanceof Number n ? n.intValue() : 20);
+                c.get("rss_max_items_per_run") instanceof Number n ? n.intValue() : 20,
+                c.get("config_version") instanceof Number n
+                        ? n.intValue()
+                        : GrabberConfigSupport.CURRENT_CONFIG_VERSION);
+    }
+
+    @Override
+    public IngestDtos.GrabberRule cloneConfig(
+            UUID userId, UUID ruleId, IngestDtos.GrabberCloneConfigRequest request, ClientRequestContext ctx) {
+        AutomationRuleEntity target = requireRule(ruleId);
+        WorkspaceMembership membership =
+                access.requirePermission(target.getWorkspaceId(), userId, "automations.manage");
+        access.requireVisibleProject(membership, target.getProjectId());
+        if ("archived".equals(target.getStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Rule is archived");
+        }
+        AutomationRuleEntity source = requireRule(request.sourceRuleId());
+        if (!source.getWorkspaceId().equals(target.getWorkspaceId())) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Source rule not found");
+        }
+        Map<String, Object> sourceCfg = GrabberConfigSupport.withDefaults(source.getConfig());
+        Map<String, Object> targetCfg = GrabberConfigSupport.withDefaults(target.getConfig());
+        // Import settings only — keep target sources / rss / website / publish_mode defaults intact unless present
+        for (String key : List.of(
+                "filters",
+                "transform",
+                "attribution",
+                "limits",
+                "reliability",
+                "schedule",
+                "first_comment",
+                "macros")) {
+            if (sourceCfg.get(key) != null) {
+                targetCfg.put(key, sourceCfg.get(key));
+            }
+        }
+        targetCfg = GrabberConfigSupport.withDefaults(targetCfg);
+        validateConfig(IngestDtos.RuleType.valueOf(target.getType()), targetCfg);
+        Instant now = Instant.now();
+        target.setConfig(targetCfg);
+        target.setConfigVersion(target.getConfigVersion() + 1);
+        target.setUpdatedAt(now);
+        ruleRepository.save(target);
+        auditRecorder.record(
+                target.getWorkspaceId(),
+                userId,
+                "ingest.rule.clone_config",
+                "ingest_rule",
+                target.getId(),
+                Map.of("sourceRuleId", source.getId().toString()),
+                ctx == null ? null : ctx.ip());
+        return toRuleDto(target);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public IngestDtos.GrabberItemsExport exportItems(
+            UUID userId, UUID ruleId, IngestDtos.ItemStatus status, IngestDtos.ExportFormat format) {
+        AutomationRuleEntity rule = requireRule(ruleId);
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
+        access.requireVisibleProject(membership, rule.getProjectId());
+        List<GrabberItemEntity> found = status == null
+                ? itemRepository.findByRuleIdOrderByDetectedAtDesc(ruleId)
+                : itemRepository.findByRuleIdAndStatusOrderByDetectedAtDesc(ruleId, status.name());
+        List<GrabberHistoryExporter.Row> rows = found.stream()
+                .map(item -> new GrabberHistoryExporter.Row(
+                        rule.getName(),
+                        item.getRemotePostId(),
+                        item.getSourceId(),
+                        item.getPostId() == null ? "" : item.getPostId().toString(),
+                        item.getDetectedAt(),
+                        item.getStatus(),
+                        item.getSkipReason(),
+                        item.getSourcePermalink()))
+                .toList();
+        IngestDtos.ExportFormat fmt = format == null ? IngestDtos.ExportFormat.csv : format;
+        if (fmt == IngestDtos.ExportFormat.xlsx) {
+            return new IngestDtos.GrabberItemsExport(
+                    "grabber-" + ruleId + ".xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    GrabberHistoryExporter.toXlsx(rows));
+        }
+        return new IngestDtos.GrabberItemsExport(
+                "grabber-" + ruleId + ".csv", "text/csv; charset=utf-8", GrabberHistoryExporter.toCsv(rows));
     }
 
     private IngestDtos.GrabberRun toRunDto(GrabberRunEntity run) {

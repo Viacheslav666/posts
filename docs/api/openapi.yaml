@@ -75,6 +75,8 @@ tags:
   name: Channel sets
 - description: Connected social channels and connect flows
   name: Channels
+- description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b/BE-27)"
+  name: Ingest
 - description: Inbound webhooks for VK / Telegram / Max (validate + enqueue)
   name: Social hooks
 - description: In-app notifications and delivery settings (US-5.4)
@@ -91,8 +93,6 @@ tags:
   name: Billing webhooks
 - description: Projects (clients/brands) inside a workspace
   name: Projects
-- description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b)"
-  name: Ingest
 - description: Workspace invitations by email (US-2.3)
   name: Invitations
 - description: Workspaces and members
@@ -3348,6 +3348,76 @@ paths:
       summary: Archive ingest rule
       tags:
       - Ingest
+  /api/v1/ingest/rules/{ruleId}/clone-config:
+    post:
+      operationId: ingestRulesCloneConfig
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberCloneConfigRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Updated rule
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Import settings (filters/transform/schedule/limits/first_comment) from
+        another grabber rule
+      tags:
+      - Ingest
   /api/v1/ingest/rules/{ruleId}/items:
     get:
       operationId: ingestItemsList
@@ -3448,6 +3518,96 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: List grabber items / moderation queue
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/items/export:
+    get:
+      operationId: ingestItemsExport
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - discovered
+          - filtered_out
+          - suppressed_dedup
+          - pending_moderation
+          - rejected
+          - approved
+          - scheduled
+          - published
+          - publish_failed
+          - failed_validation
+          - failed_ingest
+      - in: query
+        name: format
+        required: false
+        schema:
+          type: string
+          default: csv
+          enum:
+          - csv
+          - xlsx
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+                format: byte
+          description: Export file
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Export grabber item history as CSV or XLSX
       tags:
       - Ingest
   /api/v1/ingest/rules/{ruleId}/pause:
@@ -10286,6 +10446,14 @@ components:
         succeeded:
           type: integer
           format: int32
+    GrabberCloneConfigRequest:
+      type: object
+      properties:
+        sourceRuleId:
+          type: string
+          format: uuid
+      required:
+      - sourceRuleId
     GrabberConfig:
       type: object
       properties:
@@ -10295,11 +10463,24 @@ components:
           type: object
           additionalProperties:
             type: object
+        configVersion:
+          type: integer
+          format: int32
         filters:
           type: object
           additionalProperties:
             type: object
+        firstComment:
+          type: object
+          additionalProperties:
+            type: object
+          description: First comment draft; pending_be23 until VK comment adapters
+            (BE-23)
         limits:
+          type: object
+          additionalProperties:
+            type: object
+        macros:
           type: object
           additionalProperties:
             type: object
@@ -10324,6 +10505,11 @@ components:
         scanIntervalMinutes:
           type: integer
           format: int32
+        schedule:
+          type: object
+          additionalProperties:
+            type: object
+          description: "Working window (timezone, days, hours)"
         scheduleMode:
           type: string
         sourceIds:

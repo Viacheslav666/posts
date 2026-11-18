@@ -357,6 +357,16 @@ endpoints:
   action: automations.view
   pathParams:
     ruleId: '{ruleId}'
+- operationId: ingestItemsExport
+  method: GET
+  path: /api/v1/ingest/rules/{ruleId}/items/export
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{ruleId}'
+  query:
+    format: csv
 - operationId: ingestRulesPause
   method: POST
   path: /api/v1/ingest/rules/{ruleId}/pause
@@ -384,6 +394,14 @@ endpoints:
 - operationId: ingestRulesRun
   method: POST
   path: /api/v1/ingest/rules/{ruleId}/runs
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: ingestRulesCloneConfig
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/clone-config
   implementedHint: true
   rbac: matrix
   action: automations.manage
