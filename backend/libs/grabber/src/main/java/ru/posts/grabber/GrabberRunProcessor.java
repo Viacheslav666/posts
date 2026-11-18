@@ -31,10 +31,12 @@ import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.GrabberRunEntity;
+import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.GrabberRunRepository;
+import ru.posts.persistence.repository.OutboxRepository;
 
 @Service
 @Profile("!openapi")
@@ -52,6 +54,7 @@ public class GrabberRunProcessor {
     private final GrabberTokenProvider tokenProvider;
     private final GrabberPostFactory postFactory;
     private final MeterRegistry meterRegistry;
+    private final OutboxRepository outboxRepository;
 
     public GrabberRunProcessor(
             AutomationRuleRepository ruleRepository,
@@ -63,7 +66,8 @@ public class GrabberRunProcessor {
             VkWallFetcher vkWallFetcher,
             GrabberTokenProvider tokenProvider,
             GrabberPostFactory postFactory,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            OutboxRepository outboxRepository) {
         this.ruleRepository = ruleRepository;
         this.runRepository = runRepository;
         this.itemRepository = itemRepository;
@@ -74,6 +78,7 @@ public class GrabberRunProcessor {
         this.tokenProvider = tokenProvider;
         this.postFactory = postFactory;
         this.meterRegistry = meterRegistry;
+        this.outboxRepository = outboxRepository;
     }
 
     @Transactional
@@ -193,6 +198,21 @@ public class GrabberRunProcessor {
             run.setStatus("succeeded");
             run.setFinishedAt(now);
             runRepository.save(run);
+
+            if (itemsNew > 0 && GrabberConfigSupport.PUBLISH_MODE_MODERATE.equals(publishMode)) {
+                OutboxEntity outbox = new OutboxEntity();
+                outbox.setAggregate("grabber_run");
+                outbox.setAggregateId(run.getId());
+                outbox.setEventType("grabber.moderation_queued");
+                outbox.setPayload(Map.of(
+                        "workspaceId", rule.getWorkspaceId().toString(),
+                        "ruleId", rule.getId().toString(),
+                        "runId", run.getId().toString(),
+                        "itemsNew", itemsNew,
+                        "publishMode", publishMode));
+                outbox.setCreatedAt(now);
+                outboxRepository.save(outbox);
+            }
 
             rule.setLastRunAt(now);
             rule.setConsecutiveFailures(0);
