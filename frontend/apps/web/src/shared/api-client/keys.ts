@@ -136,8 +136,8 @@ export const queryKeys = {
     creative: (workspaceId: string, postId: string) =>
       [...queryKeys.ord.all(workspaceId), 'creative', postId] as const,
     dictionaries: () => [...queryKeys.root, 'ord', 'dictionaries'] as const,
-    kktu: () => [...queryKeys.ord.dictionaries(), 'kktu'] as const,
-    oksm: () => [...queryKeys.ord.dictionaries(), 'oksm'] as const,
+    kktu: (q = '') => [...queryKeys.ord.dictionaries(), 'kktu', q] as const,
+    oksm: (q = '') => [...queryKeys.ord.dictionaries(), 'oksm', q] as const,
   },
 
   ingest: {

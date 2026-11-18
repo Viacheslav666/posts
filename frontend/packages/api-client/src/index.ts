@@ -103,6 +103,11 @@ export type OrdRegisterCreativeResponse = components['schemas']['OrdRegisterCrea
 export type OrdReportRunRequest = components['schemas']['OrdReportRunRequest'];
 export type OrdReportRunResponse = components['schemas']['OrdReportRunResponse'];
 export type OrdProvider = NonNullable<OrdConnection['provider']>;
+export type OrdVatCalculateRequest = components['schemas']['OrdVatCalculateRequest'];
+export type VatBreakdown = components['schemas']['VatBreakdown'];
+export type AdMarkingPlacement = NonNullable<AdMarking['placement']>;
+export type AdMarkingVatRate = NonNullable<AdMarking['vatRate']>;
+export type AdMarkingCustomerRole = NonNullable<AdMarking['customerRole']>;
 
 export type GrabberConfig = components['schemas']['GrabberConfig'];
 export type GrabberCloneConfigRequest = components['schemas']['GrabberCloneConfigRequest'];
