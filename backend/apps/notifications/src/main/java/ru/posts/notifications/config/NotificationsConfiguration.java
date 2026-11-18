@@ -54,8 +54,11 @@ public class NotificationsConfiguration {
 
     @Bean
     RestClient.Builder notificationsRestClientBuilder() {
-        HttpClient httpClient =
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        // HTTP/1.1: JDK HttpClient defaults to HTTP/2, which WireMock and some Telegram edges RST_STREAM.
+        HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(Duration.ofSeconds(15));
         return RestClient.builder().requestFactory(requestFactory);
