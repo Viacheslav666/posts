@@ -84,7 +84,24 @@ import {
   upsertAdminPlanInStore,
   upsertFeatureFlag,
 } from './admin-store';
-import { listPlans } from './billing-store';
+import {
+  changePlan,
+  checkoutTopup,
+  completeMockPayment,
+  deletePaymentMethod,
+  getAutopay,
+  getInvoice,
+  getPayment,
+  getPaymentMethod,
+  getWallet,
+  listInvoices,
+  listPayments,
+  listPlans,
+  listTransactions,
+  mockPdfBytes,
+  requestInvoice,
+  updateAutopay,
+} from './billing-store';
 import {
   can,
   isWorkspaceRole,
@@ -2232,11 +2249,304 @@ export const handlers = [
     return HttpResponse.json(unsubscribeWebPush(workspaceId, endpoint));
   }),
 
-  // --- Billing (FE-10 scaffold: plans/limits only; balance model → FE-10b / BE-31) ---
+  // --- Billing (FE-10b / BE-12b / BE-31: wallet + daily charge) ---
   http.get('/api/v1/billing/plans', ({ request }) => {
     const unauthorized = requireBearer(request);
     if (unauthorized) return unauthorized;
     return HttpResponse.json(listPlans());
+  }),
+
+  http.get('/api/v1/billing/wallet', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    return HttpResponse.json(getWallet(workspaceId));
+  }),
+
+  http.get('/api/v1/billing/subscription', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const wallet = getWallet(workspaceId);
+    return HttpResponse.json({
+      id: workspaceId,
+      workspaceId,
+      planCode: wallet.planCode,
+      status: wallet.billingStatus,
+      billingModel: 'balance',
+      cancelAtPeriodEnd: false,
+    });
+  }),
+
+  http.post('/api/v1/billing/checkout', async ({ request }) => {
+    const body = (await request.json()) as {
+      workspaceId?: string;
+      amountKopecks?: number;
+      planCode?: string;
+    };
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, body.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.manage');
+    if (denied) return denied;
+    if (body.amountKopecks == null || body.amountKopecks <= 0) {
+      return problem(
+        400,
+        'validation_failed',
+        'Provide amountKopecks for top-up',
+        'Validation failed',
+      );
+    }
+    try {
+      return HttpResponse.json(checkoutTopup(body.workspaceId, body.amountKopecks));
+    } catch (error) {
+      return problem(
+        400,
+        (error as { code?: string }).code ?? 'validation_failed',
+        error instanceof Error ? error.message : 'Checkout failed',
+        'Validation failed',
+      );
+    }
+  }),
+
+  http.get('/api/v1/billing/transactions', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const kind = url.searchParams.get('kind');
+    const cursor = url.searchParams.get('cursor');
+    const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10) || 20;
+    return HttpResponse.json(listTransactions(workspaceId, { kind, cursor, limit }));
+  }),
+
+  http.get('/api/v1/billing/payments', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const cursor = url.searchParams.get('cursor');
+    const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10) || 20;
+    return HttpResponse.json(listPayments(workspaceId, { cursor, limit }));
+  }),
+
+  http.get('/api/v1/billing/invoices', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const cursor = url.searchParams.get('cursor');
+    const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10) || 20;
+    return HttpResponse.json(listInvoices(workspaceId, { cursor, limit }));
+  }),
+
+  http.post('/api/v1/billing/invoices/request', async ({ request }) => {
+    const body = (await request.json()) as {
+      workspaceId?: string;
+      amountKopecks?: number;
+      buyer?: Record<string, string>;
+    };
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, body.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.manage');
+    if (denied) return denied;
+    if (!body.amountKopecks || body.amountKopecks < 100 || !body.buyer) {
+      return problem(400, 'validation_failed', 'Invalid invoice request', 'Validation failed');
+    }
+    return HttpResponse.json(requestInvoice(body.workspaceId, body.amountKopecks, body.buyer));
+  }),
+
+  http.get('/api/v1/billing/invoices/:id/pdf', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const invoice = getInvoice(String(params.id));
+    if (!invoice?.workspaceId) {
+      return problem(404, 'not_found', 'Invoice not found', 'Not found');
+    }
+    const access = requireWorkspaceAccess(request, invoice.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const bytes = mockPdfBytes(`invoice-${invoice.id}`);
+    return new HttpResponse(bytes.buffer as ArrayBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="invoice-${invoice.id}.pdf"`,
+      },
+    });
+  }),
+
+  http.get('/api/v1/billing/invoices/:id/act', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const invoice = getInvoice(String(params.id));
+    if (!invoice?.workspaceId) {
+      return problem(404, 'not_found', 'Invoice not found', 'Not found');
+    }
+    const access = requireWorkspaceAccess(request, invoice.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const bytes = mockPdfBytes(`act-${invoice.id}`);
+    return new HttpResponse(bytes.buffer as ArrayBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="act-${invoice.id}.pdf"`,
+      },
+    });
+  }),
+
+  http.get('/api/v1/billing/autopay', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    return HttpResponse.json(getAutopay(workspaceId));
+  }),
+
+  http.put('/api/v1/billing/autopay', async ({ request }) => {
+    const body = (await request.json()) as {
+      workspaceId?: string;
+      enabled?: boolean;
+      thresholdKopecks?: number;
+      topupAmountKopecks?: number;
+    };
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, body.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.manage');
+    if (denied) return denied;
+    try {
+      return HttpResponse.json(
+        updateAutopay(body.workspaceId, {
+          enabled: Boolean(body.enabled),
+          thresholdKopecks: body.thresholdKopecks,
+          topupAmountKopecks: body.topupAmountKopecks,
+        }),
+      );
+    } catch (error) {
+      return problem(
+        400,
+        (error as { code?: string }).code ?? 'validation_failed',
+        error instanceof Error ? error.message : 'Autopay update failed',
+        'Validation failed',
+      );
+    }
+  }),
+
+  http.get('/api/v1/billing/payment-method', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.view');
+    if (denied) return denied;
+    const method = getPaymentMethod(workspaceId);
+    if (!method) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(method);
+  }),
+
+  http.delete('/api/v1/billing/payment-method', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.manage');
+    if (denied) return denied;
+    deletePaymentMethod(workspaceId);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post('/api/v1/billing/plan/change', async ({ request }) => {
+    const body = (await request.json()) as { workspaceId?: string; planCode?: string };
+    if (!body.workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId required', 'Validation failed');
+    }
+    const access = requireWorkspaceAccess(request, body.workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'billing.manage');
+    if (denied) return denied;
+    if (!body.planCode) {
+      return problem(400, 'validation_failed', 'planCode required', 'Validation failed');
+    }
+    try {
+      return HttpResponse.json(changePlan(body.workspaceId, body.planCode));
+    } catch (error) {
+      return problem(
+        404,
+        (error as { code?: string }).code ?? 'not_found',
+        error instanceof Error ? error.message : 'Plan not found',
+        'Not found',
+      );
+    }
+  }),
+
+  /** Mock-only: complete YooKassa payment after redirect (e2e / local). */
+  http.post('/api/v1/billing/mock/complete-payment', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const body = (await request.json()) as {
+      paymentId?: string;
+      outcome?: 'succeeded' | 'canceled' | 'pending';
+    };
+    if (!body.paymentId) {
+      return problem(400, 'validation_failed', 'paymentId required', 'Validation failed');
+    }
+    const payment = getPayment(body.paymentId);
+    if (!payment) {
+      return problem(404, 'not_found', 'Payment not found', 'Not found');
+    }
+    const updated = completeMockPayment(body.paymentId, body.outcome ?? 'succeeded');
+    return HttpResponse.json(updated);
   }),
 
   // --- Platform admin (BE-13 / A13) ---
