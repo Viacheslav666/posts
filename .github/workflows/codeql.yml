@@ -47,30 +47,34 @@ jobs:
         working-directory: backend
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4; do
+          # Stagger past the Images/CI resolve storm on the same push (Maven Central 429).
+          sleep $((30 + RANDOM % 30))
+          for attempt in 1 2 3 4 5 6 7 8; do
             if ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks; then
               exit 0
             fi
-            if [ "$attempt" -eq 4 ]; then
+            if [ "$attempt" -eq 8 ]; then
               exit 1
             fi
-            echo "Gradle resolve/build failed (often Maven Central 429); retry $attempt/4 after backoff"
-            sleep $((attempt * 20))
+            backoff=$((attempt * 45))
+            echo "Gradle resolve/build failed (often Maven Central 429); retry $attempt/8 after ${backoff}s"
+            sleep "$backoff"
           done
       - if: matrix.language == 'java'
         name: Build social-emulator for CodeQL tracing
         working-directory: tests/social-emulator
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4; do
+          for attempt in 1 2 3 4 5 6 7 8; do
             if ./gradlew compileJava --no-daemon --no-build-cache --rerun-tasks; then
               exit 0
             fi
-            if [ "$attempt" -eq 4 ]; then
+            if [ "$attempt" -eq 8 ]; then
               exit 1
             fi
-            echo "Gradle resolve/build failed (often Maven Central 429); retry $attempt/4 after backoff"
-            sleep $((attempt * 20))
+            backoff=$((attempt * 45))
+            echo "Gradle resolve/build failed (often Maven Central 429); retry $attempt/8 after ${backoff}s"
+            sleep "$backoff"
           done
       - uses: github/codeql-action/analyze@v3
         with:

@@ -1,6 +1,10 @@
 dependencyResolutionManagement {
     repositories {
         gradlePluginPortal()
+        maven {
+            name = "google-maven-central-mirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
         mavenCentral()
     }
     versionCatalogs {
