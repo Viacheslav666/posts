@@ -108,7 +108,7 @@ test.describe('Grabber full-stack (QA-12)', () => {
 
     // UI queue visible when web is up with real API (PLAYWRIGHT_SKIP_WEBSERVER=1).
     await page.goto(`/login`);
-    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Эл. почта').fill(email);
     await page.getByLabel('Пароль', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForURL(/\/app\//, { timeout: 20_000 }).catch(() => undefined);

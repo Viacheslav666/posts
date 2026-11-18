@@ -12,7 +12,7 @@ test.describe('Scheduled posts & calendar (FE-8)', () => {
   test('login → posts list filters/bulk shell at 360px', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto('/login');
-    await page.getByLabel('Email').fill('demo@posts.app');
+    await page.getByLabel('Эл. почта').fill('demo@posts.app');
     await page.getByLabel('Пароль', { exact: true }).fill('Password1!');
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForURL(/\/app\//, { timeout: 15_000 }).catch(() => undefined);
@@ -38,7 +38,7 @@ test.describe('Scheduled posts & calendar (FE-8)', () => {
 
   test('calendar route renders month/day board', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill('demo@posts.app');
+    await page.getByLabel('Эл. почта').fill('demo@posts.app');
     await page.getByLabel('Пароль', { exact: true }).fill('Password1!');
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForURL(/\/app\//, { timeout: 15_000 }).catch(() => undefined);
@@ -57,7 +57,7 @@ test.describe('Scheduled posts & calendar (FE-8)', () => {
 
   test('posts page has no serious/critical axe violations when visible', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill('demo@posts.app');
+    await page.getByLabel('Эл. почта').fill('demo@posts.app');
     await page.getByLabel('Пароль', { exact: true }).fill('Password1!');
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForURL(/\/app\//, { timeout: 15_000 }).catch(() => undefined);

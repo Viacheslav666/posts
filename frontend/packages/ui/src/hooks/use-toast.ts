@@ -6,7 +6,12 @@ import { useEffect, useState } from 'react';
 import type { ToastActionElement, ToastProps } from '../components/toast';
 
 const TOAST_LIMIT = 3;
-const TOAST_REMOVE_DELAY = 4000;
+const TOAST_REMOVE_DELAY = 400;
+
+/** Default auto-dismiss for success / default toasts (ms). */
+export const DEFAULT_TOAST_DURATION = 4000;
+/** Longer linger for errors so users can read them. */
+export const DESTRUCTIVE_TOAST_DURATION = 8000;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -40,6 +45,7 @@ function genId() {
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const dismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 function addToRemoveQueue(toastId: string) {
   if (toastTimeouts.has(toastId)) {
@@ -54,7 +60,15 @@ function addToRemoveQueue(toastId: string) {
   toastTimeouts.set(toastId, timeout);
 }
 
-export const reducer = (state: State, action: Action): State => {
+function clearDismissTimeout(toastId: string) {
+  const existing = dismissTimeouts.get(toastId);
+  if (existing) {
+    clearTimeout(existing);
+    dismissTimeouts.delete(toastId);
+  }
+}
+
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'ADD_TOAST':
       return { ...state, toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT) };
@@ -66,9 +80,13 @@ export const reducer = (state: State, action: Action): State => {
     case 'DISMISS_TOAST': {
       const { toastId } = action;
       if (toastId) {
+        clearDismissTimeout(toastId);
         addToRemoveQueue(toastId);
       } else {
-        state.toasts.forEach((toast) => addToRemoveQueue(toast.id));
+        state.toasts.forEach((toast) => {
+          clearDismissTimeout(toast.id);
+          addToRemoveQueue(toast.id);
+        });
       }
       return {
         ...state,
@@ -85,7 +103,7 @@ export const reducer = (state: State, action: Action): State => {
     default:
       return state;
   }
-};
+}
 
 const listeners: Array<(state: State) => void> = [];
 let memoryState: State = { toasts: [] };
@@ -97,10 +115,18 @@ function dispatch(action: Action) {
 
 type ToastInput = Omit<ToasterToast, 'id'>;
 
+function resolveDuration(props: ToastInput): number {
+  if (typeof props.duration === 'number') {
+    return props.duration;
+  }
+  return props.variant === 'destructive' ? DESTRUCTIVE_TOAST_DURATION : DEFAULT_TOAST_DURATION;
+}
+
 function toast({ ...props }: ToastInput) {
   const id = genId();
+  const duration = resolveDuration(props);
 
-  const update = (props: ToasterToast) => dispatch({ type: 'UPDATE_TOAST', toast: { ...props, id } });
+  const update = (next: ToasterToast) => dispatch({ type: 'UPDATE_TOAST', toast: { ...next, id } });
   const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
 
   dispatch({
@@ -108,12 +134,21 @@ function toast({ ...props }: ToastInput) {
     toast: {
       ...props,
       id,
+      duration,
       open: true,
       onOpenChange: (open) => {
         if (!open) dismiss();
       },
     },
   });
+
+  // Explicit auto-dismiss so success toasts close even after route changes
+  // (controlled `open` + module memory can otherwise leave them stuck).
+  if (duration !== Infinity) {
+    clearDismissTimeout(id);
+    const timeout = setTimeout(() => dismiss(), duration);
+    dismissTimeouts.set(id, timeout);
+  }
 
   return { id, dismiss, update };
 }

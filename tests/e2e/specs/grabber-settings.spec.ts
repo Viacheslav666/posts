@@ -13,7 +13,7 @@ test.describe('Grabber rule settings (FE-17 / TC-GRAB)', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill('demo@posts.app');
+    await page.getByLabel('Эл. почта').fill('demo@posts.app');
     await page.getByLabel('Пароль', { exact: true }).fill('Password1!');
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForURL(/\/app\//, { timeout: 15_000 }).catch(() => undefined);
