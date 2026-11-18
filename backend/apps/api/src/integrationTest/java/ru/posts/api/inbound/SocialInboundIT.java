@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -356,21 +357,18 @@ class SocialInboundIT {
                 .andExpect(status().isNotFound());
     }
 
+    private static final ParameterizedTypeReference<SocialInboundCommand> INBOUND_CMD =
+            new ParameterizedTypeReference<>() {};
+
     private void drainAndProcess(String queue) {
-        Object message;
-        while ((message = rabbitTemplate.receiveAndConvert(queue)) != null) {
-            if (message instanceof SocialInboundCommand command) {
-                processor.process(command);
-            } else if (message instanceof Map<?, ?> map) {
-                // Jackson may deliver LinkedHashMap when type info is absent
-                SocialInboundCommand command = objectMapper.convertValue(map, SocialInboundCommand.class);
-                processor.process(command);
-            }
+        SocialInboundCommand command;
+        while ((command = rabbitTemplate.receiveAndConvert(queue, INBOUND_CMD)) != null) {
+            processor.process(command);
         }
     }
 
     private void drainQueue(String queue) {
-        while (rabbitTemplate.receiveAndConvert(queue) != null) {
+        while (rabbitTemplate.receiveAndConvert(queue, INBOUND_CMD) != null) {
             // discard
         }
     }
