@@ -35,7 +35,7 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 
 | Сеть | Пути | Заметки |
 |---|---|---|
-| VK | `GET/POST /method/{method}`, `/vk/method/{method}` | `wall.post` (идемпотентность по `guid`), `photos.getWallUploadServer`, upload `/vk/upload/{id}`, `photos.saveWallPhoto` |
+| VK | `GET/POST /method/{method}`, `/vk/method/{method}` | `wall.post` (идемпотентность по `guid`), `wall.get` (фикстуры источников граббера), `photos.getWallUploadServer`, upload `/vk/upload/{id}`, `photos.saveWallPhoto` |
 | Telegram | `POST /bot{token}/sendMessage\|sendPhoto\|sendMediaGroup` | также `/telegram/bot{token}/…`; 429 + `retry_after` |
 | OK | `POST /ok/fb.do?method=mediatopic.post`, `/ok/api/mediatopic/post` | базовая публикация |
 | Max | `POST /max/messages`, `/messages` | базовая публикация |
@@ -54,6 +54,9 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | GET | `/_control/duplicates` | попытки повторов + true-duplicates |
 | GET | `/_control/verify` | сверка: `ok=true` если нет true-duplicates |
 | GET | `/_control/stats` | counts + scenario |
+| PUT | `/_control/vk/wall/{ownerId}` | QA-12: seed `wall.get` items `{"items":[{"id":1,"text":"..."}]}` |
+| POST | `/_control/vk/wall/{ownerId}/posts` | добавить один пост в wall-источник |
+| GET | `/_control/vk/wall` | снимок всех seeded walls |
 
 ### Сценарий (пример)
 

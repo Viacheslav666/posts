@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Posts Grabber Fixture Feed</title>
+    <link>https://fixtures.posts.local/feed</link>
+    <description>QA-12 RSS fixture</description>
+    <item>
+      <title>Fixture Item One</title>
+      <description><![CDATA[<p>Safe body</p><script>alert(1)</script>]]></description>
+      <guid isPermaLink="false">grabber-rss-1</guid>
+      <link>https://fixtures.posts.local/posts/1</link>
+      <enclosure url="https://cdn.example/a.jpg" type="image/jpeg" length="123"/>
+    </item>
+    <item>
+      <title>Fixture Item Two</title>
+      <description>Second entry for dedup tests</description>
+      <guid isPermaLink="false">grabber-rss-2</guid>
+      <link>https://fixtures.posts.local/posts/2</link>
+    </item>
+  </channel>
+</rss>

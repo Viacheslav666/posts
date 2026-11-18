@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.posts.emulator.store.EmulatedPost;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
+import ru.posts.emulator.vk.WallSourceStore;
 
 @RestController
 @RequestMapping("/_control")
@@ -22,10 +23,12 @@ public class ControlController {
 
     private final ScenarioService scenarioService;
     private final PostStore postStore;
+    private final WallSourceStore wallSourceStore;
 
-    public ControlController(ScenarioService scenarioService, PostStore postStore) {
+    public ControlController(ScenarioService scenarioService, PostStore postStore, WallSourceStore wallSourceStore) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
+        this.wallSourceStore = wallSourceStore;
     }
 
     @GetMapping("/health")
@@ -46,10 +49,39 @@ public class ControlController {
     @PostMapping("/reset")
     public Map<String, Object> reset(@RequestParam(name = "scenario", defaultValue = "true") boolean resetScenario) {
         postStore.reset();
+        wallSourceStore.reset();
         if (resetScenario) {
             scenarioService.reset();
         }
         return Map.of("reset", true, "scenarioReset", resetScenario, "counts", postStore.counts());
+    }
+
+    /**
+     * QA-12: seed VK wall source posts for grabber ingest ({@code wall.get}).
+     * Body: {@code {"items":[{"id":1,"text":"...","marked_as_ads":0}]}}
+     */
+    @PutMapping("/vk/wall/{ownerId}")
+    public Map<String, Object> putVkWall(
+            @org.springframework.web.bind.annotation.PathVariable String ownerId,
+            @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items =
+                body.get("items") instanceof List<?> list ? (List<Map<String, Object>>) (List<?>) list : List.of();
+        wallSourceStore.replace(ownerId, items);
+        return Map.of("ownerId", ownerId, "count", items.size(), "walls", wallSourceStore.snapshot());
+    }
+
+    @PostMapping("/vk/wall/{ownerId}/posts")
+    public Map<String, Object> addVkWallPost(
+            @org.springframework.web.bind.annotation.PathVariable String ownerId,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> created = wallSourceStore.add(ownerId, body);
+        return Map.of("ownerId", ownerId, "item", created);
+    }
+
+    @GetMapping("/vk/wall")
+    public Map<String, Object> listVkWalls() {
+        return wallSourceStore.snapshot();
     }
 
     @GetMapping("/posts")

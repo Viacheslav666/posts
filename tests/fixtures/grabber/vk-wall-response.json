@@ -1,0 +1,25 @@
+{
+  "response": {
+    "count": 2,
+    "items": [
+      {
+        "id": 101,
+        "owner_id": -123,
+        "from_id": -123,
+        "text": "Grabber fixture post A",
+        "marked_as_ads": 0,
+        "attachments": [],
+        "date": 1700000000
+      },
+      {
+        "id": 102,
+        "owner_id": -123,
+        "from_id": -123,
+        "text": "Ad post should be filtered",
+        "marked_as_ads": 1,
+        "attachments": [],
+        "date": 1700000100
+      }
+    ]
+  }
+}

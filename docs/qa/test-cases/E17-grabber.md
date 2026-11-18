@@ -448,3 +448,4 @@ N items → N posts / N successful publications (или в пределах rate
 | Дата | Изменение |
 |---|---|
 | 2026-11-17 | Первичный набор TC-GRAB-01…28 (QA-12 / AN-P) |
+| 2026-11-18 | QA-12: автотесты P0/P1; трассировка → [`docs/qa/traceability-tc-grab.md`](../traceability-tc-grab.md) |
