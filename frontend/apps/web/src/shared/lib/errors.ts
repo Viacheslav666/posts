@@ -37,6 +37,12 @@ export const INSUFFICIENT_PERMISSIONS_CODE = 'insufficient_permissions';
 /** OpenAPI ProblemCodes: channel/seat/post quota of the current plan. */
 export const PLAN_LIMIT_EXCEEDED_CODE = 'plan_limit_exceeded';
 
+/** Workspace billing frozen after unpaid grace (402). */
+export const BILLING_FROZEN_CODE = 'billing_frozen';
+
+/** Invalid or expired promo code. */
+export const PROMO_INVALID_CODE = 'promo_invalid';
+
 /** Grabber / ingest problem codes (BE-17 / BE-17b). */
 export const INGEST_SSRF_BLOCKED_CODE = 'ingest_ssrf_blocked';
 export const INGEST_RESPONSIBILITY_REQUIRED_CODE = 'ingest_responsibility_required';
@@ -70,6 +76,23 @@ export function isInsufficientPermissions(error: unknown): boolean {
 
 export function isPlanLimitExceeded(error: unknown): boolean {
   return isApiProblemError(error) && error.code === PLAN_LIMIT_EXCEEDED_CODE;
+}
+
+export function isBillingFrozen(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === BILLING_FROZEN_CODE;
+}
+
+export function isPromoInvalid(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === PROMO_INVALID_CODE;
+}
+
+/** Limit key from ProblemDetail extras when present (channels, seats, …). */
+export function getPlanLimitKey(error: unknown): string | undefined {
+  if (!isApiProblemError(error)) {
+    return undefined;
+  }
+  const problem = error.problem as ProblemDetail & { limit?: string };
+  return typeof problem.limit === 'string' ? problem.limit : undefined;
 }
 
 export function getErrorMessage(error: unknown, fallback = 'Unexpected error'): string {

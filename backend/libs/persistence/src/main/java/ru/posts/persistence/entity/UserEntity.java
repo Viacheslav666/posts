@@ -39,6 +39,9 @@ public class UserEntity extends BaseUuidEntity {
     @Column(name = "trial_used", nullable = false)
     private boolean trialUsed;
 
+    @Column(name = "platform_admin", nullable = false)
+    private boolean platformAdmin;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -126,6 +129,14 @@ public class UserEntity extends BaseUuidEntity {
 
     public void setTrialUsed(boolean trialUsed) {
         this.trialUsed = trialUsed;
+    }
+
+    public boolean isPlatformAdmin() {
+        return platformAdmin;
+    }
+
+    public void setPlatformAdmin(boolean platformAdmin) {
+        this.platformAdmin = platformAdmin;
     }
 
     public Instant getCreatedAt() {

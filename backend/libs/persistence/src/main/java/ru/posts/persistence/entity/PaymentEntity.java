@@ -26,11 +26,18 @@ public class PaymentEntity extends BaseUuidEntity {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Column(name = "amount_kopecks", nullable = false)
+    private long amountKopecks;
+
     @Column(nullable = false)
     private String currency = "RUB";
 
     @Column(nullable = false)
     private String status;
+
+    /** topup | autopay | subscription | invoice */
+    @Column(nullable = false)
+    private String purpose = "subscription";
 
     @Column(name = "receipt_id")
     private String receiptId;
@@ -92,6 +99,14 @@ public class PaymentEntity extends BaseUuidEntity {
         this.amount = amount;
     }
 
+    public long getAmountKopecks() {
+        return amountKopecks;
+    }
+
+    public void setAmountKopecks(long amountKopecks) {
+        this.amountKopecks = amountKopecks;
+    }
+
     public String getCurrency() {
         return currency;
     }
@@ -106,6 +121,14 @@ public class PaymentEntity extends BaseUuidEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
     }
 
     public String getReceiptId() {

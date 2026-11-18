@@ -3,9 +3,11 @@ package ru.posts.grabber.fetch;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -98,9 +100,23 @@ public class VkWallFetcher {
                 if (payload.has("url")) {
                     mapped.put("url", payload.path("url").asText());
                 }
+                if ("video".equals(type)) {
+                    String videoType = payload.path("type").asText("");
+                    if (videoType.toLowerCase(Locale.ROOT).contains("short")
+                            || payload.path("is_short_video").asBoolean(false)) {
+                        mapped.put("is_clip", true);
+                        mapped.put("video_type", "short_video");
+                    }
+                }
                 attachments.add(mapped);
             }
         }
+        Instant publishedAt =
+                item.has("date") ? Instant.ofEpochSecond(item.path("date").asLong()) : null;
+        boolean signed = item.has("signer_id") && item.path("signer_id").asLong(0) != 0;
+        // wall.get filter=owner → group/page posts; from_id equals owner_id for community posts
+        long fromId = item.path("from_id").asLong(ownerId);
+        boolean fromGroup = fromId == ownerId || fromId < 0;
         Map<String, Object> raw = objectMapper.convertValue(item, Map.class);
         return new SourceCandidate(
                 "vk",
@@ -115,6 +131,9 @@ public class VkWallFetcher {
                 canonical,
                 ads,
                 repost,
+                publishedAt,
+                signed,
+                fromGroup,
                 raw);
     }
 

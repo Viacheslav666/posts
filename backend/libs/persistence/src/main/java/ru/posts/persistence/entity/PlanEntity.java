@@ -25,6 +25,16 @@ public class PlanEntity extends BaseUuidEntity {
     @Column(name = "price_year", nullable = false)
     private BigDecimal priceYear = BigDecimal.ZERO;
 
+    @Column(name = "price_day_kopecks", nullable = false)
+    private long priceDayKopecks;
+
+    /** balance | subscription */
+    @Column(name = "billing_model", nullable = false)
+    private String billingModel = "subscription";
+
+    @Column(nullable = false)
+    private boolean active = true;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> limits = Map.of();
@@ -62,6 +72,30 @@ public class PlanEntity extends BaseUuidEntity {
 
     public void setPriceYear(BigDecimal priceYear) {
         this.priceYear = priceYear;
+    }
+
+    public long getPriceDayKopecks() {
+        return priceDayKopecks;
+    }
+
+    public void setPriceDayKopecks(long priceDayKopecks) {
+        this.priceDayKopecks = priceDayKopecks;
+    }
+
+    public String getBillingModel() {
+        return billingModel;
+    }
+
+    public void setBillingModel(String billingModel) {
+        this.billingModel = billingModel;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Map<String, Object> getLimits() {

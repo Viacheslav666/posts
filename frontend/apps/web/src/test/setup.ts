@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
+import { resetBillingStore } from '@/mocks/billing-store';
 import { resetChannelStore } from '@/mocks/channel-store';
 import { resetGrabberStore } from '@/mocks/grabber-store';
 import { resetMediaStoreForTests } from '@/mocks/media-store';
@@ -71,6 +72,7 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   resetWorkspaceStore();
+  resetBillingStore();
   resetChannelStore();
   resetGrabberStore();
   resetMediaStoreForTests();

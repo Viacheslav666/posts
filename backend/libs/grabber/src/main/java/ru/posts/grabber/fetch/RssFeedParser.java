@@ -118,7 +118,7 @@ public final class RssFeedParser {
         raw.put("title", title);
         raw.put("body", body);
         raw.put("permalink", permalink);
-        return new SourceCandidate(
+        return SourceCandidate.of(
                 "rss",
                 sourceId,
                 remoteId == null ? ContentHasherFallback(text) : remoteId,

@@ -17,8 +17,20 @@ public class LedgerEntryEntity extends BaseUuidEntity {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Column(name = "amount_kopecks", nullable = false)
+    private long amountKopecks;
+
     @Column(nullable = false)
     private String kind;
+
+    @Column(name = "is_bonus", nullable = false)
+    private boolean bonus;
+
+    @Column(name = "idempotency_key")
+    private String idempotencyKey;
+
+    @Column(nullable = false)
+    private String currency = "RUB";
 
     @Column(name = "ref_id")
     private UUID refId;
@@ -44,12 +56,44 @@ public class LedgerEntryEntity extends BaseUuidEntity {
         this.amount = amount;
     }
 
+    public long getAmountKopecks() {
+        return amountKopecks;
+    }
+
+    public void setAmountKopecks(long amountKopecks) {
+        this.amountKopecks = amountKopecks;
+    }
+
     public String getKind() {
         return kind;
     }
 
     public void setKind(String kind) {
         this.kind = kind;
+    }
+
+    public boolean isBonus() {
+        return bonus;
+    }
+
+    public void setBonus(boolean bonus) {
+        this.bonus = bonus;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public UUID getRefId() {

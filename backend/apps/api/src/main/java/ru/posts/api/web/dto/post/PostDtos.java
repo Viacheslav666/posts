@@ -189,8 +189,8 @@ public final class PostDtos {
     public record BatchStoriesRequest(
             @NotNull UUID workspaceId,
             UUID projectId,
-            @NotEmpty @Size(max = 50) List<UUID> channelIds,
-            @NotEmpty @Size(max = 50) List<UUID> mediaIds,
+            @NotEmpty List<UUID> channelIds,
+            @NotEmpty List<UUID> mediaIds,
             @NotNull Instant scheduledAt,
             @Schema(description = "Minutes between consecutive stories", example = "5") @Min(0) Integer stepMinutes,
             @Valid StoryOptions story,

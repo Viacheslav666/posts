@@ -36,11 +36,14 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | Сеть | Пути | Заметки |
 |---|---|---|
 | VK | `GET/POST /method/{method}`, `/vk/method/{method}` | `wall.post` (идемпотентность по `guid`), `wall.get` (фикстуры источников граббера), `photos.getWallUploadServer`, upload `/vk/upload/{id}`, `photos.saveWallPhoto` |
+| VK stories | `stories.getPhotoUploadServer` / `stories.getVideoUploadServer` → upload → `stories.save` / `stories.delete` | metadata `contentType=story`; идемпотентность по `guid`; `upload_url` из `posts.emulator.public-base-url` |
 | Telegram | `POST /bot{token}/sendMessage\|sendPhoto\|sendMediaGroup` | также `/telegram/bot{token}/…`; 429 + `retry_after` |
 | OK | `POST /ok/fb.do?method=mediatopic.post`, `/ok/api/mediatopic/post` | базовая публикация |
+| OK Moments | `moments.getUploadUrl` → `/ok/upload/{id}` → `moments.commit` / `moments.delete` | `owner_ref=group:…`; metadata `contentType=story` |
 | Max | `POST /max/messages`, `/messages` | базовая публикация |
 
-Успешный VK `wall.post` с тем же `owner_id` + `guid` возвращает тот же `post_id` и `post_already_exists=1` (без второго поста в store).
+Успешный VK `wall.post` с тем же `owner_id` + `guid` возвращает тот же `post_id` и `post_already_exists=1` (без второго поста в store).  
+То же для `stories.save` / `moments.commit` по `guid` / `idempotency_key`.
 
 ## Управляющий API (`/_control`)
 
@@ -49,7 +52,7 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | GET | `/_control/health` | liveness |
 | GET/PUT | `/_control/scenario` | чтение/запись сценария ошибок |
 | POST | `/_control/reset?scenario=true` | очистка постов (+ сброс сценария) |
-| GET | `/_control/posts?network=&channelId=` | список созданных постов |
+| GET | `/_control/posts?network=&channelId=&contentType=` | список созданных постов; `contentType=story` — только истории/Moments |
 | GET | `/_control/posts/count` | счётчики по сетям |
 | GET | `/_control/duplicates` | попытки повторов + true-duplicates |
 | GET | `/_control/verify` | сверка: `ok=true` если нет true-duplicates |
@@ -57,6 +60,9 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | PUT | `/_control/vk/wall/{ownerId}` | QA-12: seed `wall.get` items `{"items":[{"id":1,"text":"..."}]}` |
 | POST | `/_control/vk/wall/{ownerId}/posts` | добавить один пост в wall-источник |
 | GET | `/_control/vk/wall` | снимок всех seeded walls |
+| POST | `/_control/vk/story-tokens/{groupId}/revoke` | QA-11 / TC-STORY-20: отзыв stories-токена (далее `stories.*` → error_code=5) |
+| POST | `/_control/vk/story-tokens/{groupId}/restore` | восстановить stories-токен |
+| GET | `/_control/vk/story-tokens` | список отозванных group id |
 
 ### Сценарий (пример)
 
@@ -78,7 +84,7 @@ curl -s -X PUT http://localhost:8090/_control/scenario \
 
 | Значение | Поведение |
 |---|---|
-| `6` / `9` / `10` / `15` / `100` | ответ VK с `error.error_code` (без создания поста); на TG/OK/Max → HTTP 403 |
+| `5` / `6` / `9` / `10` / `15` / `100` | ответ VK с `error.error_code` (без создания поста); `5` = auth failed; на TG/OK/Max → HTTP 403 |
 | `429` | HTTP 429 + `Retry-After` / `retry_after` |
 | `5xx` | HTTP 5xx (`httpStatus` или 503) |
 | `403` / `401` / `permanent` / `forbidden` / `no_rights` | HTTP 4xx без создания поста (по умолчанию 403) |
@@ -86,6 +92,8 @@ curl -s -X PUT http://localhost:8090/_control/scenario \
 | `hang` / `timeout` | долгая пауза `hangMs`, затем обрыв **без** создания поста |
 
 Поля сети: `delayMs`, `errorRate` (0..1), `forcedError`, `hangMs`, `retryAfterSeconds`, `httpStatus`.
+
+Для pipeline IT с ephemeral-портом задайте `posts.emulator.public-base-url=http://127.0.0.1:<port>` (SocialEmulatorProcess делает это автоматически), иначе `upload_url` в stories/moments укажет на `:8090`.
 
 ## Тесты
 

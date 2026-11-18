@@ -28,11 +28,14 @@ public final class SocialEmulatorProcess implements AutoCloseable {
     public static SocialEmulatorProcess start() throws Exception {
         Path jar = resolveBootJar();
         int port = freePort();
+        String publicBase = "http://127.0.0.1:" + port;
         Process process = new ProcessBuilder(
                         ProcessHandle.current().info().command().orElse("java"),
                         "-jar",
                         jar.toAbsolutePath().toString(),
-                        "--server.port=" + port)
+                        "--server.port=" + port,
+                        // VK/OK stories upload_url must point back at this ephemeral listener.
+                        "--posts.emulator.public-base-url=" + publicBase)
                 .redirectErrorStream(true)
                 .start();
         SocialEmulatorProcess emulator = new SocialEmulatorProcess(process, port);

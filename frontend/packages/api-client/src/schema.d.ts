@@ -21,6 +21,336 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List announcements / banners */
+        get: operations["adminAnnouncementsList"];
+        put?: never;
+        /** Create announcement banner */
+        post: operations["adminAnnouncementsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update announcement banner */
+        put: operations["adminAnnouncementsUpdate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Immutable platform-admin audit log */
+        get: operations["adminAuditList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List feature flags */
+        get: operations["adminFeatureFlagsList"];
+        /** Create or update a global feature flag */
+        put: operations["adminFeatureFlagsUpsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List billing plans (admin) */
+        get: operations["adminPlansList"];
+        /** Create or update a billing plan */
+        put: operations["adminPlansUpsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/promos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List promo codes */
+        get: operations["adminPromosList"];
+        put?: never;
+        /** Create promo code */
+        post: operations["adminPromosCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/promos/{promoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update promo code */
+        put: operations["adminPromosUpdate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/queues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List publish/action/media queues and DLQs */
+        get: operations["adminQueuesList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/queues/{queue}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Peek queue / DLQ messages */
+        get: operations["adminQueuesListMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/queues/{queue}/messages/{messageId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete a DLQ message; Idempotency-Key required */
+        post: operations["adminQueuesDeleteMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/queues/{queue}/messages/{messageId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry (requeue) a DLQ message; Idempotency-Key required */
+        post: operations["adminQueuesRetryMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search users (platform admin) */
+        get: operations["adminUsersSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** User card with workspaces */
+        get: operations["adminUsersGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{userId}/impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue short-lived impersonation access token
+         * @description Records immutable admin audit (who/whom/when/reason). Token has claim imp=true for FE banner. Password/payment mutations are forbidden while impersonating.
+         */
+        post: operations["adminUsersImpersonate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search workspaces */
+        get: operations["adminWorkspacesSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{workspaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace card: plan, limits, channels, recent errors */
+        get: operations["adminWorkspacesGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{workspaceId}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manual ledger balance adjustment */
+        post: operations["adminWorkspacesAdjustBalance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{workspaceId}/feature-flags/{flagKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Override feature flag for a workspace */
+        put: operations["adminWorkspaceFeatureFlagsSet"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{workspaceId}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually adjust subscription/plan */
+        post: operations["adminWorkspacesAdjustSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/2fa/confirm": {
         parameters: {
             query?: never;
@@ -251,6 +581,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/autopay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get autopay settings */
+        get: operations["billingGetAutopay"];
+        /** Update autopay settings */
+        put: operations["billingUpdateAutopay"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/checkout": {
         parameters: {
             query?: never;
@@ -260,7 +608,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create YooKassa checkout session (US-6.3) */
+        /** Create YooKassa top-up or subscription checkout */
         post: operations["billingCheckout"];
         delete?: never;
         options?: never;
@@ -285,6 +633,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/invoices/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a legal-entity invoice (PDF) */
+        post: operations["billingRequestInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{id}/act": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download closing act PDF */
+        get: operations["billingInvoiceActPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download invoice PDF */
+        get: operations["billingInvoicePdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get saved payment method mask */
+        get: operations["billingGetPaymentMethod"];
+        put?: never;
+        post?: never;
+        /** Detach saved payment method */
+        delete: operations["billingDeletePaymentMethod"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment history */
+        get: operations["billingListPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/plan/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change tariff plan immediately */
+        post: operations["billingChangePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/plans": {
         parameters: {
             query?: never;
@@ -292,7 +743,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List public billing plans (US-6.1) */
+        /** List public billing plans */
         get: operations["billingListPlans"];
         put?: never;
         post?: never;
@@ -311,7 +762,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply a promo code to a workspace (US-6.6) */
+        /** Apply a promo code (balance bonus or trial) */
         post: operations["billingApplyPromo"];
         delete?: never;
         options?: never;
@@ -326,8 +777,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get current workspace subscription */
+        /** Get current workspace plan / billing status */
         get: operations["billingGetSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription/auto-renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable/disable autopay (legacy alias) */
+        post: operations["billingSetAutoRenew"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Wallet transaction history */
+        get: operations["billingListTransactions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -345,11 +830,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Start 7-day Pro trial without a card (US-6.2)
-         * @description One trial per account. Repeat → 409 with code `trial_already_used`. Sets workspace billingStatus=trial.
-         */
+        /** Start trial without a card */
         post: operations["billingStartTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get workspace wallet balance and forecast */
+        get: operations["billingGetWallet"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -718,6 +1217,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ingest/rules/{ruleId}/clone-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import settings (filters/transform/schedule/limits/first_comment) from another grabber rule */
+        post: operations["ingestRulesCloneConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest/rules/{ruleId}/items": {
         parameters: {
             query?: never;
@@ -727,6 +1243,23 @@ export interface paths {
         };
         /** List grabber items / moderation queue */
         get: operations["ingestItemsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ingest/rules/{ruleId}/items/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export grabber item history as CSV or XLSX */
+        get: operations["ingestItemsExport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2002,6 +2535,362 @@ export interface components {
             enabled?: boolean;
             erid?: string;
         };
+        AdminAdjustBalanceRequest: {
+            amount: number;
+            /** @example admin_credit */
+            kind?: string;
+            reason: string;
+        };
+        AdminAdjustSubscriptionRequest: {
+            /**
+             * @description Workspace billing status
+             * @enum {string}
+             */
+            billingStatus?: "trial" | "active" | "grace" | "frozen";
+            /** Format: date-time */
+            periodEnd?: string;
+            planCode: string;
+            reason: string;
+            /** Format: date-time */
+            trialEndsAt?: string;
+        };
+        AdminAnnouncement: {
+            active?: boolean;
+            body?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            createdBy?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** Format: uuid */
+            id?: string;
+            severity?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            title?: string;
+        };
+        AdminAnnouncementCreateRequest: {
+            active?: boolean;
+            body: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            /** Format: date-time */
+            startsAt?: string;
+            title: string;
+        };
+        AdminAnnouncementPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminAnnouncement"][];
+            nextCursor?: string;
+        };
+        AdminAnnouncementUpdateRequest: {
+            active?: boolean;
+            body?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** @enum {string} */
+            severity?: "info" | "warning" | "critical";
+            /** Format: date-time */
+            startsAt?: string;
+            title?: string;
+        };
+        AdminAuditEntry: {
+            action?: string;
+            actorEmail?: string;
+            /** Format: uuid */
+            actorUserId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            details?: {
+                [key: string]: Record<string, never>;
+            };
+            /** Format: uuid */
+            id?: string;
+            ip?: string;
+            reason?: string;
+            /** Format: uuid */
+            targetId?: string;
+            targetType?: string;
+        };
+        AdminAuditPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminAuditEntry"][];
+            nextCursor?: string;
+        };
+        AdminChannelBrief: {
+            /** Format: uuid */
+            id?: string;
+            network?: string;
+            status?: string;
+            title?: string;
+            username?: string;
+        };
+        AdminFeatureFlag: {
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            enabledGlobal?: boolean;
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        AdminFeatureFlagUpsertRequest: {
+            description?: string;
+            enabledGlobal?: boolean;
+            key: string;
+        };
+        AdminImpersonateRequest: {
+            reason: string;
+            /**
+             * Format: uuid
+             * @description Optional workspace context for audit
+             */
+            workspaceId?: string;
+        };
+        AdminImpersonateResponse: {
+            accessToken?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: int64 */
+            expiresIn?: number;
+            /** @description Always true — FE shows «вы вошли как…» banner */
+            impersonating?: boolean;
+            reason?: string;
+            targetEmail?: string;
+            /** Format: uuid */
+            targetUserId?: string;
+        };
+        AdminLedgerEntry: {
+            amount?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            /** Format: uuid */
+            id?: string;
+            kind?: string;
+            /** Format: uuid */
+            workspaceId?: string;
+        };
+        AdminPlanUpsertRequest: {
+            code: string;
+            limits: {
+                [key: string]: Record<string, never>;
+            };
+            name: string;
+            priceMonth: number;
+            priceYear: number;
+        };
+        AdminPromoCode: {
+            active?: boolean;
+            code?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            kind?: string;
+            /** Format: int32 */
+            maxRedemptions?: number;
+            oncePerWorkspace?: boolean;
+            /** Format: int32 */
+            redemptionCount?: number;
+            stackable?: boolean;
+            /** Format: date-time */
+            validFrom?: string;
+            /** Format: date-time */
+            validUntil?: string;
+            value?: number;
+        };
+        AdminPromoCreateRequest: {
+            active?: boolean;
+            code: string;
+            /** @enum {string} */
+            kind: "percent" | "fixed" | "trial_days";
+            /** Format: int32 */
+            maxRedemptions?: number;
+            oncePerWorkspace?: boolean;
+            stackable?: boolean;
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validUntil: string;
+            value: number;
+        };
+        AdminPromoPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminPromoCode"][];
+            nextCursor?: string;
+        };
+        AdminPromoUpdateRequest: {
+            active?: boolean;
+            /** Format: int32 */
+            maxRedemptions?: number;
+            oncePerWorkspace?: boolean;
+            stackable?: boolean;
+            /** Format: date-time */
+            validFrom?: string;
+            /** Format: date-time */
+            validUntil?: string;
+        };
+        AdminPublicationErrorBrief: {
+            /** Format: date-time */
+            createdAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            network?: string;
+            /** Format: uuid */
+            publicationId?: string;
+            state?: string;
+        };
+        AdminQueueInfo: {
+            /** Format: int64 */
+            consumerCount?: number;
+            dlq?: boolean;
+            /** Format: int64 */
+            messageCount?: number;
+            name?: string;
+        };
+        AdminQueueMessage: {
+            /** Format: date-time */
+            enqueuedAt?: string;
+            headers?: {
+                [key: string]: Record<string, never>;
+            };
+            messageId?: string;
+            payload?: string;
+            /** Format: int32 */
+            redeliveredCount?: number;
+        };
+        AdminQueueMessageActionResponse: {
+            action?: string;
+            applied?: boolean;
+            detail?: string;
+            messageId?: string;
+            queue?: string;
+        };
+        AdminQueueMessagePage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminQueueMessage"][];
+            nextCursor?: string;
+        };
+        AdminUserCard: {
+            /** Format: date-time */
+            createdAt?: string;
+            email?: string;
+            emailVerified?: boolean;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            platformAdmin?: boolean;
+            totpEnabled?: boolean;
+            workspaces?: components["schemas"]["AdminUserWorkspaceLink"][];
+        };
+        AdminUserPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminUserSummary"][];
+            nextCursor?: string;
+        };
+        AdminUserSummary: {
+            /** Format: date-time */
+            createdAt?: string;
+            email?: string;
+            emailVerified?: boolean;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            platformAdmin?: boolean;
+            totpEnabled?: boolean;
+            /** Format: int32 */
+            workspaceCount?: number;
+        };
+        AdminUserWorkspaceLink: {
+            /**
+             * @description Workspace billing status
+             * @enum {string}
+             */
+            billingStatus?: "trial" | "active" | "grace" | "frozen";
+            /**
+             * @description Workspace member role
+             * @enum {string}
+             */
+            role?: "owner" | "admin" | "editor" | "author" | "viewer";
+            /** Format: uuid */
+            workspaceId?: string;
+            workspaceName?: string;
+        };
+        AdminWorkspaceCard: {
+            balance?: number;
+            /**
+             * @description Workspace billing status
+             * @enum {string}
+             */
+            billingStatus?: "trial" | "active" | "grace" | "frozen";
+            channels?: components["schemas"]["AdminChannelBrief"][];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            currentPeriodEnd?: string;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            ownerEmail?: string;
+            /** Format: uuid */
+            ownerUserId?: string;
+            planCode?: string;
+            planLimits?: {
+                [key: string]: Record<string, never>;
+            };
+            recentPublicationErrors?: components["schemas"]["AdminPublicationErrorBrief"][];
+            /** Format: date-time */
+            trialEndsAt?: string;
+        };
+        AdminWorkspaceFeatureFlag: {
+            enabled?: boolean;
+            flagKey?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** Format: uuid */
+            workspaceId?: string;
+        };
+        AdminWorkspaceFeatureFlagRequest: {
+            enabled: boolean;
+        };
+        AdminWorkspacePage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AdminWorkspaceSummary"][];
+            nextCursor?: string;
+        };
+        AdminWorkspaceSummary: {
+            /**
+             * @description Workspace billing status
+             * @enum {string}
+             */
+            billingStatus?: "trial" | "active" | "grace" | "frozen";
+            /** Format: int64 */
+            channelCount?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            ownerEmail?: string;
+            /** Format: uuid */
+            ownerUserId?: string;
+            planCode?: string;
+        };
+        AnnouncementBanner: {
+            body?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** Format: uuid */
+            id?: string;
+            severity?: string;
+            title?: string;
+        };
         ApplyPromoRequest: {
             code: string;
             /** Format: uuid */
@@ -2009,7 +2898,12 @@ export interface components {
         };
         ApplyPromoResponse: {
             code?: string;
-            /** @example percent */
+            /**
+             * Format: int64
+             * @description Bonus credited in kopecks when kind credits balance
+             */
+            creditedKopecks?: number;
+            /** @example fixed */
             kind?: string;
             /** Format: date-time */
             validUntil?: string;
@@ -2042,6 +2936,18 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["AuditLogEntry"][];
             nextCursor?: string;
+        };
+        AutopaySettings: {
+            enabled?: boolean;
+            /** Format: date-time */
+            lastTriggeredAt?: string;
+            paymentMethod?: components["schemas"]["PaymentMethod"];
+            /** Format: int64 */
+            thresholdKopecks?: number;
+            /** Format: int64 */
+            topupAmountKopecks?: number;
+            /** Format: uuid */
+            workspaceId?: string;
         };
         BatchStoriesRequest: {
             ad?: boolean;
@@ -2091,6 +2997,16 @@ export interface components {
             affected?: number;
             failedIds?: string[];
         };
+        BuyerRequisites: {
+            address?: string;
+            bankAccount?: string;
+            bankName?: string;
+            bik?: string;
+            inn: string;
+            kpp?: string;
+            name: string;
+            ogrn?: string;
+        };
         /** @description Lightweight calendar cell DTO */
         CalendarItem: {
             ad?: boolean;
@@ -2113,6 +3029,12 @@ export interface components {
              */
             status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
             title?: string;
+        };
+        ChangePlanRequest: {
+            /** @example daily_25 */
+            planCode: string;
+            /** Format: uuid */
+            workspaceId: string;
         };
         Channel: {
             avatarUrl?: string;
@@ -2234,12 +3156,18 @@ export interface components {
         };
         CheckoutRequest: {
             /**
+             * Format: int64
+             * @description Top-up amount in kopecks (balance mode)
+             * @example 200000
+             */
+            amountKopecks?: number;
+            /**
              * @description Billing period for checkout
              * @enum {string}
              */
-            period: "month" | "year";
-            /** @example pro */
-            planCode: string;
+            period?: "month" | "year";
+            /** @description Legacy subscription plan code */
+            planCode?: string;
             promoCode?: string;
             /** Format: uuid */
             workspaceId: string;
@@ -2427,15 +3355,28 @@ export interface components {
             /** Format: int32 */
             succeeded?: number;
         };
+        GrabberCloneConfigRequest: {
+            /** Format: uuid */
+            sourceRuleId: string;
+        };
         GrabberConfig: {
             aiRewriteEnabled?: boolean;
             attribution?: {
                 [key: string]: Record<string, never>;
             };
+            /** Format: int32 */
+            configVersion?: number;
             filters?: {
                 [key: string]: Record<string, never>;
             };
+            /** @description First comment draft; pending_be23 until VK comment adapters (BE-23) */
+            firstComment?: {
+                [key: string]: Record<string, never>;
+            };
             limits?: {
+                [key: string]: Record<string, never>;
+            };
+            macros?: {
                 [key: string]: Record<string, never>;
             };
             /** Format: int32 */
@@ -2450,6 +3391,10 @@ export interface components {
             rssUrl?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            /** @description Working window (timezone, days, hours) */
+            schedule?: {
+                [key: string]: Record<string, never>;
+            };
             scheduleMode?: string;
             sourceIds?: string[];
             transform?: {
@@ -2598,6 +3543,15 @@ export interface components {
             items?: components["schemas"]["GrabberRun"][];
             nextCursor?: string;
         };
+        /** @description FE shows «вы вошли как…» when active=true */
+        ImpersonationBanner: {
+            active?: boolean;
+            /** Format: uuid */
+            actorUserId?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            reason?: string;
+        };
         ImportUrlRequest: {
             filename?: string;
             /** @example https://cdn.example.com/photo.jpg */
@@ -2661,13 +3615,22 @@ export interface components {
             nextCursor?: string;
         };
         Invoice: {
+            actPdfUrl?: string;
             amount?: number;
+            /** Format: int64 */
+            amountKopecks?: number;
+            buyerRequisites?: {
+                [key: string]: Record<string, never>;
+            };
             /** Format: date-time */
             createdAt?: string;
             /** @example RUB */
             currency?: string;
             /** Format: uuid */
             id?: string;
+            invoiceNumber?: string;
+            /** Format: date-time */
+            paidAt?: string;
             pdfUrl?: string;
             status?: string;
             /** Format: uuid */
@@ -3047,25 +4010,61 @@ export interface components {
             /** @description Token from email link */
             token: string;
         };
+        PaymentListItem: {
+            /** Format: int64 */
+            amountKopecks?: number;
+            confirmationUrl?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            method?: string;
+            provider?: string;
+            purpose?: string;
+            receiptId?: string;
+            status?: string;
+        };
+        PaymentMethod: {
+            /** @example **** 1234 */
+            cardMask?: string;
+            providerPaymentMethodId?: string;
+            type?: string;
+        };
+        PaymentPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["PaymentListItem"][];
+            nextCursor?: string;
+        };
         Plan: {
-            /** @example pro */
+            /** @example balance */
+            billingModel?: string;
+            /** @example daily_25 */
             code?: string;
             /** Format: uuid */
             id?: string;
             /**
              * @example {
-             *       "channels": 30,
-             *       "seats": 3,
-             *       "posts_month": null,
-             *       "ai_credits": 1000
+             *       "channels": 25,
+             *       "seats": 3
              *     }
              */
             limits?: {
                 [key: string]: Record<string, never>;
             };
-            /** @example Про */
+            /** @example До 25 каналов */
             name?: string;
+            /**
+             * Format: int64
+             * @description Daily price in kopecks
+             * @example 2700
+             */
+            priceDayKopecks?: number;
             priceMonth?: number;
+            /**
+             * @description Display monthly price ≈ day×30
+             * @example 810
+             */
+            priceMonthDisplay?: number;
             priceYear?: number;
         };
         PollOptions: {
@@ -3408,6 +4407,13 @@ export interface components {
             /** @description Canonical URL of the source post when id is unknown */
             url?: string;
         };
+        RequestInvoiceRequest: {
+            /** Format: int64 */
+            amountKopecks: number;
+            buyer: components["schemas"]["BuyerRequisites"];
+            /** Format: uuid */
+            workspaceId: string;
+        };
         SchedulePostRequest: {
             recurrence?: components["schemas"]["Recurrence"];
             /** Format: date-time */
@@ -3440,6 +4446,12 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["SessionDto"][];
             nextCursor?: string;
+        };
+        /** @description Legacy alias for autopay enable/disable */
+        SetAutoRenewRequest: {
+            enabled: boolean;
+            /** Format: uuid */
+            workspaceId: string;
         };
         StartStoryConnectionRequest: {
             /** @description When true (local/emulator), mark stories connection ready without OAuth redirect */
@@ -3496,7 +4508,10 @@ export interface components {
             ttl?: "ttl_1h" | "ttl_12h" | "ttl_24h" | "ttl_48h";
             warnings?: string[];
         };
+        /** @description Current plan + billing status (legacy-compatible shape) */
         Subscription: {
+            /** @example balance */
+            billingModel?: string;
             cancelAtPeriodEnd?: boolean;
             /** Format: uuid */
             id?: string;
@@ -3558,6 +4573,38 @@ export interface components {
             /** @example Bearer */
             tokenType?: string;
         };
+        Transaction: {
+            actUrl?: string;
+            /**
+             * Format: int64
+             * @description Signed amount in kopecks (credit >, debit <)
+             */
+            amountKopecks?: number;
+            bonus?: boolean;
+            /**
+             * Format: int64
+             * @description Payment commission in kopecks if known
+             */
+            commissionKopecks?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            details?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            invoiceId?: string;
+            /** @example payment */
+            kind?: string;
+            method?: string;
+            /** Format: uuid */
+            paymentId?: string;
+            receiptUrl?: string;
+        };
+        TransactionPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["Transaction"][];
+            nextCursor?: string;
+        };
         TwoFactorConfirmRequest: {
             /** @example 123456 */
             code: string;
@@ -3577,6 +4624,15 @@ export interface components {
         UnsubscribeResponse: {
             /** @example unsubscribed */
             message?: string;
+        };
+        UpdateAutopayRequest: {
+            enabled: boolean;
+            /** Format: int64 */
+            thresholdKopecks?: number;
+            /** Format: int64 */
+            topupAmountKopecks?: number;
+            /** Format: uuid */
+            workspaceId: string;
         };
         UpdateChannelRequest: {
             /** Format: uuid */
@@ -3693,19 +4749,29 @@ export interface components {
         };
         /** @description Current authenticated user (`GET /me`) */
         UserProfile: {
+            /** @description Active platform announcements (banners) */
+            announcements?: components["schemas"]["AnnouncementBanner"][];
             avatarUrl?: string;
             /** Format: date-time */
             createdAt?: string;
             /** @example local@posts.test */
             email?: string;
             emailVerified?: boolean;
+            /** @description Resolved feature flags for the current user (global defaults) */
+            features?: {
+                [key: string]: boolean;
+            };
             /** Format: uuid */
             id?: string;
+            /** @description Present when access token is an impersonation session */
+            impersonation?: components["schemas"]["ImpersonationBanner"];
             /** @example ru */
             locale?: string;
             memberships?: components["schemas"]["MembershipSummary"][];
             /** @example Local Dev */
             name?: string;
+            /** @description Platform admin (E7 /admin); not a workspace role */
+            platformAdmin?: boolean;
             /** @example Europe/Moscow */
             timezone?: string;
             totpEnabled?: boolean;
@@ -3726,6 +4792,38 @@ export interface components {
             amountWithoutVat?: number;
             vatAmount?: number;
             vatRate?: string;
+        };
+        Wallet: {
+            /**
+             * Format: int64
+             * @description Balance in kopecks
+             */
+            balanceKopecks?: number;
+            /**
+             * @description Workspace billing status
+             * @enum {string}
+             */
+            billingStatus?: "trial" | "active" | "grace" | "frozen";
+            /**
+             * Format: int64
+             * @description Bonus portion in kopecks
+             */
+            bonusBalanceKopecks?: number;
+            /**
+             * Format: int32
+             * @description Forecast days remaining at current daily price
+             */
+            daysRemaining?: number;
+            planCode?: string;
+            /** Format: int64 */
+            priceDayKopecks?: number;
+            /**
+             * Format: int64
+             * @description Refundable = balance − bonus
+             */
+            refundableKopecks?: number;
+            /** Format: uuid */
+            workspaceId?: string;
         };
         WebPushSubscribeRequest: {
             auth: string;
@@ -3806,6 +4904,2059 @@ export interface operations {
                     "application/json": {
                         [key: string]: Record<string, never>;
                     };
+                };
+            };
+        };
+    };
+    adminAnnouncementsList: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Announcements page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncementPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminAnnouncementsCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAnnouncementCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncement"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminAnnouncementsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAnnouncementUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncement"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminAuditList: {
+        parameters: {
+            query?: {
+                actorUserId?: string;
+                action?: string;
+                targetType?: string;
+                targetId?: string;
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin audit page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminFeatureFlagsList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeatureFlag"][];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminFeatureFlagsUpsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFeatureFlagUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeatureFlag"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminPlansList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"][];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminPlansUpsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlanUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminPromosList: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Promo codes page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminPromosCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPromoCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoCode"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminPromosUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPromoUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoCode"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminQueuesList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminQueueInfo"][];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminQueuesListMessages: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                queue: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Messages page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminQueueMessagePage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminQueuesDeleteMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                queue: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminQueueMessageActionResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminQueuesRetryMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                queue: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminQueueMessageActionResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminUsersSearch: {
+        parameters: {
+            query?: {
+                q?: string;
+                platformAdmin?: boolean;
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Users page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminUsersGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserCard"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminUsersImpersonate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminImpersonateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminImpersonateResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminWorkspacesSearch: {
+        parameters: {
+            query?: {
+                q?: string;
+                billingStatus?: string;
+                planCode?: string;
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workspaces page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspacePage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminWorkspacesGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceCard"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminWorkspacesAdjustBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAdjustBalanceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminLedgerEntry"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminWorkspaceFeatureFlagsSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                flagKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminWorkspaceFeatureFlagRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceFeatureFlag"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adminWorkspacesAdjustSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAdjustSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceCard"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -4944,6 +8095,178 @@ export interface operations {
             };
         };
     };
+    billingGetAutopay: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Autopay settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutopaySettings"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingUpdateAutopay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAutopayRequest"];
+            };
+        };
+        responses: {
+            /** @description Autopay settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutopaySettings"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     billingCheckout: {
         parameters: {
             query?: never;
@@ -5061,6 +8384,597 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvoicePage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingRequestInvoice: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Invoice */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invoice"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingInvoiceActPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingInvoicePdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingGetPaymentMethod: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment method */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethod"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingDeletePaymentMethod: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detached */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingListPayments: {
+        parameters: {
+            query: {
+                workspaceId: string;
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payments page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingChangePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated subscription/plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -5383,6 +9297,189 @@ export interface operations {
             };
         };
     };
+    billingSetAutoRenew: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAutoRenewRequest"];
+            };
+        };
+        responses: {
+            /** @description Autopay settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutopaySettings"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingListTransactions: {
+        parameters: {
+            query: {
+                workspaceId: string;
+                kind?: string;
+                /**
+                 * @description Opaque cursor from a previous response `nextCursor`
+                 * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+                 */
+                cursor?: string;
+                /**
+                 * @description Page size
+                 * @example 20
+                 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     billingStartTrial: {
         parameters: {
             query?: never;
@@ -5405,6 +9502,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    billingGetWallet: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wallet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wallet"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -7859,6 +12041,95 @@ export interface operations {
             };
         };
     };
+    ingestRulesCloneConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrabberCloneConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     ingestItemsList: {
         parameters: {
             query?: {
@@ -7889,6 +12160,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GrabberItemPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ingestItemsExport: {
+        parameters: {
+            query?: {
+                status?: "discovered" | "filtered_out" | "suppressed_dedup" | "pending_moderation" | "rejected" | "approved" | "scheduled" | "published" | "publish_failed" | "failed_validation" | "failed_ingest";
+                format?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
             /** @description Validation failed (`validation_failed`) */

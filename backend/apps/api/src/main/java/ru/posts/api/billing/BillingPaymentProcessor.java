@@ -13,15 +13,15 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.persistence.entity.AutopaySettingsEntity;
 import ru.posts.persistence.entity.InvoiceEntity;
-import ru.posts.persistence.entity.LedgerEntryEntity;
 import ru.posts.persistence.entity.PaymentEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PromoRedemptionEntity;
 import ru.posts.persistence.entity.SubscriptionEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AutopaySettingsRepository;
 import ru.posts.persistence.repository.InvoiceRepository;
-import ru.posts.persistence.repository.LedgerEntryRepository;
 import ru.posts.persistence.repository.PaymentRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PromoCodeRepository;
@@ -41,10 +41,12 @@ public class BillingPaymentProcessor {
     private final WorkspaceRepository workspaceRepository;
     private final PlanRepository planRepository;
     private final InvoiceRepository invoiceRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
     private final PromoCodeRepository promoCodeRepository;
     private final PromoRedemptionRepository promoRedemptionRepository;
+    private final AutopaySettingsRepository autopaySettingsRepository;
     private final BillingFreezeService freezeService;
+    private final WalletLedgerService walletLedgerService;
+    private final BillingProperties billingProperties;
 
     public BillingPaymentProcessor(
             PaymentRepository paymentRepository,
@@ -52,19 +54,23 @@ public class BillingPaymentProcessor {
             WorkspaceRepository workspaceRepository,
             PlanRepository planRepository,
             InvoiceRepository invoiceRepository,
-            LedgerEntryRepository ledgerEntryRepository,
             PromoCodeRepository promoCodeRepository,
             PromoRedemptionRepository promoRedemptionRepository,
-            BillingFreezeService freezeService) {
+            AutopaySettingsRepository autopaySettingsRepository,
+            BillingFreezeService freezeService,
+            WalletLedgerService walletLedgerService,
+            BillingProperties billingProperties) {
         this.paymentRepository = paymentRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.workspaceRepository = workspaceRepository;
         this.planRepository = planRepository;
         this.invoiceRepository = invoiceRepository;
-        this.ledgerEntryRepository = ledgerEntryRepository;
         this.promoCodeRepository = promoCodeRepository;
         this.promoRedemptionRepository = promoRedemptionRepository;
+        this.autopaySettingsRepository = autopaySettingsRepository;
         this.freezeService = freezeService;
+        this.walletLedgerService = walletLedgerService;
+        this.billingProperties = billingProperties;
     }
 
     @Transactional
@@ -76,7 +82,6 @@ public class BillingPaymentProcessor {
             return;
         }
 
-        // Serialize concurrent activations for the same workspace (duplicate webhook races).
         WorkspaceEntity workspace =
                 workspaceRepository.findByIdForUpdate(payment.getWorkspaceId()).orElse(null);
         if (workspace == null) {
@@ -91,14 +96,44 @@ public class BillingPaymentProcessor {
 
         payment.setStatus("succeeded");
         payment.setUpdatedAt(Instant.now());
+        if (payment.getAmountKopecks() <= 0 && payment.getAmount() != null) {
+            payment.setAmountKopecks(MoneyKopecks.toKopecks(payment.getAmount()));
+        }
+        String paymentMethodId = null;
+        String cardMask = null;
         if (verified.paymentMethod() != null && verified.paymentMethod().id() != null) {
+            paymentMethodId = verified.paymentMethod().id();
             Map<String, Object> metadata =
                     new HashMap<>(payment.getMetadata() == null ? Map.of() : payment.getMetadata());
-            metadata.put("payment_method_id", verified.paymentMethod().id());
+            metadata.put("payment_method_id", paymentMethodId);
+            if (verified.paymentMethod().type() != null) {
+                cardMask = verified.paymentMethod().type();
+                metadata.put("card_mask", cardMask);
+            }
             payment.setMetadata(metadata);
         }
         paymentRepository.save(payment);
 
+        String purpose = payment.getPurpose() == null ? "subscription" : payment.getPurpose();
+        boolean balanceTopup = "topup".equals(purpose) || "autopay".equals(purpose) || "invoice".equals(purpose);
+
+        creditWallet(payment);
+
+        if (paymentMethodId != null) {
+            savePaymentMethod(workspace.getId(), paymentMethodId, cardMask, payment.getId());
+        }
+
+        if (balanceTopup || "balance".equalsIgnoreCase(workspace.getBillingModel())) {
+            workspace.setBillingStatus("active");
+            workspace.setUpdatedAt(Instant.now());
+            workspaceRepository.save(workspace);
+            freezeService.unfreeze(workspace.getId());
+            redeemPromoIfNeeded(payment, workspace.getId());
+            ensureInvoice(payment, balanceTopup ? "Balance top-up" : "Payment");
+            return;
+        }
+
+        // Legacy subscription activation
         PlanEntity plan = resolvePlan(payment, verified);
         if (plan == null) {
             log.warn("Payment {} succeeded but plan unresolved", payment.getId());
@@ -125,8 +160,8 @@ public class BillingPaymentProcessor {
         subscription.setBillingPeriod(billingPeriod);
         subscription.setGraceEndsAt(null);
         subscription.setFrozenAt(null);
-        if (verified.paymentMethod() != null && verified.paymentMethod().id() != null) {
-            subscription.setProviderPaymentMethodId(verified.paymentMethod().id());
+        if (paymentMethodId != null) {
+            subscription.setProviderPaymentMethodId(paymentMethodId);
         }
         subscription.setUpdatedAt(now);
         subscriptionRepository.save(subscription);
@@ -140,8 +175,13 @@ public class BillingPaymentProcessor {
 
         freezeService.unfreeze(workspace.getId());
         redeemPromoIfNeeded(payment, workspace.getId());
-        ensureInvoice(payment);
-        ensureLedgerCharge(payment);
+        ensureInvoice(payment, "Subscription payment");
+
+        // Migration path: when flipping to balance model via feature flag, leftover period credited separately.
+        if (billingProperties.isBalanceModel() && !"balance".equals(workspace.getBillingModel())) {
+            workspace.setBillingModel("balance");
+            workspaceRepository.save(workspace);
+        }
     }
 
     @Transactional
@@ -170,18 +210,55 @@ public class BillingPaymentProcessor {
         payment.setUpdatedAt(Instant.now());
         paymentRepository.save(payment);
 
-        LedgerEntryEntity entry = new LedgerEntryEntity();
-        entry.setId(UuidV7.generate());
-        entry.setWorkspaceId(payment.getWorkspaceId());
-        entry.setAmount(
-                refundAmount != null
-                        ? refundAmount.negate()
-                        : payment.getAmount().negate());
-        entry.setKind("refund");
-        entry.setRefId(payment.getId());
-        entry.setDescription("YooKassa refund");
-        entry.setCreatedAt(Instant.now());
-        ledgerEntryRepository.save(entry);
+        long kopecks = refundAmount != null ? MoneyKopecks.toKopecks(refundAmount) : payment.getAmountKopecks();
+        var wallet = walletLedgerService.getOrCreate(payment.getWorkspaceId());
+        long debit = Math.min(kopecks, Math.max(0L, wallet.balanceKopecks()));
+        if (debit > 0) {
+            walletLedgerService.debit(
+                    payment.getWorkspaceId(),
+                    debit,
+                    "refund",
+                    "refund:" + payment.getId(),
+                    payment.getId(),
+                    "YooKassa refund");
+        }
+    }
+
+    private void creditWallet(PaymentEntity payment) {
+        long kopecks = payment.getAmountKopecks() > 0
+                ? payment.getAmountKopecks()
+                : MoneyKopecks.toKopecks(payment.getAmount());
+        if (kopecks <= 0) {
+            return;
+        }
+        walletLedgerService.credit(
+                payment.getWorkspaceId(),
+                kopecks,
+                "payment",
+                false,
+                "payment:" + payment.getId() + ":credit",
+                payment.getId(),
+                "YooKassa " + (payment.getPurpose() == null ? "payment" : payment.getPurpose()));
+    }
+
+    private void savePaymentMethod(UUID workspaceId, String paymentMethodId, String cardMask, UUID paymentId) {
+        AutopaySettingsEntity settings = autopaySettingsRepository
+                .findById(workspaceId)
+                .orElseGet(() -> {
+                    AutopaySettingsEntity created = new AutopaySettingsEntity();
+                    created.setWorkspaceId(workspaceId);
+                    created.setEnabled(false);
+                    created.setThresholdKopecks(billingProperties.getAutopayDefaultThresholdKopecks());
+                    created.setTopupAmountKopecks(billingProperties.getAutopayDefaultTopupKopecks());
+                    return created;
+                });
+        settings.setProviderPaymentMethodId(paymentMethodId);
+        if (cardMask != null) {
+            settings.setCardMask(cardMask);
+        }
+        settings.setLastPaymentId(paymentId);
+        settings.setUpdatedAt(Instant.now());
+        autopaySettingsRepository.save(settings);
     }
 
     private PaymentEntity createPaymentFromProvider(PaymentResponse verified) {
@@ -200,11 +277,13 @@ public class BillingPaymentProcessor {
         payment.setProviderPaymentId(verified.id());
         payment.setAmount(
                 verified.amount() != null ? new BigDecimal(verified.amount().value()) : BigDecimal.ZERO);
+        payment.setAmountKopecks(MoneyKopecks.toKopecks(payment.getAmount()));
         payment.setCurrency(
                 verified.amount() != null && verified.amount().currency() != null
                         ? verified.amount().currency()
                         : "RUB");
         payment.setStatus("pending");
+        payment.setPurpose(meta.getOrDefault("purpose", "subscription"));
         payment.setBillingPeriod(meta.getOrDefault("period", meta.get("billingPeriod")));
         payment.setPromoCode(meta.get("promoCode"));
         UUID planId = parseUuid(meta.get("planId"));
@@ -252,7 +331,7 @@ public class BillingPaymentProcessor {
         });
     }
 
-    private void ensureInvoice(PaymentEntity payment) {
+    private void ensureInvoice(PaymentEntity payment, String description) {
         boolean exists = invoiceRepository.findByWorkspaceIdOrderByCreatedAtDesc(payment.getWorkspaceId()).stream()
                 .anyMatch(inv -> payment.getId().equals(inv.getPaymentId()));
         if (exists) {
@@ -263,29 +342,14 @@ public class BillingPaymentProcessor {
         invoice.setWorkspaceId(payment.getWorkspaceId());
         invoice.setPaymentId(payment.getId());
         invoice.setAmount(payment.getAmount());
+        invoice.setAmountKopecks(payment.getAmountKopecks());
         invoice.setCurrency(payment.getCurrency());
         invoice.setStatus("paid");
-        invoice.setDescription("Subscription payment");
+        invoice.setPaidAt(Instant.now());
+        invoice.setDescription(description);
         invoice.setCreatedAt(Instant.now());
         invoice.setUpdatedAt(Instant.now());
         invoiceRepository.save(invoice);
-    }
-
-    private void ensureLedgerCharge(PaymentEntity payment) {
-        boolean exists = ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(payment.getWorkspaceId()).stream()
-                .anyMatch(e -> payment.getId().equals(e.getRefId()) && "payment".equals(e.getKind()));
-        if (exists) {
-            return;
-        }
-        LedgerEntryEntity entry = new LedgerEntryEntity();
-        entry.setId(UuidV7.generate());
-        entry.setWorkspaceId(payment.getWorkspaceId());
-        entry.setAmount(payment.getAmount());
-        entry.setKind("payment");
-        entry.setRefId(payment.getId());
-        entry.setDescription("YooKassa payment");
-        entry.setCreatedAt(Instant.now());
-        ledgerEntryRepository.save(entry);
     }
 
     static Instant anniversaryEnd(Instant start, String billingPeriod) {

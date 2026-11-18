@@ -161,6 +161,21 @@ jobs:
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.ingest.*'
 
+      # QA-11: stories API + VK/OK pipeline IT (0 duplicates / waiting_for_channel / ads fail-closed).
+      - name: E2E scheduled stories (QA-11 / MSW)
+        working-directory: tests/e2e
+        run: pnpm test:stories
+      - name: API stories IT (TC-STORY)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:api:integrationTest --tests 'ru.posts.api.post.Stories*' --tests 'ru.posts.api.channel.NetworkCapabilitiesStoriesIT'
+      - name: Publisher story pipeline IT (VK/OK)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:publisher:integrationTest --tests 'ru.posts.publisher.pipeline.Story*'
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4

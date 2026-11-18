@@ -49,7 +49,6 @@ import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.PaymentEntity;
 import ru.posts.persistence.entity.PromoCodeEntity;
-import ru.posts.persistence.entity.SubscriptionEntity;
 import ru.posts.persistence.entity.UserEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.PaymentRepository;
@@ -113,6 +112,9 @@ class BillingYooKassaIT {
     @Autowired
     BillingPaymentProcessor paymentProcessor;
 
+    @Autowired
+    WalletLedgerService walletLedgerService;
+
     @BeforeEach
     void setUp() {
         mailSender.clear();
@@ -122,7 +124,7 @@ class BillingYooKassaIT {
     @Test
     @DisplayName("checkout creates YooKassa payment and stores pending row")
     void checkoutCreatesPayment() throws Exception {
-        stubCreatePayment(YOO_PAYMENT_ID, "990.00");
+        stubCreatePayment(YOO_PAYMENT_ID, "500.00");
         String token = registerVerifyLogin("bill-checkout-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
 
@@ -131,10 +133,8 @@ class BillingYooKassaIT {
                         .header("Authorization", bearer(token))
                         .header("Idempotency-Key", "checkout-" + UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "workspaceId", workspaceId.toString(),
-                                "planCode", "pro",
-                                "period", "month"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("workspaceId", workspaceId.toString(), "amountKopecks", 50_000))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("yookassa"))
                 .andExpect(jsonPath("$.confirmationUrl").value("https://yookassa.test/confirm/" + YOO_PAYMENT_ID))
@@ -144,6 +144,7 @@ class BillingYooKassaIT {
         PaymentEntity payment = paymentRepository.findById(paymentId).orElseThrow();
         assertThat(payment.getProviderPaymentId()).isEqualTo(YOO_PAYMENT_ID);
         assertThat(payment.getStatus()).isEqualTo("pending");
+        assertThat(payment.getPurpose()).isEqualTo("topup");
         assertThat(payment.getWorkspaceId()).isEqualTo(workspaceId);
 
         yookassa.verify(postRequestedFor(urlPathEqualTo("/payments"))
@@ -152,34 +153,33 @@ class BillingYooKassaIT {
     }
 
     @Test
-    @DisplayName("webhook payment.succeeded activates subscription")
-    void webhookActivatesSubscription() throws Exception {
+    @DisplayName("webhook payment.succeeded credits wallet (balance model)")
+    void webhookCreditsWallet() throws Exception {
         String providerPaymentId = "test-yoo-payment-be12-success";
-        stubCreatePayment(providerPaymentId, "990.00");
+        stubCreatePayment(providerPaymentId, "500.00");
         stubGetPayment(providerPaymentId, "succeeded", true, "pm-saved-1");
 
         String token = registerVerifyLogin("bill-wh-ok-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
-        checkout(token, workspaceId, providerPaymentId);
+        checkoutTopup(token, workspaceId, providerPaymentId, 50_000);
 
         mockMvc.perform(post("/webhooks/yookassa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(webhookPayload("payment.succeeded", providerPaymentId)))
+                        .content(webhookPayload("payment.succeeded", providerPaymentId, "500.00")))
                 .andExpect(status().isOk());
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
             WorkspaceEntity workspace =
                     workspaceRepository.findById(workspaceId).orElseThrow();
             assertThat(workspace.getBillingStatus()).isEqualTo("active");
-            assertThat(workspace.getCurrentPeriodEnd()).isNotNull();
+            assertThat(workspace.getBillingModel()).isEqualTo("balance");
             PaymentEntity payment =
                     paymentRepository.findByProviderPaymentId(providerPaymentId).orElseThrow();
             assertThat(payment.getStatus()).isEqualTo("succeeded");
-            SubscriptionEntity sub = subscriptionRepository
-                    .findFirstByWorkspaceIdOrderByCreatedAtDesc(workspaceId)
-                    .orElseThrow();
-            assertThat(sub.getStatus()).isEqualTo("active");
-            assertThat(sub.getProviderPaymentMethodId()).isEqualTo("pm-saved-1");
+            assertThat(payment.getPurpose()).isEqualTo("topup");
+            assertThat(walletLedgerService.getOrCreate(workspaceId).balanceKopecks())
+                    .isEqualTo(50_000L);
+            assertThat(subscriptionRepository.findByWorkspaceId(workspaceId)).isEmpty();
         });
     }
 
@@ -187,14 +187,14 @@ class BillingYooKassaIT {
     @DisplayName("duplicate webhook is idempotent")
     void duplicateWebhookIdempotent() throws Exception {
         String providerPaymentId = "test-yoo-payment-be12-dup";
-        stubCreatePayment(providerPaymentId, "990.00");
+        stubCreatePayment(providerPaymentId, "500.00");
         stubGetPayment(providerPaymentId, "succeeded", true, "pm-dup");
 
         String token = registerVerifyLogin("bill-wh-dup-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
-        checkout(token, workspaceId, providerPaymentId);
+        checkoutTopup(token, workspaceId, providerPaymentId, 50_000);
 
-        String payload = webhookPayload("payment.succeeded", providerPaymentId);
+        String payload = webhookPayload("payment.succeeded", providerPaymentId, "500.00");
         mockMvc.perform(post("/webhooks/yookassa")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
@@ -210,29 +210,31 @@ class BillingYooKassaIT {
                         .content(payload))
                 .andExpect(status().isOk());
 
-        assertThat(subscriptionRepository.findByWorkspaceId(workspaceId)).hasSize(1);
+        assertThat(walletLedgerService.getOrCreate(workspaceId).balanceKopecks())
+                .isEqualTo(50_000L);
+        assertThat(subscriptionRepository.findByWorkspaceId(workspaceId)).isEmpty();
     }
 
     @Test
-    @DisplayName("concurrent webhooks race → single activation")
+    @DisplayName("concurrent webhooks race → single wallet credit")
     void concurrentWebhooksSingleActivation() throws Exception {
         String providerPaymentId = "test-yoo-payment-be12-race";
-        stubCreatePayment(providerPaymentId, "990.00");
+        stubCreatePayment(providerPaymentId, "500.00");
         stubGetPayment(providerPaymentId, "succeeded", true, "pm-race");
 
         String token = registerVerifyLogin("bill-wh-race-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
-        checkout(token, workspaceId, providerPaymentId);
+        checkoutTopup(token, workspaceId, providerPaymentId, 50_000);
 
         // Race the activation handler itself (MockMvc is not thread-safe).
         var verified = new ru.posts.yookassa.PaymentResponse(
                 providerPaymentId,
                 "succeeded",
                 true,
-                new ru.posts.yookassa.Amount("990.00", "RUB"),
+                new ru.posts.yookassa.Amount("500.00", "RUB"),
                 null,
                 new ru.posts.yookassa.PaymentMethod("bank_card", "pm-race", true),
-                Map.of("workspaceId", workspaceId.toString()),
+                Map.of("workspaceId", workspaceId.toString(), "purpose", "topup"),
                 null);
 
         ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -260,7 +262,9 @@ class BillingYooKassaIT {
                         .orElseThrow()
                         .getStatus())
                 .isEqualTo("succeeded");
-        assertThat(subscriptionRepository.findByWorkspaceId(workspaceId)).hasSize(1);
+        assertThat(walletLedgerService.getOrCreate(workspaceId).balanceKopecks())
+                .isEqualTo(50_000L);
+        assertThat(subscriptionRepository.findByWorkspaceId(workspaceId)).isEmpty();
         assertThat(workspaceRepository.findById(workspaceId).orElseThrow().getBillingStatus())
                 .isEqualTo("active");
     }
@@ -367,10 +371,6 @@ class BillingYooKassaIT {
                 .andExpect(jsonPath("$.code").value("trial_already_used"));
     }
 
-    private void checkout(String token, UUID workspaceId, String providerPaymentId) throws Exception {
-        checkout(token, workspaceId, providerPaymentId, "pro");
-    }
-
     private void checkout(String token, UUID workspaceId, String providerPaymentId, String planCode) throws Exception {
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .with(csrf())
@@ -379,6 +379,18 @@ class BillingYooKassaIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "workspaceId", workspaceId.toString(), "planCode", planCode, "period", "month"))))
+                .andExpect(status().isOk());
+    }
+
+    private void checkoutTopup(String token, UUID workspaceId, String providerPaymentId, long amountKopecks)
+            throws Exception {
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .header("Idempotency-Key", "idem-" + providerPaymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("workspaceId", workspaceId.toString(), "amountKopecks", amountKopecks))))
                 .andExpect(status().isOk());
     }
 
@@ -424,6 +436,10 @@ class BillingYooKassaIT {
     }
 
     private static String webhookPayload(String event, String paymentId) {
+        return webhookPayload(event, paymentId, "990.00");
+    }
+
+    private static String webhookPayload(String event, String paymentId, String amount) {
         return """
                 {
                   "type": "notification",
@@ -432,7 +448,7 @@ class BillingYooKassaIT {
                     "id": "%s",
                     "status": "%s",
                     "paid": %s,
-                    "amount": {"value": "990.00", "currency": "RUB"}
+                    "amount": {"value": "%s", "currency": "RUB"}
                   }
                 }
                 """
@@ -440,7 +456,8 @@ class BillingYooKassaIT {
                         event,
                         paymentId,
                         event.contains("cancel") ? "canceled" : "succeeded",
-                        !event.contains("cancel"));
+                        !event.contains("cancel"),
+                        amount);
     }
 
     private void seedTrialPromo(String code, int days) {

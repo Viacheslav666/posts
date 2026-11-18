@@ -229,6 +229,31 @@ public class PublicationLifecycleJdbc {
                 .update();
     }
 
+    /**
+     * Story token missing/revoked mid-flight (BE-16 / TC-STORY-20): keep publication parkable until
+     * channel reconnect; do not burn as failed_permanent.
+     */
+    @Transactional
+    public void markWaitingForChannel(UUID id, Instant runAt, String errorCode, String errorMessage) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE publications
+                        SET state = 'waiting_for_channel',
+                            error_code = :errorCode,
+                            error_message = :errorMessage,
+                            locked_by = NULL,
+                            locked_until = NULL,
+                            next_attempt_at = NULL
+                        WHERE id = :id AND run_at = :runAt
+                        """)
+                .param("id", id)
+                .param("runAt", Timestamp.from(runAt))
+                .param("errorCode", errorCode)
+                .param("errorMessage", truncate(errorMessage, 1000))
+                .update();
+    }
+
     @Transactional
     public void markChannelReauthRequired(UUID channelId) {
         jdbcClient
@@ -236,6 +261,22 @@ public class PublicationLifecycleJdbc {
                         """
                         UPDATE channels
                         SET status = 'reauth_required', updated_at = now()
+                        WHERE id = :channelId
+                        """)
+                .param("channelId", channelId)
+                .update();
+    }
+
+    /** VK stories scope revoked — separate from wall channel status. */
+    @Transactional
+    public void markStoryConnectionRevoked(UUID channelId) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE channels
+                        SET story_connection_status = 'revoked',
+                            story_connection_error = 'story token revoked',
+                            updated_at = now()
                         WHERE id = :channelId
                         """)
                 .param("channelId", channelId)

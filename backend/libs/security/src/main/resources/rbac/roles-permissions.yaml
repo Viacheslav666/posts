@@ -3,10 +3,35 @@
 # Человекочитаемое описание: roles-permissions.md
 # Версия матрицы меняется при любом изменении effect/scope/conditions.
 
-version: "1.1.0"
+version: "1.2.0"
 updated: "2026-11-18"
-task: "AN-1"
+task: "BE-13"
 schema: "posts.rbac.v1"
+
+# Platform-admin (E7) is NOT a workspace role. Access is gated by users.platform_admin.
+# Workspace RBAC matrix below is unchanged; /api/v1/admin/* is rbac=none in endpoint-map.
+platform:
+  role_id: platform_admin
+  account_flag: users.platform_admin
+  description: >
+    Внутренняя админ-панель (E7/A13). Отдельный флаг аккаунта, вне матрицы owner/admin/editor/author/viewer.
+    Имперсонация: JWT claim imp=true + act=actorUserId; аудит обязателен; запрещены смена пароля и платежи.
+  actions:
+    - admin.users.search
+    - admin.users.get
+    - admin.users.impersonate
+    - admin.workspaces.search
+    - admin.workspaces.get
+    - admin.workspaces.adjust_subscription
+    - admin.workspaces.adjust_balance
+    - admin.plans.manage
+    - admin.promos.manage
+    - admin.queues.view
+    - admin.queues.retry
+    - admin.queues.delete
+    - admin.feature_flags.manage
+    - admin.announcements.manage
+    - admin.audit.view
 
 # Ожидаемое поведение генератора тестов:
 # - allow + ресурс в scope → HTTP 2xx (или бизнес-код успеха)

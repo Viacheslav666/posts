@@ -54,6 +54,9 @@ public class GrabberItemEntity extends BaseUuidEntity {
     @Column(name = "content_hash", nullable = false)
     private String contentHash;
 
+    @Column(name = "simhash")
+    private Long simhash;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "media_hashes", nullable = false, columnDefinition = "text[]")
     private String[] mediaHashes = new String[0];
@@ -195,6 +198,14 @@ public class GrabberItemEntity extends BaseUuidEntity {
 
     public void setContentHash(String contentHash) {
         this.contentHash = contentHash;
+    }
+
+    public Long getSimhash() {
+        return simhash;
+    }
+
+    public void setSimhash(Long simhash) {
+        this.simhash = simhash;
     }
 
     public String[] getMediaHashes() {
