@@ -9,6 +9,7 @@
     "test:invitation": "playwright test invitation.spec.ts",
     "test:channels": "playwright test channels-tg-connect.spec.ts",
     "test:posts": "playwright test scheduled-posts.spec.ts",
+    "test:grabber": "playwright test grabber-moderation.spec.ts",
     "test:report": "playwright show-report playwright-report"
   },
   "devDependencies": {

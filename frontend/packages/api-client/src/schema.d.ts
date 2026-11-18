@@ -2244,6 +2244,13 @@ export interface components {
             /** Format: date-time */
             scheduledAt?: string;
         };
+        GrabberBulkModerationResponse: {
+            /** Format: int32 */
+            failed?: number;
+            failedIds?: string[];
+            /** Format: int32 */
+            succeeded?: number;
+        };
         GrabberConfig: {
             aiRewriteEnabled?: boolean;
             attribution?: {
@@ -2277,6 +2284,34 @@ export interface components {
             /** @description Website page URLs (type=website), max 20 */
             websiteUrls?: string[];
         };
+        GrabberItem: {
+            contentHash?: string;
+            contentText?: string;
+            /** Format: date-time */
+            detectedAt?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: date-time */
+            moderatedAt?: string;
+            /** Format: uuid */
+            moderatedBy?: string;
+            /** Format: uuid */
+            postId?: string;
+            remotePostId?: string;
+            /** Format: uuid */
+            ruleId?: string;
+            /** Format: uuid */
+            runId?: string;
+            skipReason?: string;
+            sourceId?: string;
+            sourceName?: string;
+            sourceNetwork?: string;
+            sourcePermalink?: string;
+            /** @enum {string} */
+            status?: "discovered" | "filtered_out" | "suppressed_dedup" | "pending_moderation" | "rejected" | "approved" | "scheduled" | "published" | "publish_failed" | "failed_validation" | "failed_ingest";
+            /** Format: uuid */
+            workspaceId?: string;
+        };
         GrabberItemApproveRequest: {
             /** Format: date-time */
             scheduledAt?: string;
@@ -2285,6 +2320,11 @@ export interface components {
             contentText: string;
             /** Format: date-time */
             scheduledAt?: string;
+        };
+        GrabberItemPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["GrabberItem"][];
+            nextCursor?: string;
         };
         GrabberItemRejectRequest: {
             reason?: string;
@@ -2377,6 +2417,11 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        GrabberRunPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["GrabberRun"][];
+            nextCursor?: string;
+        };
         ImportUrlRequest: {
             filename?: string;
             /** @example https://cdn.example.com/photo.jpg */
@@ -2402,6 +2447,9 @@ export interface components {
             type: "grabber" | "rss" | "website";
             websiteSelector?: string;
             websiteUrls?: string[];
+        };
+        IngestPreviewResponse: {
+            items?: components["schemas"]["GrabberItem"][];
         };
         InlineButton: {
             /** @description Callback data for bot buttons */
@@ -6675,6 +6723,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Bulk result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberBulkModerationResponse"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -6751,6 +6808,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -6833,6 +6899,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Approved item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -6915,6 +6990,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Edited and approved item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -6995,6 +7079,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Rejected item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7075,6 +7168,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Preview items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestPreviewResponse"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7151,6 +7253,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7231,6 +7342,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Updated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7307,6 +7427,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Activated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7383,6 +7512,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archived rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7471,6 +7609,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Items page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberItemPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7547,6 +7694,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Paused rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7623,6 +7779,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Resumed rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7710,6 +7875,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Runs page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberRunPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -7788,7 +7962,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted */
+            /** @description Run accepted */
             202: {
                 headers: {
                     [name: string]: unknown;

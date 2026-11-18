@@ -43,9 +43,12 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'ord.connection.manage': ['owner', 'admin'],
   'ord.contractors.manage': ['owner', 'admin', 'editor'],
   'ord.reports.run': ['owner', 'admin'],
+  'automations.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'automations.manage': ['owner', 'admin', 'editor'],
+  'automations.moderate': ['owner', 'admin', 'editor'],
 };
 
-describe('permissions matrix (FE-5…FE-12)', () => {
+describe('permissions matrix (FE-5…FE-14)', () => {
   it('covers all permission actions for every role', () => {
     for (const role of ROLES) {
       for (const action of PERMISSION_ACTIONS) {
@@ -61,5 +64,6 @@ describe('permissions matrix (FE-5…FE-12)', () => {
     expect(can(undefined, 'members.invite')).toBe(false);
     expect(can(null, 'ord.connection.manage')).toBe(false);
     expect(can(null, 'posts.ad.schedule')).toBe(false);
+    expect(can(null, 'automations.manage')).toBe(false);
   });
 });

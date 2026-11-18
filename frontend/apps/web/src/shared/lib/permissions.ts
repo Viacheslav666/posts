@@ -1,6 +1,6 @@
 /**
  * Workspace RBAC matrix (mirrors docs/product/roles-permissions.yaml).
- * FE-5…FE-8 + FE-12 ORD / ad marking actions.
+ * FE-5…FE-8 + FE-12 ORD / ad marking + FE-14 grabber/automations actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
@@ -41,6 +41,9 @@ export const PERMISSION_ACTIONS = [
   'ord.connection.manage',
   'ord.contractors.manage',
   'ord.reports.run',
+  'automations.view',
+  'automations.manage',
+  'automations.moderate',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -60,6 +63,7 @@ const ALL_VIEW: PermissionAction[] = [
   'posts.view',
   'calendar.view',
   'ord.view',
+  'automations.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -85,6 +89,8 @@ const ADMIN_TEAM: PermissionAction[] = [
   'ord.connection.manage',
   'ord.contractors.manage',
   'ord.reports.run',
+  'automations.manage',
+  'automations.moderate',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -105,6 +111,8 @@ const EDITOR_EXTRA: PermissionAction[] = [
   'posts.ad.schedule',
   'calendar.move',
   'ord.contractors.manage',
+  'automations.manage',
+  'automations.moderate',
 ];
 
 const AUTHOR_EXTRA: PermissionAction[] = [

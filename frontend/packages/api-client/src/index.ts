@@ -95,6 +95,23 @@ export type OrdReportRunRequest = components['schemas']['OrdReportRunRequest'];
 export type OrdReportRunResponse = components['schemas']['OrdReportRunResponse'];
 export type OrdProvider = NonNullable<OrdConnection['provider']>;
 
+export type GrabberConfig = components['schemas']['GrabberConfig'];
+export type GrabberRule = components['schemas']['GrabberRule'];
+export type GrabberRuleCreate = components['schemas']['GrabberRuleCreate'];
+export type GrabberRulePatch = components['schemas']['GrabberRulePatch'];
+export type GrabberRulePage = components['schemas']['GrabberRulePage'];
+export type GrabberRun = components['schemas']['GrabberRun'];
+export type GrabberRunPage = components['schemas']['GrabberRunPage'];
+export type GrabberItem = components['schemas']['GrabberItem'];
+export type GrabberItemPage = components['schemas']['GrabberItemPage'];
+export type GrabberItemApproveRequest = components['schemas']['GrabberItemApproveRequest'];
+export type GrabberItemRejectRequest = components['schemas']['GrabberItemRejectRequest'];
+export type GrabberItemEditApproveRequest = components['schemas']['GrabberItemEditApproveRequest'];
+export type GrabberBulkModerationRequest = components['schemas']['GrabberBulkModerationRequest'];
+export type GrabberBulkModerationResponse = components['schemas']['GrabberBulkModerationResponse'];
+export type IngestPreviewRequest = components['schemas']['IngestPreviewRequest'];
+export type IngestPreviewResponse = components['schemas']['IngestPreviewResponse'];
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { resetChannelStore } from '@/mocks/channel-store';
+import { resetGrabberStore } from '@/mocks/grabber-store';
 import { resetMediaStoreForTests } from '@/mocks/media-store';
 import { resetOrdStore } from '@/mocks/ord-store';
 import { resetPostStore } from '@/mocks/post-store';
@@ -44,6 +45,20 @@ beforeAll(() => {
       // @ts-expect-error jsdom polyfill
       window.ResizeObserver = ResizeObserverStub;
     }
+
+    // Radix Select / Dialog rely on pointer capture APIs missing in jsdom.
+    if (!Element.prototype.hasPointerCapture) {
+      Element.prototype.hasPointerCapture = () => false;
+    }
+    if (!Element.prototype.setPointerCapture) {
+      Element.prototype.setPointerCapture = () => undefined;
+    }
+    if (!Element.prototype.releasePointerCapture) {
+      Element.prototype.releasePointerCapture = () => undefined;
+    }
+    if (!Element.prototype.scrollIntoView) {
+      Element.prototype.scrollIntoView = () => undefined;
+    }
   }
 });
 
@@ -56,6 +71,7 @@ afterEach(() => {
   server.resetHandlers();
   resetWorkspaceStore();
   resetChannelStore();
+  resetGrabberStore();
   resetMediaStoreForTests();
   resetPostStore();
   resetOrdStore();

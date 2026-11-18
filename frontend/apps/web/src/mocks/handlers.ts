@@ -12,6 +12,12 @@ import type {
   CreateUploadRequest,
   CreateWorkspaceRequest,
   EmailVerifyRequest,
+  GrabberBulkModerationRequest,
+  GrabberItemEditApproveRequest,
+  GrabberItemRejectRequest,
+  GrabberRuleCreate,
+  GrabberRulePatch,
+  IngestPreviewRequest,
   LoginRequest,
   MoveCalendarItemRequest,
   OAuthStartResponse,
@@ -37,6 +43,7 @@ import { http, HttpResponse } from 'msw';
 
 import { MOCK_NETWORK_CAPABILITIES } from '@/features/editor/api/capabilities-mock';
 import type { MediaKind, MediaStatus } from '@/features/media/model/types';
+import type { ItemStatus } from '@/features/grabber/model/types';
 import {
   INSUFFICIENT_PERMISSIONS_CODE,
   PLAN_LIMIT_EXCEEDED_CODE,
@@ -67,6 +74,26 @@ import {
   updateChannelSet,
   type ConnectNetwork,
 } from './channel-store';
+import {
+  activateRule,
+  approveItem,
+  archiveRule,
+  bulkModerate,
+  createRule,
+  editAndApproveItem,
+  getItem,
+  getRule,
+  listItems,
+  listRules,
+  listRuns,
+  pauseRule,
+  patchRule,
+  previewSource,
+  rejectItem,
+  resumeRule,
+  startRun,
+  type GrabberMutationError,
+} from './grabber-store';
 import {
   advanceProcessing,
   completeUpload,
@@ -142,6 +169,14 @@ import {
   updateWorkspace,
   setProjectMembers,
 } from './workspace-store';
+
+function grabberError(error: GrabberMutationError) {
+  return problem(error.status, error.code, error.detail, error.code);
+}
+
+function isGrabberError(value: unknown): value is GrabberMutationError {
+  return Boolean(value && typeof value === 'object' && 'code' in value && 'status' in value);
+}
 
 const CONNECT_NETWORKS = new Set<ConnectNetwork>(['vk', 'tg', 'ok', 'max', 'rutube']);
 
@@ -1491,6 +1526,209 @@ export const handlers = [
     if (!result) {
       return problem(404, 'not_found', 'Publication not found or not retryable', 'Not found');
     }
+    return HttpResponse.json(result);
+  }),
+
+  // --- Ingest / Grabber (FE-14) ---
+  http.get('/api/v1/workspaces/:workspaceId/projects/:projectId/ingest/rules', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    const url = new URL(request.url);
+    const items = listRules({
+      workspaceId,
+      projectId: String(params.projectId),
+      type: url.searchParams.get('type') ?? undefined,
+    });
+    return HttpResponse.json({ items, hasMore: false });
+  }),
+
+  http.post(
+    '/api/v1/workspaces/:workspaceId/projects/:projectId/ingest/rules',
+    async ({ request, params }) => {
+      const workspaceId = String(params.workspaceId);
+      const denied = requireWorkspaceAccess(request, workspaceId);
+      if (denied) return denied;
+      const deniedManage = requirePermission(request, 'automations.manage');
+      if (deniedManage) return deniedManage;
+      const body = (await request.json()) as GrabberRuleCreate;
+      if (!body.name || !body.targetChannelId || !body.type) {
+        return problem(400, 'validation_failed', 'name, type and targetChannelId are required');
+      }
+      const result = createRule(workspaceId, String(params.projectId), body);
+      if (isGrabberError(result)) return grabberError(result);
+      return HttpResponse.json(result, { status: 201 });
+    },
+  ),
+
+  http.get('/api/v1/ingest/rules/:ruleId', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    const rule = getRule(String(params.ruleId));
+    if (!rule) return problem(404, 'not_found', 'Rule not found');
+    return HttpResponse.json(rule);
+  }),
+
+  http.patch('/api/v1/ingest/rules/:ruleId', async ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const body = (await request.json()) as GrabberRulePatch;
+    const result = patchRule(String(params.ruleId), body);
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/rules/:ruleId/activate', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const result = activateRule(String(params.ruleId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/rules/:ruleId/pause', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const result = pauseRule(String(params.ruleId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/rules/:ruleId/resume', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const result = resumeRule(String(params.ruleId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/rules/:ruleId/archive', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const result = archiveRule(String(params.ruleId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/ingest/rules/:ruleId/runs', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    if (!getRule(String(params.ruleId))) return problem(404, 'not_found', 'Rule not found');
+    return HttpResponse.json({ items: listRuns(String(params.ruleId)), hasMore: false });
+  }),
+
+  http.post('/api/v1/ingest/rules/:ruleId/runs', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedManage = requirePermission(request, 'automations.manage');
+    if (deniedManage) return deniedManage;
+    const result = startRun(String(params.ruleId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result, { status: 202 });
+  }),
+
+  http.get('/api/v1/ingest/rules/:ruleId/items', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    if (!getRule(String(params.ruleId))) return problem(404, 'not_found', 'Rule not found');
+    const url = new URL(request.url);
+    const status = (url.searchParams.get('status') as ItemStatus | null) ?? undefined;
+    return HttpResponse.json({
+      items: listItems(String(params.ruleId), status),
+      hasMore: false,
+    });
+  }),
+
+  http.get('/api/v1/ingest/items/:itemId', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    const item = getItem(String(params.itemId));
+    if (!item) return problem(404, 'not_found', 'Item not found');
+    return HttpResponse.json(item);
+  }),
+
+  http.post('/api/v1/ingest/items/:itemId/approve', ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedModerate = requirePermission(request, 'automations.moderate');
+    if (deniedModerate) return deniedModerate;
+    const result = approveItem(String(params.itemId));
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/items/:itemId/reject', async ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedModerate = requirePermission(request, 'automations.moderate');
+    if (deniedModerate) return deniedModerate;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as GrabberItemRejectRequest;
+    const result = rejectItem(String(params.itemId), body.reason);
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/items/:itemId/edit-and-approve', async ({ request, params }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedModerate = requirePermission(request, 'automations.moderate');
+    if (deniedModerate) return deniedModerate;
+    const body = (await request.json()) as GrabberItemEditApproveRequest;
+    if (!body.contentText && body.contentText !== '') {
+      return problem(400, 'validation_failed', 'contentText is required');
+    }
+    const result = editAndApproveItem(String(params.itemId), body);
+    if (isGrabberError(result)) return grabberError(result);
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/ingest/items/bulk', async ({ request }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedModerate = requirePermission(request, 'automations.moderate');
+    if (deniedModerate) return deniedModerate;
+    const body = (await request.json()) as GrabberBulkModerationRequest;
+    if (!body.action || !body.itemIds?.length) {
+      return problem(400, 'validation_failed', 'action and itemIds are required');
+    }
+    return HttpResponse.json(bulkModerate(body));
+  }),
+
+  http.post('/api/v1/ingest/preview', async ({ request }) => {
+    const denied = requireBearer(request);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'automations.view');
+    if (deniedView) return deniedView;
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const body = (await request.json()) as IngestPreviewRequest;
+    const result = previewSource(workspaceId, body);
+    if (isGrabberError(result)) return grabberError(result);
     return HttpResponse.json(result);
   }),
 ];
