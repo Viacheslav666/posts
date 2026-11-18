@@ -2,6 +2,8 @@ package ru.posts.emulator.control;
 
 public enum ScenarioFault {
     NONE,
+    /** VK User authorization failed — maps to AUTH / waiting_for_channel for stories. */
+    VK_5,
     VK_6,
     VK_9,
     VK_10,
@@ -20,6 +22,7 @@ public enum ScenarioFault {
         }
         String value = raw.trim().toLowerCase();
         return switch (value) {
+            case "5", "vk_5", "user_auth", "authorization_failed" -> VK_5;
             case "6", "vk_6", "too_many_requests" -> VK_6;
             case "9", "vk_9", "flood" -> VK_9;
             case "10", "vk_10", "internal" -> VK_10;

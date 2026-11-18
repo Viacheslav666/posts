@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.posts.emulator.config.EmulatorProperties;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -28,13 +27,24 @@ public class VkApiController {
     private final PostStore postStore;
     private final PublishSupport publishSupport;
     private final WallSourceStore wallSourceStore;
-    private final ConcurrentMap<String, UploadSession> uploads = new ConcurrentHashMap<>();
+    private final StoryTokenStore storyTokenStore;
+    private final VkUploadSessionStore uploadSessions;
+    private final EmulatorProperties emulatorProperties;
     private final AtomicLong photoSeq = new AtomicLong();
 
-    public VkApiController(PostStore postStore, PublishSupport publishSupport, WallSourceStore wallSourceStore) {
+    public VkApiController(
+            PostStore postStore,
+            PublishSupport publishSupport,
+            WallSourceStore wallSourceStore,
+            StoryTokenStore storyTokenStore,
+            VkUploadSessionStore uploadSessions,
+            EmulatorProperties emulatorProperties) {
         this.postStore = postStore;
         this.publishSupport = publishSupport;
         this.wallSourceStore = wallSourceStore;
+        this.storyTokenStore = storyTokenStore;
+        this.uploadSessions = uploadSessions;
+        this.emulatorProperties = emulatorProperties;
     }
 
     @GetMapping({"/method/{method}", "/vk/method/{method}"})
@@ -65,19 +75,26 @@ public class VkApiController {
             path = {"/vk/upload/{uploadId}", "/upload/{uploadId}"},
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> uploadPhoto(
-            @PathVariable String uploadId, @RequestPart(name = "photo", required = false) MultipartFile photo) {
-        UploadSession session = uploads.get(uploadId);
+            @PathVariable String uploadId,
+            @RequestPart(name = "photo", required = false) MultipartFile photo,
+            @RequestPart(name = "file", required = false) MultipartFile file,
+            @RequestPart(name = "video_file", required = false) MultipartFile videoFile) {
+        VkUploadSessionStore.Session session = uploadSessions.get(uploadId);
         if (session == null) {
             return Map.of("error", "unknown upload id");
         }
+        MultipartFile payload = firstNonNull(videoFile, file, photo);
         session.uploaded = true;
         session.server = "emulated";
-        session.photo = photo == null ? "emulated-photo" : photo.getOriginalFilename();
+        session.photo = payload == null ? "emulated-photo" : payload.getOriginalFilename();
         session.hash = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("server", 1);
         body.put("photo", session.photo);
         body.put("hash", session.hash);
+        if (session.video) {
+            body.put("video_id", photoSeq.incrementAndGet());
+        }
         return body;
     }
 
@@ -88,8 +105,8 @@ public class VkApiController {
             case "wall.post" -> wallPost(params, rawResponse);
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
-            case "stories.getPhotoUploadServer", "stories.getVideoUploadServer" -> ResponseEntity.ok(
-                    getStoryUploadServer(params, normalized.contains("Video")));
+            case "stories.getPhotoUploadServer", "stories.getVideoUploadServer" -> storyUploadServer(
+                    params, normalized.contains("Video"));
             case "stories.save" -> storiesSave(params, rawResponse);
             case "stories.delete" -> storiesDelete(params);
             case "wall.get" -> ResponseEntity.ok(wallGet(params));
@@ -138,10 +155,9 @@ public class VkApiController {
     }
 
     private Map<String, Object> getWallUploadServer(MultiValueMap<String, String> params) {
-        String uploadId = UUID.randomUUID().toString();
         String groupId = first(params, "group_id", "owner_id");
-        uploads.put(uploadId, new UploadSession(groupId));
-        String uploadUrl = "http://localhost:8090/vk/upload/" + uploadId;
+        VkUploadSessionStore.Session session = uploadSessions.create(groupId);
+        String uploadUrl = emulatorProperties.absolute("/vk/upload/" + session.uploadId());
         return Map.of("response", Map.of("upload_url", uploadUrl, "album_id", -1, "user_id", 1));
     }
 
@@ -158,16 +174,22 @@ public class VkApiController {
         return Map.of("response", java.util.List.of(photo));
     }
 
+    private ResponseEntity<?> storyUploadServer(MultiValueMap<String, String> params, boolean video) {
+        ResponseEntity<?> revoked = storyAuthGuard(params);
+        if (revoked != null) {
+            return revoked;
+        }
+        return ResponseEntity.ok(getStoryUploadServer(params, video));
+    }
+
     private Map<String, Object> getStoryUploadServer(MultiValueMap<String, String> params, boolean video) {
-        String uploadId = UUID.randomUUID().toString();
         String groupId = first(params, "group_id", "owner_id");
-        UploadSession session = new UploadSession(groupId);
+        VkUploadSessionStore.Session session = uploadSessions.create(groupId);
         session.linkText = first(params, "link_text");
         session.linkUrl = first(params, "link_url");
         session.guid = first(params, "guid");
         session.video = video;
-        uploads.put(uploadId, session);
-        String uploadUrl = "http://localhost:8090/vk/upload/" + uploadId;
+        String uploadUrl = emulatorProperties.absolute("/vk/upload/" + session.uploadId());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("upload_url", uploadUrl);
         response.put("user_id", 1);
@@ -176,49 +198,95 @@ public class VkApiController {
 
     private ResponseEntity<?> storiesSave(MultiValueMap<String, String> params, HttpServletResponse rawResponse)
             throws IOException {
+        ResponseEntity<?> revoked = storyAuthGuard(params);
+        if (revoked != null) {
+            return revoked;
+        }
         return publishSupport.execute(Network.VK, rawResponse, () -> {
             String guid = first(params, "guid");
+            // Resolve upload session by guid only — never scan all sessions (leaks group_id across ITs).
+            VkUploadSessionStore.Session session = uploadSessions.findByGuid(guid);
+
             String ownerId = first(params, "owner_id", "group_id");
-            if (ownerId == null) {
-                ownerId = "-1";
+            if (ownerId == null && session != null && session.groupId != null) {
+                ownerId = session.groupId;
             }
+            if (ownerId == null) {
+                ownerId = "0";
+            }
+            // Normalize to digits (channel external_id in publisher ITs is without leading '-').
+            String channelId = ownerId.startsWith("-") ? ownerId.substring(1) : ownerId;
+
+            boolean video = session != null && session.video;
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("contentType", "story");
-            metadata.put("link_text", first(params, "link_text"));
-            metadata.put("link_url", first(params, "link_url"));
-            // Prefer link params captured at getPhotoUploadServer when save body is opaque.
-            for (UploadSession session : uploads.values()) {
-                if (session.linkText != null) {
-                    metadata.put("link_text", session.linkText);
-                }
-                if (session.linkUrl != null) {
-                    metadata.put("link_url", session.linkUrl);
-                }
-                if (guid == null && session.guid != null) {
-                    guid = session.guid;
-                }
-                if (session.groupId != null && (ownerId == null || "-1".equals(ownerId))) {
-                    ownerId = session.groupId.startsWith("-") ? session.groupId : "-" + session.groupId;
-                }
+            String linkText = first(params, "link_text");
+            String linkUrl = first(params, "link_url");
+            if (linkText == null && session != null) {
+                linkText = session.linkText;
             }
-            PostStore.CreateResult result = postStore.createOrGet(Network.VK, ownerId, guid, "story", metadata);
+            if (linkUrl == null && session != null) {
+                linkUrl = session.linkUrl;
+            }
+            metadata.put("link_text", linkText);
+            metadata.put("link_url", linkUrl);
+            metadata.put("mediaKind", video ? "video" : "photo");
+
+            PostStore.CreateResult result = postStore.createOrGet(Network.VK, channelId, guid, "story", metadata);
             long storyId;
             try {
                 storyId = Long.parseLong(result.post().remotePostId());
             } catch (NumberFormatException ex) {
                 storyId = photoSeq.incrementAndGet();
             }
+            long ownerNumeric = Long.parseLong(channelId.replace("-", ""));
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", storyId);
-            item.put("owner_id", Long.parseLong(ownerId.replace("-", "")) * -1);
-            item.put("type", "photo");
+            item.put("owner_id", -ownerNumeric);
+            item.put("type", video ? "video" : "photo");
             return ResponseEntity.ok(Map.of("response", Map.of("items", java.util.List.of(item))));
         });
     }
 
     private ResponseEntity<?> storiesDelete(MultiValueMap<String, String> params) {
-        // Idempotent delete — always success for emulator.
+        ResponseEntity<?> revoked = storyAuthGuard(params);
+        if (revoked != null) {
+            return revoked;
+        }
         return ResponseEntity.ok(Map.of("response", 1));
+    }
+
+    private ResponseEntity<?> storyAuthGuard(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id", "owner_id");
+        if (groupId != null && storyTokenStore.isRevoked(groupId)) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of(
+                            "error_code",
+                            5,
+                            "error_msg",
+                            "User authorization failed: story token revoked",
+                            "request_params",
+                            java.util.List.of())));
+        }
+        return null;
+    }
+
+    private static MultipartFile firstNonNull(MultipartFile... files) {
+        if (files == null) {
+            return null;
+        }
+        for (MultipartFile file : files) {
+            if (file != null && !file.isEmpty()) {
+                return file;
+            }
+        }
+        for (MultipartFile file : files) {
+            if (file != null) {
+                return file;
+            }
+        }
+        return null;
     }
 
     private static String first(MultiValueMap<String, String> params, String... names) {
@@ -229,21 +297,5 @@ public class VkApiController {
             }
         }
         return null;
-    }
-
-    private static final class UploadSession {
-        final String groupId;
-        boolean uploaded;
-        String server;
-        String photo;
-        String hash;
-        String linkText;
-        String linkUrl;
-        String guid;
-        boolean video;
-
-        UploadSession(String groupId) {
-            this.groupId = groupId;
-        }
     }
 }
