@@ -21,6 +21,7 @@ import ru.posts.grabber.config.SourceIdNormalizer;
 import ru.posts.grabber.fetch.RssFetcher;
 import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
+import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.filter.GrabberFilters;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.publish.GrabberPostFactory;
@@ -46,6 +47,7 @@ public class GrabberRunProcessor {
     private final GrabberItemRepository itemRepository;
     private final ChannelRepository channelRepository;
     private final RssFetcher rssFetcher;
+    private final WebsiteFetcher websiteFetcher;
     private final VkWallFetcher vkWallFetcher;
     private final GrabberTokenProvider tokenProvider;
     private final GrabberPostFactory postFactory;
@@ -57,6 +59,7 @@ public class GrabberRunProcessor {
             GrabberItemRepository itemRepository,
             ChannelRepository channelRepository,
             RssFetcher rssFetcher,
+            WebsiteFetcher websiteFetcher,
             VkWallFetcher vkWallFetcher,
             GrabberTokenProvider tokenProvider,
             GrabberPostFactory postFactory,
@@ -66,6 +69,7 @@ public class GrabberRunProcessor {
         this.itemRepository = itemRepository;
         this.channelRepository = channelRepository;
         this.rssFetcher = rssFetcher;
+        this.websiteFetcher = websiteFetcher;
         this.vkWallFetcher = vkWallFetcher;
         this.tokenProvider = tokenProvider;
         this.postFactory = postFactory;
@@ -213,6 +217,11 @@ public class GrabberRunProcessor {
             int max = rule.getConfig().get("rss_max_items_per_run") instanceof Number n ? n.intValue() : 20;
             return rssFetcher.fetch(url, max);
         }
+        if ("website".equals(rule.getType())) {
+            return websiteFetcher.fetch(
+                    GrabberConfigSupport.websiteUrls(rule.getConfig()),
+                    GrabberConfigSupport.websiteSelector(rule.getConfig()));
+        }
         List<String> sourceIds = SourceIdNormalizer.normalizeAll(GrabberConfigSupport.sourceIds(rule.getConfig()));
         Optional<String> token = tokenProvider.resolveVkToken(rule.getWorkspaceId(), rule.getTargetChannelId());
         if (token.isEmpty()) {
@@ -341,6 +350,10 @@ public class GrabberRunProcessor {
     private static int countSources(AutomationRuleEntity rule) {
         if ("rss".equals(rule.getType())) {
             return 1;
+        }
+        if ("website".equals(rule.getType())) {
+            return Math.max(
+                    1, GrabberConfigSupport.websiteUrls(rule.getConfig()).size());
         }
         return Math.max(
                 1,

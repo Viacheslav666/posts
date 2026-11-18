@@ -2,7 +2,7 @@
 # Источник правды по правам: docs/product/roles-permissions.yaml
 # Не коммитьте карту, рассинхронизированную с OpenAPI (CI упадёт).
 version: 1.0.0
-updated: '2026-11-17'
+updated: '2026-11-18'
 task: QA-6
 schema: posts.rbac.endpoint-map.v1
 description: Карта OpenAPI operationId → RBAC action. Каждый operationId из docs/api/openapi.yaml обязан

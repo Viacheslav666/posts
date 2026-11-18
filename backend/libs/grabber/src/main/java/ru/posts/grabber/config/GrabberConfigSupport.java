@@ -69,6 +69,8 @@ public final class GrabberConfigSupport {
 
         config.putIfAbsent("ai_rewrite_enabled", false);
         config.putIfAbsent("rss_max_items_per_run", 20);
+        config.putIfAbsent("website_urls", List.of());
+        config.putIfAbsent("website_selector", null);
         return config;
     }
 
@@ -122,6 +124,30 @@ public final class GrabberConfigSupport {
     public static String rssUrl(Map<String, Object> config) {
         Object raw = config == null ? null : config.get("rss_url");
         return raw == null ? null : raw.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<String> websiteUrls(Map<String, Object> config) {
+        Object raw = config == null ? null : config.get("website_urls");
+        if (raw instanceof List<?> list) {
+            List<String> out = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null && !item.toString().isBlank()) {
+                    out.add(item.toString().trim());
+                }
+            }
+            return out;
+        }
+        return List.of();
+    }
+
+    public static String websiteSelector(Map<String, Object> config) {
+        Object raw = config == null ? null : config.get("website_selector");
+        if (raw == null) {
+            return null;
+        }
+        String value = raw.toString().trim();
+        return value.isEmpty() ? null : value;
     }
 
     public static boolean dedupEnabled(Map<String, Object> config) {

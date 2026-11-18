@@ -21,6 +21,7 @@ nimbus-jose = "9.37.3"
 aws-sdk = "2.30.21"
 tika = "3.2.2"
 thumbnailator = "0.4.20"
+jsoup = "1.18.3"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -68,6 +69,7 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws-sdk" }
 tika-core = { module = "org.apache.tika:tika-core", version.ref = "tika" }
 thumbnailator = { module = "net.coobird:thumbnailator", version.ref = "thumbnailator" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

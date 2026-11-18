@@ -31,7 +31,7 @@ import ru.posts.security.auth.SecurityAuthSupport;
 @RestController
 @Validated
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Ingest", description = "Grabber / RSS automation rules, runs, moderation queue (BE-17)")
+@Tag(name = "Ingest", description = "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b)")
 @OpenApiResponses
 public class IngestController {
 

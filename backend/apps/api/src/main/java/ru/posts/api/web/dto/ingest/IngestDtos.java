@@ -57,6 +57,8 @@ public final class IngestDtos {
     public record GrabberConfig(
             List<String> sourceIds,
             String rssUrl,
+            @Schema(description = "Website page URLs (type=website), max 20") List<String> websiteUrls,
+            @Schema(description = "Optional CSS selector for article body (type=website)") String websiteSelector,
             Integer scanIntervalMinutes,
             PublishMode publishMode,
             String scheduleMode,
@@ -171,7 +173,13 @@ public final class IngestDtos {
     public record GrabberBulkModerationResponse(int succeeded, int failed, List<UUID> failedIds) {}
 
     @Schema(name = "IngestPreviewRequest")
-    public record IngestPreviewRequest(@NotNull RuleType type, List<String> sourceIds, String rssUrl, Integer limit) {}
+    public record IngestPreviewRequest(
+            @NotNull RuleType type,
+            List<String> sourceIds,
+            String rssUrl,
+            List<String> websiteUrls,
+            String websiteSelector,
+            Integer limit) {}
 
     @Schema(name = "IngestPreviewResponse")
     public record IngestPreviewResponse(List<GrabberItem> items) {}

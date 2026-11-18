@@ -2272,6 +2272,10 @@ export interface components {
             transform?: {
                 [key: string]: Record<string, never>;
             };
+            /** @description Optional CSS selector for article body (type=website) */
+            websiteSelector?: string;
+            /** @description Website page URLs (type=website), max 20 */
+            websiteUrls?: string[];
         };
         GrabberItemApproveRequest: {
             /** Format: date-time */
@@ -2396,6 +2400,8 @@ export interface components {
             sourceIds?: string[];
             /** @enum {string} */
             type: "grabber" | "rss" | "website";
+            websiteSelector?: string;
+            websiteUrls?: string[];
         };
         InlineButton: {
             /** @description Callback data for bot buttons */

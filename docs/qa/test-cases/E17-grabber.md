@@ -27,7 +27,7 @@
 | AC-G13 | Автопауза | TC-GRAB-18 | P1 | авто |
 | фильтры | exclude ads/reposts, keywords | TC-GRAB-19 | P1 | авто |
 | rate limit | лимит/час, ручной run 429 | TC-GRAB-20 | P1 | авто |
-| AC-G14 | Website P1 | TC-GRAB-21 | P1 | кандидат в авто |
+| AC-G14 | Website P1 | TC-GRAB-21 | P1 | авто |
 | нормализация | ID с пробелами / screen name | TC-GRAB-22 | P0 | авто |
 | reject | модерация reject | TC-GRAB-23 | P0 | авто |
 | bulk | массовый approve | TC-GRAB-24 | P1 | авто |
@@ -336,11 +336,11 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 |---|---|
 | Story / AC | E17 / AC-G14 |
 | Приоритет | P1 |
-| **Автоматизация** | **кандидат в авто** |
-| Feature flag | `ingest.website` |
+| **Автоматизация** | **авто** |
+| Feature flag | `posts.grabber.website-enabled` |
 
 ### Ожидание
-`type=website` + публичный URL фикстуры → item с title/description/image; SSRF те же запреты; без флага → 404/501.
+`type=website` + публичный URL фикстуры → item с title/description/image; SSRF те же запреты (в т.ч. redirect → 169.254.169.254); без флага → 404.
 
 ---
 

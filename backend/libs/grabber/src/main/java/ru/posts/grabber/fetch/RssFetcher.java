@@ -1,13 +1,12 @@
 package ru.posts.grabber.fetch;
 
-import java.net.URI;
-import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+import ru.posts.grabber.ssrf.SafeHttpFetcher;
 import ru.posts.grabber.ssrf.SsrfGuard;
 import ru.posts.grabber.ssrf.SsrfProperties;
 
@@ -16,26 +15,36 @@ import ru.posts.grabber.ssrf.SsrfProperties;
 @EnableConfigurationProperties(SsrfProperties.class)
 public class RssFetcher {
 
-    private final RestClient restClient;
+    public static final Set<String> FEED_CONTENT_TYPES = Set.of(
+            "application/rss+xml",
+            "application/atom+xml",
+            "application/xml",
+            "text/xml",
+            "application/rdf+xml",
+            "text/plain",
+            "text/html");
+
+    private final SafeHttpFetcher safeHttpFetcher;
     private final SsrfProperties ssrfProperties;
 
-    public RssFetcher(SsrfProperties ssrfProperties) {
+    public RssFetcher(SafeHttpFetcher safeHttpFetcher, SsrfProperties ssrfProperties) {
+        this.safeHttpFetcher = safeHttpFetcher;
         this.ssrfProperties = ssrfProperties;
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofMillis(SsrfGuard.DEFAULT_CONNECT_TIMEOUT_MS));
-        factory.setReadTimeout(Duration.ofMillis(SsrfGuard.DEFAULT_READ_TIMEOUT_MS));
-        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
     public List<SourceCandidate> fetch(String rssUrl, int maxItems) {
         SsrfGuard.validateHttpUrl(rssUrl, ssrfProperties.getAllowedHosts());
-        byte[] body = restClient.get().uri(URI.create(rssUrl.trim())).retrieve().body(byte[].class);
-        if (body == null || body.length == 0) {
-            return List.of();
+        SafeHttpFetcher.FetchResult result =
+                safeHttpFetcher.fetch(rssUrl, FEED_CONTENT_TYPES, ssrfProperties.getAllowedHosts());
+        String ct = result.contentType() == null ? "" : result.contentType().toLowerCase(Locale.ROOT);
+        // Some feeds are served as text/html; still attempt XML parse.
+        if (!ct.isBlank()
+                && !FEED_CONTENT_TYPES.contains(ct)
+                && !ct.contains("xml")
+                && !ct.contains("rss")
+                && !ct.contains("atom")) {
+            throw new IllegalArgumentException("Disallowed content-type for RSS: " + ct);
         }
-        if (body.length > SsrfGuard.DEFAULT_MAX_BYTES) {
-            throw new IllegalArgumentException("RSS feed exceeds size limit");
-        }
-        return RssFeedParser.parse(rssUrl, body, Math.max(1, Math.min(maxItems, 100)));
+        return RssFeedParser.parse(result.finalUrl(), result.body(), Math.max(1, Math.min(maxItems, 100)));
     }
 }
