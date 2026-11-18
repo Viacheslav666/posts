@@ -154,6 +154,42 @@ export type StartTrialRequest = components['schemas']['StartTrialRequest'];
 export type BillingPeriod = NonNullable<CheckoutRequest['period']>;
 export type BillingStatus = NonNullable<Subscription['status']>;
 
+/** Platform admin (BE-13 / A13) */
+export type AdminAnnouncement = components['schemas']['AdminAnnouncement'];
+export type AdminAnnouncementCreateRequest = components['schemas']['AdminAnnouncementCreateRequest'];
+export type AdminAnnouncementPage = components['schemas']['AdminAnnouncementPage'];
+export type AdminAnnouncementUpdateRequest = components['schemas']['AdminAnnouncementUpdateRequest'];
+export type AdminAuditEntry = components['schemas']['AdminAuditEntry'];
+export type AdminAuditPage = components['schemas']['AdminAuditPage'];
+export type AdminFeatureFlag = components['schemas']['AdminFeatureFlag'];
+export type AdminFeatureFlagUpsertRequest = components['schemas']['AdminFeatureFlagUpsertRequest'];
+export type AdminImpersonateRequest = components['schemas']['AdminImpersonateRequest'];
+export type AdminImpersonateResponse = components['schemas']['AdminImpersonateResponse'];
+export type AdminPlanUpsertRequest = components['schemas']['AdminPlanUpsertRequest'];
+export type AdminPromoCode = components['schemas']['AdminPromoCode'];
+export type AdminPromoCreateRequest = components['schemas']['AdminPromoCreateRequest'];
+export type AdminPromoPage = components['schemas']['AdminPromoPage'];
+export type AdminPromoUpdateRequest = components['schemas']['AdminPromoUpdateRequest'];
+export type AdminQueueInfo = components['schemas']['AdminQueueInfo'];
+export type AdminQueueMessage = components['schemas']['AdminQueueMessage'];
+export type AdminQueueMessageActionResponse =
+  components['schemas']['AdminQueueMessageActionResponse'];
+export type AdminQueueMessagePage = components['schemas']['AdminQueueMessagePage'];
+export type AdminUserCard = components['schemas']['AdminUserCard'];
+export type AdminUserPage = components['schemas']['AdminUserPage'];
+export type AdminUserSummary = components['schemas']['AdminUserSummary'];
+export type AdminWorkspaceCard = components['schemas']['AdminWorkspaceCard'];
+export type AdminWorkspaceFeatureFlag = components['schemas']['AdminWorkspaceFeatureFlag'];
+export type AdminWorkspaceFeatureFlagRequest =
+  components['schemas']['AdminWorkspaceFeatureFlagRequest'];
+export type AdminWorkspacePage = components['schemas']['AdminWorkspacePage'];
+export type AdminWorkspaceSummary = components['schemas']['AdminWorkspaceSummary'];
+export type AdminAdjustBalanceRequest = components['schemas']['AdminAdjustBalanceRequest'];
+export type AdminAdjustSubscriptionRequest =
+  components['schemas']['AdminAdjustSubscriptionRequest'];
+export type ImpersonationBanner = components['schemas']['ImpersonationBanner'];
+export type AnnouncementBanner = components['schemas']['AnnouncementBanner'];
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

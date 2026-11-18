@@ -101,6 +101,12 @@ export type { ProgressProps } from './components/progress';
 export { EmptyState } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
 
+export { ImpersonationBanner } from './components/impersonation-banner';
+export type { ImpersonationBannerProps } from './components/impersonation-banner';
+
+export { ConfirmActionDialog } from './components/confirm-action-dialog';
+export type { ConfirmActionDialogProps } from './components/confirm-action-dialog';
+
 export { PostPreview } from './components/post-preview';
 export type { PostPreviewNetwork, PostPreviewProps } from './components/post-preview';
 

@@ -56,6 +56,34 @@ import {
   PLAN_LIMIT_EXCEEDED_CODE,
   TWO_FACTOR_REQUIRED_CODE,
 } from '@/shared/lib/errors';
+import {
+  adjustBalance,
+  adjustSubscription,
+  createAnnouncement,
+  createPromo,
+  deleteQueueMessage,
+  endImpersonationOnRefresh,
+  getDemoAdminProfile,
+  getUserCard,
+  getWorkspaceCard,
+  impersonate,
+  listAdminPlansFromStore,
+  listAnnouncements,
+  listAudit as listAdminAuditLog,
+  listFeatureFlags,
+  listPromos,
+  listQueueMessages,
+  listQueues,
+  requirePlatformAdmin,
+  retryQueueMessage,
+  searchUsers,
+  searchWorkspaces,
+  setWorkspaceFlag,
+  updateAnnouncement,
+  updatePromo,
+  upsertAdminPlanInStore,
+  upsertFeatureFlag,
+} from './admin-store';
 import { listPlans } from './billing-store';
 import {
   can,
@@ -175,7 +203,6 @@ import {
   createWorkspace,
   deleteProject,
   deleteWorkspace,
-  getDemoProfile,
   getProject,
   getWorkspace,
   isKnownWorkspace,
@@ -385,7 +412,7 @@ export const handlers = [
     if (unauthorized) {
       return unauthorized;
     }
-    return HttpResponse.json(getDemoProfile());
+    return HttpResponse.json(getDemoAdminProfile(request));
   }),
 
   http.patch('/api/v1/me', async ({ request }) => {
@@ -511,11 +538,12 @@ export const handlers = [
     });
   }),
 
-  http.post('/api/v1/auth/refresh', () =>
-    HttpResponse.json(tokenResponse({ accessToken: 'msw.access.refreshed' }), {
+  http.post('/api/v1/auth/refresh', () => {
+    endImpersonationOnRefresh();
+    return HttpResponse.json(tokenResponse({ accessToken: 'msw.access.refreshed' }), {
       headers: { 'Set-Cookie': refreshCookieHeader() },
-    }),
-  ),
+    });
+  }),
 
   http.post('/api/v1/auth/logout', () =>
     HttpResponse.json(
@@ -2163,5 +2191,418 @@ export const handlers = [
     const unauthorized = requireBearer(request);
     if (unauthorized) return unauthorized;
     return HttpResponse.json(listPlans());
+  }),
+
+  // --- Platform admin (BE-13 / A13) ---
+  http.get('/api/v1/admin/users', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      searchUsers({
+        q: url.searchParams.get('q'),
+        platformAdmin: url.searchParams.get('platformAdmin'),
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
+  }),
+
+  http.get('/api/v1/admin/users/:userId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const card = getUserCard(String(params.userId));
+    if (!card) return problem(404, 'not_found', 'User not found', 'Not found');
+    return HttpResponse.json(card);
+  }),
+
+  http.post('/api/v1/admin/users/:userId/impersonate', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as { reason?: string; workspaceId?: string };
+    if (!body.reason || body.reason.trim().length < 3) {
+      return problem(400, 'validation_failed', 'reason is required (min 3)', 'Validation failed');
+    }
+    const result = impersonate(String(params.userId), {
+      reason: body.reason.trim(),
+      workspaceId: body.workspaceId,
+    });
+    if ('error' in result) {
+      return problem(result.status, result.code, result.error, result.error);
+    }
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/admin/workspaces', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      searchWorkspaces({
+        q: url.searchParams.get('q'),
+        planCode: url.searchParams.get('planCode'),
+        billingStatus: url.searchParams.get('billingStatus'),
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
+  }),
+
+  http.get('/api/v1/admin/workspaces/:workspaceId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const card = getWorkspaceCard(String(params.workspaceId));
+    if (!card) return problem(404, 'not_found', 'Workspace not found', 'Not found');
+    return HttpResponse.json(card);
+  }),
+
+  http.post('/api/v1/admin/workspaces/:workspaceId/subscription', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      planCode?: string;
+      reason?: string;
+      billingStatus?: 'trial' | 'active' | 'grace' | 'frozen';
+      periodEnd?: string;
+      trialEndsAt?: string;
+    };
+    if (!body.planCode || !body.reason) {
+      return problem(400, 'validation_failed', 'planCode and reason required', 'Validation failed');
+    }
+    const card = adjustSubscription(String(params.workspaceId), {
+      planCode: body.planCode,
+      reason: body.reason,
+      billingStatus: body.billingStatus,
+      periodEnd: body.periodEnd,
+      trialEndsAt: body.trialEndsAt,
+    });
+    if (!card) return problem(404, 'not_found', 'Workspace not found', 'Not found');
+    return HttpResponse.json(card);
+  }),
+
+  http.post('/api/v1/admin/workspaces/:workspaceId/balance', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as { amount?: number; reason?: string; kind?: string };
+    if (typeof body.amount !== 'number' || !body.reason) {
+      return problem(400, 'validation_failed', 'amount and reason required', 'Validation failed');
+    }
+    const card = adjustBalance(String(params.workspaceId), {
+      amount: body.amount,
+      reason: body.reason,
+      kind: body.kind,
+    });
+    if (!card) return problem(404, 'not_found', 'Workspace not found', 'Not found');
+    return HttpResponse.json(card);
+  }),
+
+  http.put(
+    '/api/v1/admin/workspaces/:workspaceId/feature-flags/:flagKey',
+    async ({ request, params }) => {
+      const unauthorized = requireBearer(request);
+      if (unauthorized) return unauthorized;
+      if (!requirePlatformAdmin(request)) {
+        return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+      }
+      const body = (await request.json()) as { enabled?: boolean };
+      if (typeof body.enabled !== 'boolean') {
+        return problem(400, 'validation_failed', 'enabled is required', 'Validation failed');
+      }
+      const flag = setWorkspaceFlag(String(params.workspaceId), String(params.flagKey), body.enabled);
+      if (!flag) return problem(404, 'not_found', 'Workspace not found', 'Not found');
+      return HttpResponse.json(flag);
+    },
+  ),
+
+  http.get('/api/v1/admin/plans', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    return HttpResponse.json(listAdminPlansFromStore());
+  }),
+
+  http.put('/api/v1/admin/plans', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      code?: string;
+      name?: string;
+      priceMonth?: number;
+      priceYear?: number;
+      limits?: Record<string, number | null>;
+    };
+    if (!body.code || !body.name || body.priceMonth == null || body.priceYear == null || !body.limits) {
+      return problem(400, 'validation_failed', 'plan fields required', 'Validation failed');
+    }
+    return HttpResponse.json(
+      upsertAdminPlanInStore({
+        code: body.code,
+        name: body.name,
+        priceMonth: body.priceMonth,
+        priceYear: body.priceYear,
+        limits: body.limits,
+      }),
+    );
+  }),
+
+  http.get('/api/v1/admin/promos', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      listPromos({
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
+  }),
+
+  http.post('/api/v1/admin/promos', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      code?: string;
+      kind?: 'percent' | 'fixed' | 'trial_days';
+      value?: number;
+      validFrom?: string;
+      validUntil?: string;
+      active?: boolean;
+      maxRedemptions?: number;
+      oncePerWorkspace?: boolean;
+      stackable?: boolean;
+    };
+    if (!body.code || !body.kind || body.value == null || !body.validFrom || !body.validUntil) {
+      return problem(400, 'validation_failed', 'promo fields required', 'Validation failed');
+    }
+    return HttpResponse.json(
+      createPromo({
+        code: body.code,
+        kind: body.kind,
+        value: body.value,
+        validFrom: body.validFrom,
+        validUntil: body.validUntil,
+        active: body.active,
+        maxRedemptions: body.maxRedemptions,
+        oncePerWorkspace: body.oncePerWorkspace,
+        stackable: body.stackable,
+      }),
+    );
+  }),
+
+  http.put('/api/v1/admin/promos/:promoId', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      active?: boolean;
+      maxRedemptions?: number;
+      oncePerWorkspace?: boolean;
+      stackable?: boolean;
+      validFrom?: string;
+      validUntil?: string;
+    };
+    const promo = updatePromo(String(params.promoId), body);
+    if (!promo) return problem(404, 'not_found', 'Promo not found', 'Not found');
+    return HttpResponse.json(promo);
+  }),
+
+  http.get('/api/v1/admin/queues', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    return HttpResponse.json(listQueues());
+  }),
+
+  http.get('/api/v1/admin/queues/:queue/messages', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      listQueueMessages(String(params.queue), {
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
+  }),
+
+  http.post('/api/v1/admin/queues/:queue/messages/:messageId/retry', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    if (!request.headers.get('Idempotency-Key')) {
+      return problem(400, 'validation_failed', 'Idempotency-Key required', 'Validation failed');
+    }
+    const result = retryQueueMessage(String(params.queue), String(params.messageId));
+    if (!result) return problem(404, 'not_found', 'Message not found', 'Not found');
+    return HttpResponse.json(result);
+  }),
+
+  http.post('/api/v1/admin/queues/:queue/messages/:messageId/delete', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    if (!request.headers.get('Idempotency-Key')) {
+      return problem(400, 'validation_failed', 'Idempotency-Key required', 'Validation failed');
+    }
+    const result = deleteQueueMessage(String(params.queue), String(params.messageId));
+    if (!result) return problem(404, 'not_found', 'Message not found', 'Not found');
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/admin/feature-flags', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    return HttpResponse.json(listFeatureFlags());
+  }),
+
+  http.put('/api/v1/admin/feature-flags', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      key?: string;
+      description?: string;
+      enabledGlobal?: boolean;
+    };
+    if (!body.key) {
+      return problem(400, 'validation_failed', 'key is required', 'Validation failed');
+    }
+    return HttpResponse.json(
+      upsertFeatureFlag({
+        key: body.key,
+        description: body.description,
+        enabledGlobal: body.enabledGlobal,
+      }),
+    );
+  }),
+
+  http.get('/api/v1/admin/announcements', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      listAnnouncements({
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
+  }),
+
+  http.post('/api/v1/admin/announcements', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      title?: string;
+      body?: string;
+      severity?: 'info' | 'warning' | 'critical';
+      active?: boolean;
+      startsAt?: string;
+      endsAt?: string;
+    };
+    if (!body.title || !body.body || !body.severity) {
+      return problem(400, 'validation_failed', 'title, body, severity required', 'Validation failed');
+    }
+    return HttpResponse.json(
+      createAnnouncement({
+        title: body.title,
+        body: body.body,
+        severity: body.severity,
+        active: body.active,
+        startsAt: body.startsAt,
+        endsAt: body.endsAt,
+      }),
+    );
+  }),
+
+  http.put('/api/v1/admin/announcements/:announcementId', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const body = (await request.json()) as {
+      title?: string;
+      body?: string;
+      severity?: 'info' | 'warning' | 'critical';
+      active?: boolean;
+      startsAt?: string;
+      endsAt?: string;
+    };
+    const item = updateAnnouncement(String(params.announcementId), body);
+    if (!item) return problem(404, 'not_found', 'Announcement not found', 'Not found');
+    return HttpResponse.json(item);
+  }),
+
+  http.get('/api/v1/admin/audit', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    if (!requirePlatformAdmin(request)) {
+      return problem(403, 'forbidden', 'Platform admin required', 'Forbidden');
+    }
+    const url = new URL(request.url);
+    return HttpResponse.json(
+      listAdminAuditLog({
+        actorUserId: url.searchParams.get('actorUserId'),
+        action: url.searchParams.get('action'),
+        targetType: url.searchParams.get('targetType'),
+        targetId: url.searchParams.get('targetId'),
+        cursor: url.searchParams.get('cursor'),
+        limit: url.searchParams.get('limit'),
+      }),
+    );
   }),
 ];
