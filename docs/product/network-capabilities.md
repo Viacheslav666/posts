@@ -197,8 +197,21 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ---
 
+## 9. Inbound events (BE-32, проверка 2026-11-18)
+
+| Сеть | Приём | Секрет | Ретраи | Примечание |
+|---|---|---|---|---|
+| VK Callback API | `POST /hooks/vk/{channelId}` | JSON `secret`; confirmation code из `groups.getCallbackConfirmationCode` | 10с / 3м / 10м / 30м / 1ч | Один наш Callback-сервер на сообщество; ответ `ok` text/plain; `event_id` для дедупа |
+| Telegram Bot API | `POST /hooks/tg/{botId}` | `X-Telegram-Bot-Api-Secret-Token` | хранение update ≤ 24 ч | webhook ⊕ getUpdates; альбомы `media_group_id` (окно 3 с); кастомный бот → takeover warning |
+| Max | `POST /hooks/max/{channelId}` | `X-Max-Bot-Api-Secret` (5–256 `[A-Za-z0-9_-]`) | до 10×, ×2.5; автоотписка 8 ч | только HTTPS:443; health-job переподписывает |
+
+Источники: [dev.vk.com](https://dev.vk.com), Telegram Bot API 10.4, [dev.max.ru](https://dev.max.ru) / platform-api2.max.ru.
+
+---
+
 ## История изменений
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.1.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

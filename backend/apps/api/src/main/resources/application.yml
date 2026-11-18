@@ -53,6 +53,15 @@ springdoc:
   writer-with-order-by-keys: true
 
 posts:
+  public-base-url: ${POSTS_PUBLIC_BASE_URL:http://127.0.0.1:8080}
+  social-inbound:
+    public-base-url: ${POSTS_PUBLIC_BASE_URL:http://127.0.0.1:8080}
+    social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+    vk-api-version: "5.199"
+    recording-handler: false
+    retention-days: 14
+    partition-ahead-days: 7
+    hook-body-max-bytes: 1048576
   # Social Bucket4j/Redis limiter is for publisher (BE-4). API uses in-memory LoginRateLimiter only.
   ratelimit:
     enabled: false

@@ -1,0 +1,9 @@
+{
+  "update_type": "comment_created",
+  "timestamp": 1700000000000,
+  "comment": {
+    "id": "c-fixture-1",
+    "text": "Hello from Max",
+    "sender": { "user_id": "u-1" }
+  }
+}

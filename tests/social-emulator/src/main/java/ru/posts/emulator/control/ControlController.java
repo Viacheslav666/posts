@@ -28,18 +28,27 @@ public class ControlController {
     private final WallSourceStore wallSourceStore;
     private final StoryTokenStore storyTokenStore;
     private final VkUploadSessionStore uploadSessionStore;
+    private final ru.posts.emulator.vk.VkCallbackServerStore callbackServerStore;
+    private final ru.posts.emulator.telegram.TelegramWebhookStore webhookStore;
+    private final ru.posts.emulator.max.MaxSubscriptionStore subscriptionStore;
 
     public ControlController(
             ScenarioService scenarioService,
             PostStore postStore,
             WallSourceStore wallSourceStore,
             StoryTokenStore storyTokenStore,
-            VkUploadSessionStore uploadSessionStore) {
+            VkUploadSessionStore uploadSessionStore,
+            ru.posts.emulator.vk.VkCallbackServerStore callbackServerStore,
+            ru.posts.emulator.telegram.TelegramWebhookStore webhookStore,
+            ru.posts.emulator.max.MaxSubscriptionStore subscriptionStore) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
         this.wallSourceStore = wallSourceStore;
         this.storyTokenStore = storyTokenStore;
         this.uploadSessionStore = uploadSessionStore;
+        this.callbackServerStore = callbackServerStore;
+        this.webhookStore = webhookStore;
+        this.subscriptionStore = subscriptionStore;
     }
 
     @GetMapping("/health")
@@ -63,6 +72,9 @@ public class ControlController {
         wallSourceStore.reset();
         storyTokenStore.reset();
         uploadSessionStore.reset();
+        callbackServerStore.reset();
+        webhookStore.reset();
+        subscriptionStore.reset();
         if (resetScenario) {
             scenarioService.reset();
         }

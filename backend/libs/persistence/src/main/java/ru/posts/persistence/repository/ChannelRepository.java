@@ -26,4 +26,8 @@ public interface ChannelRepository extends JpaRepository<ChannelEntity, UUID> {
     long countActiveByWorkspaceId(@Param("workspaceId") UUID workspaceId);
 
     long countByBotIdAndDeletedAtIsNull(UUID botId);
+
+    List<ChannelEntity> findByNetworkAndExternalIdAndDeletedAtIsNull(String network, String externalId);
+
+    List<ChannelEntity> findByBotIdAndDeletedAtIsNull(UUID botId);
 }

@@ -29,11 +29,65 @@ public class TelegramApiController {
     private final PostStore postStore;
     private final PublishSupport publishSupport;
     private final ObjectMapper objectMapper;
+    private final TelegramWebhookStore webhookStore;
 
-    public TelegramApiController(PostStore postStore, PublishSupport publishSupport, ObjectMapper objectMapper) {
+    public TelegramApiController(
+            PostStore postStore,
+            PublishSupport publishSupport,
+            ObjectMapper objectMapper,
+            TelegramWebhookStore webhookStore) {
         this.postStore = postStore;
         this.publishSupport = publishSupport;
         this.objectMapper = objectMapper;
+        this.webhookStore = webhookStore;
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/setWebhook", "/telegram/bot{token}/setWebhook"},
+            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.ALL_VALUE})
+    public Map<String, Object> setWebhook(@PathVariable String token, @RequestBody Map<String, Object> body) {
+        String url = body.get("url") == null ? null : String.valueOf(body.get("url"));
+        String secret = body.get("secret_token") == null ? null : String.valueOf(body.get("secret_token"));
+        @SuppressWarnings("unchecked")
+        List<String> allowed = body.get("allowed_updates") instanceof List<?> list
+                ? (List<String>) (List<?>) list
+                : List.of();
+        webhookStore.set(token, url, secret, allowed);
+        return Map.of("ok", true, "result", true, "description", "Webhook was set");
+    }
+
+    @PostMapping(path = {"/bot{token}/getWebhookInfo", "/telegram/bot{token}/getWebhookInfo"})
+    public Map<String, Object> getWebhookInfoPost(@PathVariable String token) {
+        return getWebhookInfo(token);
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping(
+            path = {"/bot{token}/getWebhookInfo", "/telegram/bot{token}/getWebhookInfo"})
+    public Map<String, Object> getWebhookInfo(@PathVariable String token) {
+        TelegramWebhookStore.Webhook wh = webhookStore.get(token);
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (wh == null) {
+            result.put("url", "");
+            result.put("has_custom_certificate", false);
+            result.put("pending_update_count", 0);
+        } else {
+            result.put("url", wh.url());
+            result.put("has_custom_certificate", false);
+            result.put("pending_update_count", wh.pendingUpdateCount());
+            if (wh.lastErrorMessage() != null) {
+                result.put("last_error_message", wh.lastErrorMessage());
+            }
+            result.put("allowed_updates", wh.allowedUpdates());
+        }
+        return Map.of("ok", true, "result", result);
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/deleteWebhook", "/telegram/bot{token}/deleteWebhook"},
+            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.ALL_VALUE})
+    public Map<String, Object> deleteWebhook(@PathVariable String token) {
+        webhookStore.delete(token);
+        return Map.of("ok", true, "result", true, "description", "Webhook was deleted");
     }
 
     @PostMapping(

@@ -16,3 +16,4 @@
 | 0010 | [0010-pipeline-prod-extensions.md](0010-pipeline-prod-extensions.md) | Прод-качество конвейера (BE-10) | accepted |
 | 0011 | [0011-ord-ad-marking.md](0011-ord-ad-marking.md) | ОРД и маркировка рекламы (BE-15) | accepted |
 | 0012 | [0012-social-unknown-outcome-reconciliation.md](0012-social-unknown-outcome-reconciliation.md) | Сверка UNKNOWN_OUTCOME в реальных соцсетях (BE-23) | accepted |
+| 0013 | [0013-social-inbound-events.md](0013-social-inbound-events.md) | Входящие события соцсетей (BE-32) | accepted |

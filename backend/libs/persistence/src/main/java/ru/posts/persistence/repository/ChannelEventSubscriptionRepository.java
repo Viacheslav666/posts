@@ -1,0 +1,18 @@
+package ru.posts.persistence.repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import ru.posts.persistence.entity.ChannelEventSubscriptionEntity;
+
+public interface ChannelEventSubscriptionRepository extends JpaRepository<ChannelEventSubscriptionEntity, UUID> {
+
+    Optional<ChannelEventSubscriptionEntity> findByChannelId(UUID channelId);
+
+    List<ChannelEventSubscriptionEntity> findByWorkspaceId(UUID workspaceId);
+
+    List<ChannelEventSubscriptionEntity> findByStatusIn(List<String> statuses);
+
+    List<ChannelEventSubscriptionEntity> findByNetworkAndStatusIn(String network, List<String> statuses);
+}

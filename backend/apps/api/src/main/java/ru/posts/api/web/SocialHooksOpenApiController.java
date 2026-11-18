@@ -19,20 +19,20 @@ import ru.posts.api.error.NotImplementedException;
 /** OpenAPI-only documentation for social inbound webhooks (runtime impl: SocialHooksController). */
 @RestController
 @Profile("openapi")
-@RequestMapping(path = "/hooks", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(path = "/hooks")
 @Tag(name = "Social hooks", description = "Inbound webhooks for VK / Telegram / Max (validate + enqueue)")
 public class SocialHooksOpenApiController {
 
-    @PostMapping("/vk/{channelId}")
+    @PostMapping(path = "/vk/{channelId}", produces = MediaType.TEXT_PLAIN_VALUE)
     @Operation(operationId = "hooksVk", summary = "VK Callback API endpoint")
-    public ResponseEntity<?> vk(
+    public ResponseEntity<String> vk(
             @PathVariable UUID channelId,
             @RequestBody JsonNode body,
-            @RequestHeader(value = "X-Callback-Secret", required = false) String secret) {
+            @RequestHeader(value = "X-Retry-Counter", required = false) Integer retryCounter) {
         throw new NotImplementedException("openapi");
     }
 
-    @PostMapping("/tg/{botId}")
+    @PostMapping(path = "/tg/{botId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(operationId = "hooksTg", summary = "Telegram Bot webhook")
     public ResponseEntity<Map<String, Object>> tg(
             @PathVariable UUID botId,
@@ -41,16 +41,16 @@ public class SocialHooksOpenApiController {
         throw new NotImplementedException("openapi");
     }
 
-    @PostMapping("/max/{botId}")
+    @PostMapping(path = "/max/{channelId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(operationId = "hooksMax", summary = "Max Bot webhook")
     public ResponseEntity<Map<String, Object>> max(
-            @PathVariable UUID botId,
+            @PathVariable UUID channelId,
             @RequestBody JsonNode body,
             @RequestHeader(value = "X-Max-Bot-Api-Secret", required = false) String secret) {
         throw new NotImplementedException("openapi");
     }
 
-    @PostMapping("/telegram-notify")
+    @PostMapping(path = "/telegram-notify", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(
             operationId = "hooksTelegramNotify",
             summary = "Telegram notification-bot webhook (account linking via /start CODE)")

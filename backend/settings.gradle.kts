@@ -38,6 +38,7 @@ include(
     "libs:social-telegram",
     "libs:social-ok",
     "libs:social-max",
+    "libs:social-inbound",
     "libs:ord-api",
     "libs:ord-vk",
     "libs:ord-yandex",

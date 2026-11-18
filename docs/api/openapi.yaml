@@ -96,6 +96,8 @@ tags:
   name: Notifications
 - description: "Wallet, plans, top-up, autopay, invoices, promo codes"
   name: Billing
+- description: Inbound social event subscription status / repair (BE-32)
+  name: Event subscriptions
 - description: Media library uploads via presigned S3 URLs
   name: Media
 - description: Platform admin API (E7 / A13). Requires users.platform_admin — not
@@ -4987,6 +4989,46 @@ paths:
       summary: Re-check channel token and permissions (US-3.5)
       tags:
       - Channels
+  /api/v1/channels/{channelId}/event-subscription:
+    get:
+      operationId: channelsEventSubscriptionGet
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSubscriptionResponse"
+          description: OK
+      summary: Get channel event subscription status
+      tags:
+      - Event subscriptions
+  /api/v1/channels/{channelId}/event-subscription/repair:
+    post:
+      operationId: channelsEventSubscriptionRepair
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSubscriptionResponse"
+          description: OK
+      summary: Repair / re-register event subscription
+      tags:
+      - Event subscriptions
   /api/v1/channels/{channelId}/story-connection:
     get:
       description: OK channels do not require a separate story connect; status is
@@ -12320,12 +12362,12 @@ paths:
       summary: Create an ingest rule
       tags:
       - Ingest
-  /hooks/max/{botId}:
+  /hooks/max/{channelId}:
     post:
       operationId: hooksMax
       parameters:
       - in: path
-        name: botId
+        name: channelId
         required: true
         schema:
           type: string
@@ -12424,10 +12466,11 @@ paths:
           type: string
           format: uuid
       - in: header
-        name: X-Callback-Secret
+        name: X-Retry-Counter
         required: false
         schema:
-          type: string
+          type: integer
+          format: int32
       requestBody:
         content:
           application/json:
@@ -12437,9 +12480,9 @@ paths:
       responses:
         "200":
           content:
-            application/json:
+            text/plain:
               schema:
-                type: object
+                type: string
           description: OK
       summary: VK Callback API endpoint
       tags:
@@ -14205,6 +14248,45 @@ components:
           type: string
       required:
       - token
+    EventSubscriptionResponse:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        consumers:
+          type: array
+          items:
+            type: string
+        eventTypes:
+          type: array
+          items:
+            type: string
+        failureCount:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        lastError:
+          type: string
+        lastEventAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+        network:
+          type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        warning:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
     FeatureFlags:
       type: object
       properties:
