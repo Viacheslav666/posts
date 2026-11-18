@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":libs:ord-vk"))
     implementation(project(":libs:ord-yandex"))
     implementation(project(":libs:ord-reporting"))
+    implementation(project(":libs:analytics"))
     implementation(project(":libs:social-api"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))

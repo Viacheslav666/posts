@@ -45,7 +45,9 @@ class FlywayMigrationIntegrationTest {
             "subscriptions",
             "payments",
             "ledger_entries",
-            "usage_counters");
+            "usage_counters",
+            "analytics_posts_monthly",
+            "analytics_posts_job_state");
 
     @Container
     @ServiceConnection
