@@ -102,7 +102,11 @@ abstract class AbstractNotificationsIT {
         jdbcTemplate.update("DELETE FROM notification_telegram_links");
         jdbcTemplate.update("DELETE FROM notification_settings");
         jdbcTemplate.update("DELETE FROM notifications");
-        GREEN_MAIL.purgeEmailFromAllMailboxes();
+        try {
+            GREEN_MAIL.purgeEmailFromAllMailboxes();
+        } catch (Exception ignored) {
+            // mailbox may be empty before first message
+        }
         TELEGRAM_API.resetAll();
     }
 
