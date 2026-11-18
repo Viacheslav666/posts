@@ -38,8 +38,8 @@ export const queryKeys = {
 
   channels: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'channels'] as const,
-    list: (workspaceId: string, cursor?: string) =>
-      [...queryKeys.channels.all(workspaceId), 'list', { cursor }] as const,
+    list: (workspaceId: string, cursor?: string | Record<string, unknown>) =>
+      [...queryKeys.channels.all(workspaceId), 'list', typeof cursor === 'string' || cursor === undefined ? { cursor } : cursor] as const,
     detail: (workspaceId: string, channelId: string) =>
       [...queryKeys.channels.all(workspaceId), channelId] as const,
     sets: (workspaceId: string) => [...queryKeys.channels.all(workspaceId), 'sets'] as const,
@@ -87,8 +87,15 @@ export const queryKeys = {
   },
 
   notifications: {
-    all: () => [...queryKeys.root, 'notifications'] as const,
-    list: (cursor?: string) => [...queryKeys.notifications.all(), 'list', { cursor }] as const,
+    all: (workspaceId: string) =>
+      [...queryKeys.workspaces.detail(workspaceId), 'notifications'] as const,
+    list: (workspaceId: string, filters?: { unreadOnly?: boolean; cursor?: string }) =>
+      [...queryKeys.notifications.all(workspaceId), 'list', filters ?? {}] as const,
+    settings: (workspaceId: string) =>
+      [...queryKeys.notifications.all(workspaceId), 'settings'] as const,
+    unreadCount: (workspaceId: string) =>
+      [...queryKeys.notifications.all(workspaceId), 'unreadCount'] as const,
+    vapid: () => [...queryKeys.root, 'notifications', 'vapid'] as const,
   },
 
   billing: {

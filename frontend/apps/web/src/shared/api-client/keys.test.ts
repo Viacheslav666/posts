@@ -25,4 +25,22 @@ describe('queryKeys', () => {
       'ch-9',
     ]);
   });
+
+  it('scopes notification keys under workspace', () => {
+    expect(queryKeys.notifications.list('ws-1', { unreadOnly: true })).toEqual([
+      'posts',
+      'workspaces',
+      'ws-1',
+      'notifications',
+      'list',
+      { unreadOnly: true },
+    ]);
+    expect(queryKeys.notifications.settings('ws-1')).toEqual([
+      'posts',
+      'workspaces',
+      'ws-1',
+      'notifications',
+      'settings',
+    ]);
+  });
 });

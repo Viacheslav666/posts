@@ -1363,5 +1363,293 @@
       "successBody": "Создано: {created}, ошибок: {failed}",
       "errorTitle": "Не удалось создать пакет"
     }
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "panelDescription": "События workspace в реальном времени.",
+    "pageDescription": "Все in-app уведомления текущего пространства.",
+    "markRead": "Прочитано",
+    "markAllRead": "Прочитать все",
+    "openPage": "Все уведомления",
+    "settingsLink": "Настройки",
+    "filterAll": "Все",
+    "filterUnread": "Непрочитанные",
+    "unreadBadge": "новое",
+    "emptyTitle": "Пока тихо",
+    "emptyBody": "Когда появятся ошибки публикаций или другие события — они будут здесь.",
+    "errorTitle": "Не удалось загрузить",
+    "errorBody": "Проверьте соединение и попробуйте снова.",
+    "retry": "Повторить",
+    "bellWithCount": "Уведомления, непрочитанных: {count}",
+    "types": {
+      "publication": {
+        "failed": "Ошибка публикации",
+        "succeeded": "Публикация успешна"
+      },
+      "channel": {
+        "reauth_required": "Канал требует переподключения",
+        "no_permissions": "Недостаточно прав у канала"
+      },
+      "grabber": {
+        "moderation_queued": "Очередь модерации граббера"
+      },
+      "ord": {
+        "error": "Ошибка ОРД",
+        "erid_failed": "Не удалось получить erid"
+      },
+      "invitation": {
+        "created": "Приглашение в команду"
+      },
+      "team": {
+        "approval_requested": "Запрос на согласование"
+      },
+      "unknown": "Уведомление"
+    }
+  },
+  "settings": {
+    "nav": {
+      "label": "Разделы настроек",
+      "hub": "Обзор",
+      "profile": "Профиль",
+      "notifications": "Уведомления",
+      "security": "Безопасность",
+      "workspace": "Workspace"
+    },
+    "hub": {
+      "title": "Настройки",
+      "description": "Профиль, уведомления, безопасность и workspace.",
+      "cards": {
+        "profile": {
+          "title": "Профиль",
+          "body": "Имя, часовой пояс и язык интерфейса."
+        },
+        "notifications": {
+          "title": "Уведомления",
+          "body": "Каналы доставки и матрица типов событий."
+        },
+        "security": {
+          "title": "Безопасность",
+          "body": "Пароль, 2FA и активные сессии."
+        },
+        "workspace": {
+          "title": "Workspace",
+          "body": "Название пространства и опасные действия."
+        }
+      }
+    },
+    "profile": {
+      "title": "Профиль",
+      "description": "Личные данные аккаунта.",
+      "loading": "Загрузка…",
+      "saving": "Сохранение…",
+      "save": "Сохранить",
+      "savedTitle": "Профиль обновлён",
+      "savedBody": "Изменения сохранены.",
+      "errorTitle": "Не удалось сохранить",
+      "themeHint": "Тему оформления можно переключить в шапке приложения.",
+      "fields": {
+        "name": "Имя",
+        "timezone": "Часовой пояс",
+        "locale": "Язык"
+      },
+      "locales": {
+        "ru": "Русский",
+        "en": "English"
+      },
+      "validation": {
+        "nameRequired": "Укажите имя",
+        "nameMax": "Слишком длинное имя",
+        "timezoneRequired": "Выберите часовой пояс"
+      }
+    },
+    "security": {
+      "title": "Безопасность",
+      "description": "Пароль, двухфакторная аутентификация и сессии.",
+      "password": {
+        "title": "Смена пароля",
+        "current": "Текущий пароль",
+        "next": "Новый пароль",
+        "confirm": "Повторите пароль",
+        "save": "Обновить пароль",
+        "saving": "Сохранение…",
+        "savedTitle": "Пароль изменён",
+        "savedBody": "Используйте новый пароль при следующем входе.",
+        "errorTitle": "Не удалось сменить пароль",
+        "validation": {
+          "currentRequired": "Укажите текущий пароль",
+          "passwordMin": "Минимум 10 символов",
+          "passwordMismatch": "Пароли не совпадают"
+        }
+      },
+      "totp": {
+        "title": "Двухфакторная аутентификация",
+        "enabledHint": "2FA включена для аккаунта.",
+        "disabledHint": "Рекомендуем включить TOTP для дополнительной защиты.",
+        "setup": "Настроить 2FA",
+        "setupTitle": "Добавьте секрет в приложение",
+        "secretHint": "Секрет или otpauth URL:",
+        "code": "Код из приложения",
+        "confirm": "Подтвердить",
+        "disable": "Отключить 2FA",
+        "enabledTitle": "2FA включена",
+        "enabledBody": "При входе потребуется код.",
+        "disabledTitle": "2FA отключена",
+        "errorTitle": "Ошибка 2FA"
+      },
+      "sessions": {
+        "title": "Активные сессии",
+        "current": "Эта сессия",
+        "revoke": "Завершить",
+        "revokedTitle": "Сессия завершена",
+        "errorTitle": "Не удалось завершить сессию"
+      }
+    },
+    "notifications": {
+      "title": "Настройки уведомлений",
+      "description": "Каналы доставки и типы событий для этого workspace.",
+      "forbiddenTitle": "Нет доступа",
+      "forbiddenBody": "Недостаточно прав для настройки уведомлений.",
+      "mastersTitle": "Каналы доставки",
+      "matrixTitle": "Типы событий",
+      "matrixHint": "Отметьте, куда слать каждый тип.",
+      "eventColumn": "Событие",
+      "save": "Сохранить",
+      "saving": "Сохранение…",
+      "savedTitle": "Сохранено",
+      "savedBody": "Предпочтения обновлены.",
+      "errorTitle": "Не удалось сохранить",
+      "channels": {
+        "email": "Email",
+        "telegram": "Telegram",
+        "webPush": "Web Push",
+        "inApp": "В приложении"
+      },
+      "events": {
+        "publication": {
+          "failed": "Ошибка публикации",
+          "succeeded": "Успешная публикация"
+        },
+        "channel": {
+          "reauth_required": "Канал: переподключить",
+          "no_permissions": "Канал: нет прав"
+        },
+        "grabber": {
+          "moderation_queued": "Граббер: модерация"
+        },
+        "ord": {
+          "error": "ОРД: ошибка",
+          "erid_failed": "ОРД: erid"
+        },
+        "invitation": {
+          "created": "Приглашение"
+        },
+        "team": {
+          "approval_requested": "Согласование"
+        }
+      },
+      "telegram": {
+        "title": "Telegram-бот",
+        "link": "Привязать Telegram",
+        "unlink": "Отвязать",
+        "linkStarted": "Откройте бота",
+        "linkHint": "Нажмите Start в Telegram, чтобы завершить привязку.",
+        "linkedAs": "Привязан: @{username}",
+        "unlinked": "Telegram отвязан"
+      },
+      "webPush": {
+        "title": "Web Push",
+        "supported": "Браузер поддерживает push-уведомления.",
+        "unsupported": "Этот браузер не поддерживает Web Push.",
+        "subscriptions": "Подписок: {count}",
+        "enable": "Включить в этом браузере",
+        "disable": "Отключить",
+        "enabledTitle": "Web Push включён",
+        "disabledTitle": "Web Push отключён",
+        "deniedTitle": "Разрешение не выдано",
+        "deniedBody": "Разрешите уведомления в настройках браузера."
+      },
+      "quietHours": {
+        "title": "Тихие часы",
+        "enabled": "Включить тихие часы",
+        "start": "Начало",
+        "end": "Конец"
+      }
+    },
+    "workspace": {
+      "title": "Workspace",
+      "description": "Настройки текущего пространства."
+    }
+  },
+  "dashboard": {
+    "title": "Дашборд",
+    "description": "Ближайшие публикации, ошибки, каналы и очередь граббера.",
+    "retry": "Повторить",
+    "errorTitle": "Ошибка загрузки",
+    "errorBody": "Не удалось получить данные блока.",
+    "quickActions": {
+      "title": "Быстрые действия",
+      "createPost": "Создать пост",
+      "connectChannel": "Подключить канал",
+      "calendar": "Календарь",
+      "grabber": "Граббер",
+      "story": "История"
+    },
+    "upcoming": {
+      "title": "Ближайшие публикации",
+      "emptyTitle": "Нет запланированных",
+      "emptyBody": "Создайте пост или откройте календарь."
+    },
+    "failed": {
+      "title": "Ошибки за 24 часа",
+      "emptyTitle": "Ошибок нет",
+      "emptyBody": "Публикации проходят без сбоев.",
+      "retry": "Повторить",
+      "retrySuccess": "Публикация поставлена в очередь",
+      "retryError": "Не удалось повторить"
+    },
+    "channels": {
+      "title": "Каналы требуют внимания",
+      "emptyTitle": "Все каналы в порядке",
+      "emptyBody": "Нет каналов с проблемами токена или прав."
+    },
+    "grabber": {
+      "title": "Очередь модерации",
+      "emptyTitle": "Очередь пуста",
+      "emptyBody": "Нет элементов, ожидающих approve.",
+      "open": "Открыть",
+      "pending": "Ждёт модерации"
+    },
+    "stories": {
+      "title": "Запланированные истории",
+      "emptyTitle": "Историй нет",
+      "emptyBody": "Создайте историю для VK или OK."
+    }
+  },
+  "onboarding": {
+    "title": "Начало работы",
+    "pageTitle": "Онбординг",
+    "pageDescription": "Три шага, чтобы опубликовать первый пост.",
+    "progress": "Готово {done} из {total}",
+    "skip": "Пропустить",
+    "completeTitle": "Всё готово",
+    "completeBody": "Workspace настроен — можно работать с контентом.",
+    "goDashboard": "К дашборду",
+    "steps": {
+      "workspace": {
+        "title": "Workspace",
+        "body": "Проверьте название пространства или создайте новое.",
+        "cta": "Настроить"
+      },
+      "channel": {
+        "title": "Подключите канал",
+        "body": "VK, Telegram, OK или Max — хотя бы один.",
+        "cta": "Подключить"
+      },
+      "post": {
+        "title": "Первый пост",
+        "body": "Создайте черновик или сразу запланируйте публикацию.",
+        "cta": "Создать"
+      }
+    }
   }
 }

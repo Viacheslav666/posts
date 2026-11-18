@@ -10,9 +10,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@posts/ui';
-import { Bell, Menu, Plus, Search } from 'lucide-react';
+import { Menu, Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+
+import { NotificationsBell } from '@/features/notifications/components/notifications-bell';
+import { useMe } from '@/shared/hooks/use-me';
 
 import { AppSidebar } from './app-sidebar';
 import { ThemeToggle } from './theme-toggle';
@@ -23,6 +26,8 @@ type AppHeaderProps = {
 
 export function AppHeader({ workspaceId }: AppHeaderProps) {
   const t = useTranslations('common');
+  const { data: me } = useMe();
+  const initials = (me?.name?.trim()?.charAt(0) || 'П').toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 flex h-header items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur md:px-6">
@@ -56,13 +61,17 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
             {t('createPost')}
           </Link>
         </Button>
-        <Button variant="ghost" size="icon" aria-label={t('notifications')}>
-          <Bell aria-hidden />
-        </Button>
+        <NotificationsBell workspaceId={workspaceId} />
         <ThemeToggle />
-        <Avatar className="h-9 w-9" aria-label={t('profile')}>
-          <AvatarFallback>П</AvatarFallback>
-        </Avatar>
+        <Link
+          href={`/app/${workspaceId}/settings/profile`}
+          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={t('profile')}
+        >
+          <Avatar className="h-9 w-9">
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+        </Link>
       </div>
     </header>
   );
