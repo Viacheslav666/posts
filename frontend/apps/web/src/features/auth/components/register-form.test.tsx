@@ -32,7 +32,7 @@ describe('RegisterForm', () => {
     renderWithProviders(<RegisterForm />);
 
     await user.type(screen.getByLabelText('Имя'), 'Anna Editor');
-    await user.type(screen.getByLabelText('Email'), 'anna@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'anna@posts.app');
     await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
     await user.type(screen.getByLabelText('Повтор пароля'), 'Secret12ab');
     await user.click(screen.getByLabelText(/Принимаю условия/));
@@ -48,7 +48,7 @@ describe('RegisterForm', () => {
     renderWithProviders(<RegisterForm />);
 
     await user.type(screen.getByLabelText('Имя'), 'Taken User');
-    await user.type(screen.getByLabelText('Email'), 'taken@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'taken@posts.app');
     await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
     await user.type(screen.getByLabelText('Повтор пароля'), 'Secret12ab');
     await user.click(screen.getByLabelText(/Принимаю условия/));

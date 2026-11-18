@@ -13,9 +13,12 @@ type HeaderPlanChipProps = {
   workspaceId: string;
 };
 
+const PLAN_NAME_KEYS = new Set(['free', 'start', 'pro', 'agency']);
+
 /** Lightweight plan code chip (not a subscription/balance widget — those land in FE-10b). */
 export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
   const t = useTranslations('billing.header');
+  const tPlans = useTranslations('pricing.plans');
   const canView = useCan('billing.view', workspaceId);
 
   const workspaceQuery = useQuery({
@@ -27,10 +30,13 @@ export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
     return <Skeleton className="hidden h-7 w-16 sm:block" />;
   }
 
-  const planCode = workspaceQuery.data?.planCode ?? 'free';
+  const planCode = (workspaceQuery.data?.planCode ?? 'free').toLowerCase();
+  const planLabel = PLAN_NAME_KEYS.has(planCode)
+    ? tPlans(`${planCode}.name` as 'pro.name')
+    : planCode;
   const chip = (
-    <Badge variant="secondary" className="hidden capitalize sm:inline-flex" data-testid="header-plan-chip">
-      {t('plan', { plan: planCode })}
+    <Badge variant="secondary" className="hidden sm:inline-flex" data-testid="header-plan-chip">
+      {t('plan', { plan: planLabel })}
     </Badge>
   );
 

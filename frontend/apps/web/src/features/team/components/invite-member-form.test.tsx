@@ -27,7 +27,7 @@ describe('InviteMemberForm', () => {
     setAccessToken('msw.access.editor');
     renderWithProviders(<InviteMemberForm workspaceId={PERSONAL_WORKSPACE_ID} />);
 
-    await user.type(screen.getByLabelText('Email'), 'new@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'new@posts.app');
     await user.click(screen.getByTestId('invite-submit'));
 
     expect(await screen.findByText('Недостаточно прав для этого действия')).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe('InviteMemberForm', () => {
     const ACME = '019a0000-0002-7000-8000-000000000003';
     renderWithProviders(<InviteMemberForm workspaceId={ACME} />);
 
-    await user.type(screen.getByLabelText('Email'), 'colleague@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'colleague@posts.app');
     await user.click(screen.getByTestId('invite-submit'));
 
     await waitFor(() => {

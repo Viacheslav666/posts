@@ -5,7 +5,7 @@ export class NotificationsPage {
 
   async loginDemo() {
     await this.page.goto('/login');
-    await this.page.getByLabel('Email').fill('demo@posts.app');
+    await this.page.getByLabel('Эл. почта').fill('demo@posts.app');
     await this.page.getByLabel('Пароль', { exact: true }).fill('Password1!');
     await this.page.getByRole('button', { name: 'Войти' }).click();
     await this.page.waitForURL(/\/app\//, { timeout: 15_000 }).catch(() => undefined);

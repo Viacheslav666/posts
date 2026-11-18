@@ -23,7 +23,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginForm />);
 
-    await user.type(screen.getByLabelText('Email'), 'demo@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'demo@posts.app');
     await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
     await user.click(screen.getByTestId('login-submit'));
 
@@ -36,7 +36,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginForm />);
 
-    await user.type(screen.getByLabelText('Email'), 'twofa@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'twofa@posts.app');
     await user.type(screen.getByLabelText('Пароль'), 'Secret12ab');
     await user.click(screen.getByTestId('login-submit'));
 
@@ -50,7 +50,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginForm />);
 
-    await user.type(screen.getByLabelText('Email'), 'demo@posts.app');
+    await user.type(screen.getByLabelText('Эл. почта'), 'demo@posts.app');
     await user.type(screen.getByLabelText('Пароль'), 'wrong-password');
     await user.click(screen.getByTestId('login-submit'));
 
