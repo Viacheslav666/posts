@@ -40,10 +40,14 @@ import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
+import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PublicationEntity;
+import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
+import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PublicationRepository;
+import ru.posts.persistence.repository.WorkspaceRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -91,6 +95,12 @@ class GrabberIngestIntegrationTest {
 
     @Autowired
     PublicationRepository publicationRepository;
+
+    @Autowired
+    PlanRepository planRepository;
+
+    @Autowired
+    WorkspaceRepository workspaceRepository;
 
     @BeforeEach
     void setUp() {
@@ -533,6 +543,7 @@ class GrabberIngestIntegrationTest {
     private Fixture bootstrap() throws Exception {
         String token = registerVerifyLogin("grab-" + UUID.randomUUID() + "@example.com", "Grab Owner");
         UUID workspaceId = firstWorkspaceId(token);
+        upgradeToAgency(workspaceId);
         JsonNode project = readJson(mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/projects")
                         .with(csrf())
                         .header("Authorization", bearer(token))
@@ -555,6 +566,13 @@ class GrabberIngestIntegrationTest {
         channel.setUpdatedAt(Instant.now());
         channelRepository.save(channel);
         return new Fixture(token, workspaceId, projectId, channel.getId());
+    }
+
+    private void upgradeToAgency(UUID workspaceId) {
+        PlanEntity agency = planRepository.findByCode("agency").orElseThrow();
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId).orElseThrow();
+        workspace.setPlanId(agency.getId());
+        workspaceRepository.save(workspace);
     }
 
     private String registerVerifyLogin(String email, String name) throws Exception {

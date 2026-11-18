@@ -11,10 +11,15 @@ ALTER TABLE users
 -- payments: plan / period / promo / confirmation / metadata / idempotence
 -- ---------------------------------------------------------------------------
 ALTER TABLE payments
-    ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES plans (id);
+    ADD COLUMN IF NOT EXISTS plan_id UUID;
 
 ALTER TABLE payments
     ADD COLUMN IF NOT EXISTS billing_period TEXT;
+
+ALTER TABLE payments
+    ADD CONSTRAINT payments_plan_id_fkey
+    FOREIGN KEY (plan_id) REFERENCES plans (id) NOT VALID;
+ALTER TABLE payments VALIDATE CONSTRAINT payments_plan_id_fkey;
 
 ALTER TABLE payments
     ADD COLUMN IF NOT EXISTS promo_code TEXT;
@@ -43,7 +48,12 @@ ALTER TABLE subscriptions
     ADD COLUMN IF NOT EXISTS billing_period TEXT;
 
 ALTER TABLE subscriptions
-    ADD COLUMN IF NOT EXISTS pending_plan_id UUID REFERENCES plans (id);
+    ADD COLUMN IF NOT EXISTS pending_plan_id UUID;
+
+ALTER TABLE subscriptions
+    ADD CONSTRAINT subscriptions_pending_plan_id_fkey
+    FOREIGN KEY (pending_plan_id) REFERENCES plans (id) NOT VALID;
+ALTER TABLE subscriptions VALIDATE CONSTRAINT subscriptions_pending_plan_id_fkey;
 
 ALTER TABLE subscriptions
     ADD COLUMN IF NOT EXISTS grace_ends_at TIMESTAMPTZ;
