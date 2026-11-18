@@ -13,10 +13,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
@@ -31,9 +28,7 @@ import ru.posts.messaging.topology.PublishTopology;
 import ru.posts.persistence.entity.AdminIdempotencyEntity;
 import ru.posts.persistence.repository.AdminIdempotencyRepository;
 
-@Service
-@Profile("!openapi & !test")
-@ConditionalOnBean(RabbitTemplate.class)
+/** RabbitMQ-backed queue admin. Registered by {@code AdminQueueConfig} when AMQP is available. */
 public class RabbitAdminQueueService implements AdminQueueService {
 
     private final RabbitTemplate rabbitTemplate;

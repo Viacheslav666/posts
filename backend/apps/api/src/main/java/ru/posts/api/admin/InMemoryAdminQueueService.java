@@ -10,10 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
@@ -25,12 +22,9 @@ import ru.posts.persistence.entity.AdminIdempotencyEntity;
 import ru.posts.persistence.repository.AdminIdempotencyRepository;
 
 /**
- * Default queue admin when RabbitMQ is not configured (tests / openapi-adjacent). Supports seeding
- * messages for IT coverage of retry idempotency.
+ * Default queue admin when RabbitMQ is not configured (tests / environments without AMQP). Supports
+ * seeding messages for IT coverage of retry idempotency. Registered by {@code AdminQueueConfig}.
  */
-@Service
-@Profile("!openapi")
-@ConditionalOnMissingBean(RabbitAdminQueueService.class)
 public class InMemoryAdminQueueService implements AdminQueueService {
 
     private final ConcurrentMap<String, List<StoredMessage>> queues = new ConcurrentHashMap<>();
