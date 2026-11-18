@@ -217,6 +217,8 @@ import {
   updatePost,
   type ListPostsFilters,
 } from './post-store';
+import { stripTags } from '@posts/domain';
+
 import { renderEditorVariables } from '@/features/editor/lib/variables';
 import { invalidVkStringAttachments } from '@/features/editor/lib/vk-string-attachments';
 import {
@@ -276,6 +278,15 @@ function problem(status: number, code: string, detail: string, title?: string, i
     status,
     headers: { 'Content-Type': 'application/problem+json' },
   });
+}
+
+function escapePreviewHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 const VK_STORY_LINK = /^https:\/\/(vk\.com|vk\.ru|m\.vk\.com|m\.vk\.ru)(\/|$)/i;
@@ -1779,7 +1790,7 @@ export const handlers = [
         'Validation failed',
       );
     }
-    const expandedText = renderEditorVariables(text.replace(/<[^>]+>/g, ''), {
+    const expandedText = renderEditorVariables(stripTags(text), {
       at: body.at,
       timezone: body.timezone,
       groupId: body.groupId,
@@ -1789,11 +1800,12 @@ export const handlers = [
       htmlNetwork: body.network === 'tg' || body.network === 'max',
       spintaxSeed: body.spintaxSeed ?? 'msw-preview',
     });
+    const safeHtml = escapePreviewHtml(expandedText);
     return HttpResponse.json({
       network: body.network,
       expandedText,
       plainText: expandedText,
-      html: `<p>${expandedText}</p>`,
+      html: `<p>${safeHtml}</p>`,
       valid: true,
       issues: [],
       warnings: [],
