@@ -143,6 +143,8 @@ export const queryKeys = {
     contractors: (workspaceId: string) =>
       [...queryKeys.ord.all(workspaceId), 'contractors'] as const,
     contracts: (workspaceId: string) => [...queryKeys.ord.all(workspaceId), 'contracts'] as const,
+    reports: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.ord.all(workspaceId), 'reports', filters ?? {}] as const,
     creative: (workspaceId: string, postId: string) =>
       [...queryKeys.ord.all(workspaceId), 'creative', postId] as const,
     dictionaries: () => [...queryKeys.root, 'ord', 'dictionaries'] as const,

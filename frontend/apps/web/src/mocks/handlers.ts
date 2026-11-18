@@ -167,8 +167,11 @@ import {
   receivePart,
 } from './media-store';
 import {
+  checkOrdErid,
   createOrdContract,
   createOrdContractor,
+  deleteOrdInvoice,
+  exportOrdReportsBinary,
   getCreativeForPost,
   getOrdContractor,
   hasActiveOrdConnection,
@@ -176,8 +179,10 @@ import {
   listOrdConnections,
   listOrdContractors,
   listOrdContracts,
+  listOrdReports,
   OKSM_DICTIONARY,
   registerCreative,
+  runOrdReport,
   testOrdConnection,
   toPublicConnection,
   updateOrdContractor,
@@ -1546,12 +1551,100 @@ export const handlers = [
     const body = (await request.json()) as OrdReportRunRequest;
     const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
     if (deniedWs) return deniedWs;
-    return HttpResponse.json({
-      ok: true,
-      invoicesCreated: 1,
-      statisticsCreated: 1,
-      period: `${body.year}-${String(body.month).padStart(2, '0')}`,
+    if (!body.year || !body.month) {
+      return problem(400, 'validation_failed', 'year and month are required', 'Validation failed');
+    }
+    const result = runOrdReport({
+      workspaceId: body.workspaceId,
+      year: body.year,
+      month: body.month,
+      provider: body.provider,
     });
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/reports', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const url = new URL(request.url);
+    const yearRaw = url.searchParams.get('year');
+    const monthRaw = url.searchParams.get('month');
+    const year = yearRaw ? Number(yearRaw) : undefined;
+    const month = monthRaw ? Number(monthRaw) : undefined;
+    return HttpResponse.json(
+      listOrdReports(workspaceId, {
+        year: Number.isFinite(year) ? year : undefined,
+        month: Number.isFinite(month) ? month : undefined,
+        provider: url.searchParams.get('provider') ?? undefined,
+        status: url.searchParams.get('status') ?? undefined,
+        erid: url.searchParams.get('erid') ?? undefined,
+      }),
+    );
+  }),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/reports/export', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const url = new URL(request.url);
+    const format = url.searchParams.get('format') === 'xlsx' ? 'xlsx' : 'csv';
+    const yearRaw = url.searchParams.get('year');
+    const monthRaw = url.searchParams.get('month');
+    const year = yearRaw ? Number(yearRaw) : undefined;
+    const month = monthRaw ? Number(monthRaw) : undefined;
+    const exported = exportOrdReportsBinary(
+      workspaceId,
+      {
+        year: Number.isFinite(year) ? year : undefined,
+        month: Number.isFinite(month) ? month : undefined,
+        provider: url.searchParams.get('provider') ?? undefined,
+        status: url.searchParams.get('status') ?? undefined,
+      },
+      format,
+    );
+    return new HttpResponse(exported.body.buffer as ArrayBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': exported.contentType,
+        'Content-Disposition': `attachment; filename="${exported.filename}"`,
+      },
+    });
+  }),
+
+  http.post('/api/v1/ord/erid/check', async ({ request }) => {
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const body = (await request.json()) as {
+      workspaceId: string;
+      erid: string;
+      provider?: 'vk_ord' | 'yandex_ord';
+    };
+    const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
+    if (deniedWs) return deniedWs;
+    if (!body.erid?.trim()) {
+      return problem(400, 'validation_failed', 'erid is required', 'Validation failed');
+    }
+    return HttpResponse.json(
+      checkOrdErid({
+        workspaceId: body.workspaceId,
+        erid: body.erid,
+        provider: body.provider,
+      }),
+    );
+  }),
+
+  http.delete('/api/v1/ord/invoices/:invoiceId', ({ request, params }) => {
+    const denied = requirePermission(request, 'ord.reports.run');
+    if (denied) return denied;
+    const invoiceId = String(params.invoiceId);
+    const ok = deleteOrdInvoice(invoiceId);
+    if (!ok) return problem(404, 'not_found', 'Invoice not found', 'Not found');
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.get('/api/v1/workspaces/:workspaceId/ord/connections', ({ request, params }) => {

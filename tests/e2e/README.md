@@ -50,6 +50,7 @@ pnpm test:smoke
 | `specs/registration.spec.ts` | FE-2 stub регистрации на MSW |
 | `specs/grabber-moderation.spec.ts` | FE-14 / TC-GRAB P0 на MSW (очередь moderate, approve) |
 | `specs/grabber-settings.spec.ts` | FE-17 / TC-GRAB настройки правила, clone/export, a11y формы |
+| `specs/ord-reports.spec.ts` | FE-16 отчётность ОРД: просмотр, ERID, удаление акта, a11y |
 | `specs/grabber-fullstack.spec.ts` | QA-12 full-stack (только `E2E_GRABBER_FULLSTACK=1`, nightly) |
 
 ## CI / nightly

@@ -9,6 +9,7 @@ import { useCan } from '@/shared/hooks/use-can';
 import { OrdConnectionForm } from './ord-connection-form';
 import { OrdContractorsPanel } from './ord-contractors-panel';
 import { OrdContractsPanel } from './ord-contracts-panel';
+import { OrdReportsPanel } from './ord-reports-panel';
 
 type OrdSettingsPanelProps = {
   workspaceId: string;
@@ -17,7 +18,6 @@ type OrdSettingsPanelProps = {
 export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
   const t = useTranslations('ord');
   const canView = useCan('ord.view', workspaceId);
-  const canReports = useCan('ord.reports.run', workspaceId);
 
   if (!canView) {
     return (
@@ -31,7 +31,7 @@ export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
 
   return (
     <div
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6"
+      className="mx-auto flex w-full max-w-6xl flex-col gap-6"
       data-testid="ord-settings-page"
     >
       <div>
@@ -40,11 +40,13 @@ export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
       </div>
 
       <Tabs defaultValue="connection">
-        <TabsList>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="connection">{t('tabs.connection')}</TabsTrigger>
           <TabsTrigger value="contractors">{t('tabs.contractors')}</TabsTrigger>
           <TabsTrigger value="contracts">{t('tabs.contracts')}</TabsTrigger>
-          {canReports ? <TabsTrigger value="reports">{t('tabs.reports')}</TabsTrigger> : null}
+          <TabsTrigger value="reports" data-testid="ord-tab-reports">
+            {t('tabs.reports')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="connection" className="pt-4">
@@ -59,11 +61,9 @@ export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
           <OrdContractsPanel workspaceId={workspaceId} />
         </TabsContent>
 
-        {canReports ? (
-          <TabsContent value="reports" className="pt-4">
-            <p className="text-sm text-muted-foreground">{t('reports.placeholder')}</p>
-          </TabsContent>
-        ) : null}
+        <TabsContent value="reports" className="pt-4">
+          <OrdReportsPanel workspaceId={workspaceId} />
+        </TabsContent>
       </Tabs>
     </div>
   );

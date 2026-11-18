@@ -1216,7 +1216,7 @@
       "connection": "Подключение",
       "contractors": "Контрагенты",
       "contracts": "Договоры",
-      "reports": "Отчёты"
+      "reports": "Отчётность"
     },
     "providers": {
       "vk_ord": "VK ОРД",
@@ -1291,7 +1291,84 @@
       "emptyBody": "Договоры появятся после настройки ОРД и контрагентов."
     },
     "reports": {
-      "placeholder": "Выгрузка отчётов в ОРД будет доступна в следующих итерациях."
+      "title": "Отчётность ОРД",
+      "description": "Акты и статистика за период, проверка ERID и выгрузка в CSV/XLSX.",
+      "filtersLabel": "Фильтры отчётности",
+      "tableLabel": "Таблица отчётности ОРД",
+      "run": "Запустить отчёт",
+      "running": "Запуск…",
+      "runSuccessTitle": "Отчёт сформирован",
+      "runSuccessBody": "Актов: {invoices}, статистики: {statistics}",
+      "runErrorTitle": "Не удалось запустить отчёт",
+      "periodRequired": "Укажите год и месяц периода",
+      "exportCsv": "Экспорт CSV",
+      "exportXlsx": "Экспорт XLSX",
+      "exportSuccess": "Файл скачан",
+      "exportErrorTitle": "Не удалось экспортировать",
+      "eridLabel": "Проверка ERID",
+      "eridPlaceholder": "Введите ERID",
+      "eridCheck": "Проверить ERID",
+      "eridChecking": "Проверка…",
+      "eridRequired": "Укажите ERID для проверки",
+      "eridFoundTitle": "ERID найден",
+      "eridNotFoundTitle": "ERID не найден",
+      "eridErrorTitle": "Не удалось проверить ERID",
+      "eridResult": "{erid}: {status} ({found})",
+      "eridYes": "есть в ОРД",
+      "eridNo": "нет в ОРД",
+      "emptyTitle": "Нет строк отчётности",
+      "emptyBody": "Измените фильтры или запустите отчёт за выбранный период.",
+      "delete": "Удалить акт",
+      "cancel": "Отмена",
+      "confirmDeleteTitle": "Удалить акт ОРД?",
+      "confirmDeleteBody": "Акт за {period} (ERID {erid}) будет мягко удалён с синхронизацией в ОРД.",
+      "deleteSuccess": "Акт удалён",
+      "deleteErrorTitle": "Не удалось удалить акт",
+      "prev": "Назад",
+      "next": "Вперёд",
+      "pagination": "Стр. {page} из {totalPages} · всего {total}",
+      "filters": {
+        "year": "Год",
+        "month": "Месяц",
+        "provider": "ОРД",
+        "providerAll": "Все ОРД",
+        "status": "Статус",
+        "statusAll": "Все статусы",
+        "search": "Поиск по ERID",
+        "searchPlaceholder": "ERID…"
+      },
+      "months": {
+        "1": "Январь",
+        "2": "Февраль",
+        "3": "Март",
+        "4": "Апрель",
+        "5": "Май",
+        "6": "Июнь",
+        "7": "Июль",
+        "8": "Август",
+        "9": "Сентябрь",
+        "10": "Октябрь",
+        "11": "Ноябрь",
+        "12": "Декабрь"
+      },
+      "columns": {
+        "period": "Период",
+        "provider": "ОРД",
+        "erid": "ERID",
+        "platform": "Площадка",
+        "impressions": "Показы",
+        "amount": "Сумма",
+        "status": "Статус",
+        "error": "Ошибка",
+        "actions": "Действия"
+      },
+      "status": {
+        "draft": "Черновик",
+        "submitted": "Отправлен в ОРД",
+        "error": "Ошибка ЕРИР",
+        "running": "Выполняется",
+        "succeeded": "Успешно"
+      }
     },
     "validation": {
       "responsibilityRequired": "Необходимо подтвердить ответственность",
@@ -1304,7 +1381,10 @@
       "nameRequired": "Укажите наименование"
     },
     "errors": {
-      "ad_inn_invalid": "Некорректный ИНН (проверьте контрольную сумму)"
+      "ad_inn_invalid": "Некорректный ИНН (проверьте контрольную сумму)",
+      "ord_not_configured": "ОРД не настроен для пространства",
+      "ord_validation_failed": "ОРД отклонил запрос",
+      "ord_provider_unavailable": "Провайдер ОРД временно недоступен"
     }
   },
   "errors": {
