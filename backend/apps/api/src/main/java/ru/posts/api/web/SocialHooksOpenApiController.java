@@ -49,4 +49,14 @@ public class SocialHooksOpenApiController {
             @RequestHeader(value = "X-Max-Bot-Api-Secret", required = false) String secret) {
         throw new NotImplementedException("openapi");
     }
+
+    @PostMapping("/telegram-notify")
+    @Operation(
+            operationId = "hooksTelegramNotify",
+            summary = "Telegram notification-bot webhook (account linking via /start CODE)")
+    public ResponseEntity<Map<String, Object>> telegramNotify(
+            @RequestBody JsonNode body,
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secret) {
+        throw new NotImplementedException("openapi");
+    }
 }
