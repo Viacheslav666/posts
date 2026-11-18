@@ -13153,6 +13153,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        customBotToken:
+          type: boolean
+          description: True when a custom bot token is configured for this channel
         externalId:
           type: string
         id:
@@ -13194,6 +13197,9 @@ components:
           - ready
           - revoked
           - error
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
         timezone:
           type: string
         title:
@@ -13238,6 +13244,9 @@ components:
         provide code+state; for bot flows provide username and/or forwardedMessage/chatId
         (US-3.2/3.4).
       properties:
+        botToken:
+          type: string
+          description: Optional custom bot token (Telegram BotFather or Max business.max.ru)
         chatId:
           type: string
           description: External chat/channel id when known
@@ -13253,6 +13262,10 @@ components:
         state:
           type: string
           description: OAuth state (VK/OK)
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
+          example: 42
         username:
           type: string
           description: Telegram/Max channel or chat @username
@@ -13267,6 +13280,9 @@ components:
       description: Dedicated bot-flow confirm for Telegram/Max after the bot is added
         as admin
       properties:
+        botToken:
+          type: string
+          description: Optional custom bot token (Telegram BotFather or Max business.max.ru)
         chatId:
           type: string
         forwardedMessage:
@@ -13274,6 +13290,10 @@ components:
         projectId:
           type: string
           format: uuid
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
+          example: 42
         username:
           type: string
           example: '@brand_news'
@@ -15947,9 +15967,16 @@ components:
     UpdateChannelRequest:
       type: object
       properties:
+        botToken:
+          type: string
+          description: Optional custom Telegram/Max bot token (business.max.ru / BotFather);
+            sealed at rest
         projectId:
           type: string
           format: uuid
+        threadId:
+          type: string
+          description: Telegram forum topic id (message_thread_id)
         timezone:
           type: string
           example: Europe/Moscow

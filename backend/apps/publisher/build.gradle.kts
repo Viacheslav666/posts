@@ -12,6 +12,8 @@ dependencies {
     implementation(project(":libs:social-telegram"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
+    implementation(project(":libs:social-max"))
+    implementation(project(":libs:security"))
     implementation(project(":libs:ord-api"))
     implementation(libs.aws.s3)
 

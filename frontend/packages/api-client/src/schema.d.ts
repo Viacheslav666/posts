@@ -3043,6 +3043,8 @@ export interface components {
             };
             /** Format: date-time */
             createdAt?: string;
+            /** @description True when a custom bot token is configured for this channel */
+            customBotToken?: boolean;
             externalId?: string;
             /** Format: uuid */
             id?: string;
@@ -3067,6 +3069,8 @@ export interface components {
              * @enum {string}
              */
             storyConnectionStatus?: "missing" | "pending" | "ready" | "revoked" | "error";
+            /** @description Telegram forum topic id (message_thread_id) */
+            threadId?: string;
             timezone?: string;
             /** @example Новости бренда */
             title?: string;
@@ -3093,6 +3097,8 @@ export interface components {
         };
         /** @description OAuth callback (VK/OK) or bot-flow confirm (TG/Max). For OAuth provide code+state; for bot flows provide username and/or forwardedMessage/chatId (US-3.2/3.4). */
         ChannelConnectCallbackRequest: {
+            /** @description Optional custom bot token (Telegram BotFather or Max business.max.ru) */
+            botToken?: string;
             /** @description External chat/channel id when known */
             chatId?: string;
             /** @description OAuth authorization code (VK/OK) */
@@ -3104,6 +3110,11 @@ export interface components {
             /** @description OAuth state (VK/OK) */
             state?: string;
             /**
+             * @description Telegram forum topic id (message_thread_id)
+             * @example 42
+             */
+            threadId?: string;
+            /**
              * @description Telegram/Max channel or chat @username
              * @example @brand_news
              */
@@ -3113,10 +3124,17 @@ export interface components {
         };
         /** @description Dedicated bot-flow confirm for Telegram/Max after the bot is added as admin */
         ChannelConnectConfirmRequest: {
+            /** @description Optional custom bot token (Telegram BotFather or Max business.max.ru) */
+            botToken?: string;
             chatId?: string;
             forwardedMessage?: components["schemas"]["ForwardedMessageRef"];
             /** Format: uuid */
             projectId?: string;
+            /**
+             * @description Telegram forum topic id (message_thread_id)
+             * @example 42
+             */
+            threadId?: string;
             /** @example @brand_news */
             username?: string;
             /** Format: uuid */
@@ -4637,8 +4655,12 @@ export interface components {
             workspaceId: string;
         };
         UpdateChannelRequest: {
+            /** @description Optional custom Telegram/Max bot token (business.max.ru / BotFather); sealed at rest */
+            botToken?: string;
             /** Format: uuid */
             projectId?: string;
+            /** @description Telegram forum topic id (message_thread_id) */
+            threadId?: string;
             /** @example Europe/Moscow */
             timezone?: string;
         };

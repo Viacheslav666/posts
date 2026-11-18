@@ -1,12 +1,18 @@
 package ru.posts.social.max;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -14,20 +20,29 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import ru.posts.social.api.ChannelContext;
 import ru.posts.social.api.ErrorClass;
+import ru.posts.social.api.MediaAssetRef;
 import ru.posts.social.api.Network;
 import ru.posts.social.api.NetworkCapabilities;
 import ru.posts.social.api.PostVariantContent;
+import ru.posts.social.api.PostVariantMeta;
 import ru.posts.social.api.PublishResult;
+import ru.posts.social.api.RemoteMediaRef;
 import ru.posts.social.api.SocialAdapter;
 import ru.posts.social.api.SocialApiException;
 
-/** Max Bot API adapter ({@code POST /max/messages} or {@code /messages}). */
+/**
+ * Max Bot API adapter ({@code POST /messages}, {@code POST /uploads}). Supports media attachments,
+ * inline keyboard and {@code notify=false} for mute.
+ */
 public class MaxSocialAdapter implements SocialAdapter {
 
+    private static final int MAX_ATTACHMENTS = 12;
+
     private final RestClient restClient;
+    private final String baseUrl;
 
     public MaxSocialAdapter(MaxAdapterProperties properties) {
-        String baseUrl = trimTrailingSlash(properties.baseUrl(), "https://platform-api.max.ru");
+        this.baseUrl = trimTrailingSlash(properties.baseUrl(), "https://platform-api2.max.ru");
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(3));
         requestFactory.setReadTimeout(properties.readTimeout());
@@ -44,23 +59,63 @@ public class MaxSocialAdapter implements SocialAdapter {
 
     @Override
     public NetworkCapabilities capabilities() {
-        return new NetworkCapabilities(Network.MAX, true, false, false, Map.of("messages", true, "bearerAuth", true));
+        return new NetworkCapabilities(
+                Network.MAX,
+                true,
+                true,
+                false,
+                Map.of(
+                        "messages",
+                        true,
+                        "uploads",
+                        true,
+                        "bearerAuth",
+                        true,
+                        "inlineKeyboard",
+                        true,
+                        "disableNotification",
+                        true));
     }
 
     @Override
     public PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
+        Map<String, Object> meta = content == null ? Map.of() : content.meta();
+        Map<String, Object> options = PostVariantMeta.options(meta);
+        List<String> attachmentTokens = new ArrayList<>(PostVariantMeta.attachments(meta));
+        attachmentTokens.addAll(uploadPendingMedia(ctx, content));
+
+        if (attachmentTokens.size() > MAX_ATTACHMENTS) {
+            throw new SocialApiException(
+                    ErrorClass.PERMANENT, "Max allows at most " + MAX_ATTACHMENTS + " attachments per message");
+        }
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("chat_id", ctx.externalId());
         payload.put("text", content == null || content.text() == null ? "" : content.text());
+        payload.put("format", "html");
         payload.put("idempotency_key", idempotencyKey);
-        payload.put("access_token", token(ctx));
+        if (Boolean.TRUE.equals(asBoolean(options.get("mute")))) {
+            payload.put("notify", false);
+        }
+
+        List<Map<String, Object>> attachments = new ArrayList<>();
+        for (String tokenRef : attachmentTokens) {
+            attachments.add(Map.of(
+                    "type", guessAttachmentType(tokenRef),
+                    "payload", Map.of("token", stripTypePrefix(tokenRef))));
+        }
+        Object keyboard = buildInlineKeyboard(options.get("buttons"));
+        if (keyboard != null) {
+            attachments.add(Map.of("type", "inline_keyboard", "payload", keyboard));
+        }
+        if (!attachments.isEmpty()) {
+            payload.put("attachments", attachments);
+        }
+
         try {
             JsonNode body = restClient
                     .post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/max/messages")
-                            .queryParam("access_token", token(ctx))
-                            .build())
+                    .uri("/max/messages")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(ctx))
                     .body(payload)
@@ -84,14 +139,75 @@ public class MaxSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public RemoteMediaRef uploadMedia(ChannelContext ctx, MediaAssetRef asset) {
+        if (asset == null) {
+            throw new SocialApiException(ErrorClass.PERMANENT, "Max uploadMedia requires asset");
+        }
+        String type = maxUploadType(asset.kind(), asset.mime());
+        String auth = token(ctx);
+        try {
+            JsonNode init = restClient
+                    .post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/max/uploads")
+                            .queryParam("type", type)
+                            .build())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + auth)
+                    .retrieve()
+                    .body(JsonNode.class);
+            if (init == null) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "Max uploads empty response");
+            }
+            String uploadUrl = init.path("url").asText(null);
+            String uploadToken = init.path("token").asText(null);
+            if (uploadUrl == null || uploadUrl.isBlank()) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "Max uploads missing url");
+            }
+
+            byte[] bytes = asset.hasContentBytes()
+                    ? asset.contentBytes()
+                    : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+            MultipartBodyBuilder multipart = new MultipartBodyBuilder();
+            multipart.part("data", new NamedByteArrayResource(bytes, fileName(asset, type)));
+
+            String absoluteUrl = uploadUrl.startsWith("http") ? uploadUrl : baseUrl + uploadUrl;
+            JsonNode uploaded = restClient
+                    .post()
+                    .uri(URI.create(absoluteUrl))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + auth)
+                    .body(multipart.build())
+                    .retrieve()
+                    .body(JsonNode.class);
+
+            if (uploaded != null && uploaded.has("token")) {
+                uploadToken = uploaded.path("token").asText(uploadToken);
+            }
+            if (uploadToken == null || uploadToken.isBlank()) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "Max uploads missing token");
+            }
+            String kind =
+                    switch (type) {
+                        case "video" -> "video";
+                        case "audio" -> "audio";
+                        case "file" -> "doc";
+                        default -> "photo";
+                    };
+            // Prefix keeps type when publishing attachments from cache.
+            return new RemoteMediaRef(type + ":" + uploadToken, kind);
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Max upload interrupted: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    @Override
     public void delete(ChannelContext ctx, String remotePostId) {
         try {
             restClient
                     .delete()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/max/messages/{messageId}")
-                            .queryParam("access_token", token(ctx))
-                            .build(remotePostId))
+                    .uri("/max/messages/{messageId}", remotePostId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(ctx))
                     .retrieve()
                     .toBodilessEntity();
@@ -133,6 +249,52 @@ public class MaxSocialAdapter implements SocialAdapter {
         return ErrorClass.RETRYABLE;
     }
 
+    private List<String> uploadPendingMedia(ChannelContext ctx, PostVariantContent content) {
+        List<MediaAssetRef> pending = PostVariantMeta.media(content == null ? Map.of() : content.meta());
+        if (pending.isEmpty()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (MediaAssetRef asset : pending) {
+            RemoteMediaRef remote = uploadMedia(ctx, asset);
+            if (remote != null && remote.attachmentId() != null) {
+                out.add(remote.attachmentId());
+            }
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object buildInlineKeyboard(Object buttonsRaw) {
+        if (!(buttonsRaw instanceof List<?> list) || list.isEmpty()) {
+            return null;
+        }
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        List<Map<String, Object>> current = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Object text = map.get("text");
+            Object url = map.get("url");
+            if (text == null || url == null) {
+                continue;
+            }
+            current.add(Map.of("type", "link", "text", String.valueOf(text), "url", String.valueOf(url)));
+            if (current.size() >= 3) {
+                rows.add(current);
+                current = new ArrayList<>();
+            }
+        }
+        if (!current.isEmpty()) {
+            rows.add(current);
+        }
+        if (rows.isEmpty()) {
+            return null;
+        }
+        return Map.of("buttons", rows);
+    }
+
     private PublishResult parsePublish(JsonNode body, String chatId) {
         if (body == null) {
             throw new SocialApiException(ErrorClass.RETRYABLE, "Max empty response");
@@ -166,6 +328,69 @@ public class MaxSocialAdapter implements SocialAdapter {
         return ctx.accessToken() == null || ctx.accessToken().isBlank() ? "emulator-token" : ctx.accessToken();
     }
 
+    private static String maxUploadType(String kind, String mime) {
+        String k = kind == null ? "" : kind.toLowerCase(Locale.ROOT);
+        String m = mime == null ? "" : mime.toLowerCase(Locale.ROOT);
+        if (k.contains("video") || m.startsWith("video/")) {
+            return "video";
+        }
+        if (k.contains("audio") || m.startsWith("audio/")) {
+            return "audio";
+        }
+        if (k.contains("doc") || k.contains("file") || m.startsWith("application/")) {
+            return "file";
+        }
+        return "image";
+    }
+
+    private static String guessAttachmentType(String tokenRef) {
+        if (tokenRef == null) {
+            return "image";
+        }
+        int idx = tokenRef.indexOf(':');
+        if (idx > 0) {
+            String prefix = tokenRef.substring(0, idx);
+            if (List.of("image", "video", "audio", "file").contains(prefix)) {
+                return prefix;
+            }
+        }
+        return "image";
+    }
+
+    private static String stripTypePrefix(String tokenRef) {
+        if (tokenRef == null) {
+            return "";
+        }
+        int idx = tokenRef.indexOf(':');
+        if (idx > 0) {
+            String prefix = tokenRef.substring(0, idx);
+            if (List.of("image", "video", "audio", "file").contains(prefix)) {
+                return tokenRef.substring(idx + 1);
+            }
+        }
+        return tokenRef;
+    }
+
+    private static String fileName(MediaAssetRef asset, String type) {
+        String id = asset.id() == null ? "file" : asset.id();
+        return switch (type) {
+            case "video" -> id + ".mp4";
+            case "audio" -> id + ".mp3";
+            case "file" -> id + ".bin";
+            default -> id + ".jpg";
+        };
+    }
+
+    private static Boolean asBoolean(Object value) {
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        if (value == null) {
+            return null;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
+    }
+
     private static String remoteUrl(String chatId, String messageId) {
         return "https://max.ru/c/" + chatId + "/" + messageId;
     }
@@ -175,5 +400,19 @@ public class MaxSocialAdapter implements SocialAdapter {
             return fallback;
         }
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
+    private static final class NamedByteArrayResource extends ByteArrayResource {
+        private final String filename;
+
+        NamedByteArrayResource(byte[] byteArray, String filename) {
+            super(byteArray);
+            this.filename = filename;
+        }
+
+        @Override
+        public String getFilename() {
+            return filename;
+        }
     }
 }

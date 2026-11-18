@@ -1,6 +1,7 @@
 package ru.posts.emulator.telegram;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -26,10 +28,12 @@ public class TelegramApiController {
 
     private final PostStore postStore;
     private final PublishSupport publishSupport;
+    private final ObjectMapper objectMapper;
 
-    public TelegramApiController(PostStore postStore, PublishSupport publishSupport) {
+    public TelegramApiController(PostStore postStore, PublishSupport publishSupport, ObjectMapper objectMapper) {
         this.postStore = postStore;
         this.publishSupport = publishSupport;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping(
@@ -51,7 +55,10 @@ public class TelegramApiController {
         if (idempotencyKey == null) {
             idempotencyKey = contentKey(chatId, text, null);
         }
-        return publish(token, chatId, text, idempotencyKey, Map.of("method", "sendMessage"), rawResponse);
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("method", "sendMessage");
+        putCommonMeta(meta, jsonBody, form, token);
+        return publish(token, chatId, text, idempotencyKey, meta, rawResponse, null);
     }
 
     @PostMapping(
@@ -64,26 +71,63 @@ public class TelegramApiController {
             @RequestParam(required = false) MultipartFile photo,
             HttpServletResponse rawResponse)
             throws IOException {
-        String chatId = stringParam(jsonBody, form, "chat_id");
-        String caption = stringParam(jsonBody, form, "caption");
-        String photoRef = photo != null ? photo.getOriginalFilename() : stringParam(jsonBody, form, "photo");
-        String idempotencyKey = stringParam(jsonBody, form, "idempotency_key");
-        if (idempotencyKey == null) {
-            idempotencyKey = contentKey(chatId, caption, photoRef);
-        }
-        Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("method", "sendPhoto");
-        meta.put("photo", photoRef);
-        return publish(token, chatId, caption, idempotencyKey, meta, rawResponse);
+        return sendSingleMedia(token, jsonBody, form, photo, "sendPhoto", "photo", rawResponse);
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/sendVideo", "/telegram/bot{token}/sendVideo"},
+            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<?> sendVideo(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            @RequestParam(required = false) MultipartFile video,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return sendSingleMedia(token, jsonBody, form, video, "sendVideo", "video", rawResponse);
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/sendDocument", "/telegram/bot{token}/sendDocument"},
+            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<?> sendDocument(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            @RequestParam(required = false) MultipartFile document,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return sendSingleMedia(token, jsonBody, form, document, "sendDocument", "document", rawResponse);
     }
 
     @PostMapping(
             path = {"/bot{token}/sendMediaGroup", "/telegram/bot{token}/sendMediaGroup"},
-            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.ALL_VALUE})
-    public ResponseEntity<?> sendMediaGroup(
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> sendMediaGroupJson(
             @PathVariable String token,
             @RequestBody(required = false) Map<String, Object> jsonBody,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return sendMediaGroupInternal(token, jsonBody, null, null, rawResponse);
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/sendMediaGroup", "/telegram/bot{token}/sendMediaGroup"},
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> sendMediaGroupMultipart(
+            @PathVariable String token,
             @RequestParam MultiValueMap<String, String> form,
+            MultipartHttpServletRequest multipartRequest,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return sendMediaGroupInternal(token, null, form, multipartRequest, rawResponse);
+    }
+
+    private ResponseEntity<?> sendMediaGroupInternal(
+            String token,
+            Map<String, Object> jsonBody,
+            MultiValueMap<String, String> form,
+            MultipartHttpServletRequest multipartRequest,
             HttpServletResponse rawResponse)
             throws IOException {
         String chatId = stringParam(jsonBody, form, "chat_id");
@@ -91,18 +135,39 @@ public class TelegramApiController {
         String requestedKey = stringParam(jsonBody, form, "idempotency_key");
         String idempotencyKey = requestedKey == null ? contentKey(chatId, media, "media_group") : requestedKey;
         String channelId = chatId == null ? "unknown" : chatId;
+
+        int mediaCount = countMediaItems(media);
+        int uploadParts =
+                multipartRequest == null ? 0 : multipartRequest.getFileMap().size();
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("method", "sendMediaGroup");
+        meta.put("media_count", mediaCount);
+        meta.put("upload_parts", uploadParts);
+        putCommonMeta(meta, jsonBody, form, token);
+
         return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
-            PostStore.CreateResult result = postStore.createOrGet(
-                    Network.TELEGRAM,
-                    channelId,
-                    idempotencyKey,
-                    media,
-                    Map.of("method", "sendMediaGroup", "bot", maskToken(token)));
+            PostStore.CreateResult result =
+                    postStore.createOrGet(Network.TELEGRAM, channelId, idempotencyKey, media, meta);
 
             List<Map<String, Object>> messages = new ArrayList<>();
-            Map<String, Object> message = baseMessage(chatId, result.post().remotePostId());
-            message.put("media_group_id", UUID.randomUUID().toString().substring(0, 8));
-            messages.add(message);
+            String groupId = UUID.randomUUID().toString().substring(0, 8);
+            int count = Math.max(1, mediaCount);
+            for (int i = 0; i < count; i++) {
+                Map<String, Object> message = baseMessage(chatId, result.post().remotePostId());
+                if (i > 0) {
+                    // Distinct synthetic ids for album members while keeping store row unique by idempotency.
+                    message.put("message_id", Long.parseLong(result.post().remotePostId()) + i);
+                }
+                message.put("media_group_id", groupId);
+                message.put(
+                        "photo", List.of(Map.of("file_id", "file:" + groupId + ":" + i, "width", 100, "height", 100)));
+                String thread = stringParam(jsonBody, form, "message_thread_id");
+                if (thread != null) {
+                    message.put("message_thread_id", parseLongOrString(thread));
+                }
+                messages.add(message);
+            }
             return ResponseEntity.ok(Map.of("ok", true, "result", messages));
         });
     }
@@ -121,7 +186,6 @@ public class TelegramApiController {
         String chatId = stringParam(jsonBody, form, "chat_id");
         String messageId = stringParam(jsonBody, form, "message_id");
         postStore.deleteByRemoteId(Network.TELEGRAM, chatId, messageId);
-        // Idempotent: deleting an already-deleted message is success.
         return ResponseEntity.ok(Map.of("ok", true, "result", true));
     }
 
@@ -150,13 +214,52 @@ public class TelegramApiController {
         return ResponseEntity.ok(Map.of("ok", true, "result", true));
     }
 
+    private ResponseEntity<?> sendSingleMedia(
+            String token,
+            Map<String, Object> jsonBody,
+            MultiValueMap<String, String> form,
+            MultipartFile file,
+            String method,
+            String field,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        String chatId = stringParam(jsonBody, form, "chat_id");
+        String caption = stringParam(jsonBody, form, "caption");
+        String mediaRef = file != null ? file.getOriginalFilename() : stringParam(jsonBody, form, field);
+        String idempotencyKey = stringParam(jsonBody, form, "idempotency_key");
+        if (idempotencyKey == null) {
+            idempotencyKey = contentKey(chatId, caption, mediaRef);
+        }
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("method", method);
+        meta.put(field, mediaRef);
+        if (file != null) {
+            meta.put("bytes", file.getSize());
+            meta.put("multipart", true);
+        }
+        putCommonMeta(meta, jsonBody, form, token);
+
+        Map<String, Object> mediaPayload = new LinkedHashMap<>();
+        if ("photo".equals(field)) {
+            mediaPayload.put(
+                    "photo", List.of(Map.of("file_id", "file:" + nullToEmpty(mediaRef), "width", 100, "height", 100)));
+        } else if ("video".equals(field)) {
+            mediaPayload.put("video", Map.of("file_id", "file:" + nullToEmpty(mediaRef), "duration", 1));
+        } else {
+            mediaPayload.put(
+                    "document", Map.of("file_id", "file:" + nullToEmpty(mediaRef), "file_name", nullToEmpty(mediaRef)));
+        }
+        return publish(token, chatId, caption, idempotencyKey, meta, rawResponse, mediaPayload);
+    }
+
     private ResponseEntity<?> publish(
             String token,
             String chatId,
             String text,
             String idempotencyKey,
             Map<String, Object> metadata,
-            HttpServletResponse rawResponse)
+            HttpServletResponse rawResponse,
+            Map<String, Object> messageExtras)
             throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>(metadata);
         meta.put("bot", maskToken(token));
@@ -168,8 +271,46 @@ public class TelegramApiController {
                 message.put("text", text);
                 message.put("caption", text);
             }
+            if (messageExtras != null) {
+                message.putAll(messageExtras);
+            }
+            Object thread = meta.get("message_thread_id");
+            if (thread != null) {
+                message.put("message_thread_id", thread);
+            }
             return ResponseEntity.ok(Map.of("ok", true, "result", message));
         });
+    }
+
+    private void putCommonMeta(
+            Map<String, Object> meta, Map<String, Object> jsonBody, MultiValueMap<String, String> form, String token) {
+        meta.put("bot", maskToken(token));
+        String thread = stringParam(jsonBody, form, "message_thread_id");
+        if (thread != null) {
+            meta.put("message_thread_id", parseLongOrString(thread));
+        }
+        String disable = stringParam(jsonBody, form, "disable_notification");
+        if (disable != null) {
+            meta.put("disable_notification", Boolean.parseBoolean(disable));
+        }
+        String replyMarkup = stringParam(jsonBody, form, "reply_markup");
+        if (replyMarkup != null) {
+            meta.put("reply_markup", replyMarkup);
+        } else if (jsonBody != null && jsonBody.get("reply_markup") != null) {
+            meta.put("reply_markup", jsonBody.get("reply_markup"));
+        }
+    }
+
+    private int countMediaItems(String mediaJson) {
+        if (mediaJson == null || mediaJson.isBlank()) {
+            return 0;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(mediaJson);
+            return node.isArray() ? node.size() : 1;
+        } catch (Exception ex) {
+            return 1;
+        }
     }
 
     private static Map<String, Object> baseMessage(String chatId, String messageId) {
@@ -188,6 +329,14 @@ public class TelegramApiController {
             return Long.parseLong(chatId);
         } catch (NumberFormatException ex) {
             return chatId;
+        }
+    }
+
+    private static Object parseLongOrString(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return value;
         }
     }
 
