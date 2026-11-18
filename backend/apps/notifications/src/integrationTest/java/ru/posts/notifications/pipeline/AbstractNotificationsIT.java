@@ -7,10 +7,10 @@ import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.ServerSetup;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
@@ -23,11 +23,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.messaging.notify.NotifyDeliveryCommand;
+import ru.posts.messaging.notify.NotifyDomainEvent;
 import ru.posts.notifications.NotificationsApplication;
+import ru.posts.notifications.channel.ChannelDeliveryHandler;
+import ru.posts.persistence.entity.NotificationDeliveryEntity;
+import ru.posts.persistence.repository.NotificationDeliveryRepository;
 
 /**
- * Shared Spring context for notification ITs so Rabbit consumers are not duplicated across
- * competing ApplicationContexts (same Testcontainers broker).
+ * Notification ITs run with Rabbit listeners disabled and invoke the pipeline synchronously to
+ * avoid competing consumers / cross-test mailbox races on shared Testcontainers brokers.
  */
 @SpringBootTest(
         classes = NotificationsApplication.class,
@@ -35,6 +40,7 @@ import ru.posts.notifications.NotificationsApplication;
             "spring.autoconfigure.exclude="
                     + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
                     + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration",
+            "spring.rabbitmq.listener.simple.auto-startup=false",
             "posts.notifications.retry-poll-interval-ms=60000",
             "server.port=0"
         })
@@ -50,7 +56,6 @@ abstract class AbstractNotificationsIT {
     static final RabbitMQContainer RABBIT =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
-    /** Fixed SMTP port so DynamicPropertySource never depends on a stopped GreenMail instance. */
     static final int SMTP_PORT = ServerSetup.PORT_SMTP + 3100;
 
     static final GreenMail GREEN_MAIL =
@@ -71,15 +76,16 @@ abstract class AbstractNotificationsIT {
     protected JdbcTemplate jdbcTemplate;
 
     @Autowired
-    protected RabbitTemplate rabbitTemplate;
+    protected DomainEventProcessor domainEventProcessor;
 
     @Autowired
-    protected DomainEventProcessor domainEventProcessor;
+    protected ChannelDeliveryHandler channelDeliveryHandler;
+
+    @Autowired
+    protected NotificationDeliveryRepository deliveryRepository;
 
     @DynamicPropertySource
     static void registerProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.rabbitmq.publisher-confirm-type", () -> "correlated");
-        registry.add("spring.rabbitmq.publisher-returns", () -> "true");
         registry.add("spring.mail.host", () -> "127.0.0.1");
         registry.add("spring.mail.port", () -> SMTP_PORT);
         registry.add("spring.mail.username", () -> "");
@@ -99,7 +105,39 @@ abstract class AbstractNotificationsIT {
         jdbcTemplate.update("DELETE FROM notification_settings");
         jdbcTemplate.update("DELETE FROM notifications");
         GREEN_MAIL.purgeEmailFromAllMailboxes();
-        TELEGRAM_API.resetRequests();
+        TELEGRAM_API.resetAll();
+    }
+
+    /** Process domain event and drain pending channel deliveries synchronously. */
+    protected void processAndDeliver(NotifyDomainEvent event) {
+        boolean ok = domainEventProcessor.process(event);
+        if (!ok) {
+            throw new IllegalStateException("DomainEventProcessor rejected event " + event.eventType());
+        }
+        List<NotificationDeliveryEntity> pending = deliveryRepository.findAll().stream()
+                .filter(d -> "pending".equals(d.getStatus()))
+                .toList();
+        for (NotificationDeliveryEntity delivery : pending) {
+            channelDeliveryHandler.handle(toCommand(delivery, event));
+        }
+    }
+
+    private static NotifyDeliveryCommand toCommand(NotificationDeliveryEntity delivery, NotifyDomainEvent event) {
+        UUID workspaceId = null;
+        Object raw = event.payload() == null ? null : event.payload().get("workspaceId");
+        if (raw != null) {
+            workspaceId = UUID.fromString(raw.toString());
+        }
+        return new NotifyDeliveryCommand(
+                delivery.getId(),
+                delivery.getNotificationId(),
+                delivery.getUserId(),
+                workspaceId,
+                delivery.getChannel(),
+                delivery.getEventType(),
+                delivery.getDedupeKey(),
+                delivery.getPayload(),
+                event.traceId());
     }
 
     protected SeededUser seedOwner() {

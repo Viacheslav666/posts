@@ -6,9 +6,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.notify.NotifyDomainEvent;
-import ru.posts.messaging.topology.NotifyTopology;
 import ru.posts.notifications.config.NotificationsProperties;
 
 class TelegramWireMockIT extends AbstractNotificationsIT {
@@ -49,23 +46,20 @@ class TelegramWireMockIT extends AbstractNotificationsIT {
                 Map.of("workspaceId", user.workspaceId().toString(), "network", "tg", "result", "auth"),
                 "trace-tg");
 
-        rabbitTemplate.convertAndSend(
-                NotifyTopology.NOTIFY_EXCHANGE, NotifyTopology.eventRoutingKey("publication.failed"), event);
+        processAndDeliver(event);
 
-        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    """
-                    SELECT channel, status, last_error FROM notification_deliveries
-                    WHERE user_id = ? AND channel = 'telegram'
-                    """,
-                    user.userId());
-            assertThat(rows)
-                    .as("telegram delivery rows: %s", rows)
-                    .hasSize(1)
-                    .first()
-                    .satisfies(row -> assertThat(row.get("status")).isEqualTo("sent"));
-            TELEGRAM_API.verify(postRequestedFor(urlPathMatching("/bottest-token/sendMessage"))
-                    .withRequestBody(containing("999001")));
-        });
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT channel, status, last_error FROM notification_deliveries
+                WHERE user_id = ? AND channel = 'telegram'
+                """,
+                user.userId());
+        assertThat(rows)
+                .as("telegram delivery rows: %s", rows)
+                .hasSize(1)
+                .first()
+                .satisfies(row -> assertThat(row.get("status")).isEqualTo("sent"));
+        TELEGRAM_API.verify(
+                postRequestedFor(urlPathMatching("/bottest-token/sendMessage")).withRequestBody(containing("999001")));
     }
 }
