@@ -67,6 +67,19 @@ public class ChannelEntity extends BaseUuidEntity {
     @Column(name = "bot_id")
     private UUID botId;
 
+    /** missing|pending|ready|revoked|error — VK stories scope (BE-16). */
+    @Column(name = "story_connection_status", nullable = false)
+    private String storyConnectionStatus = "missing";
+
+    @Column(name = "story_token_enc")
+    private byte[] storyTokenEnc;
+
+    @Column(name = "story_connected_at")
+    private Instant storyConnectedAt;
+
+    @Column(name = "story_connection_error")
+    private String storyConnectionError;
+
     public UUID getWorkspaceId() {
         return workspaceId;
     }
@@ -209,5 +222,37 @@ public class ChannelEntity extends BaseUuidEntity {
 
     public void setBotId(UUID botId) {
         this.botId = botId;
+    }
+
+    public String getStoryConnectionStatus() {
+        return storyConnectionStatus;
+    }
+
+    public void setStoryConnectionStatus(String storyConnectionStatus) {
+        this.storyConnectionStatus = storyConnectionStatus == null ? "missing" : storyConnectionStatus;
+    }
+
+    public byte[] getStoryTokenEnc() {
+        return storyTokenEnc;
+    }
+
+    public void setStoryTokenEnc(byte[] storyTokenEnc) {
+        this.storyTokenEnc = storyTokenEnc;
+    }
+
+    public Instant getStoryConnectedAt() {
+        return storyConnectedAt;
+    }
+
+    public void setStoryConnectedAt(Instant storyConnectedAt) {
+        this.storyConnectedAt = storyConnectedAt;
+    }
+
+    public String getStoryConnectionError() {
+        return storyConnectionError;
+    }
+
+    public void setStoryConnectionError(String storyConnectionError) {
+        this.storyConnectionError = storyConnectionError;
     }
 }

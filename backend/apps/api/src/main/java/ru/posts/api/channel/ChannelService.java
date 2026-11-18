@@ -40,4 +40,9 @@ public interface ChannelService {
             ClientRequestContext ctx);
 
     ChannelDtos.ChannelCheckResponse check(UUID userId, UUID channelId, ClientRequestContext ctx);
+
+    ChannelDtos.StoryConnection getStoryConnection(UUID userId, UUID channelId);
+
+    ChannelDtos.StoryConnection startStoryConnection(
+            UUID userId, UUID channelId, ChannelDtos.StartStoryConnectionRequest request, ClientRequestContext ctx);
 }

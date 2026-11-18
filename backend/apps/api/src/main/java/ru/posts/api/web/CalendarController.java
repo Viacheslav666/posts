@@ -57,6 +57,7 @@ public class CalendarController {
             @RequestParam(required = false) UUID authorId,
             @RequestParam(required = false) ApiEnums.Network network,
             @RequestParam(required = false) ApiEnums.PostStatus status,
+            @RequestParam(required = false) PostDtos.ContentKind contentKind,
             @RequestParam(required = false) @Schema(example = "Europe/Moscow") String timezone) {
         return postService.calendar(
                 SecurityAuthSupport.requirePrincipal().userId(),
@@ -68,6 +69,7 @@ public class CalendarController {
                 authorId,
                 network,
                 status,
+                contentKind,
                 timezone);
     }
 

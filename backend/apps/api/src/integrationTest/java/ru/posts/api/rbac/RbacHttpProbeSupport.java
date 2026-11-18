@@ -505,7 +505,23 @@ final class RbacHttpProbeSupport {
                 node.put("version", ids.postVersion());
                 yield node.toString();
             }
-            case "channelsConnectStart", "notificationSettingsUpdate", "notificationsMarkRead" -> "{}";
+            case "channelsConnectStart",
+                    "channelsStoryConnectionStart",
+                    "notificationSettingsUpdate",
+                    "notificationsMarkRead" -> "{}";
+            case "storiesBatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("projectId", projectId.toString());
+                node.put("scheduledAt", "2026-12-15T12:00:00Z");
+                node.put("stepMinutes", 5);
+                node.put("ad", false);
+                node.putArray("channelIds").add(channelId.toString());
+                node.putArray("mediaIds").add(UUID.randomUUID().toString());
+                var story = node.putObject("story");
+                story.put("ttl", "ttl_24h");
+                yield node.toString();
+            }
             case "ordConnectionsUpsert" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("apiKey", "rbac-probe-ord-key");

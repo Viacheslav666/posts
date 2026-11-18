@@ -42,6 +42,9 @@ public class OrdPrePublishHook implements PrePublishHook {
         if (text != null && text.contains("erid:")) {
             return content;
         }
-        return new PostVariantContent(AdMarker.prepend(text, marker));
+        if (content == null) {
+            return new PostVariantContent(AdMarker.prepend(text, marker));
+        }
+        return content.withText(AdMarker.prepend(text, marker));
     }
 }

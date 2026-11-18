@@ -78,6 +78,27 @@ public class OpenApiChannelStubConfig {
                 return new ChannelDtos.ChannelCheckResponse(
                         channelId, ApiEnums.ChannelStatus.active, null, Instant.now());
             }
+
+            @Override
+            public ChannelDtos.StoryConnection getStoryConnection(UUID userId, UUID channelId) {
+                return new ChannelDtos.StoryConnection(
+                        channelId, ApiEnums.Network.vk, ApiEnums.StoryConnectionStatus.missing, null, null, null);
+            }
+
+            @Override
+            public ChannelDtos.StoryConnection startStoryConnection(
+                    UUID userId,
+                    UUID channelId,
+                    ChannelDtos.StartStoryConnectionRequest request,
+                    ClientRequestContext ctx) {
+                return new ChannelDtos.StoryConnection(
+                        channelId,
+                        ApiEnums.Network.vk,
+                        ApiEnums.StoryConnectionStatus.pending,
+                        "https://oauth.example/stories",
+                        null,
+                        null);
+            }
         };
     }
 

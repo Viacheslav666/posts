@@ -36,6 +36,7 @@ public class OpenApiPostStubConfig {
                     UUID authorId,
                     String q,
                     PostDtos.PostSort sort,
+                    PostDtos.ContentKind contentKind,
                     CursorPage.Params page) {
                 return new CursorPage.PostPage(List.of(), null, false);
             }
@@ -112,6 +113,7 @@ public class OpenApiPostStubConfig {
                     UUID authorId,
                     ApiEnums.Network network,
                     ApiEnums.PostStatus status,
+                    PostDtos.ContentKind contentKind,
                     String timezone) {
                 return List.of();
             }
@@ -119,6 +121,15 @@ public class OpenApiPostStubConfig {
             @Override
             public PostDtos.Post moveCalendar(
                     UUID userId, UUID postId, PostDtos.MoveCalendarItemRequest request, ClientRequestContext ctx) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
+            public PostDtos.BatchStoriesResponse batchStories(
+                    UUID userId,
+                    PostDtos.BatchStoriesRequest request,
+                    String idempotencyKey,
+                    ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }
         };

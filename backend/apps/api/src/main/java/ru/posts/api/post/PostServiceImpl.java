@@ -136,6 +136,7 @@ public class PostServiceImpl implements PostService {
             UUID authorId,
             String q,
             PostDtos.PostSort sort,
+            PostDtos.ContentKind contentKind,
             CursorPage.Params page) {
         WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "posts.view");
         if (projectId != null) {
@@ -152,6 +153,11 @@ public class PostServiceImpl implements PostService {
                 network == null ? null : network.name(),
                 blankToNull(q)));
         found = new ArrayList<>(filterVisibleProjects(membership, found));
+        if (contentKind != null) {
+            found = found.stream()
+                    .filter(p -> contentKind.name().equals(p.getContentKind() == null ? "post" : p.getContentKind()))
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
         sortPosts(found, sort);
         int limit = page == null ? 20 : page.limitOrDefault();
         String cursor = page == null ? null : page.cursor();
@@ -233,15 +239,7 @@ public class PostServiceImpl implements PostService {
         post.setTimezone(resolveTimezone(request.timezone()));
         post.setContentKind(
                 request.contentKind() == null ? "post" : request.contentKind().name());
-        if ("story".equals(post.getContentKind())) {
-            // Stories API is BE-16; allow draft storage only.
-            if (request.scheduledAt() != null) {
-                throw new ApiException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        ProblemCodes.VALIDATION_FAILED,
-                        "Scheduled stories are not enabled yet (BE-16)");
-            }
-        }
+        applyStoryFields(post, request.story(), variants, request.baseContent(), request.workspaceId());
         post.setSourceType("manual");
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
@@ -252,9 +250,13 @@ public class PostServiceImpl implements PostService {
             access.requireAction(
                     membership, "posts.schedule", ru.posts.security.rbac.RbacEvaluationContext.workspaceOnly());
             ensureCanScheduleAd(membership, post);
+            if (StorySupport.isStory(post.getContentKind())) {
+                validateStoryForSchedule(post, variants, request.baseContent());
+            }
         }
         postRepository.save(post);
-        List<PostVariantEntity> savedVariants = saveVariants(post.getId(), variants);
+        List<PostVariantEntity> savedVariants =
+                saveVariants(post.getId(), enrichVariantsForStory(post, variants, request.story()));
 
         if (scheduleNow) {
             if (post.isAd()) {
@@ -263,17 +265,17 @@ public class PostServiceImpl implements PostService {
                 savedVariants = postVariantRepository.findByPostId(post.getId());
             }
             materializePublications(post, savedVariants, now);
-            writeOutbox(post, "post.scheduled");
+            writeOutbox(post, StorySupport.isStory(post.getContentKind()) ? "story.scheduled" : "post.scheduled");
             planLimitService.recordPostCreated(request.workspaceId());
         }
 
         auditRecorder.record(
                 post.getWorkspaceId(),
                 userId,
-                "post.create",
+                StorySupport.isStory(post.getContentKind()) ? "story.created" : "post.create",
                 "post",
                 post.getId(),
-                Map.of("status", post.getStatus()),
+                Map.of("status", post.getStatus(), "contentKind", post.getContentKind()),
                 ctx == null ? null : ctx.ip());
         return toDto(post, savedVariants);
     }
@@ -332,6 +334,9 @@ public class PostServiceImpl implements PostService {
         if (request.timezone() != null) {
             post.setTimezone(resolveTimezone(request.timezone()));
         }
+        if (request.story() != null && StorySupport.isStory(post.getContentKind())) {
+            applyStoryFields(post, request.story(), request.variants(), request.baseContent(), post.getWorkspaceId());
+        }
 
         List<PostVariantEntity> variants;
         if (request.variants() != null) {
@@ -341,7 +346,7 @@ public class PostServiceImpl implements PostService {
                 AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
             }
             deleteVariants(post.getId());
-            variants = saveVariants(post.getId(), request.variants());
+            variants = saveVariants(post.getId(), enrichVariantsForStory(post, request.variants(), request.story()));
         } else {
             variants = postVariantRepository.findByPostId(post.getId());
         }
@@ -390,12 +395,6 @@ public class PostServiceImpl implements PostService {
         WorkspaceMembership membership = access.requirePermission(post.getWorkspaceId(), userId, "posts.schedule");
         ensureProjectVisible(membership, post);
         assertVersion(post, request.version());
-        if ("story".equals(post.getContentKind())) {
-            throw new ApiException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    ProblemCodes.VALIDATION_FAILED,
-                    "Scheduled stories are not enabled yet (BE-16)");
-        }
         if ("pending_moderation".equals(post.getModerationStatus())) {
             throw new ApiException(
                     HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Post awaits grabber moderation (BE-17)");
@@ -404,6 +403,20 @@ public class PostServiceImpl implements PostService {
         if (variants.isEmpty()) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, "Post has no channel variants");
+        }
+        if (StorySupport.isStory(post.getContentKind())) {
+            List<PostDtos.PostVariantUpsert> upserts = variants.stream()
+                    .map(v -> new PostDtos.PostVariantUpsert(
+                            v.getId(),
+                            v.getChannelId(),
+                            ApiEnums.Network.valueOf(v.getNetwork()),
+                            PostContentMapper.mapToContent(v.getContent()),
+                            PostContentMapper.mapToOptions(v.getOptions(), objectMapper)))
+                    .toList();
+            validateStoryForSchedule(post, upserts, PostContentMapper.mapToContent(post.getBaseContent()));
+            PostDtos.StoryOptions story = StorySupport.toDto(
+                    post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions());
+            applyStoryDeleteAfterToVariants(variants, story, request.scheduledAt());
         }
         ensureCanScheduleAd(membership, post);
         planLimitService.ensureCanCreatePost(post.getWorkspaceId());
@@ -427,12 +440,12 @@ public class PostServiceImpl implements PostService {
         post.setUpdatedAt(now);
         materializePublications(post, variants, now);
         postRepository.save(post);
-        writeOutbox(post, "post.scheduled");
+        writeOutbox(post, StorySupport.isStory(post.getContentKind()) ? "story.scheduled" : "post.scheduled");
         planLimitService.recordPostCreated(post.getWorkspaceId());
         auditRecorder.record(
                 post.getWorkspaceId(),
                 userId,
-                "post.schedule",
+                StorySupport.isStory(post.getContentKind()) ? "story.scheduled" : "post.schedule",
                 "post",
                 postId,
                 Map.of("scheduledAt", request.scheduledAt().toString()),
@@ -659,6 +672,7 @@ public class PostServiceImpl implements PostService {
             UUID authorId,
             ApiEnums.Network network,
             ApiEnums.PostStatus status,
+            PostDtos.ContentKind contentKind,
             String timezone) {
         WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "calendar.view");
         if (from == null || to == null) {
@@ -683,6 +697,11 @@ public class PostServiceImpl implements PostService {
                 network == null ? null : network.name(),
                 null));
         posts = new ArrayList<>(filterVisibleProjects(membership, posts));
+        if (contentKind != null) {
+            posts = posts.stream()
+                    .filter(p -> contentKind.name().equals(p.getContentKind() == null ? "post" : p.getContentKind()))
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
         posts.sort(Comparator.comparing(PostEntity::getScheduledAt, Comparator.nullsLast(Comparator.naturalOrder())));
         Map<UUID, List<PostVariantEntity>> variantsByPost = loadVariants(posts);
         List<PostDtos.CalendarItem> items = new ArrayList<>(posts.size());
@@ -982,6 +1001,11 @@ public class PostServiceImpl implements PostService {
             }
             adMarking = new PostDtos.AdMarkingSummary(true, erid, advertiser);
         }
+        PostDtos.StoryOptions story = null;
+        if (StorySupport.isStory(post.getContentKind())) {
+            story = StorySupport.toDto(
+                    post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions());
+        }
         return new PostDtos.Post(
                 post.getId(),
                 post.getWorkspaceId(),
@@ -996,6 +1020,7 @@ public class PostServiceImpl implements PostService {
                 post.isAd(),
                 adMarking,
                 PostDtos.ContentKind.valueOf(post.getContentKind() == null ? "post" : post.getContentKind()),
+                story,
                 post.getSourceType() == null ? "manual" : post.getSourceType(),
                 post.getSourceRef(),
                 post.getStopAt(),
@@ -1071,6 +1096,212 @@ public class PostServiceImpl implements PostService {
         } catch (Exception ex) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Invalid timezone: " + timezone);
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public PostDtos.BatchStoriesResponse batchStories(
+            UUID userId, PostDtos.BatchStoriesRequest request, String idempotencyKey, ClientRequestContext ctx) {
+        int max = 50;
+        if (request.mediaIds().size() > max || request.channelIds().size() > max) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.STORY_BATCH_LIMIT,
+                    "Batch stories limited to " + max + " media items");
+        }
+        access.requirePermission(request.workspaceId(), userId, "posts.bulk");
+        access.requirePermission(request.workspaceId(), userId, "posts.schedule");
+        List<UUID> created = new ArrayList<>();
+        List<PostDtos.BatchStoryFailure> failures = new ArrayList<>();
+        Instant base = request.scheduledAt();
+        int step = request.stepMinutes() == null ? 0 : request.stepMinutes();
+        for (int i = 0; i < request.mediaIds().size(); i++) {
+            UUID mediaId = request.mediaIds().get(i);
+            Instant scheduledAt = base.plusSeconds(step * 60L * i);
+            try {
+                List<PostDtos.PostVariantUpsert> variants = new ArrayList<>();
+                for (UUID channelId : request.channelIds()) {
+                    ChannelEntity channel = channelRepository
+                            .findByIdAndDeletedAtIsNull(channelId)
+                            .orElseThrow(() -> new ApiException(
+                                    HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Channel not found"));
+                    variants.add(new PostDtos.PostVariantUpsert(
+                            null,
+                            channelId,
+                            ApiEnums.Network.valueOf(channel.getNetwork()),
+                            new PostDtos.PostContent(null, null, List.of(mediaId)),
+                            null));
+                }
+                PostDtos.CreatePostRequest create = new PostDtos.CreatePostRequest(
+                        request.workspaceId(),
+                        request.projectId(),
+                        "Story batch " + (i + 1),
+                        new PostDtos.PostContent("", null, List.of(mediaId)),
+                        scheduledAt,
+                        null,
+                        null,
+                        request.ad(),
+                        request.adMarking(),
+                        null,
+                        null,
+                        request.story() == null ? null : request.story().deleteAfterPublish(),
+                        request.timezone(),
+                        PostDtos.ContentKind.story,
+                        request.story(),
+                        variants);
+                PostDtos.Post post = create(userId, create, null, ctx);
+                created.add(post.id());
+            } catch (ApiException ex) {
+                failures.add(new PostDtos.BatchStoryFailure(mediaId, ex.getCode(), ex.getMessage()));
+            } catch (RuntimeException ex) {
+                failures.add(new PostDtos.BatchStoryFailure(mediaId, ProblemCodes.VALIDATION_FAILED, ex.getMessage()));
+            }
+        }
+        auditRecorder.record(
+                request.workspaceId(),
+                userId,
+                "story.batch_created",
+                "post",
+                null,
+                Map.of("created", created.size(), "failed", failures.size()),
+                ctx == null ? null : ctx.ip());
+        return new PostDtos.BatchStoriesResponse(created.size(), created, failures);
+    }
+
+    private void applyStoryFields(
+            PostEntity post,
+            PostDtos.StoryOptions story,
+            List<PostDtos.PostVariantUpsert> variants,
+            PostDtos.PostContent baseContent,
+            UUID workspaceId) {
+        if (!StorySupport.isStory(post.getContentKind())) {
+            return;
+        }
+        List<ApiEnums.Network> networks = variants == null
+                ? List.of()
+                : variants.stream().map(PostDtos.PostVariantUpsert::network).toList();
+        StorySupport.assertSupportedNetworks(variants);
+        StorySupport.assertLink(story, networks);
+        ApiEnums.StoryTtl ttl = StorySupport.resolveTtl(story);
+        post.setStoryTtl(ttl.name());
+        if (story != null) {
+            post.setStoryLinkText(blankToNull(story.linkText()));
+            post.setStoryLinkUrl(blankToNull(story.linkUrl()));
+            if (Boolean.TRUE.equals(story.deleteAfterPublish())) {
+                post.setRemoveAfterPublish(true);
+            }
+        }
+        String mediaKind = "photo";
+        List<UUID> mediaIds = PostContentMapper.mediaIds(baseContent);
+        if (!mediaIds.isEmpty()) {
+            MediaAssetEntity asset = mediaAssetRepository
+                    .findByWorkspaceIdAndIdAndDeletedAtIsNull(workspaceId, mediaIds.getFirst())
+                    .orElse(null);
+            mediaKind = StorySupport.mediaKindOf(asset);
+        }
+        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind));
+    }
+
+    private void validateStoryForSchedule(
+            PostEntity post, List<PostDtos.PostVariantUpsert> variants, PostDtos.PostContent baseContent) {
+        StorySupport.assertSupportedNetworks(variants);
+        List<ChannelEntity> channels = new ArrayList<>();
+        for (PostDtos.PostVariantUpsert v : variants) {
+            ChannelEntity channel = channelRepository
+                    .findByIdAndDeletedAtIsNull(v.channelId())
+                    .orElseThrow(
+                            () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Channel not found"));
+            channels.add(channel);
+        }
+        StorySupport.assertChannelsReady(channels);
+        List<UUID> mediaIds = PostContentMapper.mediaIds(baseContent);
+        List<MediaAssetEntity> assets = new ArrayList<>();
+        for (UUID mediaId : mediaIds) {
+            mediaAssetRepository
+                    .findByWorkspaceIdAndIdAndDeletedAtIsNull(post.getWorkspaceId(), mediaId)
+                    .ifPresent(assets::add);
+        }
+        StorySupport.assertMedia(baseContent, assets);
+        List<ApiEnums.Network> networks =
+                variants.stream().map(PostDtos.PostVariantUpsert::network).toList();
+        StorySupport.assertLink(
+                StorySupport.toDto(
+                        post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions()),
+                networks);
+    }
+
+    private List<PostDtos.PostVariantUpsert> enrichVariantsForStory(
+            PostEntity post, List<PostDtos.PostVariantUpsert> variants, PostDtos.StoryOptions story) {
+        if (!StorySupport.isStory(post.getContentKind()) || variants == null) {
+            return variants;
+        }
+        Instant deleteAfter = StorySupport.resolveAutoDeleteAt(story, post.getScheduledAt());
+        if (deleteAfter == null) {
+            return variants;
+        }
+        List<PostDtos.PostVariantUpsert> enriched = new ArrayList<>(variants.size());
+        for (PostDtos.PostVariantUpsert v : variants) {
+            PostDtos.PostVariantOptions options = v.options();
+            if (options == null) {
+                options = new PostDtos.PostVariantOptions(
+                        null,
+                        null,
+                        deleteAfter,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null);
+            } else if (options.deleteAfter() == null) {
+                options = new PostDtos.PostVariantOptions(
+                        options.pin(),
+                        options.unpinAt(),
+                        deleteAfter,
+                        options.mute(),
+                        options.closeComments(),
+                        options.signed(),
+                        options.firstComment(),
+                        options.buttons(),
+                        options.carouselMode(),
+                        options.donutDays(),
+                        options.coOwnerIds(),
+                        options.primaryAttachmentsMode(),
+                        options.poll(),
+                        options.geo(),
+                        options.copyrightUrl(),
+                        options.actionButton(),
+                        options.extra());
+            }
+            enriched.add(new PostDtos.PostVariantUpsert(v.id(), v.channelId(), v.network(), v.content(), options));
+        }
+        return enriched;
+    }
+
+    private void applyStoryDeleteAfterToVariants(
+            List<PostVariantEntity> variants, PostDtos.StoryOptions story, Instant scheduledAt) {
+        Instant deleteAfter = StorySupport.resolveAutoDeleteAt(story, scheduledAt);
+        if (deleteAfter == null || variants == null) {
+            return;
+        }
+        for (PostVariantEntity variant : variants) {
+            Map<String, Object> options =
+                    new LinkedHashMap<>(variant.getOptions() == null ? Map.of() : variant.getOptions());
+            if (!options.containsKey("deleteAfter")) {
+                options.put("deleteAfter", deleteAfter.toString());
+                variant.setOptions(options);
+                variant.setUpdatedAt(Instant.now());
+                postVariantRepository.save(variant);
+            }
         }
     }
 

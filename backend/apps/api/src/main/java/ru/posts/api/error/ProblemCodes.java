@@ -36,6 +36,13 @@ public final class ProblemCodes {
     public static final String AD_INN_INVALID = "ad_inn_invalid";
     public static final String NETWORK_OPTION_UNSUPPORTED = "network_option_unsupported";
 
+    public static final String STORY_CONNECTION_REQUIRED = "story_connection_required";
+    public static final String STORY_UNSUPPORTED_NETWORK = "story_unsupported_network";
+    public static final String STORY_MEDIA_INVALID = "story_media_invalid";
+    public static final String STORY_LINK_INVALID = "story_link_invalid";
+    public static final String STORY_TTL_UNSUPPORTED = "story_ttl_unsupported";
+    public static final String STORY_BATCH_LIMIT = "story_batch_limit";
+
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
             """
@@ -63,6 +70,12 @@ public final class ProblemCodes {
             - ord_erid_missing — creative registered without erid
             - ad_inn_invalid — advertiser INN must be 10 or 12 digits
             - network_option_unsupported — option not supported for selected network
+            - story_connection_required — VK channel lacks stories scope connection
+            - story_unsupported_network — stories only supported for vk/ok (not tg/max/ig)
+            - story_media_invalid — story requires exactly one valid photo/video media
+            - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
+            - story_ttl_unsupported — invalid stories_time / TTL enum
+            - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
             - ingest_responsibility_required — grabber activate without legal checkbox
             - ingest_attribution_required — grabber activate without attribution
             - ingest_ssrf_blocked — RSS/website URL targets private network

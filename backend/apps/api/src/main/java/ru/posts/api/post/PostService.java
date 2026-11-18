@@ -23,6 +23,7 @@ public interface PostService {
             UUID authorId,
             String q,
             PostDtos.PostSort sort,
+            PostDtos.ContentKind contentKind,
             CursorPage.Params page);
 
     PostDtos.Post get(UUID userId, UUID postId);
@@ -58,8 +59,12 @@ public interface PostService {
             UUID authorId,
             ApiEnums.Network network,
             ApiEnums.PostStatus status,
+            PostDtos.ContentKind contentKind,
             String timezone);
 
     PostDtos.Post moveCalendar(
             UUID userId, UUID postId, PostDtos.MoveCalendarItemRequest request, ClientRequestContext ctx);
+
+    PostDtos.BatchStoriesResponse batchStories(
+            UUID userId, PostDtos.BatchStoriesRequest request, String idempotencyKey, ClientRequestContext ctx);
 }

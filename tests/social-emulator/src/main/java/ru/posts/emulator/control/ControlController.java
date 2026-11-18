@@ -54,9 +54,22 @@ public class ControlController {
 
     @GetMapping("/posts")
     public List<EmulatedPost> posts(
-            @RequestParam(required = false) String network, @RequestParam(required = false) String channelId) {
+            @RequestParam(required = false) String network,
+            @RequestParam(required = false) String channelId,
+            @RequestParam(required = false) String contentType) {
         Network parsed = network == null || network.isBlank() ? null : Network.from(network);
-        return postStore.list(parsed, channelId);
+        List<EmulatedPost> posts = postStore.list(parsed, channelId);
+        if (contentType == null || contentType.isBlank()) {
+            return posts;
+        }
+        boolean wantStory = "story".equalsIgnoreCase(contentType);
+        return posts.stream()
+                .filter(p -> {
+                    Object ct = p.metadata() == null ? null : p.metadata().get("contentType");
+                    boolean isStory = "story".equals(ct);
+                    return wantStory == isStory;
+                })
+                .toList();
     }
 
     @GetMapping("/posts/count")

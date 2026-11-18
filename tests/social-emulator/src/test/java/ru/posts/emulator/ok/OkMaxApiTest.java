@@ -51,6 +51,40 @@ class OkMaxApiTest {
     }
 
     @Test
+    void okMomentsCommitIsIdempotent() throws Exception {
+        mockMvc.perform(post("/ok/fb.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("method", "moments.getUploadUrl")
+                        .param("gid", "42")
+                        .param("type", "PHOTO")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.upload_url").exists());
+
+        mockMvc.perform(post("/ok/fb.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("method", "moments.commit")
+                        .param("owner_ref", "group:42")
+                        .param("ttl_ms", "86400000")
+                        .param("idempotency_key", "moment-1")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.moment_id").exists());
+
+        mockMvc.perform(post("/ok/fb.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("method", "moments.commit")
+                        .param("owner_ref", "group:42")
+                        .param("ttl_ms", "86400000")
+                        .param("idempotency_key", "moment-1")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk());
+
+        assertThat(postStore.counts().get("ok")).isEqualTo(1L);
+        assertThat(postStore.duplicateAttemptCounts().get("ok")).isEqualTo(1L);
+    }
+
+    @Test
     void maxMessages() throws Exception {
         mockMvc.perform(
                         post("/max/messages")

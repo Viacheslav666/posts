@@ -98,6 +98,37 @@ class VkApiTest {
     }
 
     @Test
+    void storiesPhotoUploadAndSaveAreIdempotent() throws Exception {
+        mockMvc.perform(post("/method/stories.getPhotoUploadServer")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("group_id", "100")
+                        .param("link_text", "go_to")
+                        .param("link_url", "https://vk.com/club100")
+                        .param("guid", "story-1")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.upload_url").exists());
+
+        mockMvc.perform(post("/method/stories.save")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("guid", "story-1")
+                        .param("group_id", "100")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.items[0].id").exists());
+
+        mockMvc.perform(post("/method/stories.save")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("guid", "story-1")
+                        .param("group_id", "100")
+                        .param("access_token", "t"))
+                .andExpect(status().isOk());
+
+        assertThat(postStore.counts().get("vk")).isEqualTo(1L);
+        assertThat(postStore.duplicateAttemptCounts().get("vk")).isEqualTo(1L);
+    }
+
+    @Test
     void photoUploadFlow() throws Exception {
         MvcResult server = mockMvc.perform(post("/method/photos.getWallUploadServer")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)

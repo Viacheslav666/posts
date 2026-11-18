@@ -157,4 +157,38 @@ public class ChannelController {
         return channelService.check(
                 SecurityAuthSupport.requirePrincipal().userId(), channelId, ClientRequestContexts.from(httpRequest));
     }
+
+    @GetMapping("/channels/{channelId}/story-connection")
+    @Operation(
+            operationId = "channelsStoryConnectionGet",
+            summary = "Get VK stories connection status (BE-16)",
+            description = "OK channels do not require a separate story connect; status is informational.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Story connection",
+            content = @Content(schema = @Schema(implementation = ChannelDtos.StoryConnection.class)))
+    public ChannelDtos.StoryConnection getStoryConnection(@PathVariable UUID channelId) {
+        return channelService.getStoryConnection(
+                SecurityAuthSupport.requirePrincipal().userId(), channelId);
+    }
+
+    @PostMapping("/channels/{channelId}/story-connection")
+    @Operation(
+            operationId = "channelsStoryConnectionStart",
+            summary = "Start or confirm VK stories connection (BE-16)",
+            description = "Requires `channels.manage`. For local/emulator set confirmReady=true to mark ready.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Story connection",
+            content = @Content(schema = @Schema(implementation = ChannelDtos.StoryConnection.class)))
+    public ChannelDtos.StoryConnection startStoryConnection(
+            @PathVariable UUID channelId,
+            @Valid @RequestBody(required = false) ChannelDtos.StartStoryConnectionRequest request,
+            HttpServletRequest httpRequest) {
+        return channelService.startStoryConnection(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                channelId,
+                request == null ? new ChannelDtos.StartStoryConnectionRequest(null) : request,
+                ClientRequestContexts.from(httpRequest));
+    }
 }

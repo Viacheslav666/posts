@@ -73,6 +73,10 @@ class OrdPrePublishHookTest {
                 name,
                 inn,
                 30,
-                true);
+                true,
+                null,
+                null,
+                null,
+                "photo");
     }
 }

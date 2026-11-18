@@ -35,6 +35,12 @@ info:
     - ord_erid_missing — creative registered without erid
     - ad_inn_invalid — advertiser INN must be 10 or 12 digits
     - network_option_unsupported — option not supported for selected network
+    - story_connection_required — VK channel lacks stories scope connection
+    - story_unsupported_network — stories only supported for vk/ok (not tg/max/ig)
+    - story_media_invalid — story requires exactly one valid photo/video media
+    - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
+    - story_ttl_unsupported — invalid stories_time / TTL enum
+    - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
     - ingest_responsibility_required — grabber activate without legal checkbox
     - ingest_attribution_required — grabber activate without attribution
     - ingest_ssrf_blocked — RSS/website URL targets private network
@@ -74,6 +80,8 @@ tags:
   name: Billing
 - description: Media library uploads via presigned S3 URLs
   name: Media
+- description: Batch scheduled stories (BE-16 / E11)
+  name: Stories
 - description: "Posts, variants, schedule actions, preview, bulk"
   name: Posts
 - description: Projects (clients/brands) inside a workspace
@@ -1440,6 +1448,14 @@ paths:
           - paused
           - archived
           - deleted_from_network
+      - in: query
+        name: contentKind
+        required: false
+        schema:
+          type: string
+          enum:
+          - post
+          - story
       - example: Europe/Moscow
         in: query
         name: timezone
@@ -2525,6 +2541,140 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Re-check channel token and permissions (US-3.5)
+      tags:
+      - Channels
+  /api/v1/channels/{channelId}/story-connection:
+    get:
+      description: OK channels do not require a separate story connect; status is
+        informational.
+      operationId: channelsStoryConnectionGet
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoryConnection"
+          description: Story connection
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get VK stories connection status (BE-16)
+      tags:
+      - Channels
+    post:
+      description: Requires `channels.manage`. For local/emulator set confirmReady=true
+        to mark ready.
+      operationId: channelsStoryConnectionStart
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartStoryConnectionRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoryConnection"
+          description: Story connection
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Start or confirm VK stories connection (BE-16)
       tags:
       - Channels
   /api/v1/ingest/items/bulk:
@@ -5178,6 +5328,14 @@ paths:
           - scheduledAt_desc
           - title_asc
           - updatedAt_desc
+      - in: query
+        name: contentKind
+        required: false
+        schema:
+          type: string
+          enum:
+          - post
+          - story
       - description: Opaque cursor from a previous response `nextCursor`
         example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
         in: query
@@ -6698,6 +6856,76 @@ paths:
       summary: Manually retry a failed publication (US-5.2)
       tags:
       - Publications
+  /api/v1/stories/batch:
+    post:
+      description: Creates up to 50 story posts (best-effort). Requires posts.bulk
+        + posts.schedule.
+      operationId: storiesBatch
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchStoriesRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchStoriesResponse"
+          description: Batch result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Batch-create scheduled stories
+      tags:
+      - Stories
   /api/v1/workspaces:
     get:
       operationId: workspacesList
@@ -8756,6 +8984,77 @@ components:
             $ref: "#/components/schemas/AuditLogEntry"
         nextCursor:
           type: string
+    BatchStoriesRequest:
+      type: object
+      properties:
+        ad:
+          type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarking"
+        channelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 0
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 0
+        projectId:
+          type: string
+          format: uuid
+        scheduledAt:
+          type: string
+          format: date-time
+        stepMinutes:
+          type: integer
+          format: int32
+          description: Minutes between consecutive stories
+          example: 5
+          minimum: 0
+        story:
+          $ref: "#/components/schemas/StoryOptions"
+        timezone:
+          type: string
+          example: Europe/Moscow
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - channelIds
+      - mediaIds
+      - scheduledAt
+      - workspaceId
+    BatchStoriesResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+          format: int32
+        failures:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchStoryFailure"
+        postIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    BatchStoryFailure:
+      type: object
+      properties:
+        code:
+          type: string
+        mediaId:
+          type: string
+          format: uuid
+        message:
+          type: string
     BulkPostsRequest:
       type: object
       properties:
@@ -8889,6 +9188,20 @@ components:
           - disabled
         statusReason:
           type: string
+        storyConnectedAt:
+          type: string
+          format: date-time
+        storyConnectionError:
+          type: string
+        storyConnectionStatus:
+          type: string
+          description: VK stories connect status; OK does not require a separate connect
+          enum:
+          - missing
+          - pending
+          - ready
+          - revoked
+          - error
         timezone:
           type: string
         title:
@@ -9198,6 +9511,8 @@ components:
         stopAt:
           type: string
           format: date-time
+        story:
+          $ref: "#/components/schemas/StoryOptions"
         timezone:
           type: string
           example: Europe/Moscow
@@ -10482,6 +10797,9 @@ components:
         stopAt:
           type: string
           format: date-time
+        story:
+          $ref: "#/components/schemas/StoryOptions"
+          description: Present when contentKind=story
         timezone:
           type: string
           example: Europe/Moscow
@@ -11016,6 +11334,13 @@ components:
             $ref: "#/components/schemas/SessionDto"
         nextCursor:
           type: string
+    StartStoryConnectionRequest:
+      type: object
+      properties:
+        confirmReady:
+          type: boolean
+          description: "When true (local/emulator), mark stories connection ready\
+            \ without OAuth redirect"
     StartTrialRequest:
       type: object
       properties:
@@ -11024,6 +11349,83 @@ components:
           format: uuid
       required:
       - workspaceId
+    StoryConnection:
+      type: object
+      properties:
+        authorizationUrl:
+          type: string
+        channelId:
+          type: string
+          format: uuid
+        connectedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+        network:
+          type: string
+          description: Social network identifier (DB / publish routing key)
+          enum:
+          - vk
+          - tg
+          - ok
+          - max
+          - rutube
+        status:
+          type: string
+          description: VK stories connection status (BE-16)
+          enum:
+          - missing
+          - pending
+          - ready
+          - revoked
+          - error
+    StoryOptions:
+      type: object
+      description: Story-specific options (BE-16 / E11)
+      properties:
+        ads:
+          $ref: "#/components/schemas/AdMarking"
+        autoDeleteAfterMinutes:
+          type: integer
+          format: int32
+          maximum: 262920
+          minimum: 0
+        autoDeleteAt:
+          type: string
+          format: date-time
+        deleteAfterPublish:
+          type: boolean
+        effectiveTtl:
+          type: string
+          description: OK effective TTL after degradation (always ttl_24h)
+          enum:
+          - ttl_1h
+          - ttl_12h
+          - ttl_24h
+          - ttl_48h
+        linkText:
+          type: string
+          description: VK/OK CTA key
+          example: go_to
+        linkUrl:
+          type: string
+          example: https://vk.com/club1
+        mediaKind:
+          type: string
+          description: photo | video
+        ttl:
+          type: string
+          description: Story display TTL (vposter stories_time)
+          enum:
+          - ttl_1h
+          - ttl_12h
+          - ttl_24h
+          - ttl_48h
+        warnings:
+          type: array
+          items:
+            type: string
     Subscription:
       type: object
       properties:
@@ -11253,6 +11655,8 @@ components:
         stopAt:
           type: string
           format: date-time
+        story:
+          $ref: "#/components/schemas/StoryOptions"
         timezone:
           type: string
           example: Europe/Moscow

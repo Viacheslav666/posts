@@ -33,6 +33,23 @@ public final class ApiEnums {
         disabled
     }
 
+    @Schema(description = "VK stories connection status (BE-16)")
+    public enum StoryConnectionStatus {
+        missing,
+        pending,
+        ready,
+        revoked,
+        error
+    }
+
+    @Schema(description = "Story display TTL (vposter stories_time)")
+    public enum StoryTtl {
+        ttl_1h,
+        ttl_12h,
+        ttl_24h,
+        ttl_48h
+    }
+
     @Schema(description = "Channel entity type within a network")
     public enum ChannelType {
         group,

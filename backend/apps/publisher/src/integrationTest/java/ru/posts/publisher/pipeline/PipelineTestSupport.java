@@ -35,15 +35,23 @@ final class PipelineTestSupport {
     }
 
     static UUID seedChannel(JdbcTemplate jdbc, UUID workspaceId, String externalId) {
+        return seedChannel(jdbc, workspaceId, "tg", externalId, "channel");
+    }
+
+    static UUID seedChannel(JdbcTemplate jdbc, UUID workspaceId, String network, String externalId, String type) {
         UUID channelId = UuidV7.generate();
         jdbc.update(
                 """
-                INSERT INTO channels (id, workspace_id, network, external_id, type, title)
-                VALUES (?, ?, 'tg', ?, 'channel', 'Pipeline TG')
+                INSERT INTO channels (id, workspace_id, network, external_id, type, title, story_connection_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 channelId,
                 workspaceId,
-                externalId);
+                network,
+                externalId,
+                type,
+                "Pipeline " + network,
+                "vk".equals(network) ? "ready" : "missing");
         return channelId;
     }
 
@@ -78,18 +86,32 @@ final class PipelineTestSupport {
 
     static void ensurePost(
             JdbcTemplate jdbc, UUID workspaceId, UUID postId, UUID channelId, UUID variantId, String text) {
+        ensurePost(jdbc, workspaceId, postId, channelId, variantId, text, "post", null);
+    }
+
+    static void ensurePost(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID channelId,
+            UUID variantId,
+            String text,
+            String contentKind,
+            String storyTtl) {
         Integer posts = jdbc.queryForObject("SELECT count(*) FROM posts WHERE id = ?", Integer.class, postId);
         if (posts != null && posts > 0) {
             return;
         }
         jdbc.update(
                 """
-                INSERT INTO posts (id, workspace_id, title, base_content, status)
-                VALUES (?, ?, 'pipeline', ?::jsonb, 'scheduled')
+                INSERT INTO posts (id, workspace_id, title, base_content, status, content_kind, story_ttl, story_options)
+                VALUES (?, ?, 'pipeline', ?::jsonb, 'scheduled', ?, ?, '{}'::jsonb)
                 """,
                 postId,
                 workspaceId,
-                "{\"text\":\"" + text.replace("\"", "\\\"") + "\"}");
+                "{\"text\":\"" + text.replace("\"", "\\\"") + "\"}",
+                contentKind == null ? "post" : contentKind,
+                storyTtl);
         String network = jdbc.queryForObject("SELECT network FROM channels WHERE id = ?", String.class, channelId);
         if (network == null) {
             network = "tg";
@@ -104,6 +126,38 @@ final class PipelineTestSupport {
                 channelId,
                 network,
                 "{\"text\":\"" + text.replace("\"", "\\\"") + "\"}");
+    }
+
+    static UUID insertStoryPublication(
+            JdbcTemplate jdbc,
+            UUID workspaceId,
+            UUID postId,
+            UUID variantId,
+            UUID channelId,
+            String network,
+            Instant runAt,
+            String text,
+            String storyTtl)
+            throws Exception {
+        ensurePost(jdbc, workspaceId, postId, channelId, variantId, text, "story", storyTtl);
+        UUID id = UuidV7.generate();
+        String key = sha256(variantId + "|" + runAt + "|story");
+        jdbc.update(
+                """
+                INSERT INTO publications (
+                    id, workspace_id, post_id, variant_id, channel_id, network,
+                    run_at, idempotency_key, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                """,
+                id,
+                workspaceId,
+                postId,
+                variantId,
+                channelId,
+                network,
+                Timestamp.from(runAt),
+                key);
+        return id;
     }
 
     static String sha256(String value) throws Exception {
