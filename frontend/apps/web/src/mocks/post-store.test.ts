@@ -75,7 +75,7 @@ describe('post-store MSW', () => {
     const failed = items.find((item) => item.id === POST_IDS.failed);
     expect(failed?.authorId).toBeTruthy();
     expect(failed?.ad).toBe(true);
-    expect(failed?.adMarking?.erid).toBe('LjN8K2xxxx');
+    expect(failed?.adMarking?.erid).toBe('test-erid-mock-0001');
     expect(failed?.contentKind).toBe('post');
   });
 });

@@ -19,6 +19,7 @@
 | [rbac-coverage-report.md](rbac-coverage-report.md) | Покрытие роль × эндпоинт | QA-6 |
 | [traceability-tc-rbac.md](traceability-tc-rbac.md) | Трассировка TC-RBAC/IDOR → автотест | QA-6 |
 | [traceability-tc-pub.md](traceability-tc-pub.md) | Трассировка TC-PUB → автотест | QA-5 |
+| [traceability-tc-ad.md](traceability-tc-ad.md) | Трассировка TC-AD → автотест (ОРД / маркировка) | QA-10 |
 | `release-report-vX.md` | Релизная готовность | перед релизом |
 
 Связанные артефакты вне `docs/qa/`:

@@ -30,12 +30,13 @@ class VkOrdProviderWireMockTest {
             .options(wireMockConfig().dynamicPort())
             .build();
 
+    private OrdVkProperties properties;
     private VkOrdProvider provider;
     private OrdCredentials credentials;
 
     @BeforeEach
     void setUp() {
-        OrdVkProperties properties = new OrdVkProperties();
+        properties = new OrdVkProperties();
         properties.setBaseUrl(wireMock.baseUrl());
         properties.setReadTimeout(Duration.ofSeconds(5));
         provider = new VkOrdProvider(properties, new ObjectMapper());
@@ -52,13 +53,13 @@ class VkOrdProviderWireMockTest {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathEqualTo("/v3/creative/creative-1"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"erid\":\"2VtzqvwkhtU\",\"marker\":\"Реклама. erid: 2VtzqvwkhtU\"}")));
+                        .withBody("{\"erid\":\"test-erid-vk-0001\",\"marker\":\"Реклама. erid: test-erid-vk-0001\"}")));
 
         CreativeRegistrationResult result = provider.registerCreative(credentials, sampleCreative("creative-1"));
 
         assertThat(result.externalId()).isEqualTo("creative-1");
-        assertThat(result.erid()).isEqualTo("2VtzqvwkhtU");
-        assertThat(result.providerRef()).contains("2VtzqvwkhtU");
+        assertThat(result.erid()).isEqualTo("test-erid-vk-0001");
+        assertThat(result.providerRef()).contains("test-erid-vk-0001");
         wireMock.verify(putRequestedFor(urlPathEqualTo("/v3/creative/creative-1"))
                 .withHeader("Authorization", equalTo("Bearer test-api-key"))
                 .withRequestBody(containing("contract_external_ids"))
@@ -70,13 +71,13 @@ class VkOrdProviderWireMockTest {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathEqualTo("/v3/creative/creative-1"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"erid\":\"same-erid\"}")));
+                        .withBody("{\"erid\":\"test-erid-same-0001\"}")));
 
         CreativeRegistrationResult first = provider.registerCreative(credentials, sampleCreative("creative-1"));
         CreativeRegistrationResult second = provider.registerCreative(credentials, sampleCreative("creative-1"));
 
-        assertThat(first.erid()).isEqualTo("same-erid");
-        assertThat(second.erid()).isEqualTo("same-erid");
+        assertThat(first.erid()).isEqualTo("test-erid-same-0001");
+        assertThat(second.erid()).isEqualTo("test-erid-same-0001");
         wireMock.verify(2, putRequestedFor(urlPathEqualTo("/v3/creative/creative-1")));
     }
 
@@ -91,6 +92,40 @@ class VkOrdProviderWireMockTest {
                     OrdApiException ord = (OrdApiException) ex;
                     assertThat(ord.errorClass()).isEqualTo(OrdErrorClass.RETRYABLE);
                     assertThat(ord.httpStatus()).contains(503);
+                    assertThat(provider.classifyError(ex)).isEqualTo(OrdErrorClass.RETRYABLE);
+                });
+    }
+
+    @Test
+    void http429IsRateLimited() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathEqualTo("/v3/creative/creative-1"))
+                .willReturn(aResponse().withStatus(429).withBody("{\"error\":\"rate limit\"}")));
+
+        assertThatThrownBy(() -> provider.registerCreative(credentials, sampleCreative("creative-1")))
+                .isInstanceOf(OrdApiException.class)
+                .satisfies(ex -> {
+                    OrdApiException ord = (OrdApiException) ex;
+                    assertThat(ord.errorClass()).isEqualTo(OrdErrorClass.RATE_LIMITED);
+                    assertThat(ord.httpStatus()).contains(429);
+                    assertThat(provider.classifyError(ex)).isEqualTo(OrdErrorClass.RATE_LIMITED);
+                });
+    }
+
+    @Test
+    void httpTimeoutIsRetryable() {
+        properties.setReadTimeout(Duration.ofMillis(200));
+        provider = new VkOrdProvider(properties, new ObjectMapper());
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathEqualTo("/v3/creative/creative-1"))
+                .willReturn(aResponse()
+                        .withFixedDelay(1_500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"erid\":\"test-erid-vk-timeout\"}")));
+
+        assertThatThrownBy(() -> provider.registerCreative(credentials, sampleCreative("creative-1")))
+                .isInstanceOf(OrdApiException.class)
+                .satisfies(ex -> {
+                    OrdApiException ord = (OrdApiException) ex;
+                    assertThat(ord.errorClass()).isEqualTo(OrdErrorClass.RETRYABLE);
                     assertThat(provider.classifyError(ex)).isEqualTo(OrdErrorClass.RETRYABLE);
                 });
     }

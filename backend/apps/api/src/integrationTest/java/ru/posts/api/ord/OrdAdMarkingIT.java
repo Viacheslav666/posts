@@ -1,6 +1,5 @@
 package ru.posts.api.ord;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
@@ -44,7 +43,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.PlanEntity;
+import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.PlanRepository;
+import ru.posts.persistence.repository.PublicationRepository;
+import ru.posts.persistence.repository.WorkspaceRepository;
 
 /**
  * TC-AD-* automation for BE-15 (ORD / ad marking). Uses WireMock for VK ORD + Yandex ORD.
@@ -78,6 +82,9 @@ class OrdAdMarkingIT {
     static void ordUrls(DynamicPropertyRegistry registry) {
         registry.add("posts.ord.vk.base-url", vkOrd::baseUrl);
         registry.add("posts.ord.yandex.base-url", yandexOrd::baseUrl);
+        // Short timeouts so TC-AD timeout stubs fail closed quickly in CI.
+        registry.add("posts.ord.vk.read-timeout", () -> "1s");
+        registry.add("posts.ord.yandex.read-timeout", () -> "1s");
     }
 
     @Autowired
@@ -92,13 +99,22 @@ class OrdAdMarkingIT {
     @Autowired
     ChannelRepository channelRepository;
 
+    @Autowired
+    PublicationRepository publicationRepository;
+
+    @Autowired
+    PlanRepository planRepository;
+
+    @Autowired
+    WorkspaceRepository workspaceRepository;
+
     @BeforeEach
     void setUp() {
         mailSender.clear();
         vkOrd.resetAll();
         yandexOrd.resetAll();
-        stubVkHappyPath();
-        stubYandexHappyPath();
+        OrdWireMockStubs.stubVkHappyPath(vkOrd);
+        OrdWireMockStubs.stubYandexHappyPath(yandexOrd);
     }
 
     @Test
@@ -135,7 +151,7 @@ class OrdAdMarkingIT {
                         .with(csrf())
                         .header("Authorization", bearer(token)))
                 .andExpect(status().is2xxSuccessful())
-                .andExpect(jsonPath("$.erid").value("VkEridTest1"))
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.VK_ERID))
                 .andExpect(jsonPath("$.status").value("registered"))
                 .andReturn());
 
@@ -143,7 +159,7 @@ class OrdAdMarkingIT {
                         .with(csrf())
                         .header("Authorization", bearer(token)))
                 .andExpect(status().is2xxSuccessful())
-                .andExpect(jsonPath("$.erid").value("VkEridTest1"))
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.VK_ERID))
                 .andReturn());
 
         assertThat(second.path("id").asText()).isEqualTo(first.path("id").asText());
@@ -176,8 +192,7 @@ class OrdAdMarkingIT {
     @Test
     @DisplayName("TC-AD-12: ORD 5xx on register → schedule fails closed")
     void ord5xxFailClosedOnSchedule() throws Exception {
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v3/creative/.*"))
-                .willReturn(aResponse().withStatus(503).withBody("{\"error\":\"unavailable\"}")));
+        OrdWireMockStubs.stubVkCreativeHttpStatus(vkOrd, 503);
 
         String token = registerVerifyLogin("ad-12-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
@@ -192,6 +207,54 @@ class OrdAdMarkingIT {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "scheduledAt",
                                 Instant.parse("2026-12-02T12:00:00Z").toString(),
+                                "version",
+                                0))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ord_provider_unavailable"));
+    }
+
+    @Test
+    @DisplayName("TC-AD-12: ORD 429 on register → schedule fails closed")
+    void ord429FailClosedOnSchedule() throws Exception {
+        OrdWireMockStubs.stubVkCreativeHttpStatus(vkOrd, 429);
+
+        String token = registerVerifyLogin("ad-12-429-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
+
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduledAt",
+                                Instant.parse("2026-12-02T13:00:00Z").toString(),
+                                "version",
+                                0))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ord_provider_unavailable"));
+    }
+
+    @Test
+    @DisplayName("TC-AD-12: ORD timeout on register → schedule fails closed")
+    void ordTimeoutFailClosedOnSchedule() throws Exception {
+        OrdWireMockStubs.stubVkCreativeFixedDelay(vkOrd, 3_000);
+
+        String token = registerVerifyLogin("ad-12-to-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
+
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduledAt",
+                                Instant.parse("2026-12-02T14:00:00Z").toString(),
                                 "version",
                                 0))))
                 .andExpect(status().isUnprocessableEntity())
@@ -338,7 +401,7 @@ class OrdAdMarkingIT {
                                 "ad",
                                 true,
                                 "erid",
-                                "PreviewErid",
+                                OrdWireMockStubs.PREVIEW_ERID,
                                 "adMarking",
                                 Map.of(
                                         "advertiserName",
@@ -354,7 +417,8 @@ class OrdAdMarkingIT {
                                         "roles",
                                         List.of("advertiser"))))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plainText").value(org.hamcrest.Matchers.containsString("erid: PreviewErid")))
+                .andExpect(jsonPath("$.plainText")
+                        .value(org.hamcrest.Matchers.containsString("erid: " + OrdWireMockStubs.PREVIEW_ERID)))
                 .andExpect(jsonPath("$.plainText").value(org.hamcrest.Matchers.containsString("Реклама")));
     }
 
@@ -373,40 +437,213 @@ class OrdAdMarkingIT {
                 .withHeader("Authorization", equalTo("Bearer ya-test-key")));
     }
 
-    private void stubVkHappyPath() {
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/v1/person/my"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"name\":\"Publisher\"}")));
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/person/.*"))
-                .willReturn(aResponse().withStatus(201)));
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/contract/.*"))
-                .willReturn(aResponse().withStatus(201)));
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v3/creative/.*"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"erid\":\"VkEridTest1\",\"marker\":\"VkEridTest1\"}")));
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v1/invoice/.*"))
-                .willReturn(aResponse().withStatus(201)));
-        vkOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/v1/statistics"))
-                .willReturn(aResponse().withStatus(200)));
+    @Test
+    @DisplayName("TC-AD-02: recurrence weekdays materializes publications within 14-day horizon")
+    void recurrenceMaterializesPublications() throws Exception {
+        String token = registerVerifyLogin("ad-02-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
+
+        Instant scheduledAt = Instant.parse("2026-12-07T09:00:00Z"); // Monday
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduledAt",
+                                scheduledAt.toString(),
+                                "timezone",
+                                "UTC",
+                                "recurrence",
+                                Map.of("freq", "weekdays", "interval", 1),
+                                "version",
+                                0))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("scheduled"));
+
+        assertThat(publicationRepository.findByPostId(postId)).hasSizeGreaterThanOrEqualTo(10);
     }
 
-    private void stubYandexHappyPath() {
-        yandexOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/api/v8/organization"))
-                .willReturn(aResponse().withStatus(404).withBody("{\"detail\":\"not found\"}")));
-        yandexOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/organization"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"status\":\"ok\"}")));
-        yandexOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/contract"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"status\":\"ok\"}")));
-        yandexOrd.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"token\":\"YaEridTest1\",\"status\":\"Request accepted by ORD\"}")));
+    @Test
+    @DisplayName("TC-AD-04: schedule ad registers creative and stores erid on post")
+    void scheduleAdRegistersErid() throws Exception {
+        String token = registerVerifyLogin("ad-04s-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
+
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduledAt",
+                                Instant.parse("2026-12-10T12:00:00Z").toString(),
+                                "version",
+                                0))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("scheduled"))
+                .andExpect(jsonPath("$.adMarking.erid").value(OrdWireMockStubs.VK_ERID));
+
+        mockMvc.perform(get("/api/v1/posts/" + postId + "/ord/status").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.VK_ERID))
+                .andExpect(jsonPath("$.status").value("registered"));
+        assertThat(publicationRepository.findByPostId(postId)).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("TC-AD-08: repost + ad marking registers erid and keeps repost payload")
+    void repostWithAdMarking() throws Exception {
+        String token = registerVerifyLogin("ad-08-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+
+        JsonNode created = readJson(mockMvc.perform(post("/api/v1/posts")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "workspaceId",
+                                workspaceId.toString(),
+                                "title",
+                                "Repost ad",
+                                "baseContent",
+                                Map.of("text", "Комментарий к репосту", "mediaIds", List.of()),
+                                "repost",
+                                Map.of("network", "vk", "externalId", "wall-123_456", "comment", "Смотрите"),
+                                "ad",
+                                true,
+                                "adMarking",
+                                validAdMarking(),
+                                "variants",
+                                List.of(Map.of(
+                                        "channelId",
+                                        channel.getId().toString(),
+                                        "network",
+                                        "vk",
+                                        "content",
+                                        Map.of("text", "Комментарий к репосту", "mediaIds", List.of())))))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.repost.externalId").value("wall-123_456"))
+                .andReturn());
+
+        UUID postId = UUID.fromString(created.path("id").asText());
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/ord/register")
+                        .with(csrf())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.VK_ERID));
+
+        mockMvc.perform(get("/api/v1/posts/" + postId).header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.repost.network").value("vk"))
+                .andExpect(jsonPath("$.adMarking.erid").value(OrdWireMockStubs.VK_ERID));
+    }
+
+    @Test
+    @DisplayName("TC-AD-09: Author cannot schedule ads; Viewer cannot manage ORD connection")
+    void rbacAuthorAndViewerDenied() throws Exception {
+        String ownerToken = registerVerifyLogin("ad-09-owner-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(ownerToken);
+        upgradeToAgency(workspaceId);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(ownerToken, workspaceId, "vk_ord", "vk-test-key");
+
+        JsonNode project = readJson(mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/projects")
+                        .with(csrf())
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Ads", "color", "#112233"))))
+                .andExpect(status().isCreated())
+                .andReturn());
+        UUID projectId = UUID.fromString(project.path("id").asText());
+
+        String authorEmail = "ad-09-author-" + UUID.randomUUID() + "@example.com";
+        String viewerEmail = "ad-09-viewer-" + UUID.randomUUID() + "@example.com";
+        registerVerifyLogin(authorEmail, "Author");
+        registerVerifyLogin(viewerEmail, "Viewer");
+        inviteAndAccept(ownerToken, workspaceId, authorEmail, "author", List.of(projectId));
+        inviteAndAccept(ownerToken, workspaceId, viewerEmail, "viewer", List.of(projectId));
+        String authorToken = login(authorEmail);
+        String viewerToken = login(viewerEmail);
+
+        UUID postId = createAdDraft(authorToken, workspaceId, channel.getId(), validAdMarking());
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/schedule")
+                        .with(csrf())
+                        .header("Authorization", bearer(authorToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduledAt",
+                                Instant.parse("2026-12-11T12:00:00Z").toString(),
+                                "version",
+                                0))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("forbidden"));
+
+        mockMvc.perform(put("/api/v1/workspaces/" + workspaceId + "/ord/connections/vk_ord")
+                        .with(csrf())
+                        .header("Authorization", bearer(viewerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "apiKey",
+                                "viewer-blocked-key",
+                                "publisherInn",
+                                "7707083893",
+                                "publisherName",
+                                "ООО Паблишер",
+                                "orgType",
+                                "juridical",
+                                "roles",
+                                List.of("publisher"),
+                                "isDefault",
+                                true,
+                                "responsibilityAccepted",
+                                true))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("forbidden"));
+    }
+
+    @Test
+    @DisplayName("TC-AD-14: selfPromo skips third-party contract upsert")
+    void selfPromoSkipsContract() throws Exception {
+        String token = registerVerifyLogin("ad-14-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "vk_ord", "vk-test-key");
+
+        Map<String, Object> marking = validAdMarking();
+        marking.put("selfPromo", true);
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), marking);
+
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/ord/register")
+                        .with(csrf())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.VK_ERID));
+
+        vkOrd.verify(0, putRequestedFor(urlPathMatching("/v1/contract/.*")));
+        vkOrd.verify(1, putRequestedFor(urlPathMatching("/v3/creative/.*")));
+    }
+
+    @Test
+    @DisplayName("TC-AD-04/Yandex: register creative via Yandex ORD returns erid")
+    void yandexRegisterCreative() throws Exception {
+        String token = registerVerifyLogin("ad-04y-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        ChannelEntity channel = seedChannel(workspaceId, "vk");
+        upsertConnection(token, workspaceId, "yandex_ord", "ya-test-key");
+        UUID postId = createAdDraft(token, workspaceId, channel.getId(), validAdMarking());
+
+        mockMvc.perform(post("/api/v1/posts/" + postId + "/ord/register")
+                        .with(csrf())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.erid").value(OrdWireMockStubs.YANDEX_ERID));
     }
 
     private void upsertConnection(String token, UUID workspaceId, String provider, String apiKey) throws Exception {
@@ -547,6 +784,59 @@ class OrdAdMarkingIT {
                 .andExpect(status().isOk())
                 .andReturn());
         return UUID.fromString(list.path("items").get(0).path("id").asText());
+    }
+
+    private void upgradeToAgency(UUID workspaceId) {
+        PlanEntity agency = planRepository.findByCode("agency").orElseThrow();
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId).orElseThrow();
+        workspace.setPlanId(agency.getId());
+        workspaceRepository.save(workspace);
+    }
+
+    private void inviteAndAccept(String ownerToken, UUID workspaceId, String email, String role, List<UUID> projectIds)
+            throws Exception {
+        mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/invitations")
+                        .with(csrf())
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email,
+                                "role", role,
+                                "projectIds", projectIds))))
+                .andExpect(status().isCreated());
+        String inviteToken = latestMailToken(email);
+        mockMvc.perform(post("/api/v1/invitations/accept")
+                        .with(csrf())
+                        .header("Authorization", bearer(login(email)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", inviteToken))))
+                .andExpect(status().isOk());
+    }
+
+    private String login(String email) throws Exception {
+        MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("email", email, "password", "Password1!Password1!"))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper
+                .readTree(login.getResponse().getContentAsString())
+                .path("accessToken")
+                .asText();
+    }
+
+    private String latestMailToken(String email) {
+        return mailSender.messages().stream()
+                .filter(m -> m.to().equalsIgnoreCase(email))
+                .reduce((a, b) -> b)
+                .map(m -> {
+                    Matcher matcher = TOKEN_IN_BODY.matcher(m.body());
+                    assertThat(matcher.find()).isTrue();
+                    return matcher.group(1);
+                })
+                .orElseThrow(() -> new AssertionError("No mail for " + email));
     }
 
     private JsonNode readJson(MvcResult result) throws Exception {

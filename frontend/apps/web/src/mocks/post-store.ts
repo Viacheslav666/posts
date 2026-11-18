@@ -105,7 +105,7 @@ function createInitialState(): PostStoreState {
       ad: true,
       adMarking: {
         enabled: true,
-        erid: 'LjN8K2xxxx',
+        erid: 'test-erid-mock-0001',
         advertiserName: 'ООО Посты',
       },
     },

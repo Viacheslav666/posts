@@ -8,26 +8,28 @@
 
 ## Трассировка AC → TC
 
-| AC# | Кратко | TC | Автоматизация |
-|---|---|---|---|
-| 1 | Поля редактора паритет | TC-AD-01 | авто |
-| 2 | Recurrence enum | TC-AD-02 | авто |
-| 3 | isAd без ORD → блок | TC-AD-03 | авто |
-| 4 | erid sandbox | TC-AD-04 | авто (WireMock ORD) |
-| 5 | Акт/статистика | TC-AD-05 | авто |
-| 6 | Автоудаление рекламы | TC-AD-06 | авто |
-| 7 | 0 дублей рекламного поста | TC-AD-07 | авто |
-| 8 | Репост+маркировка VK/OK | TC-AD-08 | авто |
-| 9 | RBAC ORD | TC-AD-09 | авто |
-| 10 | ★ предпросмотр маркера | TC-AD-10 | авто |
-| — | Невалидный ИНН | TC-AD-11 | авто |
-| — | ORD 5xx → fail-closed | TC-AD-12 | авто |
-| — | Идемпотентность creative external_id | TC-AD-13 | авто |
-| — | Самореклама | TC-AD-14 | авто |
-| — | Смена провайдера VK↔Yandex | TC-AD-15 | ручной / авто |
-| — | ККТУ/ОКСМ справочники | TC-AD-16 | авто |
-| — | Donut/co-authors/poll UI | TC-AD-17 | авто |
-| — | IDOR чужой creative | TC-AD-18 | авто |
+| AC# | Кратко | TC | Автоматизация | Автотест (QA-10) |
+|---|---|---|---|---|
+| 1 | Поля редактора паритет | TC-AD-01 | авто | e2e `ad-marking.spec.ts` + FE unit |
+| 2 | Recurrence enum | TC-AD-02 | авто | `OrdAdMarkingIT` + FE + e2e |
+| 3 | isAd без ORD → блок | TC-AD-03 | авто | `OrdAdMarkingIT` + FE + e2e |
+| 4 | erid sandbox | TC-AD-04 | авто (WireMock ORD) | `OrdAdMarkingIT` + `OrdAdPipelineIT` + e2e |
+| 5 | Акт/статистика | TC-AD-05 | авто | `OrdAdMarkingIT#reportRunIdempotent` |
+| 6 | Автоудаление рекламы | TC-AD-06 | авто | `OrdAdPipelineIT#tcAd06AutoDeleteAfterPeriod` |
+| 7 | 0 дублей рекламного поста | TC-AD-07 | авто | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` |
+| 8 | Репост+маркировка VK/OK | TC-AD-08 | авто | `OrdAdMarkingIT#repostWithAdMarking` |
+| 9 | RBAC ORD | TC-AD-09 | авто | `OrdAdMarkingIT#rbacAuthorAndViewerDenied` |
+| 10 | ★ предпросмотр маркера | TC-AD-10 | авто | `OrdAdMarkingIT#previewShowsMarker` |
+| — | Невалидный ИНН | TC-AD-11 | авто | `OrdAdMarkingIT` + validator unit |
+| — | ORD 5xx/429/timeout → fail-closed | TC-AD-12 | авто | `OrdAdMarkingIT` + `OrdAdPipelineIT` + provider WM |
+| — | Идемпотентность creative external_id | TC-AD-13 | авто | `OrdAdMarkingIT` + provider WM |
+| — | Самореклама | TC-AD-14 | авто | `OrdAdMarkingIT#selfPromoSkipsContract` |
+| — | Смена провайдера VK↔Yandex | TC-AD-15 | ручной / авто | `OrdAdMarkingIT#yandexConnectionTest` |
+| — | ККТУ/ОКСМ справочники | TC-AD-16 | авто | `OrdAdMarkingIT#dictionariesAvailable` |
+| — | Donut/co-authors/poll UI | TC-AD-17 | авто | `OrdAdMarkingIT#postOptionsParity` |
+| — | IDOR чужой creative | TC-AD-18 | авто | `OrdAdMarkingIT#foreignCreativeIdor` |
+
+Полная матрица: [`docs/qa/traceability-tc-ad.md`](../traceability-tc-ad.md).
 
 ---
 
