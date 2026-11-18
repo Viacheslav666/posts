@@ -32,6 +32,10 @@ public class PostEntity extends BaseUuidEntity {
     @Column(nullable = false)
     private String status = "draft";
 
+    /** null | billing | user — billing pause keeps schedule; unfreeze restores only billing pauses. */
+    @Column(name = "pause_reason")
+    private String pauseReason;
+
     @Column(name = "scheduled_at")
     private Instant scheduledAt;
 
@@ -151,6 +155,14 @@ public class PostEntity extends BaseUuidEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getPauseReason() {
+        return pauseReason;
+    }
+
+    public void setPauseReason(String pauseReason) {
+        this.pauseReason = pauseReason;
     }
 
     public Instant getScheduledAt() {

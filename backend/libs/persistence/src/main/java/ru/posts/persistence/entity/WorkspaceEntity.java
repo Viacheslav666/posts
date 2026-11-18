@@ -28,6 +28,10 @@ public class WorkspaceEntity extends BaseUuidEntity {
     @Column(name = "current_period_end")
     private Instant currentPeriodEnd;
 
+    /** balance (default) | subscription (legacy BE-12). */
+    @Column(name = "billing_model", nullable = false)
+    private String billingModel = "balance";
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -83,6 +87,14 @@ public class WorkspaceEntity extends BaseUuidEntity {
 
     public void setCurrentPeriodEnd(Instant currentPeriodEnd) {
         this.currentPeriodEnd = currentPeriodEnd;
+    }
+
+    public String getBillingModel() {
+        return billingModel;
+    }
+
+    public void setBillingModel(String billingModel) {
+        this.billingModel = billingModel;
     }
 
     public Instant getCreatedAt() {

@@ -54,7 +54,7 @@ user_identities(id, user_id, provider /*vk|yandex|telegram*/, provider_user_id, 
       unique(provider, provider_user_id))
 sessions(id, user_id, refresh_token_hash, user_agent, ip inet, created_at, last_used_at, revoked_at)
 workspaces(id, name, owner_user_id, plan_id, billing_status /*trial|active|grace|frozen*/,
-      trial_ends_at, current_period_end, created_at)
+      trial_ends_at, current_period_end, billing_model /*balance|subscription*/, created_at)
 workspace_members(workspace_id, user_id, role /*owner|admin|editor|author|viewer*/, invited_by, created_at,
       primary key(workspace_id,user_id))
 invitations(id, workspace_id, email, role, project_ids uuid[], token_hash, expires_at, accepted_at)
@@ -104,14 +104,25 @@ audit_log(id, workspace_id, actor_id, action, entity, entity_id, diff jsonb, ip,
 notifications(id, user_id, type, payload, read_at, created_at)
 idempotency_requests(key, user_id, request_hash, response jsonb, created_at)   -- для API Idempotency-Key, TTL 24 ч
 
--- Биллинг
-plans(id, code, name, price_month, price_year, limits jsonb /*channels, seats, posts_month, ai_credits*/)
-subscriptions(id, workspace_id, plan_id, status, period_start, period_end, cancel_at_period_end, provider_payment_method_id)
-payments(id, workspace_id, provider /*yookassa|tkassa*/, provider_payment_id unique, amount, currency,
-      status, receipt_id, created_at)
-ledger_entries(id, workspace_id, amount, kind /*charge|payment|refund|promo|referral*/, ref_id, created_at)  -- двойная запись, баланс = SUM
-promo_codes(...), referrals(...), invoices(...)
+-- Биллинг (модель по умолчанию — баланс + посуточное списание; подписка — legacy за фичефлагом)
+plans(id, code, name, price_month, price_year, price_day_kopecks, billing_model /*balance|subscription*/,
+      active, limits jsonb /*channels, seats, posts_month, ai_credits, grabber_rules, stories_month*/)
+wallets(workspace_id PK, balance_kopecks, bonus_balance_kopecks, version, updated_at)
+  -- инвариант: balance_kopecks = SUM(ledger_entries.amount_kopecks); refundable = balance - bonus
+ledger_entries(id, workspace_id, amount, amount_kopecks, kind /*charge|payment|refund|promo|referral*/,
+      is_bonus, idempotency_key unique, ref_id, description, created_at)  -- append-only
+daily_charges(id, workspace_id, charge_date date, amount_kopecks, plan_id, channels_counted,
+      ledger_entry_id, status, unique(workspace_id, charge_date))
+autopay_settings(workspace_id PK, enabled, threshold_kopecks default 10000, topup_amount_kopecks,
+      provider_payment_method_id, card_mask, last_triggered_at, last_payment_id)
+subscriptions(...)  -- legacy, не удалять
+payments(id, workspace_id, provider, provider_payment_id unique, amount, currency, status, receipt_id,
+      purpose /*topup|autopay|subscription|invoice*/, ...)
+promo_codes(...), referrals(...),
+invoices(id, workspace_id, payment_id, amount, status, pdf_url, act_pdf_url, buyer_requisites jsonb,
+      invoice_number, paid_at, ...)
 usage_counters(workspace_id, period, metric /*posts|ai_credits*/, value)
+-- posts.pause_reason /*null|billing|user*/ — при balance≤0 публикации → paused(billing), не удаляются
 ```
 Фаза 2+: `approvals`, `comments`, `rubrics`, `content_slots`, `ord_contractors`, `ord_contracts`, `ord_creatives`, `ord_reports`, `inbox_threads`, `inbox_messages`, `automation_rules` (автопостинг предложки, антиспам, кросспостинг, RSS, граббер — общая таблица правил с `type` и `config jsonb` + журналы), `api_keys`, `webhook_endpoints`, `webhook_deliveries`.
 
@@ -195,7 +206,7 @@ public interface SocialAdapter {
 - Каналы: `/channels`, `/channels/connect/{network}/start|callback`, `/channels/{id}/check`, `/channel-sets`, `GET /networks/capabilities` (лимиты и опции сетей для валидации на фронте).
 - Посты: `/posts` (фильтры `from,to,status,channelId,projectId,network,q`, курсорная пагинация), `/posts/{id}`, `/posts/{id}/schedule|pause|resume|duplicate`, `/posts/bulk`, `/posts/{id}/publications`, `/calendar?from&to` (облегчённые DTO), `POST /posts/preview` (серверный рендер варианта для сети).
 - Медиа: `POST /media/uploads` → presigned multipart URL S3; `POST /media/{id}/complete`; `GET /media`.
-- Биллинг: `/billing/plans`, `/billing/subscription`, `/billing/checkout`, `/billing/invoices`, `/billing/promo/apply`, `POST /webhooks/yookassa` (проверка IP-диапазонов/подписи, идемпотентно по `provider_payment_id`).
+- Биллинг: `/billing/plans`, `/billing/wallet`, `/billing/transactions`, `/billing/payments`, `/billing/checkout` (пополнение), `/billing/plan/change`, `/billing/autopay`, `/billing/payment-method`, `/billing/invoices` + `/invoices/request` + PDF/акт, `/billing/promo/apply`, `/billing/subscription` (legacy/совместимость), `POST /webhooks/yookassa` (IP/подпись, идемпотентно по `provider_payment_id`).
 - Уведомления: `/notifications`, `/notification-settings`.
 - Вебхуки соцсетей: `/hooks/vk/{channelId}` (Callback API confirmation + secret), `/hooks/tg/{botId}` (`X-Telegram-Bot-Api-Secret-Token`), `/hooks/max/{botId}` — только валидация и публикация в очередь `ingest` (ответ < 100 мс).
 - WebSocket: `/ws` (STOMP), топики `/topic/workspaces/{id}/publications`, `/user/queue/notifications`; авторизация JWT при CONNECT; межподовая рассылка через RabbitMQ STOMP relay или fan-out exchange.
@@ -211,11 +222,17 @@ public interface SocialAdapter {
 - Защита: Bucket4j на логин (5/мин/IP+email), Yandex SmartCaptcha после 3 неудач, CSRF для cookie-эндпоинтов (`CookieCsrfTokenRepository`), CORS whitelist, заголовки безопасности, проверка загрузок по magic bytes (Apache Tika), SSRF-защита для URL (RSS, картинки по ссылке — запрет приватных диапазонов, DNS-rebinding), секреты только из Vault/K8s secrets, маскирование в логах (Logback-маскер).
 - 152-ФЗ: данные в РФ, согласие на обработку ПДн, экспорт/удаление данных (`DELETE /me` → анонимизация через 30 дней).
 
-## 9. Биллинг
-- Подписка на workspace; лимиты (`plans.limits`) проверяет доменный `PlanLimitService` (каналы, места, посты/мес, AI-кредиты) → 402 `plan_limit_exceeded`.
-- ЮKassa: создание платежа с `save_payment_method`, вебхуки `payment.succeeded/canceled`, `refund.succeeded`, чеки 54-ФЗ, идемпотентность по `Idempotence-Key`.
-- Ежедневная ShedLock-задача: продления (D-1, D0, D+2), grace 3 дня → `frozen` (публикации → `paused` с причиной `billing`), разморозка после оплаты (просроченные — на выбор пользователя).
-- Ledger двойной записи (`ledger_entries`), суммы — `BigDecimal`/копейки `long`; режим «посуточное списание» (Фаза 2) — на том же ledger.
+## 9. Биллинг (баланс + посуточное списание; решение заказчика 2026-11-18)
+- **Модель по умолчанию — баланс workspace** (`posts.billing.model=balance`, на workspace — `billing_model`). Legacy-подписка (`subscription`) сохранена за фичефлагом; таблицы `subscriptions` не удалять (expand-only миграция).
+- **Кошелёк:** `wallets.balance_kopecks` (кэш) + append-only `ledger_entries` с `idempotency_key`; инвариант `balance = SUM(amount_kopecks)`; бонусы отдельно (`bonus_balance_kopecks`); «доступно к возврату» = balance − bonus. Операции под `SELECT … FOR UPDATE` / optimistic `version`.
+- **Тарифы:** сетка по max каналов с `price_day_kopecks` в БД (дефолт как у vposter: 6→13₽, 12→17₽, 25→27₽, далее +25 каналов = +10₽/сут). API отдаёт также `priceMonth ≈ priceDay×30`. Смена тарифа — сразу; лимиты модулей из `plans.limits` через `PlanLimitService` → 402 `plan_limit_exceeded`. Дубль сообщества в учёте каналов считается дважды (как у vposter), если у канала есть linked duplicate — см. `BillingChannelCounter`.
+- **Посуточное списание:** ShedLock-джоба батчами (`FOR UPDATE SKIP LOCKED`), ровно одно списание на `(workspace_id, charge_date)` (unique), догоняющие дни после простоя. При balance &lt; цены суток — частичное списание до 0 не делается: доступ приостанавливается.
+- **Нулевой баланс:** `billing_status=frozen`; запланированные посты → `paused` + `pause_reason=billing` (данные и расписание не теряются); диспетчер публикаций не берёт due-записи frozen workspace. После пополнения — `active`, посты с `pause_reason=billing` возвращаются в `scheduled`. Уведомления `billing.low_balance` / `billing.access_suspended` через outbox → BE-11.
+- **Автоплатёж:** сохранённый `payment_method_id` ЮKassa; порог (default 100₽) и сумма пополнения; защита от повторов (idempotence + `last_triggered_at` / уникальный ключ суток).
+- **Пополнение / чеки:** ЮKassa `save_payment_method`, вебхуки `payment.succeeded/canceled`, `refund.succeeded`, чеки 54-ФЗ, `Idempotence-Key`.
+- **Промокоды:** зачисление бонуса на баланс (`fixed`/`promo`); бонус за регистрацию — `posts.billing.registration-bonus-kopecks` (default 0 = выкл).
+- **Счета юрлицам:** реквизиты ИНН/КПП/ОГРН с валидацией, PDF счёта и акта; зачисление на баланс — ручное подтверждение platform_admin. ЭДО ФНС 970 — следующий шаг (не в этом релизе).
+- **Миграция с подписки:** остаток оплаченного периода → credit на баланс (`kind=payment`, description=migration); фичефлаг переключения per-workspace / глобальный.
 
 ## 10. Фаза 2 — ключевые модули (проектировать расширяемо)
 - **ORD:** интерфейс `OrdProvider` (VK ОРД, ОРД Яндекса): контрагенты, договоры, креативы → erid → вставка «Реклама. ИНН. erid: …» в вариант; ежемесячные отчёты; справочники ККТУ/ОКСМ с синхронизацией.

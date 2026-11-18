@@ -165,6 +165,13 @@ final class RbacHttpProbeSupport {
     private int performDestructiveAllow(String accessToken, RbacEndpointMapLoader.Endpoint endpoint, EndpointIds ids)
             throws Exception {
         return switch (endpoint.operationId()) {
+            case "billingDeletePaymentMethod" -> {
+                UUID disposable = createWorkspace(accessToken, "RBAC billing pm " + UUID.randomUUID());
+                yield statusOf(delete("/api/v1/billing/payment-method")
+                        .param("workspaceId", disposable.toString())
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             case "workspacesDelete" -> {
                 UUID disposable = createWorkspace(accessToken, "RBAC disposable " + UUID.randomUUID());
                 yield statusOf(delete("/api/v1/workspaces/" + disposable)
@@ -388,6 +395,7 @@ final class RbacHttpProbeSupport {
             values.put("{publicationId}", randomUuid());
         }
         values.put("{sessionId}", randomUuid());
+        values.put("{invoiceId}", randomUuid());
         return values;
     }
 
@@ -399,7 +407,14 @@ final class RbacHttpProbeSupport {
         // Only owner gets a disposable workspace (they are owner there). Deny roles keep the
         // shared fixture membership so billing.manage/view correctly returns 403.
         if (scope == Scope.OWN
-                && ("billingStartTrial".equals(operationId) || "billingCheckout".equals(operationId))
+                && (operationId.startsWith("billing")
+                        && (operationId.contains("Trial")
+                                || operationId.contains("Checkout")
+                                || operationId.contains("Autopay")
+                                || operationId.contains("ChangePlan")
+                                || operationId.contains("RequestInvoice")
+                                || operationId.contains("AutoRenew")
+                                || operationId.contains("ApplyPromo")))
                 && isAllowed(ids.roleOf(accessToken), "billing.manage")) {
             workspaceId = createWorkspace(accessToken, "RBAC billing " + UUID.randomUUID());
         }
@@ -424,8 +439,7 @@ final class RbacHttpProbeSupport {
             case "billingCheckout" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
-                node.put("planCode", "pro");
-                node.put("period", "month");
+                node.put("amountKopecks", 50_000);
                 yield node.toString();
             }
             case "billingApplyPromo" -> {
@@ -438,6 +452,37 @@ final class RbacHttpProbeSupport {
                     .createObjectNode()
                     .put("workspaceId", workspaceId.toString())
                     .toString();
+            case "billingUpdateAutopay" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("enabled", false);
+                node.put("thresholdKopecks", 10_000);
+                node.put("topupAmountKopecks", 50_000);
+                yield node.toString();
+            }
+            case "billingSetAutoRenew" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("enabled", false);
+                yield node.toString();
+            }
+            case "billingChangePlan" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("planCode", "daily_6");
+                yield node.toString();
+            }
+            case "billingRequestInvoice" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("amountKopecks", 100_000);
+                var buyer = node.putObject("buyer");
+                buyer.put("name", "ООО Тест");
+                buyer.put("inn", "7707083893");
+                buyer.put("kpp", "773601001");
+                buyer.put("ogrn", "1027700132195");
+                yield node.toString();
+            }
             case "channelSetsCreate" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("name", "RBAC Set " + UUID.randomUUID());

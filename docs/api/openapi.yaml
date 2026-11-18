@@ -27,6 +27,8 @@ info:
     - promo_invalid — promo code inactive, expired, or not applicable
     - payment_provider_error — YooKassa / payment provider failure
     - billing_frozen — workspace frozen for non-payment; mutations blocked
+    - billing_insufficient_funds — wallet balance too low for daily charge / operation
+    - billing_requisites_invalid — INN/KPP/OGRN validation failed for legal invoice
     - email_not_verified — action requires verified email
     - channel_reauth_required — channel token revoked/expired
     - totp_required — password ok, TOTP/backup code required (401)
@@ -79,7 +81,7 @@ tags:
   name: Social hooks
 - description: In-app notifications and delivery settings (US-5.4)
   name: Notifications
-- description: "Plans, subscription, checkout, invoices, promo codes"
+- description: "Wallet, plans, top-up, autopay, invoices, promo codes"
   name: Billing
 - description: Media library uploads via presigned S3 URLs
   name: Media
@@ -972,6 +974,130 @@ paths:
       summary: Register with email and password
       tags:
       - Auth
+  /api/v1/billing/autopay:
+    get:
+      operationId: billingGetAutopay
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutopaySettings"
+          description: Autopay settings
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get autopay settings
+      tags:
+      - Billing
+    put:
+      operationId: billingUpdateAutopay
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAutopayRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutopaySettings"
+          description: Autopay settings
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update autopay settings
+      tags:
+      - Billing
   /api/v1/billing/checkout:
     post:
       operationId: billingCheckout
@@ -1037,7 +1163,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Create YooKassa checkout session (US-6.3)
+      summary: Create YooKassa top-up or subscription checkout
       tags:
       - Billing
   /api/v1/billing/invoices:
@@ -1125,6 +1251,456 @@ paths:
       summary: List invoices for a workspace
       tags:
       - Billing
+  /api/v1/billing/invoices/request:
+    post:
+      operationId: billingRequestInvoice
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestInvoiceRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+          description: Invoice
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Request a legal-entity invoice (PDF)
+      tags:
+      - Billing
+  /api/v1/billing/invoices/{id}/act:
+    get:
+      operationId: billingInvoiceActPdf
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Download closing act PDF
+      tags:
+      - Billing
+  /api/v1/billing/invoices/{id}/pdf:
+    get:
+      operationId: billingInvoicePdf
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Download invoice PDF
+      tags:
+      - Billing
+  /api/v1/billing/payment-method:
+    delete:
+      operationId: billingDeletePaymentMethod
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Detached
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Detach saved payment method
+      tags:
+      - Billing
+    get:
+      operationId: billingGetPaymentMethod
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+          description: Payment method
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get saved payment method mask
+      tags:
+      - Billing
+  /api/v1/billing/payments:
+    get:
+      operationId: billingListPayments
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentPage"
+          description: Payments page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Payment history
+      tags:
+      - Billing
+  /api/v1/billing/plan/change:
+    post:
+      operationId: billingChangePlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePlanRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: Updated subscription/plan
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Change tariff plan immediately
+      tags:
+      - Billing
   /api/v1/billing/plans:
     get:
       operationId: billingListPlans
@@ -1180,7 +1756,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: List public billing plans (US-6.1)
+      summary: List public billing plans
       tags:
       - Billing
   /api/v1/billing/promo/apply:
@@ -1242,7 +1818,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Apply a promo code to a workspace (US-6.6)
+      summary: Apply a promo code (balance bonus or trial)
       tags:
       - Billing
   /api/v1/billing/subscription:
@@ -1305,13 +1881,163 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Get current workspace subscription
+      summary: Get current workspace plan / billing status
+      tags:
+      - Billing
+  /api/v1/billing/subscription/auto-renew:
+    post:
+      operationId: billingSetAutoRenew
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAutoRenewRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutopaySettings"
+          description: Autopay settings
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Enable/disable autopay (legacy alias)
+      tags:
+      - Billing
+  /api/v1/billing/transactions:
+    get:
+      operationId: billingListTransactions
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: kind
+        required: false
+        schema:
+          type: string
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionPage"
+          description: Transactions page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Wallet transaction history
       tags:
       - Billing
   /api/v1/billing/trial/start:
     post:
-      description: One trial per account. Repeat → 409 with code `trial_already_used`.
-        Sets workspace billingStatus=trial.
       operationId: billingStartTrial
       parameters:
       - in: header
@@ -1375,7 +2101,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
-      summary: Start 7-day Pro trial without a card (US-6.2)
+      summary: Start trial without a card
+      tags:
+      - Billing
+  /api/v1/billing/wallet:
+    get:
+      operationId: billingGetWallet
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+          description: Wallet
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get workspace wallet balance and forecast
       tags:
       - Billing
   /api/v1/calendar:
@@ -9478,9 +10267,13 @@ components:
       properties:
         code:
           type: string
+        creditedKopecks:
+          type: integer
+          format: int64
+          description: Bonus credited in kopecks when kind credits balance
         kind:
           type: string
-          example: percent
+          example: fixed
         validUntil:
           type: string
           format: date-time
@@ -9530,6 +10323,25 @@ components:
             $ref: "#/components/schemas/AuditLogEntry"
         nextCursor:
           type: string
+    AutopaySettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        lastTriggeredAt:
+          type: string
+          format: date-time
+        paymentMethod:
+          $ref: "#/components/schemas/PaymentMethod"
+        thresholdKopecks:
+          type: integer
+          format: int64
+        topupAmountKopecks:
+          type: integer
+          format: int64
+        workspaceId:
+          type: string
+          format: uuid
     BatchStoriesRequest:
       type: object
       properties:
@@ -9635,6 +10447,39 @@ components:
           items:
             type: string
             format: uuid
+    BuyerRequisites:
+      type: object
+      properties:
+        address:
+          type: string
+          maxLength: 512
+          minLength: 0
+        bankAccount:
+          type: string
+          pattern: "\\d{20}"
+        bankName:
+          type: string
+          maxLength: 256
+          minLength: 0
+        bik:
+          type: string
+          pattern: "\\d{9}"
+        inn:
+          type: string
+          pattern: "\\d{10}|\\d{12}"
+        kpp:
+          type: string
+          pattern: "\\d{9}"
+        name:
+          type: string
+          maxLength: 256
+          minLength: 0
+        ogrn:
+          type: string
+          pattern: "\\d{13}|\\d{15}"
+      required:
+      - inn
+      - name
     CalendarItem:
       type: object
       description: Lightweight calendar cell DTO
@@ -9695,6 +10540,18 @@ components:
           - deleted_from_network
         title:
           type: string
+    ChangePlanRequest:
+      type: object
+      properties:
+        planCode:
+          type: string
+          example: daily_25
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - planCode
+      - workspaceId
     Channel:
       type: object
       properties:
@@ -9900,6 +10757,12 @@ components:
     CheckoutRequest:
       type: object
       properties:
+        amountKopecks:
+          type: integer
+          format: int64
+          description: Top-up amount in kopecks (balance mode)
+          example: 200000
+          minimum: 100
         period:
           type: string
           description: Billing period for checkout
@@ -9908,15 +10771,13 @@ components:
           - year
         planCode:
           type: string
-          example: pro
+          description: Legacy subscription plan code
         promoCode:
           type: string
         workspaceId:
           type: string
           format: uuid
       required:
-      - period
-      - planCode
       - workspaceId
     CheckoutResponse:
       type: object
@@ -10732,8 +11593,17 @@ components:
     Invoice:
       type: object
       properties:
+        actPdfUrl:
+          type: string
         amount:
           type: number
+        amountKopecks:
+          type: integer
+          format: int64
+        buyerRequisites:
+          type: object
+          additionalProperties:
+            type: object
         createdAt:
           type: string
           format: date-time
@@ -10743,6 +11613,11 @@ components:
         id:
           type: string
           format: uuid
+        invoiceNumber:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
         pdfUrl:
           type: string
         status:
@@ -11367,12 +12242,60 @@ components:
       required:
       - newPassword
       - token
+    PaymentListItem:
+      type: object
+      properties:
+        amountKopecks:
+          type: integer
+          format: int64
+        confirmationUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        method:
+          type: string
+        provider:
+          type: string
+        purpose:
+          type: string
+        receiptId:
+          type: string
+        status:
+          type: string
+    PaymentMethod:
+      type: object
+      properties:
+        cardMask:
+          type: string
+          example: '**** 1234'
+        providerPaymentMethodId:
+          type: string
+        type:
+          type: string
+    PaymentPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentListItem"
+        nextCursor:
+          type: string
     Plan:
       type: object
       properties:
+        billingModel:
+          type: string
+          example: balance
         code:
           type: string
-          example: pro
+          example: daily_25
         id:
           type: string
           format: uuid
@@ -11381,15 +12304,22 @@ components:
           additionalProperties:
             type: object
           example:
-            channels: 30
+            channels: 25
             seats: 3
-            posts_month: null
-            ai_credits: 1000
         name:
           type: string
-          example: Про
+          example: До 25 каналов
+        priceDayKopecks:
+          type: integer
+          format: int64
+          description: Daily price in kopecks
+          example: 2700
         priceMonth:
           type: number
+        priceMonthDisplay:
+          type: number
+          description: Display monthly price ≈ day×30
+          example: 810.0
         priceYear:
           type: number
     PollOptions:
@@ -11975,6 +12905,22 @@ components:
           description: Canonical URL of the source post when id is unknown
       required:
       - network
+    RequestInvoiceRequest:
+      type: object
+      properties:
+        amountKopecks:
+          type: integer
+          format: int64
+          minimum: 100
+        buyer:
+          $ref: "#/components/schemas/BuyerRequisites"
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - amountKopecks
+      - buyer
+      - workspaceId
     SchedulePostRequest:
       type: object
       properties:
@@ -12028,6 +12974,18 @@ components:
             $ref: "#/components/schemas/SessionDto"
         nextCursor:
           type: string
+    SetAutoRenewRequest:
+      type: object
+      description: Legacy alias for autopay enable/disable
+      properties:
+        enabled:
+          type: boolean
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - enabled
+      - workspaceId
     StartStoryConnectionRequest:
       type: object
       properties:
@@ -12122,7 +13080,11 @@ components:
             type: string
     Subscription:
       type: object
+      description: Current plan + billing status (legacy-compatible shape)
       properties:
+        billingModel:
+          type: string
+          example: balance
         cancelAtPeriodEnd:
           type: boolean
         id:
@@ -12205,6 +13167,53 @@ components:
         tokenType:
           type: string
           example: Bearer
+    Transaction:
+      type: object
+      properties:
+        actUrl:
+          type: string
+        amountKopecks:
+          type: integer
+          format: int64
+          description: "Signed amount in kopecks (credit >, debit <)"
+        bonus:
+          type: boolean
+        commissionKopecks:
+          type: integer
+          format: int64
+          description: Payment commission in kopecks if known
+        createdAt:
+          type: string
+          format: date-time
+        details:
+          type: string
+        id:
+          type: string
+          format: uuid
+        invoiceId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          example: payment
+        method:
+          type: string
+        paymentId:
+          type: string
+          format: uuid
+        receiptUrl:
+          type: string
+    TransactionPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        nextCursor:
+          type: string
     TwoFactorConfirmRequest:
       type: object
       properties:
@@ -12247,6 +13256,25 @@ components:
         message:
           type: string
           example: unsubscribed
+    UpdateAutopayRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        thresholdKopecks:
+          type: integer
+          format: int64
+          minimum: 1
+        topupAmountKopecks:
+          type: integer
+          format: int64
+          minimum: 1
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - enabled
+      - workspaceId
     UpdateChannelRequest:
       type: object
       properties:
@@ -12498,6 +13526,41 @@ components:
       properties:
         vapidPublicKey:
           type: string
+    Wallet:
+      type: object
+      properties:
+        balanceKopecks:
+          type: integer
+          format: int64
+          description: Balance in kopecks
+        billingStatus:
+          type: string
+          description: Workspace billing status
+          enum:
+          - trial
+          - active
+          - grace
+          - frozen
+        bonusBalanceKopecks:
+          type: integer
+          format: int64
+          description: Bonus portion in kopecks
+        daysRemaining:
+          type: integer
+          format: int32
+          description: Forecast days remaining at current daily price
+        planCode:
+          type: string
+        priceDayKopecks:
+          type: integer
+          format: int64
+        refundableKopecks:
+          type: integer
+          format: int64
+          description: Refundable = balance − bonus
+        workspaceId:
+          type: string
+          format: uuid
     WebPushSubscribeRequest:
       type: object
       properties:
