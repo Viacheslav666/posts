@@ -577,17 +577,6 @@ export function bulkModerate(body: GrabberBulkModerationRequest): GrabberBulkMod
   return { succeeded, failed: failedIds.length, failedIds };
 }
 
-const CLONE_KEYS = [
-  'filters',
-  'transform',
-  'attribution',
-  'limits',
-  'reliability',
-  'schedule',
-  'firstComment',
-  'macros',
-] as const;
-
 export function cloneRuleConfig(
   ruleId: string,
   sourceRuleId: string,
@@ -603,14 +592,18 @@ export function cloneRuleConfig(
   if (!source || source.workspaceId !== target.workspaceId) {
     return { status: 404, code: 'not_found', detail: 'Source rule not found' };
   }
-  const nextConfig: GrabberConfig = { ...(target.config ?? {}) };
   const sourceConfig = source.config ?? {};
-  for (const key of CLONE_KEYS) {
-    if (sourceConfig[key] != null) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (nextConfig as any)[key] = sourceConfig[key];
-    }
-  }
+  const nextConfig: GrabberConfig = {
+    ...(target.config ?? {}),
+    ...(sourceConfig.filters != null ? { filters: sourceConfig.filters } : {}),
+    ...(sourceConfig.transform != null ? { transform: sourceConfig.transform } : {}),
+    ...(sourceConfig.attribution != null ? { attribution: sourceConfig.attribution } : {}),
+    ...(sourceConfig.limits != null ? { limits: sourceConfig.limits } : {}),
+    ...(sourceConfig.reliability != null ? { reliability: sourceConfig.reliability } : {}),
+    ...(sourceConfig.schedule != null ? { schedule: sourceConfig.schedule } : {}),
+    ...(sourceConfig.firstComment != null ? { firstComment: sourceConfig.firstComment } : {}),
+    ...(sourceConfig.macros != null ? { macros: sourceConfig.macros } : {}),
+  };
   const updated: GrabberRule = {
     ...target,
     config: nextConfig,
