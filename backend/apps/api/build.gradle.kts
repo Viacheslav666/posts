@@ -14,6 +14,8 @@ dependencies {
     implementation(project(":libs:messaging"))
     implementation(project(":libs:security"))
     implementation(project(":libs:ratelimit"))
+    implementation(project(":libs:grabber"))
+    implementation(project(":libs:social-vk"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
@@ -46,6 +48,7 @@ dependencies {
     "integrationTestImplementation"(libs.testcontainers.postgresql)
     "integrationTestImplementation"("org.testcontainers:rabbitmq")
     "integrationTestImplementation"("org.awaitility:awaitility:4.2.2")
+    "integrationTestImplementation"("org.wiremock:wiremock-standalone:3.10.0")
     "integrationTestImplementation"(project(":libs:test-support"))
     "integrationTestRuntimeOnly"(libs.postgresql)
 }

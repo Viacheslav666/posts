@@ -112,6 +112,23 @@ ACTION: dict[str, str | None] = {
     "notificationSettingsUpdate": "notifications.manage_self",
     "notificationsList": "notifications.manage_self",
     "notificationsMarkRead": "notifications.manage_self",
+    "ingestRulesList": "automations.view",
+    "ingestRulesCreate": "automations.manage",
+    "ingestRulesGet": "automations.view",
+    "ingestRulesPatch": "automations.manage",
+    "ingestRulesActivate": "automations.manage",
+    "ingestRulesPause": "automations.manage",
+    "ingestRulesResume": "automations.manage",
+    "ingestRulesArchive": "automations.manage",
+    "ingestRulesRun": "automations.manage",
+    "ingestRunsList": "automations.view",
+    "ingestItemsList": "automations.view",
+    "ingestItemsGet": "automations.view",
+    "ingestItemsApprove": "automations.moderate",
+    "ingestItemsReject": "automations.moderate",
+    "ingestItemsEditAndApprove": "automations.moderate",
+    "ingestItemsBulk": "automations.moderate",
+    "ingestPreview": "automations.view",
 }
 
 IMPLEMENTED = {
@@ -198,6 +215,23 @@ IMPLEMENTED = {
     "publicationsGet",
     "publicationsRetry",
     "publicationsListAttempts",
+    "ingestRulesList",
+    "ingestRulesCreate",
+    "ingestRulesGet",
+    "ingestRulesPatch",
+    "ingestRulesActivate",
+    "ingestRulesPause",
+    "ingestRulesResume",
+    "ingestRulesArchive",
+    "ingestRulesRun",
+    "ingestRunsList",
+    "ingestItemsList",
+    "ingestItemsGet",
+    "ingestItemsApprove",
+    "ingestItemsReject",
+    "ingestItemsEditAndApprove",
+    "ingestItemsBulk",
+    "ingestPreview",
 }
 
 DESTRUCTIVE = {
@@ -233,6 +267,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaCreateUpload",
     "mediaImportUrl",
     "channelSetsCreate",
+    "ingestPreview",
 }
 
 
@@ -277,6 +312,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{mediaId}": ("mediaId", "{mediaId}"),
         "{publicationId}": ("publicationId", "{publicationId}"),
         "{sessionId}": ("sessionId", "{sessionId}"),
+        "{ruleId}": ("ruleId", "{ruleId}"),
+        "{itemId}": ("itemId", "{itemId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk"),
     }

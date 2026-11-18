@@ -25,8 +25,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.api.rbac.RbacHttpProbeSupport.EndpointIds;
 import ru.posts.api.rbac.RbacHttpProbeSupport.Scope;
+import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -87,6 +89,12 @@ class RbacEndpointMatrixIT {
     @Autowired
     private PublicationRepository publicationRepository;
 
+    @Autowired
+    private AutomationRuleRepository automationRuleRepository;
+
+    @Autowired
+    private GrabberItemRepository grabberItemRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -104,7 +112,9 @@ class RbacEndpointMatrixIT {
                     mediaAssetRepository,
                     postRepository,
                     postVariantRepository,
-                    publicationRepository);
+                    publicationRepository,
+                    automationRuleRepository,
+                    grabberItemRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();

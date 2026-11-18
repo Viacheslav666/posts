@@ -8,9 +8,12 @@ import org.springframework.stereotype.Component;
 public class DispatchScheduler {
 
     private final PublicationDispatchService dispatchService;
+    private final GrabberDispatchService grabberDispatchService;
 
-    public DispatchScheduler(PublicationDispatchService dispatchService) {
+    public DispatchScheduler(
+            PublicationDispatchService dispatchService, GrabberDispatchService grabberDispatchService) {
         this.dispatchService = dispatchService;
+        this.grabberDispatchService = grabberDispatchService;
     }
 
     /** Competitive claim — no ShedLock; SKIP LOCKED coordinates instances. */
@@ -22,6 +25,12 @@ public class DispatchScheduler {
     @Scheduled(fixedDelayString = "${posts.scheduler.dispatch-interval-ms:1000}")
     public void dispatchActions() {
         dispatchService.dispatchDueActions();
+    }
+
+    /** BE-17: claim due grabber/rss rules and enqueue ingest.grabber. */
+    @Scheduled(fixedDelayString = "${posts.scheduler.grabber-dispatch-interval-ms:15000}")
+    public void dispatchGrabber() {
+        grabberDispatchService.dispatchDueRules();
     }
 
     @Scheduled(fixedDelayString = "${posts.scheduler.reaper-interval-ms:30000}")

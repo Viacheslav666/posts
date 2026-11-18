@@ -20,6 +20,14 @@ public final class ProblemCodes {
     public static final String TOTP_REQUIRED = "totp_required";
     public static final String OAUTH_LINK_REQUIRED = "oauth_link_required";
     public static final String INVALID_TOKEN = "invalid_token";
+    public static final String INGEST_RESPONSIBILITY_REQUIRED = "ingest_responsibility_required";
+    public static final String INGEST_ATTRIBUTION_REQUIRED = "ingest_attribution_required";
+    public static final String INGEST_SOURCE_UNREACHABLE = "ingest_source_unreachable";
+    public static final String INGEST_SSRF_BLOCKED = "ingest_ssrf_blocked";
+    public static final String INGEST_RATE_LIMITED = "ingest_rate_limited";
+    public static final String INGEST_AUTO_PAUSED = "ingest_auto_paused";
+    public static final String INGEST_VALIDATION_FAILED = "ingest_validation_failed";
+    public static final String INGEST_DEDUP_CONFLICT = "ingest_dedup_conflict";
 
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
@@ -42,6 +50,14 @@ public final class ProblemCodes {
             - totp_required — password ok, TOTP/backup code required (401)
             - oauth_link_required — OAuth email matches existing account; confirm link (409)
             - invalid_token — email verify / password reset / OAuth link token invalid
+            - ingest_responsibility_required — grabber activate without legal checkbox
+            - ingest_attribution_required — grabber activate without attribution
+            - ingest_ssrf_blocked — RSS/website URL targets private network
+            - ingest_rate_limited — manual grabber run too frequent
+            - ingest_source_unreachable — source fetch failed
+            - ingest_auto_paused — rule auto-paused after errors
+            - ingest_validation_failed — item failed network capability checks
+            - ingest_dedup_conflict — duplicate content detected
             """;
 
     private ProblemCodes() {}
