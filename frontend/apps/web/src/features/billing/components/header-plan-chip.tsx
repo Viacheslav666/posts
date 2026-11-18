@@ -15,9 +15,12 @@ type HeaderPlanChipProps = {
   workspaceId: string;
 };
 
-/** Баланс / тариф в шапке (FE-10b). */
+const PLAN_NAME_KEYS = new Set(['free', 'start', 'pro', 'agency']);
+
+/** Баланс / тариф в шапке (FE-10b) с русским названием тарифа. */
 export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
   const t = useTranslations('billing.header');
+  const tPlans = useTranslations('pricing.plans');
   const canView = useCan('billing.view', workspaceId);
 
   const walletQuery = useQuery({
@@ -36,11 +39,14 @@ export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
   }
 
   const wallet = walletQuery.data;
-  const planCode = wallet?.planCode ?? 'free';
+  const planCode = (wallet?.planCode ?? 'free').toLowerCase();
+  const planLabel = PLAN_NAME_KEYS.has(planCode)
+    ? tPlans(`${planCode}.name` as 'pro.name')
+    : planCode;
   const frozen = wallet?.billingStatus === 'frozen';
   const low = wallet ? isLowBalance(wallet) : false;
   const balanceLabel =
-    wallet?.balanceKopecks != null ? formatKopecks(wallet.balanceKopecks) : planCode;
+    wallet?.balanceKopecks != null ? formatKopecks(wallet.balanceKopecks) : planLabel;
 
   const chip = (
     <Badge
@@ -50,7 +56,7 @@ export function HeaderPlanChip({ workspaceId }: HeaderPlanChipProps) {
       data-frozen={frozen ? 'true' : 'false'}
       data-low={low ? 'true' : 'false'}
     >
-      {t('balance', { balance: balanceLabel, plan: planCode })}
+      {t('balance', { balance: balanceLabel, plan: planLabel })}
     </Badge>
   );
 

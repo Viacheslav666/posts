@@ -35,8 +35,24 @@ const display = localFont({
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');
   return {
-    title: t('title'),
+    title: {
+      default: t('title'),
+      template: '%s · Posts',
+    },
     description: t('description'),
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+    openGraph: {
+      title: t('title'),
+      description: t('description'),
+      locale: 'ru_RU',
+      type: 'website',
+      siteName: 'Posts',
+    },
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/apple-icon' }],
+    },
+    manifest: '/manifest.webmanifest',
   };
 }
 
@@ -51,7 +67,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:shadow-md"
         >
-          Skip to content
+          Перейти к содержимому
         </a>
         <NextIntlClientProvider messages={messages}>
           <AppProviders>{children}</AppProviders>

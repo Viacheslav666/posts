@@ -15,8 +15,12 @@ import {
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
+import { VariablesMenu } from './variables-menu';
+
 type EditorToolbarProps = {
   editor: Editor | null;
+  showVariables?: boolean;
+  onInsertText?: (text: string) => void;
 };
 
 function ToolButton({
@@ -45,7 +49,11 @@ function ToolButton({
   );
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({
+  editor,
+  showVariables = false,
+  onInsertText,
+}: EditorToolbarProps) {
   const t = useTranslations('editor.toolbar');
 
   if (!editor) {
@@ -123,6 +131,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       <ToolButton label={t('link')} pressed={editor.isActive('link')} onClick={setLink}>
         <Link2 aria-hidden className="h-4 w-4" />
       </ToolButton>
+      {showVariables && onInsertText ? (
+        <div className="ml-1">
+          <VariablesMenu onInsert={onInsertText} />
+        </div>
+      ) : null}
     </div>
   );
 }

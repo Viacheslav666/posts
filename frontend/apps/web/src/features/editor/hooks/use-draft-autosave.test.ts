@@ -24,6 +24,8 @@ function sampleDraft(overrides?: Partial<EditorDraft>): EditorDraft {
     previewNetwork: 'tg',
     activeVariant: 'base',
     media: [],
+    stringAttachments: [],
+    publicationKind: 'post',
     options: createDefaultPostOptions(),
     ...overrides,
   };

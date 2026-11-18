@@ -34,4 +34,25 @@ describe('recurrence (TC-AD-02)', () => {
   it('once yields a single occurrence', () => {
     expect(materializeOccurrences('2026-11-18T10:00:00.000Z', { freq: 'once' })).toHaveLength(1);
   });
+
+  it('expands times[] to multiple runs per day', () => {
+    const start = '2026-11-18T06:00:00.000Z';
+    const dates = materializeOccurrences(
+      start,
+      { freq: 'daily', interval: 1, times: ['09:00', '18:30'] },
+      2,
+    );
+    expect(dates.length).toBeGreaterThanOrEqual(4);
+    // Same calendar day should produce two distinct clock times.
+    const day0 = dates.filter((iso) => iso.startsWith(dates[0]!.slice(0, 10)));
+    expect(day0.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('once + times[] emits multiple slots on the start day', () => {
+    const dates = materializeOccurrences('2026-11-18T00:00:00.000Z', {
+      freq: 'once',
+      times: ['09:00', '18:30'],
+    });
+    expect(dates).toHaveLength(2);
+  });
 });

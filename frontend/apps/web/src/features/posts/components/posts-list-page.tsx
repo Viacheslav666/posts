@@ -179,12 +179,19 @@ export function PostsListPage({ workspaceId }: PostsListPageProps) {
           <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
           <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
-        <Button asChild>
-          <Link href={`/app/${workspaceId}/posts/new`} data-testid="posts-create">
-            <Plus aria-hidden />
-            {t('create')}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/app/${workspaceId}/posts/batch`} data-testid="posts-batch">
+              {t('batch')}
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/app/${workspaceId}/posts/new`} data-testid="posts-create">
+              <Plus aria-hidden />
+              {t('create')}
+            </Link>
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-end gap-2" data-testid="posts-filters">

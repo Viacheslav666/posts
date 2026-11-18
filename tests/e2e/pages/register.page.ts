@@ -23,7 +23,7 @@ export class RegisterPage {
     password: string;
   }): Promise<void> {
     await this.page.getByLabel('Имя').fill(input.name);
-    await this.page.getByLabel('Email').fill(input.email);
+    await this.page.getByLabel('Эл. почта').fill(input.email);
     await this.page.getByLabel('Пароль').fill(input.password);
     await this.page.getByLabel('Повтор пароля').fill(input.password);
     await this.page.getByRole('checkbox').check();

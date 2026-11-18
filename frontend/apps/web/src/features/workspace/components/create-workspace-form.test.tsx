@@ -36,7 +36,7 @@ describe('CreateWorkspaceForm', () => {
     await user.click(screen.getByTestId('create-workspace-submit'));
 
     await waitFor(() => {
-      expect(screen.getByText('Workspace создан')).toBeInTheDocument();
+      expect(screen.getByText('Пространство создано')).toBeInTheDocument();
     });
     await waitFor(() => {
       expect(push).toHaveBeenCalled();

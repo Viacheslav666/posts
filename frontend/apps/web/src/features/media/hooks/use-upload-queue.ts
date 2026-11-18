@@ -11,16 +11,25 @@ import {
   uploadMultipart,
   type CompletedPart,
 } from '../lib/multipart-uploader';
-import type { UploadQueueItem } from '../model/types';
+import type { MediaKind, UploadQueueItem } from '../model/types';
 
 function localId(): string {
   return `local-${crypto.randomUUID()}`;
 }
 
-export function useUploadQueue(workspaceId: string) {
+export type UploadQueueOptions = {
+  /** Force media kind (e.g. clip when publishing VK clips). */
+  preferredKind?: MediaKind;
+  /** Called when an item reaches ready (for attaching to the editor). */
+  onReady?: (item: UploadQueueItem) => void;
+};
+
+export function useUploadQueue(workspaceId: string, options: UploadQueueOptions = {}) {
   const [items, setItems] = useState<UploadQueueItem[]>([]);
   const controllers = useRef(new Map<string, AbortController>());
   const resumeParts = useRef(new Map<string, CompletedPart[]>());
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const patch = useCallback((id: string, partial: Partial<UploadQueueItem>) => {
     setItems((current) =>
@@ -45,10 +54,19 @@ export function useUploadQueue(workspaceId: string) {
         patch(item.localId, { status: 'hashing', progress: 0 });
         const sha256 = await sha256Hex(item.file);
 
+        const mimeKind = kindFromMime(item.file.type);
+        const preferred = optionsRef.current.preferredKind;
+        const kind =
+          preferred === 'clip' && mimeKind === 'video'
+            ? 'clip'
+            : preferred && preferred !== 'clip'
+              ? preferred
+              : mimeKind;
+
         patch(item.localId, { status: 'creating' });
         const sessionResponse = await createUpload({
           workspaceId: item.workspaceId,
-          kind: kindFromMime(item.file.type),
+          kind,
           mime: item.file.type,
           sizeBytes: item.file.size,
           filename: item.file.name,
@@ -96,8 +114,10 @@ export function useUploadQueue(workspaceId: string) {
 
         patch(item.localId, { status: 'processing', progress: 1 });
         // Polling for ready is handled by library consumers / media list invalidation.
-        patch(item.localId, { status: 'ready' });
+        const readyItem: UploadQueueItem = { ...item, status: 'ready', progress: 1, mediaId };
+        patch(item.localId, { status: 'ready', progress: 1, mediaId });
         resumeParts.current.delete(item.localId);
+        optionsRef.current.onReady?.(readyItem);
       } catch (error) {
         if (error instanceof UploadCancelledError || controller.signal.aborted) {
           patch(item.localId, { status: 'cancelled' });

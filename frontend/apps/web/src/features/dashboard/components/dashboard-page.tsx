@@ -7,6 +7,7 @@ import {
   EmptyState,
   PostStatusBadge,
   Skeleton,
+  toast,
 } from '@posts/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -27,27 +28,24 @@ import { listChannels } from '@/features/channels/api/channels-api';
 import { listIngestItems, listIngestRules } from '@/features/grabber/api/grabber-api';
 import { OnboardingChecklist } from '@/features/onboarding/components/onboarding-checklist';
 import { listPosts, retryPublication, listPostPublications } from '@/features/posts/api/posts-api';
+import { postStatusLabelRu } from '@/features/posts/model/status-labels';
 import { listProjects } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
 import { getErrorMessage } from '@/shared/lib/errors';
-import { toast } from '@posts/ui';
+
+import {
+  DASHBOARD_FAILED_KEY,
+  DASHBOARD_STORIES_KEY,
+  DASHBOARD_UPCOMING_KEY,
+  DASHBOARD_WINDOW_REFETCH_MS,
+  failedWindow,
+  upcomingWindow,
+} from '../model/dashboard-windows';
 
 type DashboardPageProps = {
   workspaceId: string;
 };
-
-function upcomingWindow() {
-  const from = new Date().toISOString();
-  const to = new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString();
-  return { from, to };
-}
-
-function failedWindow() {
-  const from = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
-  const to = new Date().toISOString();
-  return { from, to };
-}
 
 export function DashboardPage({ workspaceId }: DashboardPageProps) {
   const t = useTranslations('dashboard');
@@ -59,39 +57,44 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
   const canCreate = useCan('posts.create', workspaceId);
   const canManageChannels = useCan('channels.manage', workspaceId);
 
-  const upcoming = upcomingWindow();
-  const failed = failedWindow();
-
   const upcomingQuery = useQuery({
-    queryKey: queryKeys.posts.list(workspaceId, { dashboard: 'upcoming', ...upcoming }),
-    queryFn: () =>
-      listPosts({
+    // Time bounds stay out of the key (computed in queryFn) so re-renders cannot thrash.
+    queryKey: queryKeys.posts.list(workspaceId, { ...DASHBOARD_UPCOMING_KEY }),
+    queryFn: () => {
+      const { from, to } = upcomingWindow();
+      return listPosts({
         workspaceId,
         status: 'scheduled',
-        from: upcoming.from,
-        to: upcoming.to,
+        contentKind: 'post',
+        from,
+        to,
         sort: 'scheduledAt_asc',
         limit: 5,
-      }),
+      });
+    },
     enabled: canPosts,
+    refetchInterval: DASHBOARD_WINDOW_REFETCH_MS,
   });
 
   const failedQuery = useQuery({
-    queryKey: queryKeys.posts.list(workspaceId, { dashboard: 'failed', ...failed }),
-    queryFn: () =>
-      listPosts({
+    queryKey: queryKeys.posts.list(workspaceId, { ...DASHBOARD_FAILED_KEY }),
+    queryFn: () => {
+      const { from, to } = failedWindow();
+      return listPosts({
         workspaceId,
         status: 'failed',
-        from: failed.from,
-        to: failed.to,
+        from,
+        to,
         sort: 'updatedAt_desc',
         limit: 5,
-      }),
+      });
+    },
     enabled: canPosts,
+    refetchInterval: DASHBOARD_WINDOW_REFETCH_MS,
   });
 
   const storiesQuery = useQuery({
-    queryKey: queryKeys.posts.list(workspaceId, { dashboard: 'stories', contentKind: 'story' }),
+    queryKey: queryKeys.posts.list(workspaceId, { ...DASHBOARD_STORIES_KEY }),
     queryFn: () =>
       listPosts({
         workspaceId,
@@ -143,6 +146,13 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
         (ch) => ch.status === 'reauth_required' || ch.status === 'no_permissions',
       ),
     [channelsQuery.data?.items],
+  );
+
+  // Defense in depth: if API ignored contentKind, drop stories client-side.
+  // TODO(backend): ensure postsList always honors contentKind=post for dashboard upcoming.
+  const upcomingItems = useMemo(
+    () => (upcomingQuery.data?.items ?? []).filter((post) => (post.contentKind ?? 'post') === 'post'),
+    [upcomingQuery.data?.items],
   );
 
   const retryMutation = useMutation({
@@ -230,12 +240,23 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           testId="dashboard-upcoming"
           loading={upcomingQuery.isLoading}
           error={upcomingQuery.isError}
-          empty={!canPosts || (upcomingQuery.data?.items?.length ?? 0) === 0}
+          empty={!canPosts || upcomingItems.length === 0}
           emptyTitle={t('upcoming.emptyTitle')}
           emptyBody={t('upcoming.emptyBody')}
+          emptyAction={
+            canCreate ? (
+              <Button asChild size="sm">
+                <Link href={`/app/${workspaceId}/posts/new`}>{t('upcoming.emptyCta')}</Link>
+              </Button>
+            ) : (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/app/${workspaceId}/calendar`}>{t('quickActions.calendar')}</Link>
+              </Button>
+            )
+          }
           onRetry={() => void upcomingQuery.refetch()}
         >
-          {(upcomingQuery.data?.items ?? []).map((post) => (
+          {upcomingItems.map((post) => (
             <PostRow key={post.id} post={post} workspaceId={workspaceId} />
           ))}
         </DashboardListCard>
@@ -248,6 +269,11 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           empty={!canPosts || (failedQuery.data?.items?.length ?? 0) === 0}
           emptyTitle={t('failed.emptyTitle')}
           emptyBody={t('failed.emptyBody')}
+          emptyAction={
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/app/${workspaceId}/posts`}>{t('failed.emptyCta')}</Link>
+            </Button>
+          }
           onRetry={() => void failedQuery.refetch()}
         >
           {(failedQuery.data?.items ?? []).map((post) => (
@@ -280,6 +306,13 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           empty={!canChannels || attentionChannels.length === 0}
           emptyTitle={t('channels.emptyTitle')}
           emptyBody={t('channels.emptyBody')}
+          emptyAction={
+            canManageChannels ? (
+              <Button asChild size="sm">
+                <Link href={`/app/${workspaceId}/channels`}>{t('channels.emptyCta')}</Link>
+              </Button>
+            ) : null
+          }
           onRetry={() => void channelsQuery.refetch()}
         >
           {attentionChannels.map((channel) => (
@@ -299,6 +332,13 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           }
           emptyTitle={t('grabber.emptyTitle')}
           emptyBody={t('grabber.emptyBody')}
+          emptyAction={
+            canAutomations ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/app/${workspaceId}/automations/grabber`}>{t('grabber.emptyCta')}</Link>
+              </Button>
+            ) : null
+          }
           onRetry={() => void queueQuery.refetch()}
           footer={
             canAutomations ? (
@@ -326,6 +366,13 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           empty={!canPosts || (storiesQuery.data?.items?.length ?? 0) === 0}
           emptyTitle={t('stories.emptyTitle')}
           emptyBody={t('stories.emptyBody')}
+          emptyAction={
+            canCreate ? (
+              <Button asChild size="sm">
+                <Link href={`/app/${workspaceId}/stories/new`}>{t('stories.emptyCta')}</Link>
+              </Button>
+            ) : null
+          }
           onRetry={() => void storiesQuery.refetch()}
         >
           {(storiesQuery.data?.items ?? []).map((post) => (
@@ -345,6 +392,7 @@ function DashboardListCard({
   empty,
   emptyTitle,
   emptyBody,
+  emptyAction,
   onRetry,
   children,
   footer,
@@ -356,6 +404,7 @@ function DashboardListCard({
   empty: boolean;
   emptyTitle: string;
   emptyBody: string;
+  emptyAction?: React.ReactNode;
   onRetry: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -372,7 +421,7 @@ function DashboardListCard({
         {footer}
       </div>
       {loading ? (
-        <div className="space-y-2">
+        <div className="space-y-2" data-testid={`${testId}-skeleton`}>
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
@@ -381,17 +430,22 @@ function DashboardListCard({
           icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
           title={t('errorTitle')}
           description={t('errorBody')}
+          titleAs="h3"
+          className="py-8"
           action={
-            <Button type="button" size="sm" onClick={onRetry}>
+            <Button type="button" size="sm" onClick={onRetry} data-testid={`${testId}-retry`}>
               {t('retry')}
             </Button>
           }
         />
       ) : empty ? (
-        <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{emptyTitle}. </span>
-          {emptyBody}
-        </p>
+        <EmptyState
+          title={emptyTitle}
+          description={emptyBody}
+          titleAs="h3"
+          className="py-8"
+          action={emptyAction}
+        />
       ) : (
         <ul className="space-y-0">{children}</ul>
       )}
@@ -408,6 +462,7 @@ function PostRow({
   workspaceId: string;
   asFragment?: boolean;
 }) {
+  const statusLabel = postStatusLabelRu(post.status);
   const content = (
     <>
       <Link
@@ -417,9 +472,7 @@ function PostRow({
         {post.title || post.id}
       </Link>
       <div className="flex items-center gap-2">
-        {post.status ? (
-          <PostStatusBadge status={post.status} label={post.status} />
-        ) : null}
+        {post.status ? <PostStatusBadge status={post.status} label={statusLabel} /> : null}
         {post.scheduledAt ? (
           <time className="text-xs text-muted-foreground" dateTime={post.scheduledAt}>
             {format(new Date(post.scheduledAt), 'd MMM HH:mm', { locale: ru })}
