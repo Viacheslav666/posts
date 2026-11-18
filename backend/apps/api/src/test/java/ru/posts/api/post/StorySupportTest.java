@@ -28,7 +28,17 @@ class StorySupportTest {
     @DisplayName("TC-STORY-05: VK external URL invalid")
     void vkLinkValidation() {
         PostDtos.StoryOptions story = new PostDtos.StoryOptions(
-                ApiEnums.StoryTtl.ttl_24h, "go_to", "https://example.com", null, null, null, null, null, null, null);
+                ApiEnums.StoryTtl.ttl_24h,
+                "go_to",
+                "https://example.com",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
         assertThatThrownBy(() -> StorySupport.assertLink(story, List.of(ApiEnums.Network.vk)))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_LINK_INVALID));
@@ -39,19 +49,22 @@ class StorySupportTest {
     @DisplayName("TC-STORY-03: OK effective TTL degradation")
     void okEffectiveTtl() {
         PostDtos.StoryOptions story = new PostDtos.StoryOptions(
-                ApiEnums.StoryTtl.ttl_48h, null, null, null, null, null, null, null, null, null);
+                ApiEnums.StoryTtl.ttl_48h, null, null, null, null, null, null, null, null, null, null);
         Map<String, Object> map = StorySupport.toStoryOptionsMap(story, List.of(ApiEnums.Network.ok), "photo");
         assertThat(map.get("ttl")).isEqualTo("ttl_48h");
         assertThat(map.get("effectiveTtl")).isEqualTo("ttl_24h");
         assertThat(map.get("warnings")).asList().isNotEmpty();
+        assertThat(map.get("addToNews")).isEqualTo(true);
     }
 
     @Test
-    @DisplayName("TC-STORY-17/30: bmp rejected; video over 350MB rejected")
+    @DisplayName("TC-STORY-17/30: bmp rejected; video over 50MB rejected; bad aspect rejected")
     void mediaLimits() {
         ru.posts.persistence.entity.MediaAssetEntity bmp = new ru.posts.persistence.entity.MediaAssetEntity();
         bmp.setMime("image/bmp");
         bmp.setSizeBytes(1024L);
+        bmp.setWidth(1080);
+        bmp.setHeight(1920);
         assertThatThrownBy(() -> StorySupport.assertMedia(
                         new PostDtos.PostContent("", null, List.of(java.util.UUID.randomUUID())), List.of(bmp)))
                 .isInstanceOf(ApiException.class)
@@ -59,10 +72,26 @@ class StorySupportTest {
 
         ru.posts.persistence.entity.MediaAssetEntity huge = new ru.posts.persistence.entity.MediaAssetEntity();
         huge.setMime("video/mp4");
-        huge.setSizeBytes(350L * 1024L * 1024L + 1L);
+        huge.setSizeBytes(50L * 1024L * 1024L + 1L);
+        huge.setWidth(720);
+        huge.setHeight(1280);
+        huge.setDurationMs(10_000);
+        huge.setMeta(Map.of("videoCodec", "h264", "audioCodec", "aac"));
         assertThatThrownBy(() -> StorySupport.assertMedia(
                         new PostDtos.PostContent("", null, List.of(java.util.UUID.randomUUID())), List.of(huge)))
                 .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_MEDIA_INVALID));
+                .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_MEDIA_SIZE));
+
+        ru.posts.persistence.entity.MediaAssetEntity notNineSixteen =
+                new ru.posts.persistence.entity.MediaAssetEntity();
+        notNineSixteen.setMime("image/jpeg");
+        notNineSixteen.setSizeBytes(2048L);
+        notNineSixteen.setWidth(1000);
+        notNineSixteen.setHeight(1280);
+        assertThatThrownBy(() -> StorySupport.assertMedia(
+                        new PostDtos.PostContent("", null, List.of(java.util.UUID.randomUUID())),
+                        List.of(notNineSixteen)))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getCode()).isEqualTo(ProblemCodes.STORY_MEDIA_ASPECT));
     }
 }

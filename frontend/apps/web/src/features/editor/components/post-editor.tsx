@@ -18,6 +18,10 @@ import {
   type EditorChannelOption,
 } from '@/features/channels/hooks/use-workspace-channels';
 import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
+import {
+  type AdFieldErrors,
+  mapServerAdErrors,
+} from '@/features/ord/lib/ad-marking-validation';
 import { EditorMediaBlock } from '@/features/media/components/editor-media-block';
 import { PlanLimitPaywall } from '@/features/billing/components/plan-limit-paywall';
 import { isValidInn } from '@/shared/lib/inn';
@@ -154,6 +158,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const [hydrated, setHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [adFieldErrors, setAdFieldErrors] = useState<AdFieldErrors>({});
   const [showPaywall, setShowPaywall] = useState(false);
   const [, startTransition] = useTransition();
   const capabilitiesQuery = useNetworkCapabilities();
@@ -365,6 +370,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const registerErid = async () => {
     if (!draft) return;
     setRegistering(true);
+    setAdFieldErrors({});
     try {
       // Persist draft post with ad payload first so ORD register can read it.
       const created = await createPost({
@@ -390,6 +396,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
         description: result.erid ? `erid: ${result.erid}` : undefined,
       });
     } catch (error) {
+      setAdFieldErrors(mapServerAdErrors(error));
       const message = error instanceof Error ? error.message : t('ad.eridError');
       toast({
         title: t('ad.eridError'),
@@ -593,6 +600,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             eridStatus={eridStatus}
             erid={erid}
             registering={registering}
+            fieldErrors={adFieldErrors}
+            previewBody={stripTags(draft.baseHtml || '') || 'Текст поста https://example.com/offer'}
             onEnabledChange={(isAd) =>
               setDraft((current) =>
                 current
@@ -604,7 +613,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
                   : current,
               )
             }
-            onAdChange={(ad) =>
+            onAdChange={(ad) => {
+              setAdFieldErrors({});
               setDraft((current) =>
                 current
                   ? {
@@ -613,8 +623,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
                       updatedAt: new Date().toISOString(),
                     }
                   : current,
-              )
-            }
+              );
+            }}
             onProviderChange={(ordProvider: OrdProvider) =>
               setDraft((current) =>
                 current

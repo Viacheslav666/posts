@@ -94,16 +94,17 @@ test.describe('Ad marking & ORD editor (FE-12)', () => {
     // Demo MSW already has active VK ORD + contractor; fill required fields and register.
     const inn = page.getByTestId('ad-inn');
     await inn.fill('7707083893');
-    await page.getByLabel('Рекламодатель').fill('ООО Посты');
+    await page.getByTestId('ad-advertiser-name').fill('ООО Посты');
+    await page.getByTestId('ad-kpp').fill('770701001');
+    await page.getByTestId('ad-contract-date').fill('2026-01-15');
     await page.getByTestId('ad-kktu').selectOption('1.1.1');
 
     const register = page.getByTestId('ad-register-erid');
-    if (await register.isEnabled()) {
-      await register.click();
-      await expect(page.getByTestId('ad-erid-value')).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByTestId('ad-marking-slot')).toContainText('Реклама');
-      await expect(page.getByTestId('ad-marking-slot')).toContainText('erid:');
-    }
+    await expect(register).toBeEnabled();
+    await register.click();
+    await expect(page.getByTestId('ad-erid-value')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('ad-marking-slot')).toContainText('Реклама');
+    await expect(page.getByTestId('ad-marking-slot')).toContainText('erid:');
   });
 
   test('editor a11y has no serious/critical axe violations', async ({ page }) => {
@@ -135,5 +136,57 @@ test.describe('Ad marking & ORD editor (FE-12)', () => {
     }
     await expect(page.getByTestId('post-editor')).toBeVisible();
     await expect(editor.optionsPanel()).toBeVisible();
+  });
+
+  test('FE-15: six placement modes + vk_menu warning + VAT fields', async ({ page }) => {
+    await login(page);
+    const editor = new EditorPage(page);
+    await editor.goto(demoWorkspace);
+    if (!(await editor.heading().isVisible().catch(() => false))) {
+      test.skip();
+      return;
+    }
+
+    await editor.adToggle().check();
+    const placement = page.getByTestId('ad-placement');
+    await expect(placement).toBeVisible();
+    for (const value of [
+      'vk_menu',
+      'text_start',
+      'text_end',
+      'vk_menu_and_text_end',
+      'click_link_start',
+      'click_link_end',
+    ]) {
+      await expect(placement.locator(`option[value="${value}"]`)).toHaveCount(1);
+    }
+
+    await placement.selectOption('vk_menu');
+    await expect(page.getByTestId('ad-vk-menu-unsupported')).toBeVisible();
+    await expect(page.getByTestId('ad-placement-preview')).toBeVisible();
+    await expect(page.getByTestId('ad-vat-rate')).toBeVisible();
+    await expect(page.getByTestId('ad-contract-amount')).toBeVisible();
+    await expect(page.getByTestId('ad-arir-link')).toBeVisible();
+  });
+
+  test('FE-15: ORD connection form has address, roles, offer template', async ({ page }) => {
+    await login(page);
+    const ord = new OrdPage(page);
+    await ord.goto(demoWorkspace);
+    if (!(await ord.heading().isVisible().catch(() => false))) {
+      test.skip();
+      return;
+    }
+
+    await expect(ord.connectionForm()).toBeVisible();
+    await expect(page.getByTestId('ord-address')).toBeVisible();
+    await expect(page.getByTestId('ord-vat-rate')).toBeVisible();
+    await expect(page.getByTestId('ord-roles')).toBeVisible();
+    await expect(page.getByTestId('ord-notify-problems')).toBeVisible();
+    await expect(page.getByTestId('ord-erir-link')).toBeVisible();
+    await expect(page.getByTestId('ord-offer-download')).toHaveAttribute(
+      'href',
+      '/legal/ord-offer-template.docx',
+    );
   });
 });

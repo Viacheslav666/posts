@@ -34,7 +34,7 @@
 | TC-STORY-27 | P0 | `NetworkCapabilitiesStoriesIT#storiesCapabilityFlags` | CI | авто |
 | TC-STORY-28 | P1 | `StoriesQa11IntegrationTest#tcStory28MaxUnsupported` | CI | авто |
 | TC-STORY-29 | P1 | — | ручной / doc | checklist |
-| TC-STORY-30 | P0 | `StoriesQa11IntegrationTest#tcStory30OversizedVideoRejected`; `StorySupportTest#mediaLimits` | CI | авто |
+| TC-STORY-30 | P0 | `StoriesQa11IntegrationTest#tcStory30OversizedVideoRejected` (`story_media_size`, ≤50 MB); `StorySupportTest#mediaLimits` | CI | авто |
 | FE P0 UX | P0 | `tests/e2e/specs/scheduled-stories.spec.ts` (MSW) | CI `e2e-smoke` | авто |
 | Emulator stories/moments | — | `VkApiTest`; `VkStoriesFaultTest`; `OkMaxApiTest`; `OkMomentsFaultTest` | CI `social-emulator` | авто |
 
