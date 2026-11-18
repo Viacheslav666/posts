@@ -8,9 +8,11 @@
     "test:registration": "playwright test registration.spec.ts",
     "test:invitation": "playwright test invitation.spec.ts",
     "test:channels": "playwright test channels-tg-connect.spec.ts",
+    "test:posts": "playwright test scheduled-posts.spec.ts",
     "test:report": "playwright show-report playwright-report"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.50.1",
     "@types/node": "^22.13.10"
   }

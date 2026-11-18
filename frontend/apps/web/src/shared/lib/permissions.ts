@@ -1,6 +1,6 @@
 /**
  * Workspace RBAC matrix (mirrors docs/product/roles-permissions.md).
- * FE-5 team + FE-6 channels + FE-7 media actions.
+ * FE-5 team + FE-6 channels + FE-7 media + FE-8 posts/calendar actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
@@ -27,6 +27,15 @@ export const PERMISSION_ACTIONS = [
   'channel_sets.manage',
   'media.view',
   'media.manage',
+  'posts.view',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.view',
+  'calendar.move',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -43,6 +52,8 @@ const ALL_VIEW: PermissionAction[] = [
   'channels.view',
   'channel_sets.view',
   'media.view',
+  'posts.view',
+  'calendar.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -57,6 +68,13 @@ const ADMIN_TEAM: PermissionAction[] = [
   'channels.manage',
   'channel_sets.manage',
   'media.manage',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.move',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -65,9 +83,24 @@ const OWNER_ONLY: PermissionAction[] = [
   'billing.manage',
 ];
 
-const EDITOR_EXTRA: PermissionAction[] = ['channel_sets.manage', 'media.manage'];
+const EDITOR_EXTRA: PermissionAction[] = [
+  'channel_sets.manage',
+  'media.manage',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+  'posts.schedule',
+  'posts.bulk',
+  'posts.retry_publish',
+  'calendar.move',
+];
 
-const AUTHOR_EXTRA: PermissionAction[] = ['media.manage'];
+const AUTHOR_EXTRA: PermissionAction[] = [
+  'media.manage',
+  'posts.create',
+  'posts.update',
+  'posts.delete',
+];
 
 export const ROLE_ACTIONS: RoleActionMatrix = {
   owner: new Set<PermissionAction>([...ADMIN_TEAM, ...OWNER_ONLY]),

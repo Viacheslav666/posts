@@ -55,15 +55,25 @@ export const queryKeys = {
 
   calendar: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'calendar'] as const,
-    range: (workspaceId: string, from: string, to: string) =>
-      [...queryKeys.calendar.all(workspaceId), { from, to }] as const,
+    range: (
+      workspaceId: string,
+      from: string,
+      to: string,
+      filters?: Record<string, unknown>,
+    ) => [...queryKeys.calendar.all(workspaceId), { from, to, ...(filters ?? {}) }] as const,
   },
 
   publications: {
     all: (workspaceId: string) =>
       [...queryKeys.workspaces.detail(workspaceId), 'publications'] as const,
+    list: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.publications.all(workspaceId), 'list', filters ?? {}] as const,
+    byPost: (workspaceId: string, postId: string) =>
+      [...queryKeys.publications.all(workspaceId), 'post', postId] as const,
     detail: (workspaceId: string, publicationId: string) =>
       [...queryKeys.publications.all(workspaceId), publicationId] as const,
+    attempts: (workspaceId: string, publicationId: string) =>
+      [...queryKeys.publications.detail(workspaceId, publicationId), 'attempts'] as const,
   },
 
   media: {
