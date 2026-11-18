@@ -78,6 +78,9 @@ class OrdPrePublishHookTest {
                 null,
                 null,
                 "photo",
+                "[]",
+                "Europe/Moscow",
+                "Test",
                 "[]");
     }
 }

@@ -55,7 +55,14 @@ public class PublicationLifecycleJdbc {
                      pv.content -> 'mediaIds',
                      p.base_content -> 'mediaIds',
                      '[]'::jsonb
-                   )::text AS media_ids_json
+                   )::text AS media_ids_json,
+                   coalesce(p.timezone, 'Europe/Moscow') AS timezone,
+                   coalesce(c.title, '') AS channel_title,
+                   coalesce(
+                     pv.content -> 'stringAttachments',
+                     p.base_content -> 'stringAttachments',
+                     '[]'::jsonb
+                   )::text AS string_attachments_json
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -104,6 +111,9 @@ public class PublicationLifecycleJdbc {
                         null,
                         null,
                         "photo",
+                        "[]",
+                        "Europe/Moscow",
+                        "",
                         "[]"))
                 .list();
         if (rows.isEmpty()) {
@@ -147,7 +157,10 @@ public class PublicationLifecycleJdbc {
                             rs.getString("story_link_text"),
                             rs.getString("story_link_url"),
                             rs.getString("media_kind"),
-                            rs.getString("media_ids_json"));
+                            rs.getString("media_ids_json"),
+                            rs.getString("timezone"),
+                            rs.getString("channel_title"),
+                            rs.getString("string_attachments_json"));
                 })
                 .optional()
                 .orElse(base);

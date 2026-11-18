@@ -47,6 +47,9 @@ public interface PostService {
 
     PostDtos.PreviewResponse preview(UUID userId, PostDtos.PreviewRequest request);
 
+    PostDtos.BatchPostsResponse batchPosts(
+            UUID userId, PostDtos.BatchPostsRequest request, String idempotencyKey, ClientRequestContext ctx);
+
     CursorPage.PublicationPage listPublications(UUID userId, UUID postId, CursorPage.Params page);
 
     List<PostDtos.CalendarItem> calendar(

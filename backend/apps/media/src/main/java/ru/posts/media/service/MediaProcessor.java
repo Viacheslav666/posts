@@ -122,7 +122,7 @@ public class MediaProcessor {
 
             switch (asset.getKind()) {
                 case "image" -> processImage(asset, original, tempDir, derivatives);
-                case "video" -> processVideo(asset, original, tempDir, derivatives);
+                case "video", "clip" -> processVideo(asset, original, tempDir, derivatives);
                 case "audio", "doc" -> {
                     // metadata-only for MVP
                 }
@@ -294,7 +294,7 @@ public class MediaProcessor {
         String d = detected.toLowerCase(Locale.ROOT);
         return switch (kind) {
             case "image" -> d.startsWith("image/");
-            case "video" -> d.startsWith("video/");
+            case "video", "clip" -> d.startsWith("video/");
             case "audio" -> d.startsWith("audio/");
             case "doc" -> !d.startsWith("image/") && !d.startsWith("video/") && !d.startsWith("audio/");
             default -> false;

@@ -47,6 +47,10 @@ public final class ProblemCodes {
     public static final String STORY_LINK_INVALID = "story_link_invalid";
     public static final String STORY_TTL_UNSUPPORTED = "story_ttl_unsupported";
     public static final String STORY_BATCH_LIMIT = "story_batch_limit";
+    public static final String POST_BATCH_LIMIT = "post_batch_limit";
+    public static final String VK_STRING_ATTACHMENT_INVALID = "vk_string_attachment_invalid";
+    public static final String VK_CLIPS_UNAVAILABLE = "vk_clips_unavailable";
+    public static final String VK_BIRTHDAYS_FORBIDDEN = "vk_birthdays_forbidden";
 
     public static final String PLATFORM_ADMIN_REQUIRED = "platform_admin_required";
     public static final String IMPERSONATION_FORBIDDEN = "impersonation_forbidden";
@@ -89,6 +93,10 @@ public final class ProblemCodes {
             - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
             - story_ttl_unsupported — invalid stories_time / TTL enum
             - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
+            - post_batch_limit — batch exceeds posts.batch_max (default 50)
+            - vk_string_attachment_invalid — string attachment token is not a valid VK attachment id
+            - vk_clips_unavailable — VK shortVideo / clips API not available for token or app
+            - vk_birthdays_forbidden — groups.getMembers with bdate denied (missing rights)
             - platform_admin_required — /admin endpoints require users.platform_admin
             - impersonation_forbidden — dangerous action blocked while impersonating
             - ingest_responsibility_required — grabber activate without legal checkbox

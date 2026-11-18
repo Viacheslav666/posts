@@ -190,8 +190,36 @@ public class PostController {
                 SecurityAuthSupport.requirePrincipal().userId(), request, ClientRequestContexts.from(httpRequest));
     }
 
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "postsBatch",
+            summary = "Batch-create scheduled posts from media (P16 / BE-29)",
+            description =
+                    "Creates up to 50 posts (one per mediaId) across selected channels. Supports images, videos and "
+                            + "clips. Requires posts.bulk + posts.schedule.")
+    @ApiResponse(
+            responseCode = "201",
+            description = "Batch result",
+            content = @Content(schema = @Schema(implementation = PostDtos.BatchPostsResponse.class)))
+    public PostDtos.BatchPostsResponse batch(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody PostDtos.BatchPostsRequest request,
+            HttpServletRequest httpRequest) {
+        return postService.batchPosts(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                request,
+                idempotencyKey,
+                ClientRequestContexts.from(httpRequest));
+    }
+
     @PostMapping("/preview")
-    @Operation(operationId = "postsPreview", summary = "Server-side render/validate a variant for a network")
+    @Operation(
+            operationId = "postsPreview",
+            summary = "Server-side render/validate a variant for a network",
+            description = "Expands editor variables ({date}, {time}, {weekday}, {day}, {month}, {year}, {group_id}, "
+                    + "{group_name}, {hyperlink:text|url}, {json:path}, {birthdays}/{именинники}) and "
+                    + "[rand]…[/rand] spintax, then validates network limits and VK string attachments.")
     @ApiResponse(
             responseCode = "200",
             description = "Preview",

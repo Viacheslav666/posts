@@ -87,7 +87,7 @@ public class MediaProperties {
         public long forKind(String kind) {
             return switch (kind) {
                 case "image" -> imageMaxBytes;
-                case "video" -> videoMaxBytes;
+                case "video", "clip" -> videoMaxBytes;
                 case "audio" -> audioMaxBytes;
                 default -> docMaxBytes;
             };

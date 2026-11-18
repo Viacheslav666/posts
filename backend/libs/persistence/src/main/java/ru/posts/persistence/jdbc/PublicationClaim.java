@@ -45,4 +45,12 @@ public record PublicationClaim(
          * JSON array of media asset UUID strings from variant/base content ({@code mediaIds}).
          * BE-23: publisher resolves these into {@code MediaAssetRef} for upload.
          */
-        String mediaIdsJson) {}
+        String mediaIdsJson,
+        /** Post timezone for variable rendering (BE-29). */
+        String timezone,
+        /** Channel title for {@code {group_name}} (BE-29). */
+        String channelTitle,
+        /**
+         * JSON array of VK string attachments from content ({@code stringAttachments}) (BE-29).
+         */
+        String stringAttachmentsJson) {}

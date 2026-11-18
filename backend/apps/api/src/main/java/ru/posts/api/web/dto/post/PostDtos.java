@@ -22,7 +22,16 @@ public final class PostDtos {
     public record PostContent(
             @Schema(description = "Plain/HTML text or structured doc") String text,
             @Schema(description = "Rich entities / Tiptap JSON", nullable = true) Map<String, Object> doc,
-            List<UUID> mediaIds) {}
+            List<UUID> mediaIds,
+            @Schema(
+                            description =
+                                    "VK string attachments (photo-1_2, video…, doc…, clip…). Validated on create/update.",
+                            nullable = true)
+                    List<String> stringAttachments) {
+        public PostContent(String text, Map<String, Object> doc, List<UUID> mediaIds) {
+            this(text, doc, mediaIds, null);
+        }
+    }
 
     @Schema(name = "PollOptions")
     public record PollOptions(@Schema(example = "Ваш выбор?") String question, @Size(min = 2) List<String> answers) {}
@@ -54,12 +63,25 @@ public final class PostDtos {
     public record PostVariant(
             UUID id, UUID channelId, ApiEnums.Network network, PostContent content, PostVariantOptions options) {}
 
-    @Schema(name = "Recurrence")
+    @Schema(
+            name = "Recurrence",
+            description = "Recurrence rule. Optional times[] (HH:mm in post timezone) expands multiple runs per day; "
+                    + "when omitted, the time-of-day from scheduledAt is used (backward compatible).")
     public record Recurrence(
             @NotNull ApiEnums.RecurrenceFreq freq,
             @Schema(example = "1") Integer interval,
             List<String> byWeekday,
-            Instant until) {}
+            Instant until,
+            @Schema(
+                            description = "Clock times in post timezone, format HH:mm (e.g. 09:00, 18:30)",
+                            example = "[\"09:00\", \"18:30\"]",
+                            nullable = true)
+                    List<@jakarta.validation.constraints.Pattern(regexp = "^([01]\\d|2[0-3]):[0-5]\\d$") String>
+                            times) {
+        public Recurrence(ApiEnums.RecurrenceFreq freq, Integer interval, List<String> byWeekday, Instant until) {
+            this(freq, interval, byWeekday, until, null);
+        }
+    }
 
     @Schema(
             name = "RepostTarget",
@@ -204,6 +226,31 @@ public final class PostDtos {
     @Schema(name = "BatchStoryFailure")
     public record BatchStoryFailure(UUID mediaId, String code, String message) {}
 
+    @Schema(
+            name = "BatchPostsRequest",
+            description = "Parity P16: batch-create posts from media (images/videos/clips), one post per media item.")
+    public record BatchPostsRequest(
+            @NotNull UUID workspaceId,
+            UUID projectId,
+            @NotEmpty List<UUID> channelIds,
+            @NotEmpty List<UUID> mediaIds,
+            @NotNull Instant scheduledAt,
+            @Schema(description = "Minutes between consecutive posts", example = "5") @Min(0) Integer stepMinutes,
+            @Schema(description = "Optional shared text / variable template for each post") String text,
+            @Schema(description = "Optional VK string attachments applied to every post", nullable = true)
+                    List<String> stringAttachments,
+            @Valid Recurrence recurrence,
+            @Schema(example = "Europe/Moscow") String timezone,
+            boolean ad,
+            @Valid OrdDtos.AdMarking adMarking,
+            @Valid PostVariantOptions options) {}
+
+    @Schema(name = "BatchPostsResponse")
+    public record BatchPostsResponse(int created, List<UUID> postIds, List<BatchPostFailure> failures) {}
+
+    @Schema(name = "BatchPostFailure")
+    public record BatchPostFailure(UUID mediaId, String code, String message) {}
+
     @Schema(name = "PostVariantUpsert")
     public record PostVariantUpsert(
             UUID id,
@@ -235,14 +282,42 @@ public final class PostDtos {
     @Schema(name = "BulkPostsResponse")
     public record BulkPostsResponse(int affected, List<UUID> failedIds) {}
 
-    @Schema(name = "PreviewRequest")
+    @Schema(
+            name = "PreviewRequest",
+            description = "Server-side render/validate. Expands editor variables ({date}, {time}, …), [rand] spintax, "
+                    + "and validates VK string attachments. Pass timezone/at/group*/json/birthdays for "
+                    + "editor preview parity with publish-time rendering.")
     public record PreviewRequest(
             @NotNull ApiEnums.Network network,
             @NotNull @Valid PostContent content,
             PostVariantOptions options,
             boolean ad,
             @Valid OrdDtos.AdMarking adMarking,
-            @Schema(description = "Optional erid for preview marker") String erid) {}
+            @Schema(description = "Optional erid for preview marker") String erid,
+            @Schema(description = "Post timezone for {date}/{time}/…", example = "Europe/Moscow", nullable = true)
+                    String timezone,
+            @Schema(description = "Instant used for date/time variables; defaults to now", nullable = true) Instant at,
+            @Schema(description = "Channel external id for {group_id}", nullable = true) String groupId,
+            @Schema(description = "Channel title for {group_name}", nullable = true) String groupName,
+            @Schema(description = "Pre-resolved birthday list for {birthdays}/{именинники}", nullable = true)
+                    String birthdays,
+            @Schema(description = "JSON map for {json:path} variables", nullable = true) Map<String, Object> json,
+            @Schema(
+                            description =
+                                    "Stable seed for [rand] (defaults to content hash). Retries with the same seed "
+                                            + "must expand to the same text.",
+                            nullable = true)
+                    String spintaxSeed) {
+        public PreviewRequest(
+                ApiEnums.Network network,
+                PostContent content,
+                PostVariantOptions options,
+                boolean ad,
+                OrdDtos.AdMarking adMarking,
+                String erid) {
+            this(network, content, options, ad, adMarking, erid, null, null, null, null, null, null, null);
+        }
+    }
 
     @Schema(name = "PreviewResponse")
     public record PreviewResponse(
@@ -251,7 +326,19 @@ public final class PostDtos {
             String plainText,
             boolean valid,
             List<String> warnings,
-            List<ValidationIssue> issues) {}
+            List<ValidationIssue> issues,
+            @Schema(description = "Text after variable/[rand] expansion, before network HTML filter", nullable = true)
+                    String expandedText) {
+        public PreviewResponse(
+                ApiEnums.Network network,
+                String html,
+                String plainText,
+                boolean valid,
+                List<String> warnings,
+                List<ValidationIssue> issues) {
+            this(network, html, plainText, valid, warnings, issues, null);
+        }
+    }
 
     @Schema(name = "ValidationIssue")
     public record ValidationIssue(
