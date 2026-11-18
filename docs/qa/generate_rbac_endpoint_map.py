@@ -267,6 +267,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaCreateUpload",
     "mediaImportUrl",
     "channelSetsCreate",
+    "ingestPreview",
 }
 
 
@@ -311,6 +312,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{mediaId}": ("mediaId", "{mediaId}"),
         "{publicationId}": ("publicationId", "{publicationId}"),
         "{sessionId}": ("sessionId", "{sessionId}"),
+        "{ruleId}": ("ruleId", "{ruleId}"),
+        "{itemId}": ("itemId", "{itemId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk"),
     }

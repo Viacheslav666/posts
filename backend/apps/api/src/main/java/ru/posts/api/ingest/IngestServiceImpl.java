@@ -570,6 +570,12 @@ public class IngestServiceImpl implements IngestService {
     @Override
     public IngestDtos.GrabberBulkModerationResponse bulk(
             UUID userId, IngestDtos.GrabberBulkModerationRequest request, ClientRequestContext ctx) {
+        GrabberItemEntity first = requireItem(request.itemIds().getFirst());
+        AutomationRuleEntity firstRule = requireRule(first.getRuleId());
+        WorkspaceMembership membership =
+                access.requirePermission(firstRule.getWorkspaceId(), userId, "automations.moderate");
+        access.requireVisibleProject(membership, firstRule.getProjectId());
+
         int ok = 0;
         List<UUID> failed = new ArrayList<>();
         for (UUID itemId : request.itemIds()) {
@@ -584,26 +590,20 @@ public class IngestServiceImpl implements IngestService {
                 failed.add(itemId);
             }
         }
-        if (!request.itemIds().isEmpty()) {
-            GrabberItemEntity first =
-                    itemRepository.findById(request.itemIds().getFirst()).orElse(null);
-            if (first != null) {
-                auditRecorder.record(
-                        first.getWorkspaceId(),
-                        userId,
-                        "ingest.bulk_moderated",
-                        "ingest_item",
-                        first.getId(),
-                        Map.of(
-                                "action",
-                                request.action().name(),
-                                "count",
-                                request.itemIds().size(),
-                                "succeeded",
-                                ok),
-                        ctx == null ? null : ctx.ip());
-            }
-        }
+        auditRecorder.record(
+                first.getWorkspaceId(),
+                userId,
+                "ingest.bulk_moderated",
+                "ingest_item",
+                first.getId(),
+                Map.of(
+                        "action",
+                        request.action().name(),
+                        "count",
+                        request.itemIds().size(),
+                        "succeeded",
+                        ok),
+                ctx == null ? null : ctx.ip());
         return new IngestDtos.GrabberBulkModerationResponse(ok, failed.size(), failed);
     }
 

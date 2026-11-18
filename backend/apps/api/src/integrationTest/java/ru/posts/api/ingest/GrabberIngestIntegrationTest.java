@@ -120,7 +120,7 @@ class GrabberIngestIntegrationTest {
                         "userResponsibilityAccepted",
                         true,
                         "config",
-                        Map.of("source_ids", List.of(" -123, club456 , @public "), "scan_interval_minutes", 15)));
+                        Map.of("sourceIds", List.of(" -123, club456 , @public "), "scanIntervalMinutes", 15)));
         assertThat(created.get("config").get("publishMode").asText()).isEqualTo("moderate");
         assertThat(created.get("status").asText()).isEqualTo("draft");
         JsonNode ids = created.get("config").get("sourceIds");
@@ -149,11 +149,11 @@ class GrabberIngestIntegrationTest {
                         false,
                         "config",
                         Map.of(
-                                "source_ids",
+                                "sourceIds",
                                 List.of("-123"),
                                 "attribution",
                                 Map.of("enabled", false),
-                                "scan_interval_minutes",
+                                "scanIntervalMinutes",
                                 60)));
         UUID ruleId = UUID.fromString(created.get("id").asText());
         mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/activate")
@@ -181,7 +181,7 @@ class GrabberIngestIntegrationTest {
                         "activate",
                         true,
                         "config",
-                        Map.of("source_ids", List.of("-123"), "scan_interval_minutes", 15)));
+                        Map.of("sourceIds", List.of("-123"), "scanIntervalMinutes", 15)));
         UUID ruleId = UUID.fromString(rule.get("id").asText());
 
         JsonNode run1 = readJson(mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
@@ -281,7 +281,7 @@ class GrabberIngestIntegrationTest {
                         "activate",
                         true,
                         "config",
-                        Map.of("source_ids", List.of("-123"), "scan_interval_minutes", 15)));
+                        Map.of("sourceIds", List.of("-123"), "scanIntervalMinutes", 15)));
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
                         .with(csrf())
@@ -308,7 +308,7 @@ class GrabberIngestIntegrationTest {
                         "activate",
                         true,
                         "config",
-                        Map.of("source_ids", List.of("-123"), "scan_interval_minutes", 15)));
+                        Map.of("sourceIds", List.of("-123"), "scanIntervalMinutes", 15)));
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/pause")
                         .with(csrf())
@@ -355,7 +355,7 @@ class GrabberIngestIntegrationTest {
                                 "userResponsibilityAccepted",
                                 true,
                                 "config",
-                                Map.of("rss_url", "http://169.254.169.254/latest/meta-data")))))
+                                Map.of("rssUrl", "http://169.254.169.254/latest/meta-data")))))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("ingest_ssrf_blocked"));
 
@@ -373,7 +373,7 @@ class GrabberIngestIntegrationTest {
                         "activate",
                         true,
                         "config",
-                        Map.of("rss_url", wireMock.baseUrl() + "/feed.xml", "scan_interval_minutes", 15)));
+                        Map.of("rssUrl", wireMock.baseUrl() + "/feed.xml", "scanIntervalMinutes", 15)));
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         assertThat(rule.get("config").get("publishMode").asText()).isEqualTo("moderate");
         mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
@@ -406,7 +406,7 @@ class GrabberIngestIntegrationTest {
                         "userResponsibilityAccepted",
                         true,
                         "config",
-                        Map.of("source_ids", List.of("-123"), "scan_interval_minutes", 60)));
+                        Map.of("sourceIds", List.of("-123"), "scanIntervalMinutes", 60)));
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId).header("Authorization", bearer(b.token)))
                 .andExpect(status().isNotFound());
