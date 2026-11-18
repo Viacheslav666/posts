@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/posts
+    username: posts
+    password: posts
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: posts
+    password: posts
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  mail:
+    host: ${MAILPIT_SMTP_HOST:localhost}
+    port: ${MAILPIT_SMTP_PORT:1025}
+
+server:
+  port: 8088
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+posts:
+  notifications:
+    app-base-url: http://localhost:3000
+    telegram:
+      api-base-url: https://api.telegram.org
+
+logging:
+  level:
+    ru.posts: DEBUG
