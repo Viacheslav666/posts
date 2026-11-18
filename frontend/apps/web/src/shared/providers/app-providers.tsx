@@ -3,6 +3,8 @@
 import { Toaster, TooltipProvider } from '@posts/ui';
 import type { ReactNode } from 'react';
 
+import { ImpersonationBannerHost } from '@/features/admin/components/impersonation-banner-host';
+
 import { MswProvider } from './msw-provider';
 import { QueryProvider } from './query-provider';
 import { ThemeProvider } from './theme-provider';
@@ -17,6 +19,7 @@ export function AppProviders({ children }: AppProvidersProps) {
       <MswProvider>
         <QueryProvider>
           <TooltipProvider delayDuration={200}>
+            <ImpersonationBannerHost />
             {children}
             <Toaster />
           </TooltipProvider>
