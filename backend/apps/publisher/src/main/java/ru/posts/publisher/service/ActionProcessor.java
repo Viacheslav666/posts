@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.persistence.jdbc.ScheduledActionClaim;
 import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
+import ru.posts.publisher.channel.ChannelAccessResolver;
 import ru.posts.publisher.config.PublisherProperties;
 import ru.posts.publisher.metrics.PublicationMetrics;
 import ru.posts.ratelimit.RateLimitDecision;
@@ -36,6 +37,7 @@ public class ActionProcessor {
     private final PublisherProperties properties;
     private final PublicationMetrics metrics;
     private final ObjectMapper objectMapper;
+    private final ChannelAccessResolver channelAccessResolver;
 
     public ActionProcessor(
             ScheduledActionLifecycleJdbc lifecycleJdbc,
@@ -44,7 +46,8 @@ public class ActionProcessor {
             TransactionTemplate transactionTemplate,
             PublisherProperties properties,
             PublicationMetrics metrics,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ChannelAccessResolver channelAccessResolver) {
         this.lifecycleJdbc = lifecycleJdbc;
         this.socialAdapter = socialAdapter;
         this.rateLimiter = rateLimiter;
@@ -52,6 +55,7 @@ public class ActionProcessor {
         this.properties = properties;
         this.metrics = metrics;
         this.objectMapper = objectMapper;
+        this.channelAccessResolver = channelAccessResolver;
     }
 
     public boolean process(UUID actionId) {
@@ -80,12 +84,8 @@ public class ActionProcessor {
             return true;
         }
 
-        ChannelContext ctx = new ChannelContext(
-                claim.workspaceId(),
-                claim.channelId(),
-                claim.externalChannelId(),
-                "emulator-token",
-                Network.fromCode(claim.network()));
+        ChannelContext ctx = channelAccessResolver.context(
+                claim.workspaceId(), claim.channelId(), claim.externalChannelId(), Network.fromCode(claim.network()));
         String remotePostId = remoteId(claim);
         try {
             execute(claim, ctx, remotePostId);

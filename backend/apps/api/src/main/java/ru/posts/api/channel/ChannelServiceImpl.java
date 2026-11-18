@@ -121,6 +121,21 @@ public class ChannelServiceImpl implements ChannelService {
         if (request.timezone() != null && !request.timezone().isBlank()) {
             channel.setTimezone(request.timezone());
         }
+        if (request.threadId() != null) {
+            String thread =
+                    request.threadId().isBlank() ? null : request.threadId().trim();
+            channel.setThreadId(thread);
+        }
+        if (request.botToken() != null && !request.botToken().isBlank()) {
+            if (!"tg".equals(channel.getNetwork()) && !"max".equals(channel.getNetwork())) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        ProblemCodes.VALIDATION_FAILED,
+                        "Custom bot token is only supported for tg/max channels");
+            }
+            channel.setBotTokenEnc(
+                    tokenVault.seal(channel.getWorkspaceId(), request.botToken().trim()));
+        }
         channel.setUpdatedAt(Instant.now());
         channelRepository.save(channel);
         auditRecorder.record(
@@ -193,6 +208,8 @@ public class ChannelServiceImpl implements ChannelService {
                     request.username(),
                     request.chatId(),
                     request.forwardedMessage(),
+                    request.botToken(),
+                    request.threadId(),
                     ctx);
             case rutube -> throw new ApiException(
                     HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Rutube connect is phase 2");
@@ -219,6 +236,8 @@ public class ChannelServiceImpl implements ChannelService {
                 request.username(),
                 request.chatId(),
                 request.forwardedMessage(),
+                request.botToken(),
+                request.threadId(),
                 ctx);
     }
 
@@ -489,6 +508,8 @@ public class ChannelServiceImpl implements ChannelService {
             String username,
             String chatId,
             ChannelDtos.ForwardedMessageRef forwarded,
+            String customBotToken,
+            String threadId,
             ClientRequestContext ctx) {
         String ref = firstNonBlank(chatId, username, forwarded == null ? null : forwarded.chatId());
         if (ref == null || ref.isBlank()) {
@@ -500,14 +521,25 @@ public class ChannelServiceImpl implements ChannelService {
 
         planLimitService.ensureCanAddChannels(workspaceId, 1);
 
+        boolean customBot = customBotToken != null && !customBotToken.isBlank();
         String botToken;
         UUID botId = null;
-        if ("tg".equals(network)) {
+        String accountExternalId;
+        String accountDisplayName;
+        if (customBot) {
+            botToken = customBotToken.trim();
+            accountExternalId = "custom-bot";
+            accountDisplayName = "Custom bot";
+        } else if ("tg".equals(network)) {
             TelegramBotEntity bot = pickBot();
             botId = bot.getId();
             botToken = resolveBotToken(bot);
+            accountExternalId = properties.tgBotUsername();
+            accountDisplayName = "@" + properties.tgBotUsername();
         } else {
             botToken = properties.maxBotToken();
+            accountExternalId = "max-bot";
+            accountDisplayName = "Max bot";
         }
 
         SocialConnectClient.BotPermissionCheck check = "tg".equals(network)
@@ -530,8 +562,8 @@ public class ChannelServiceImpl implements ChannelService {
         SocialAccountEntity account = upsertSocialAccount(
                 workspaceId,
                 network,
-                "tg".equals(network) ? properties.tgBotUsername() : "max-bot",
-                "tg".equals(network) ? "@" + properties.tgBotUsername() : "Max bot",
+                accountExternalId,
+                accountDisplayName,
                 new SocialConnectClient.OAuthToken(botToken, null, null, "bot", "bot"));
 
         SocialConnectClient.RemoteChannel remote = new SocialConnectClient.RemoteChannel(
@@ -543,13 +575,28 @@ public class ChannelServiceImpl implements ChannelService {
                 true,
                 null);
         ChannelEntity channel = upsertChannel(workspaceId, projectId, account.getId(), network, remote, botId, null);
+        if (customBot) {
+            channel.setBotTokenEnc(tokenVault.seal(workspaceId, botToken));
+        }
+        if (threadId != null && !threadId.isBlank()) {
+            channel.setThreadId(threadId.trim());
+        }
+        channel = channelRepository.save(channel);
         auditRecorder.record(
                 workspaceId,
                 userId,
                 "channel.connected",
                 "channel",
                 channel.getId(),
-                Map.of("network", network, "externalId", externalId),
+                Map.of(
+                        "network",
+                        network,
+                        "externalId",
+                        externalId,
+                        "customBot",
+                        String.valueOf(customBot),
+                        "threadId",
+                        channel.getThreadId() == null ? "" : channel.getThreadId()),
                 ctx.ip());
         return new CursorPage.ChannelPage(List.of(toDto(channel)), null, false);
     }
@@ -637,7 +684,16 @@ public class ChannelServiceImpl implements ChannelService {
         if (bot.getTokenEnc() == null || bot.getTokenEnc().length <= 1) {
             return fromEnv;
         }
-        // Bot tokens are sealed with a synthetic workspace of zero UUID via env fallback.
+        // Pool bots may carry a sealed token under the zero-UUID workspace key; fall back to env
+        // when unwrap is unavailable (local/emulator seed uses 0x00 placeholder).
+        try {
+            String unsealed = tokenVault.unseal(new UUID(0L, 0L), bot.getTokenEnc());
+            if (unsealed != null && !unsealed.isBlank()) {
+                return unsealed;
+            }
+        } catch (RuntimeException ignored) {
+            // env fallback
+        }
         return fromEnv;
     }
 
@@ -690,7 +746,9 @@ public class ChannelServiceImpl implements ChannelService {
                 channel.getCreatedAt(),
                 storyStatus,
                 channel.getStoryConnectedAt(),
-                channel.getStoryConnectionError());
+                channel.getStoryConnectionError(),
+                channel.getThreadId(),
+                channel.getBotTokenEnc() != null && channel.getBotTokenEnc().length > 1);
     }
 
     private static String firstNonBlank(String... values) {

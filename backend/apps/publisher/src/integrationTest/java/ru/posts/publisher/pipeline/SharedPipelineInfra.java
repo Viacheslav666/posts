@@ -32,6 +32,10 @@ final class SharedPipelineInfra {
     static final RabbitMQContainer RABBIT_OK =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
+    /** Isolated broker for Max publisher ITs (BE-28). */
+    static final RabbitMQContainer RABBIT_MAX =
+            new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
+
     static final GenericContainer<?> REDIS =
             new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
 
@@ -43,6 +47,7 @@ final class SharedPipelineInfra {
         RABBIT_TG.start();
         RABBIT_VK.start();
         RABBIT_OK.start();
+        RABBIT_MAX.start();
         REDIS.start();
     }
 

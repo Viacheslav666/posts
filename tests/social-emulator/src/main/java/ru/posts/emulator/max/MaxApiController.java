@@ -3,14 +3,21 @@ package ru.posts.emulator.max;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -20,6 +27,7 @@ public class MaxApiController {
 
     private final PostStore postStore;
     private final PublishSupport publishSupport;
+    private final ConcurrentHashMap<String, String> uploadTokens = new ConcurrentHashMap<>();
 
     public MaxApiController(PostStore postStore, PublishSupport publishSupport) {
         this.postStore = postStore;
@@ -27,14 +35,43 @@ public class MaxApiController {
     }
 
     @PostMapping(
+            path = {"/max/uploads", "/uploads"},
+            consumes = MediaType.ALL_VALUE)
+    public ResponseEntity<?> initUpload(
+            @RequestParam String type, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        String token = "max-up-" + UUID.randomUUID();
+        uploadTokens.put(token, type == null ? "image" : type);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("url", "/max/uploads/" + token);
+        body.put("token", token);
+        return ResponseEntity.ok(body);
+    }
+
+    @PostMapping(
+            path = {"/max/uploads/{token}", "/uploads/{token}"},
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> completeUpload(
+            @PathVariable String token, @RequestParam(required = false) MultipartFile data) {
+        String type = uploadTokens.getOrDefault(token, "image");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("token", token);
+        body.put("type", type);
+        if (data != null) {
+            body.put("bytes", data.getSize());
+        }
+        return ResponseEntity.ok(body);
+    }
+
+    @PostMapping(
             path = {"/max/messages", "/messages"},
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> sendMessageJson(
             @RequestParam(required = false) String access_token,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody(required = false) Map<String, Object> json,
             HttpServletResponse rawResponse)
             throws IOException {
-        return send(access_token, null, json == null ? Map.of() : json, rawResponse);
+        return send(access_token, authorization, null, json == null ? Map.of() : json, rawResponse);
     }
 
     @PostMapping(
@@ -42,14 +79,24 @@ public class MaxApiController {
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<?> sendMessageForm(
             @RequestParam(required = false) String access_token,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam MultiValueMap<String, String> form,
             HttpServletResponse rawResponse)
             throws IOException {
-        return send(access_token, form, Map.of(), rawResponse);
+        return send(access_token, authorization, form, Map.of(), rawResponse);
+    }
+
+    @DeleteMapping(path = {"/max/messages/{messageId}", "/messages/{messageId}"})
+    public ResponseEntity<?> deleteMessage(
+            @PathVariable String messageId,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        // Emulator treats delete as success even when the message is already gone.
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     private ResponseEntity<?> send(
             String accessToken,
+            String authorization,
             MultiValueMap<String, String> form,
             Map<String, Object> json,
             HttpServletResponse rawResponse)
@@ -64,16 +111,25 @@ public class MaxApiController {
 
         String finalChat = chatId == null ? "unknown" : chatId;
         boolean tokenPresent = accessToken != null
+                || (authorization != null && !authorization.isBlank())
                 || (form != null && form.getFirst("access_token") != null)
                 || json.get("access_token") != null;
 
+        int attachmentCount = 0;
+        if (json.get("attachments") instanceof List<?> list) {
+            attachmentCount = list.size();
+        }
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("method", "messages");
+        meta.put("token_present", tokenPresent);
+        meta.put("attachment_count", attachmentCount);
+        if (json.get("notify") != null) {
+            meta.put("notify", json.get("notify"));
+        }
+
         return publishSupport.execute(Network.MAX, rawResponse, () -> {
-            PostStore.CreateResult result = postStore.createOrGet(
-                    Network.MAX,
-                    finalChat,
-                    idempotencyKey,
-                    text,
-                    Map.of("method", "messages", "token_present", tokenPresent));
+            PostStore.CreateResult result = postStore.createOrGet(Network.MAX, finalChat, idempotencyKey, text, meta);
 
             Map<String, Object> body = new LinkedHashMap<>();
             body.put(
