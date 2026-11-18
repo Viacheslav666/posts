@@ -11,7 +11,7 @@ import {
   SelectValue,
   toast,
 } from '@posts/ui';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -30,14 +30,22 @@ import {
 
 import {
   createIngestRule,
+  listIngestRules,
   patchIngestRule,
   previewIngestSource,
 } from '../api/grabber-api';
-import { buildGrabberConfig, defaultFormValues, formValuesFromRule } from '../model/config';
+import {
+  applyClonedConfigToForm,
+  buildGrabberConfig,
+  defaultFormValues,
+  formValuesFromRule,
+} from '../model/config';
 import { grabberRuleFormSchema, type GrabberRuleFormValues } from '../model/schemas';
 import { normalizeSourceIds } from '../model/source-ids';
-import { isWebsiteSourceEnabled, SCAN_INTERVALS } from '../model/types';
+import { isWebsiteSourceEnabled, MAX_SOURCES_PER_RULE, SCAN_INTERVALS } from '../model/types';
 import { AutoModeWarning } from './auto-mode-warning';
+import { CloneConfigControl } from './clone-config-control';
+import { RuleSettingsSections } from './rule-settings-sections';
 
 type RuleFormProps = {
   workspaceId: string;
@@ -62,6 +70,7 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
     control,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<GrabberRuleFormValues>({
     // Zod 4 + RHF resolver inference is looser than our form values.
@@ -71,10 +80,18 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
 
   const type = watch('type');
   const publishMode = watch('publishMode');
+  const scheduleEnabled = watch('scheduleEnabled');
+  const firstCommentEnabled = watch('firstCommentEnabled');
   const vkChannels = useMemo(
     () => channels.filter((channel) => channel.network === 'vk' && channel.status === 'active'),
     [channels],
   );
+
+  const siblingRulesQuery = useQuery({
+    queryKey: queryKeys.ingest.rules(workspaceId, project.id!),
+    queryFn: () => listIngestRules({ workspaceId, projectId: project.id! }),
+    enabled: Boolean(rule?.id && project.id),
+  });
 
   const saveMutation = useMutation({
     mutationFn: async (values: GrabberRuleFormValues) => {
@@ -177,6 +194,18 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
       {showPaywall ? (
         <PlanLimitPaywall workspaceId={workspaceId} variant="hard" limitKey="grabber_rules" />
       ) : null}
+
+      {rule?.id ? (
+        <CloneConfigControl
+          ruleId={rule.id}
+          siblingRules={siblingRulesQuery.data?.items ?? []}
+          onCloned={(cloned) => {
+            reset(applyClonedConfigToForm(watch(), cloned.config ?? {}));
+            void queryClient.invalidateQueries({ queryKey: queryKeys.ingest.all(workspaceId) });
+          }}
+        />
+      ) : null}
+
       <FormField
         label={t('name')}
         error={fieldError('name')}
@@ -255,7 +284,9 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
             data-testid="grabber-source-ids"
             {...register('sourceIdsText')}
           />
-          <p className="text-xs text-muted-foreground">{t('sourceIdsHint')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('sourceIdsHint', { max: MAX_SOURCES_PER_RULE })}
+          </p>
           {fieldError('sourceIdsText') ? (
             <p role="alert" className="text-xs text-destructive">
               {fieldError('sourceIdsText')}
@@ -345,18 +376,12 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
 
       <AutoModeWarning visible={publishMode === 'auto'} />
 
-      {type === 'grabber' ? (
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" {...register('excludeAds')} />
-            {t('excludeAds')}
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" {...register('excludeReposts')} />
-            {t('excludeReposts')}
-          </label>
-        </div>
-      ) : null}
+      <RuleSettingsSections
+        register={register}
+        control={control}
+        scheduleEnabled={scheduleEnabled}
+        firstCommentEnabled={firstCommentEnabled}
+      />
 
       <FormField
         label={t('attributionTemplate')}
@@ -392,6 +417,7 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
       {previewLines.length > 0 ? (
         <div className="space-y-2 rounded-md border border-border p-3" data-testid="grabber-preview">
           <p className="text-sm font-medium">{t('previewTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('previewSourceOnly')}</p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {previewLines.map((line) => (
               <li key={line}>{line}</li>
