@@ -277,6 +277,8 @@ final class RbacHttpProbeSupport {
         path = path.replace("{mediaId}", values.get("{mediaId}"));
         path = path.replace("{publicationId}", values.get("{publicationId}"));
         path = path.replace("{sessionId}", values.get("{sessionId}"));
+        path = path.replace("{contractorId}", randomUuid());
+        path = path.replace("{contractId}", randomUuid());
         path = path.replace("{ruleId}", values.get("{ruleId}"));
         path = path.replace("{itemId}", values.get("{itemId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
@@ -285,7 +287,12 @@ final class RbacHttpProbeSupport {
         } else {
             path = path.replace("{network}", "vk");
         }
-        path = path.replace("{provider}", "vk");
+        // ORD providers use vk_ord / yandex_ord; channel OAuth uses network codes.
+        if (endpoint.path().contains("/ord/")) {
+            path = path.replace("{provider}", "vk_ord");
+        } else {
+            path = path.replace("{provider}", "vk");
+        }
         return path;
     }
 
@@ -499,6 +506,45 @@ final class RbacHttpProbeSupport {
                 yield node.toString();
             }
             case "channelsConnectStart", "notificationSettingsUpdate", "notificationsMarkRead" -> "{}";
+            case "ordConnectionsUpsert" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("apiKey", "rbac-probe-ord-key");
+                node.put("publisherInn", "7707083893");
+                node.put("publisherName", "RBAC Probe Publisher");
+                node.put("orgType", "juridical");
+                node.putArray("roles").add("publisher");
+                node.put("isDefault", true);
+                node.put("responsibilityAccepted", true);
+                yield node.toString();
+            }
+            case "ordContractorsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("inn", "7707083893");
+                node.put("kpp", "770701001");
+                node.put("name", "RBAC Probe Contractor");
+                node.put("orgType", "juridical");
+                yield node.toString();
+            }
+            case "ordContractorsUpdate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Probe Contractor Updated");
+                yield node.toString();
+            }
+            case "ordContractsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("contractorId", UUID.randomUUID().toString());
+                node.put("externalId", "rbac-contract-" + UUID.randomUUID());
+                node.put("provider", "vk_ord");
+                node.put("selfPromo", false);
+                yield node.toString();
+            }
+            case "ordReportsRun" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("year", 2026);
+                node.put("month", 10);
+                yield node.toString();
+            }
             case "ingestRulesCreate" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("type", "grabber");

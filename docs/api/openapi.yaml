@@ -29,6 +29,12 @@ info:
     - totp_required — password ok, TOTP/backup code required (401)
     - oauth_link_required — OAuth email matches existing account; confirm link (409)
     - invalid_token — email verify / password reset / OAuth link token invalid
+    - ord_not_configured — workspace has no active ORD connection
+    - ord_validation_failed — ORD request rejected by validation
+    - ord_provider_unavailable — ORD provider unreachable / 5xx
+    - ord_erid_missing — creative registered without erid
+    - ad_inn_invalid — advertiser INN must be 10 or 12 digits
+    - network_option_unsupported — option not supported for selected network
     - ingest_responsibility_required — grabber activate without legal checkbox
     - ingest_attribution_required — grabber activate without attribution
     - ingest_ssrf_blocked — RSS/website URL targets private network
@@ -84,6 +90,8 @@ tags:
   name: Networks
 - description: Public signing keys for access JWT verification
   name: JWKS
+- description: "Ad marking / ORD connections, contractors, creatives"
+  name: ORD
 - description: Current user profile and sessions
   name: Me
 - description: "Registration, login, OAuth, 2FA, password recovery"
@@ -4875,6 +4883,196 @@ paths:
       summary: Mark notifications as read
       tags:
       - Notifications
+  /api/v1/ord/dictionaries/kktu:
+    get:
+      operationId: ordDictionariesKktu
+      parameters:
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DictionaryKktuItem"
+          description: KKTU items
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Search KKTU dictionary
+      tags:
+      - ORD
+  /api/v1/ord/dictionaries/oksm:
+    get:
+      operationId: ordDictionariesOksm
+      parameters:
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DictionaryOksmItem"
+          description: OKSM items
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Search OKSM dictionary
+      tags:
+      - ORD
+  /api/v1/ord/reports/run:
+    post:
+      operationId: ordReportsRun
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrdReportRunRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdReportRunResponse"
+          description: Report run
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Run ORD invoices/statistics for a period
+      tags:
+      - ORD
   /api/v1/ping:
     get:
       description: Unauthenticated smoke endpoint used by Makefile/CI.
@@ -5502,6 +5700,132 @@ paths:
       summary: Duplicate a post as a new draft
       tags:
       - Posts
+  /api/v1/posts/{postId}/ord/register:
+    post:
+      operationId: postsOrdRegister
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdRegisterCreativeResponse"
+          description: Registration result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Register post creative in ORD (idempotent)
+      tags:
+      - ORD
+  /api/v1/posts/{postId}/ord/status:
+    get:
+      operationId: postsOrdStatus
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdCreativeStatus"
+          description: Creative status
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get ORD creative status for a post
+      tags:
+      - ORD
   /api/v1/posts/{postId}/pause:
     post:
       operationId: postsPause
@@ -7202,6 +7526,624 @@ paths:
       summary: Update member role and project grants
       tags:
       - Workspaces
+  /api/v1/workspaces/{workspaceId}/ord/connections:
+    get:
+      operationId: ordConnectionsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdConnectionPage"
+          description: Connections page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List ORD connections for a workspace
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/connections/{provider}:
+    put:
+      operationId: ordConnectionsUpsert
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertOrdConnectionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdConnection"
+          description: Upserted connection
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create or update an ORD connection
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/connections/{provider}/test:
+    post:
+      operationId: ordConnectionsTest
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdConnectionTestResponse"
+          description: Test result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Test ORD connection credentials
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/contractors:
+    get:
+      operationId: ordContractorsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContractorPage"
+          description: Contractors page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List ORD contractors
+      tags:
+      - ORD
+    post:
+      operationId: ordContractorsCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrdContractorRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContractor"
+          description: Created contractor
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create ORD contractor
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/contractors/{contractorId}:
+    get:
+      operationId: ordContractorsGet
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: contractorId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContractor"
+          description: Contractor
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get ORD contractor
+      tags:
+      - ORD
+    put:
+      operationId: ordContractorsUpdate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: contractorId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrdContractorRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContractor"
+          description: Updated contractor
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update ORD contractor
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/contracts:
+    get:
+      operationId: ordContractsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContractPage"
+          description: Contracts page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List ORD contracts
+      tags:
+      - ORD
+    post:
+      operationId: ordContractsCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrdContractRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdContract"
+          description: Created contract
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create ORD contract
+      tags:
+      - ORD
   /api/v1/workspaces/{workspaceId}/projects:
     get:
       operationId: projectsList
@@ -7645,6 +8587,96 @@ components:
           type: string
       required:
       - token
+    AdMarking:
+      type: object
+      description: Full advertiser / ORD marking block (feature spec §3.4). Stored
+        as posts.ad_payload jsonb.
+      properties:
+        address:
+          type: string
+        advertiserName:
+          type: string
+          description: Advertiser name / FIO
+        amount:
+          type: number
+          minimum: 0
+        autoDeleteAfterPeriod:
+          type: boolean
+        contractAmount:
+          type: number
+          minimum: 0
+        contractDate:
+          type: string
+          format: date
+        contractDateEnd:
+          type: string
+          format: date
+        contractSerial:
+          type: string
+        contractorId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        displayPeriodDays:
+          type: integer
+          format: int32
+          maximum: 365
+          minimum: 1
+        erid:
+          type: string
+          description: Erid after registration; read-only on responses
+        foreignEpayment:
+          type: string
+        foreignInn:
+          type: string
+        foreignRegNumber:
+          type: string
+        inn:
+          type: string
+          description: INN — 10 or 12 digits
+        isForeign:
+          type: boolean
+        kktuCodes:
+          type: array
+          items:
+            type: string
+          maxItems: 2147483647
+          minItems: 1
+        kpp:
+          type: string
+          description: KPP; required for juridical
+        markingType:
+          type: string
+          description: Marking mode / type_marking
+          example: 0
+        oksmCountry:
+          type: string
+          description: OKSM country code
+          example: 643
+        orgType:
+          type: string
+          description: physical | ip | juridical | foreign_physical | foreign_juridical
+          enum:
+          - physical
+          - ip
+          - juridical
+          - foreign_physical
+          - foreign_juridical
+        phone:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        selfPromo:
+          type: boolean
+        vatRate:
+          type: string
+          description: VAT rate
+          example: without_vat
     AdMarkingSummary:
       type: object
       description: Lightweight ad marking card fields for list/calendar (full ORD
@@ -8077,15 +9109,73 @@ components:
       required:
       - email
       - role
+    CreateOrdContractRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+        contractorId:
+          type: string
+          format: uuid
+        dateEnd:
+          type: string
+          format: date
+        dateStart:
+          type: string
+          format: date
+        externalId:
+          type: string
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        selfPromo:
+          type: boolean
+        serial:
+          type: string
+        vatRate:
+          type: string
+      required:
+      - contractorId
+      - externalId
+      - provider
+    CreateOrdContractorRequest:
+      type: object
+      properties:
+        address:
+          type: string
+        countryOksm:
+          type: string
+        inn:
+          type: string
+        kpp:
+          type: string
+        name:
+          type: string
+        orgType:
+          type: string
+        phone:
+          type: string
+      required:
+      - inn
+      - name
+      - orgType
     CreatePostRequest:
       type: object
       properties:
         ad:
           type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarking"
+          description: Typed ad marking; preferred over adPayload
         adPayload:
           type: object
           additionalProperties:
             type: object
+          deprecated: true
+          description: "Deprecated: raw jsonb snapshot; prefer adMarking"
         baseContent:
           $ref: "#/components/schemas/PostContent"
         contentKind:
@@ -8206,6 +9296,28 @@ components:
           minLength: 1
       required:
       - name
+    DictionaryKktuItem:
+      type: object
+      properties:
+        active:
+          type: boolean
+        code:
+          type: string
+        name:
+          type: string
+        parentCode:
+          type: string
+    DictionaryOksmItem:
+      type: object
+      properties:
+        active:
+          type: boolean
+        alpha2:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
     EmailVerifyRequest:
       type: object
       properties:
@@ -8256,6 +9368,15 @@ components:
         messageId:
           type: string
           example: 42
+    GeoPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
     GrabberBulkModerationRequest:
       type: object
       properties:
@@ -8967,6 +10088,257 @@ components:
         state:
           type: string
           example: xyz
+    OrdConnection:
+      type: object
+      description: ORD connection without plaintext API key
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        hasApiKey:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        isDefault:
+          type: boolean
+        orgType:
+          type: string
+        phone:
+          type: string
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        publisherInn:
+          type: string
+        publisherName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        workspaceId:
+          type: string
+          format: uuid
+    OrdConnectionPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrdConnection"
+        nextCursor:
+          type: string
+    OrdConnectionTestResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        ok:
+          type: boolean
+        status:
+          type: string
+    OrdContract:
+      type: object
+      properties:
+        amount:
+          type: number
+        contractorId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        dateEnd:
+          type: string
+          format: date
+        dateStart:
+          type: string
+          format: date
+        externalId:
+          type: string
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        selfPromo:
+          type: boolean
+        serial:
+          type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        vatRate:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+    OrdContractPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrdContract"
+        nextCursor:
+          type: string
+    OrdContractor:
+      type: object
+      properties:
+        address:
+          type: string
+        countryOksm:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        inn:
+          type: string
+        kpp:
+          type: string
+        name:
+          type: string
+        orgType:
+          type: string
+        phone:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        workspaceId:
+          type: string
+          format: uuid
+    OrdContractorPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrdContractor"
+        nextCursor:
+          type: string
+    OrdCreativeStatus:
+      type: object
+      properties:
+        erid:
+          type: string
+        externalId:
+          type: string
+        id:
+          type: string
+          format: uuid
+        lastError:
+          type: string
+        postId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        registeredAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+    OrdRegisterCreativeResponse:
+      type: object
+      properties:
+        erid:
+          type: string
+        externalId:
+          type: string
+        id:
+          type: string
+          format: uuid
+        lastError:
+          type: string
+        postId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        registeredAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+    OrdReportRunRequest:
+      type: object
+      properties:
+        month:
+          type: integer
+          format: int32
+          maximum: 12
+          minimum: 1
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        workspaceId:
+          type: string
+          format: uuid
+        year:
+          type: integer
+          format: int32
+          maximum: 2100
+          minimum: 2020
+      required:
+      - month
+      - workspaceId
+      - year
+    OrdReportRunResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoicesCount:
+          type: integer
+          format: int32
+        periodMonth:
+          type: integer
+          format: int32
+        periodYear:
+          type: integer
+          format: int32
+        statisticsCount:
+          type: integer
+          format: int32
+        status:
+          type: string
     PasswordForgotRequest:
       type: object
       properties:
@@ -9013,6 +10385,18 @@ components:
           type: number
         priceYear:
           type: number
+    PollOptions:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            type: string
+          maxItems: 2147483647
+          minItems: 2
+        question:
+          type: string
+          example: Ваш выбор?
     Post:
       type: object
       properties:
@@ -9163,6 +10547,11 @@ components:
     PostVariantOptions:
       type: object
       properties:
+        actionButton:
+          type: object
+          additionalProperties:
+            type: object
+          description: VK action button payload
         buttons:
           type: array
           items:
@@ -9171,19 +10560,40 @@ components:
           type: string
         closeComments:
           type: boolean
+        coOwnerIds:
+          type: array
+          description: VK co-owner community ids (≤4)
+          items:
+            type: string
+        copyrightUrl:
+          type: string
         deleteAfter:
           type: string
           format: date-time
+        donutDays:
+          type: integer
+          format: int32
+          description: VK Donut visibility days 0–7
+          maximum: 7
+          minimum: 0
         extra:
           type: object
           additionalProperties:
             type: object
         firstComment:
           type: string
+        geo:
+          $ref: "#/components/schemas/GeoPoint"
         mute:
           type: boolean
         pin:
           type: boolean
+        poll:
+          $ref: "#/components/schemas/PollOptions"
+        primaryAttachmentsMode:
+          type: string
+          description: grid | carousel
+          example: grid
         signed:
           type: boolean
         unpinAt:
@@ -9217,8 +10627,15 @@ components:
     PreviewRequest:
       type: object
       properties:
+        ad:
+          type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarking"
         content:
           $ref: "#/components/schemas/PostContent"
+        erid:
+          type: string
+          description: Optional erid for preview marker
         network:
           type: string
           description: Social network identifier (DB / publish routing key)
@@ -9762,6 +11179,23 @@ components:
           type: boolean
         webPushEnabled:
           type: boolean
+    UpdateOrdContractorRequest:
+      type: object
+      properties:
+        address:
+          type: string
+        countryOksm:
+          type: string
+        inn:
+          type: string
+        kpp:
+          type: string
+        name:
+          type: string
+        orgType:
+          type: string
+        phone:
+          type: string
     UpdatePasswordRequest:
       type: object
       properties:
@@ -9779,10 +11213,15 @@ components:
       properties:
         ad:
           type: boolean
+        adMarking:
+          $ref: "#/components/schemas/AdMarking"
+          description: Typed ad marking; preferred over adPayload
         adPayload:
           type: object
           additionalProperties:
             type: object
+          deprecated: true
+          description: "Deprecated: raw jsonb snapshot; prefer adMarking"
         baseContent:
           $ref: "#/components/schemas/PostContent"
         projectId:
@@ -9836,6 +11275,30 @@ components:
           minLength: 1
       required:
       - name
+    UpsertOrdConnectionRequest:
+      type: object
+      properties:
+        apiKey:
+          type: string
+          description: Plaintext API key; omit/blank on update to keep existing
+        isDefault:
+          type: boolean
+        orgType:
+          type: string
+        phone:
+          type: string
+        publisherInn:
+          type: string
+        publisherName:
+          type: string
+        responsibilityAccepted:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+      required:
+      - responsibilityAccepted
     UserProfile:
       type: object
       description: Current authenticated user (`GET /me`)

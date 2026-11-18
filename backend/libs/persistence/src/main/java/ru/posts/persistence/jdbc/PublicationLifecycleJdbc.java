@@ -33,11 +33,17 @@ public class PublicationLifecycleJdbc {
                    coalesce(p.content_kind, 'post') AS content_kind,
                    coalesce(pv.options::text, '{}') AS options_json,
                    coalesce(p.is_ad, false) AS ad,
-                   coalesce(p.source_type, 'manual') AS source
+                   coalesce(p.source_type, 'manual') AS source,
+                   oc.erid AS erid,
+                   coalesce(oc.advertiser_name, p.ad_payload ->> 'advertiserName') AS advertiser_name,
+                   coalesce(oc.advertiser_inn, p.ad_payload ->> 'inn') AS advertiser_inn,
+                   oc.display_period_days AS ad_display_period_days,
+                   coalesce(oc.auto_delete_after_period, true) AS ad_auto_delete_after_period
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
             LEFT JOIN post_variants pv ON pv.id = pub.variant_id
+            LEFT JOIN ord_creatives oc ON oc.id = p.ord_creative_id
             WHERE pub.id = :id AND pub.run_at = :runAt
             """;
 
@@ -71,7 +77,12 @@ public class PublicationLifecycleJdbc {
                         "post",
                         "{}",
                         false,
-                        "manual"))
+                        "manual",
+                        null,
+                        null,
+                        null,
+                        null,
+                        true))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -85,23 +96,32 @@ public class PublicationLifecycleJdbc {
                 .sql(LOAD_CONTENT)
                 .param("id", base.id())
                 .param("runAt", Timestamp.from(base.runAt()))
-                .query((rs, rowNum) -> new PublicationClaim(
-                        base.id(),
-                        base.runAt(),
-                        base.workspaceId(),
-                        base.postId(),
-                        base.variantId(),
-                        base.channelId(),
-                        base.network(),
-                        base.idempotencyKey(),
-                        rs.getString("external_channel_id"),
-                        rs.getString("content_text"),
-                        base.remotePostId(),
-                        base.attempts(),
-                        rs.getString("content_kind"),
-                        rs.getString("options_json"),
-                        rs.getBoolean("ad"),
-                        rs.getString("source")))
+                .query((rs, rowNum) -> {
+                    Integer displayDays =
+                            rs.getObject("ad_display_period_days") == null ? null : rs.getInt("ad_display_period_days");
+                    return new PublicationClaim(
+                            base.id(),
+                            base.runAt(),
+                            base.workspaceId(),
+                            base.postId(),
+                            base.variantId(),
+                            base.channelId(),
+                            base.network(),
+                            base.idempotencyKey(),
+                            rs.getString("external_channel_id"),
+                            rs.getString("content_text"),
+                            base.remotePostId(),
+                            base.attempts(),
+                            rs.getString("content_kind"),
+                            rs.getString("options_json"),
+                            rs.getBoolean("ad"),
+                            rs.getString("source"),
+                            rs.getString("erid"),
+                            rs.getString("advertiser_name"),
+                            rs.getString("advertiser_inn"),
+                            displayDays,
+                            rs.getBoolean("ad_auto_delete_after_period"));
+                })
                 .optional()
                 .orElse(base);
     }

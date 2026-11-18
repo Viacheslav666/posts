@@ -52,6 +52,13 @@ public class ScheduledActionsFactory {
         }
 
         Instant deleteAfter = parseInstant(options, "deleteAfter");
+        if (deleteAfter == null
+                && claim.ad()
+                && claim.adAutoDeleteAfterPeriod()
+                && claim.adDisplayPeriodDays() != null
+                && claim.adDisplayPeriodDays() > 0) {
+            deleteAfter = now.plusSeconds(claim.adDisplayPeriodDays() * 86_400L);
+        }
         if (deleteAfter != null) {
             String kind = "story".equals(claim.contentKind()) ? "delete_story" : "delete";
             actionsJdbc.insertAction(
