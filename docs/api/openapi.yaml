@@ -2687,6 +2687,12 @@ paths:
               $ref: "#/components/schemas/GrabberBulkModerationRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberBulkModerationResponse"
+          description: Bulk result
         "400":
           content:
             application/problem+json:
@@ -2744,6 +2750,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberItem"
+          description: Item
         "400":
           content:
             application/problem+json:
@@ -2811,6 +2823,12 @@ paths:
             schema:
               $ref: "#/components/schemas/GrabberItemApproveRequest"
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberItem"
+          description: Approved item
         "400":
           content:
             application/problem+json:
@@ -2879,6 +2897,12 @@ paths:
               $ref: "#/components/schemas/GrabberItemEditApproveRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberItem"
+          description: Edited and approved item
         "400":
           content:
             application/problem+json:
@@ -2941,6 +2965,12 @@ paths:
             schema:
               $ref: "#/components/schemas/GrabberItemRejectRequest"
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberItem"
+          description: Rejected item
         "400":
           content:
             application/problem+json:
@@ -3004,6 +3034,12 @@ paths:
               $ref: "#/components/schemas/IngestPreviewRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestPreviewResponse"
+          description: Preview items
         "400":
           content:
             application/problem+json:
@@ -3061,6 +3097,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Rule
         "400":
           content:
             application/problem+json:
@@ -3123,6 +3165,12 @@ paths:
               $ref: "#/components/schemas/GrabberRulePatch"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Updated rule
         "400":
           content:
             application/problem+json:
@@ -3180,6 +3228,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Activated rule
         "400":
           content:
             application/problem+json:
@@ -3237,6 +3291,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Archived rule
         "400":
           content:
             application/problem+json:
@@ -3333,6 +3393,12 @@ paths:
           maximum: 100
           minimum: 1
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberItemPage"
+          description: Items page
         "400":
           content:
             application/problem+json:
@@ -3390,6 +3456,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Paused rule
         "400":
           content:
             application/problem+json:
@@ -3447,6 +3519,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Resumed rule
         "400":
           content:
             application/problem+json:
@@ -3526,6 +3604,12 @@ paths:
           maximum: 100
           minimum: 1
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRunPage"
+          description: Runs page
         "400":
           content:
             application/problem+json:
@@ -3592,7 +3676,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GrabberRun"
-          description: Accepted
+          description: Run accepted
         "400":
           content:
             application/problem+json:
@@ -9715,6 +9799,20 @@ components:
       required:
       - action
       - itemIds
+    GrabberBulkModerationResponse:
+      type: object
+      properties:
+        failed:
+          type: integer
+          format: int32
+        failedIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        succeeded:
+          type: integer
+          format: int32
     GrabberConfig:
       type: object
       properties:
@@ -9771,6 +9869,63 @@ components:
           description: "Website page URLs (type=website), max 20"
           items:
             type: string
+    GrabberItem:
+      type: object
+      properties:
+        contentHash:
+          type: string
+        contentText:
+          type: string
+        detectedAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        moderatedAt:
+          type: string
+          format: date-time
+        moderatedBy:
+          type: string
+          format: uuid
+        postId:
+          type: string
+          format: uuid
+        remotePostId:
+          type: string
+        ruleId:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        skipReason:
+          type: string
+        sourceId:
+          type: string
+        sourceName:
+          type: string
+        sourceNetwork:
+          type: string
+        sourcePermalink:
+          type: string
+        status:
+          type: string
+          enum:
+          - discovered
+          - filtered_out
+          - suppressed_dedup
+          - pending_moderation
+          - rejected
+          - approved
+          - scheduled
+          - published
+          - publish_failed
+          - failed_validation
+          - failed_ingest
+        workspaceId:
+          type: string
+          format: uuid
     GrabberItemApproveRequest:
       type: object
       properties:
@@ -9789,6 +9944,17 @@ components:
           format: date-time
       required:
       - contentText
+    GrabberItemPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrabberItem"
+        nextCursor:
+          type: string
     GrabberItemRejectRequest:
       type: object
       properties:
@@ -9960,6 +10126,17 @@ components:
         workspaceId:
           type: string
           format: uuid
+    GrabberRunPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrabberRun"
+        nextCursor:
+          type: string
     ImportUrlRequest:
       type: object
       properties:
@@ -10014,6 +10191,13 @@ components:
             type: string
       required:
       - type
+    IngestPreviewResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrabberItem"
     InlineButton:
       type: object
       properties:

@@ -38,6 +38,9 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'posts.retry_publish': ['owner', 'admin', 'editor'],
   'calendar.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'calendar.move': ['owner', 'admin', 'editor'],
+  'automations.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'automations.manage': ['owner', 'admin', 'editor'],
+  'automations.moderate': ['owner', 'admin', 'editor'],
 };
 
 describe('permissions matrix (FE-5/FE-6/FE-7/FE-8)', () => {

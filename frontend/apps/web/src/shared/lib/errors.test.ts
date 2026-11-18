@@ -4,7 +4,11 @@ import {
   ApiProblemError,
   AppError,
   getErrorMessage,
+  INGEST_RESPONSIBILITY_REQUIRED_CODE,
+  INGEST_SSRF_BLOCKED_CODE,
   INSUFFICIENT_PERMISSIONS_CODE,
+  isIngestResponsibilityRequired,
+  isIngestSsrfBlocked,
   isInsufficientPermissions,
   isPlanLimitExceeded,
   isTwoFactorRequired,
@@ -61,6 +65,23 @@ describe('ApiProblemError', () => {
       status: 402,
     });
     expect(isPlanLimitExceeded(error)).toBe(true);
+  });
+
+  it('detects ingest SSRF / responsibility codes', () => {
+    expect(
+      isIngestSsrfBlocked(
+        toApiProblemError({ code: INGEST_SSRF_BLOCKED_CODE, detail: 'ssrf', status: 422 }),
+      ),
+    ).toBe(true);
+    expect(
+      isIngestResponsibilityRequired(
+        toApiProblemError({
+          code: INGEST_RESPONSIBILITY_REQUIRED_CODE,
+          detail: 'legal',
+          status: 422,
+        }),
+      ),
+    ).toBe(true);
   });
 });
 
