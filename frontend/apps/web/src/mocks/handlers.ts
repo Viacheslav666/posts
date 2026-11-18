@@ -87,6 +87,7 @@ import {
   upsertAdminPlanInStore,
   upsertFeatureFlag,
 } from './admin-store';
+import { buildPostsAnalytics } from './analytics-store';
 import {
   changePlan,
   checkoutTopup,
@@ -2464,6 +2465,25 @@ export const handlers = [
   }),
 
   // --- Billing (FE-10b / BE-12b / BE-31: wallet + daily charge) ---
+  // --- Analytics (FE-19 / BE-30) ---
+  http.get('/api/v1/analytics/posts', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    const yearRaw = url.searchParams.get('year');
+    if (!workspaceId || !yearRaw) {
+      return problem(400, 'validation_failed', 'workspaceId and year are required', 'Bad Request');
+    }
+    const denied = requireWorkspaceAccess(request, workspaceId);
+    if (denied) return denied;
+    const deniedView = requirePermission(request, 'analytics.view');
+    if (deniedView) return deniedView;
+    const year = Number.parseInt(yearRaw, 10);
+    if (!Number.isFinite(year) || year < 2000 || year > 2100) {
+      return problem(400, 'validation_failed', 'year must be between 2000 and 2100', 'Bad Request');
+    }
+    return HttpResponse.json(buildPostsAnalytics(workspaceId, year));
+  }),
+
   http.get('/api/v1/billing/plans', ({ request }) => {
     const unauthorized = requireBearer(request);
     if (unauthorized) return unauthorized;
