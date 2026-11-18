@@ -5,6 +5,9 @@ import type {
   CompleteUploadRequest,
   CreateChannelSetRequest,
   CreateInvitationRequest,
+  CreateOrdContractRequest,
+  CreateOrdContractorRequest,
+  CreatePostRequest,
   CreateProjectRequest,
   CreateUploadRequest,
   CreateWorkspaceRequest,
@@ -18,6 +21,8 @@ import type {
   LoginRequest,
   MoveCalendarItemRequest,
   OAuthStartResponse,
+  OrdProvider,
+  OrdReportRunRequest,
   PasswordForgotRequest,
   PasswordResetRequest,
   PostActionRequest,
@@ -28,8 +33,11 @@ import type {
   UpdateChannelRequest,
   UpdateChannelSetRequest,
   UpdateMemberRequest,
+  UpdateOrdContractorRequest,
+  UpdatePostRequest,
   UpdateProjectRequest,
   UpdateWorkspaceRequest,
+  UpsertOrdConnectionRequest,
 } from '@posts/api-client';
 import { http, HttpResponse } from 'msw';
 
@@ -99,7 +107,27 @@ import {
   receivePart,
 } from './media-store';
 import {
+  createOrdContract,
+  createOrdContractor,
+  getCreativeForPost,
+  getOrdContractor,
+  hasActiveOrdConnection,
+  KKTU_DICTIONARY,
+  listOrdConnections,
+  listOrdContractors,
+  listOrdContracts,
+  OKSM_DICTIONARY,
+  registerCreative,
+  testOrdConnection,
+  toPublicConnection,
+  updateOrdContractor,
+  upsertOrdConnection,
+  validateAdMarking,
+} from './ord-store';
+import {
+  attachEridToPost,
   bulkPosts,
+  createPost,
   deletePost,
   duplicatePost,
   getPost,
@@ -113,6 +141,7 @@ import {
   resumePost,
   retryPublication,
   toApiPost,
+  updatePost,
   type ListPostsFilters,
 } from './post-store';
 import {
@@ -1081,6 +1110,268 @@ export const handlers = [
       return problem(409, 'optimistic_lock_conflict', 'Post version conflict', 'Conflict');
     }
     return HttpResponse.json(toApiPost(result));
+  }),
+
+  http.post('/api/v1/posts', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedCreate = requirePermission(request, 'posts.create');
+    if (deniedCreate) return deniedCreate;
+    const body = (await request.json()) as CreatePostRequest;
+    if (!body.workspaceId || !body.baseContent) {
+      return problem(400, 'validation_failed', 'workspaceId and baseContent are required', 'Validation failed');
+    }
+    const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
+    if (deniedWs) return deniedWs;
+
+    if (body.ad) {
+      const deniedAd = requirePermission(request, 'posts.ad.schedule');
+      if (deniedAd) return deniedAd;
+      if (!hasActiveOrdConnection(body.workspaceId)) {
+        return problem(
+          422,
+          'ord_not_configured',
+          'Подключите ОРД в настройках workspace перед планированием рекламы',
+          'ORD not configured',
+        );
+      }
+      const invalid = validateAdMarking(body.adMarking);
+      if (invalid) {
+        return problem(400, invalid.code, invalid.detail, 'Validation failed');
+      }
+      if (body.scheduledAt && !body.adMarking?.erid) {
+        return problem(
+          422,
+          'ord_erid_missing',
+          'Нельзя запланировать рекламный пост без erid. Зарегистрируйте креатив в ОРД.',
+          'Erid missing',
+        );
+      }
+    }
+
+    const post = createPost(body);
+    return HttpResponse.json(toApiPost(post), { status: 201 });
+  }),
+
+  http.put('/api/v1/posts/:postId', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedUpdate = requirePermission(request, 'posts.update');
+    if (deniedUpdate) return deniedUpdate;
+    const body = (await request.json()) as UpdatePostRequest;
+    if (body.ad) {
+      const deniedAd = requirePermission(request, 'posts.ad.schedule');
+      if (deniedAd) return deniedAd;
+    }
+    const updated = updatePost(String(params.postId), body);
+    if (!updated) return problem(404, 'not_found', 'Post not found', 'Not found');
+    return HttpResponse.json(toApiPost(updated));
+  }),
+
+  http.get('/api/v1/ord/dictionaries/kktu', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const url = new URL(request.url);
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+    const items = KKTU_DICTIONARY.map((item) => ({ code: item.code, name: item.name })).filter(
+      (item) => !q || item.code.includes(q) || item.name.toLowerCase().includes(q),
+    );
+    return HttpResponse.json(items);
+  }),
+
+  http.get('/api/v1/ord/dictionaries/oksm', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const url = new URL(request.url);
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+    const items = OKSM_DICTIONARY.map((item) => ({ code: item.code, name: item.name })).filter(
+      (item) => !q || item.code.includes(q) || item.name.toLowerCase().includes(q),
+    );
+    return HttpResponse.json(items);
+  }),
+
+  http.post('/api/v1/ord/reports/run', async ({ request }) => {
+    const denied = requirePermission(request, 'ord.reports.run');
+    if (denied) return denied;
+    const body = (await request.json()) as OrdReportRunRequest;
+    const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
+    if (deniedWs) return deniedWs;
+    return HttpResponse.json({
+      ok: true,
+      invoicesCreated: 1,
+      statisticsCreated: 1,
+      period: `${body.year}-${String(body.month).padStart(2, '0')}`,
+    });
+  }),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/connections', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    return HttpResponse.json({
+      items: listOrdConnections(workspaceId),
+      hasMore: false,
+    });
+  }),
+
+  http.put('/api/v1/workspaces/:workspaceId/ord/connections/:provider', async ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const provider = String(params.provider) as OrdProvider;
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.connection.manage');
+    if (denied) return denied;
+    if (provider !== 'vk_ord' && provider !== 'yandex_ord') {
+      return problem(400, 'validation_failed', 'Unsupported ORD provider', 'Validation failed');
+    }
+    const body = (await request.json()) as UpsertOrdConnectionRequest;
+    if (!body.responsibilityAccepted) {
+      return problem(
+        400,
+        'validation_failed',
+        'responsibilityAccepted must be true',
+        'Validation failed',
+      );
+    }
+    const conn = upsertOrdConnection(workspaceId, provider, body);
+    return HttpResponse.json(toPublicConnection(conn));
+  }),
+
+  http.post('/api/v1/workspaces/:workspaceId/ord/connections/:provider/test', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const provider = String(params.provider) as OrdProvider;
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.connection.manage');
+    if (denied) return denied;
+    return HttpResponse.json(testOrdConnection(workspaceId, provider));
+  }),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/contractors', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    return HttpResponse.json({
+      items: listOrdContractors(workspaceId),
+      hasMore: false,
+    });
+  }),
+
+  http.post('/api/v1/workspaces/:workspaceId/ord/contractors', async ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.contractors.manage');
+    if (denied) return denied;
+    const body = (await request.json()) as CreateOrdContractorRequest;
+    const result = createOrdContractor(workspaceId, body);
+    if ('code' in result) {
+      return problem(400, result.code, result.detail, 'Validation failed');
+    }
+    return HttpResponse.json(result, { status: 201 });
+  }),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/contractors/:contractorId', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const item = getOrdContractor(workspaceId, String(params.contractorId));
+    if (!item) return problem(404, 'not_found', 'Contractor not found', 'Not found');
+    return HttpResponse.json(item);
+  }),
+
+  http.put(
+    '/api/v1/workspaces/:workspaceId/ord/contractors/:contractorId',
+    async ({ request, params }) => {
+      const workspaceId = String(params.workspaceId);
+      const deniedWs = requireWorkspaceAccess(request, workspaceId);
+      if (deniedWs) return deniedWs;
+      const denied = requirePermission(request, 'ord.contractors.manage');
+      if (denied) return denied;
+      const body = (await request.json()) as UpdateOrdContractorRequest;
+      const result = updateOrdContractor(workspaceId, String(params.contractorId), body);
+      if (!result) return problem(404, 'not_found', 'Contractor not found', 'Not found');
+      if ('code' in result) {
+        return problem(400, result.code, result.detail, 'Validation failed');
+      }
+      return HttpResponse.json(result);
+    },
+  ),
+
+  http.get('/api/v1/workspaces/:workspaceId/ord/contracts', ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    return HttpResponse.json({
+      items: listOrdContracts(workspaceId),
+      hasMore: false,
+    });
+  }),
+
+  http.post('/api/v1/workspaces/:workspaceId/ord/contracts', async ({ request, params }) => {
+    const workspaceId = String(params.workspaceId);
+    const deniedWs = requireWorkspaceAccess(request, workspaceId);
+    if (deniedWs) return deniedWs;
+    const denied = requirePermission(request, 'ord.contractors.manage');
+    if (denied) return denied;
+    const body = (await request.json()) as CreateOrdContractRequest;
+    const created = createOrdContract(workspaceId, body);
+    if (!created) {
+      return problem(404, 'not_found', 'Contractor not found', 'Not found');
+    }
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.post('/api/v1/posts/:postId/ord/register', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'posts.ad.schedule');
+    if (denied) return denied;
+    const post = getPost(String(params.postId));
+    if (!post) return problem(404, 'not_found', 'Post not found', 'Not found');
+    const provider: OrdProvider = 'vk_ord';
+    const ad = post.adPayload ?? {
+      advertiserName: post.adMarking?.advertiserName ?? 'ООО Посты',
+      inn: '7707083893',
+      kktuCodes: ['1.1.1'],
+      orgType: 'juridical' as const,
+    };
+    const result = registerCreative({
+      workspaceId: post.workspaceId ?? '',
+      postId: post.id ?? String(params.postId),
+      provider,
+      ad,
+    });
+    if ('code' in result) {
+      const status = result.code === 'ord_not_configured' ? 422 : 400;
+      return problem(status, result.code, result.detail, 'ORD error');
+    }
+    attachEridToPost(post.id ?? String(params.postId), result.erid ?? '', ad.advertiserName);
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/posts/:postId/ord/status', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const denied = requirePermission(request, 'ord.view');
+    if (denied) return denied;
+    const creative = getCreativeForPost(String(params.postId));
+    if (!creative) {
+      return problem(404, 'not_found', 'Creative not found', 'Not found');
+    }
+    return HttpResponse.json(creative);
   }),
 
   http.get('/api/v1/posts', ({ request }) => {

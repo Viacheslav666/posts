@@ -649,7 +649,6 @@
       "errorTitle": "Не удалось перенести пост"
     }
   },
-
   "editor": {
     "title": "Редактор поста",
     "loading": "Загрузка черновика…",
@@ -658,7 +657,15 @@
     "actions": {
       "saveDraft": "Сохранить черновик",
       "schedule": "Запланировать",
-      "publish": "Опубликовать сейчас"
+      "publish": "Опубликовать сейчас",
+      "blockedTitle": "Нельзя опубликовать",
+      "blockedValidation": "Исправьте ошибки валидации текста",
+      "blockedChannels": "Выберите хотя бы один канал",
+      "noSchedulePermission": "Недостаточно прав для планирования",
+      "draftSaved": "Черновик сохранён",
+      "scheduled": "Пост запланирован",
+      "errorTitle": "Ошибка",
+      "error": "Не удалось сохранить пост"
     },
     "toolbar": {
       "label": "Форматирование",
@@ -712,6 +719,100 @@
       "saving": "Сохранение…",
       "saved": "Сохранено локально",
       "error": "Не удалось сохранить локально"
+    },
+    "options": {
+      "label": "Опции поста",
+      "title": "Опции поста",
+      "titleField": "Название в списке",
+      "publishMode": "Режим публикации",
+      "mode": {
+        "schedule": "По расписанию",
+        "now": "Сейчас"
+      },
+      "scheduledAt": "Дата и время",
+      "recurrence": "Повтор",
+      "recurrencePreset": {
+        "once": "Один раз",
+        "daily": "Каждый день",
+        "weekdays": "По будням",
+        "weekends": "По выходным",
+        "every_n_days": "Каждые N дней",
+        "weekly": "Каждую неделю",
+        "every_2_weeks": "Каждые 2 недели",
+        "every_3_weeks": "Каждые 3 недели",
+        "monthly": "Каждый месяц",
+        "every_2_months": "Каждые 2 месяца",
+        "every_3_months": "Каждые 3 месяца",
+        "every_6_months": "Каждые 6 месяцев",
+        "every_12_months": "Каждые 12 месяцев"
+      },
+      "everyNDays": "Интервал (дней)",
+      "signed": "Подпись автора",
+      "mute": "Без уведомления",
+      "closeComments": "Закрыть комментарии",
+      "pin": "Закрепить",
+      "removeAfterPublish": "Удалить из Posts после публикации",
+      "donutDays": "VK Donut (дней)",
+      "coOwners": "Соавторы VK",
+      "firstComment": "Первый комментарий",
+      "copyrightUrl": "Источник (copyright)",
+      "attachmentsMode": "Режим вложений",
+      "attachments": {
+        "grid": "Сетка",
+        "carousel": "Карусель"
+      },
+      "poll": "Опрос",
+      "pollQuestion": "Вопрос опроса",
+      "pollAnswers": "Варианты (через |)",
+      "repostUrl": "Ссылка для репоста",
+      "repostComment": "Комментарий к репосту",
+      "buttons": "Inline-кнопки (имя|url; …)",
+      "deleteAfter": "Автоудаление из сети",
+      "unpinAt": "Дата открепления",
+      "stopAt": "Приостановить серию",
+      "unsupportedNetwork": "Опция недоступна для выбранных сетей"
+    },
+    "ad": {
+      "label": "Реклама",
+      "title": "Реклама / маркировка",
+      "toggle": "Маркировать рекламу",
+      "noPermission": "Недостаточно прав для планирования рекламы",
+      "ordNotConfigured": "ОРД не подключён.",
+      "openOrdSettings": "Открыть настройки ОРД",
+      "provider": "ОРД",
+      "providers": {
+        "vk_ord": "VK ОРД",
+        "yandex_ord": "Яндекс ОРД"
+      },
+      "contractor": "Контрагент",
+      "contractorPlaceholder": "Выберите контрагента",
+      "advertiserName": "Рекламодатель",
+      "inn": "ИНН",
+      "innInvalid": "Некорректный ИНН (контрольная сумма)",
+      "orgType": "Тип",
+      "orgTypes": {
+        "physical": "Физлицо",
+        "ip": "ИП",
+        "juridical": "Юрлицо",
+        "foreign_physical": "Иностранное физлицо",
+        "foreign_juridical": "Иностранное юрлицо"
+      },
+      "kpp": "КПП",
+      "kktu": "ККТУ",
+      "kktuPlaceholder": "Выберите код ККТУ",
+      "kktuRequired": "Укажите код ККТУ",
+      "amount": "Сумма размещения",
+      "contractDate": "Дата договора",
+      "selfPromo": "Самореклама",
+      "autoDeleteAfterPeriod": "Автоудаление после периода показа",
+      "eridStatus": "Статус erid",
+      "eridIdle": "Реклама выключена",
+      "eridMissing": "erid ещё не получен — публикация заблокирована",
+      "eridMissingBlock": "Нельзя запланировать рекламу без erid. Зарегистрируйте креатив.",
+      "eridError": "Ошибка регистрации в ОРД",
+      "register": "Получить erid",
+      "registering": "Регистрация…",
+      "registerOk": "Креатив зарегистрирован"
     }
   },
   "media": {
@@ -816,6 +917,80 @@
       "presets": "Пресеты обрезки",
       "size": "{width}×{height}",
       "done": "Готово"
+    }
+  },
+  "ord": {
+    "title": "Реклама / ОРД",
+    "description": "Подключение к оператору рекламных данных, контрагенты и договоры.",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра настроек ОРД.",
+    "tabs": {
+      "connection": "Подключение",
+      "contractors": "Контрагенты",
+      "contracts": "Договоры",
+      "reports": "Отчёты"
+    },
+    "providers": {
+      "vk_ord": "VK ОРД",
+      "yandex_ord": "Яндекс ОРД"
+    },
+    "connection": {
+      "provider": "Провайдер ОРД",
+      "apiKey": "API-ключ",
+      "apiKeySaved": "Ключ сохранён — оставьте поле пустым, чтобы не менять",
+      "publisherInn": "ИНН издателя",
+      "publisherName": "Наименование издателя",
+      "orgType": "Тип организации",
+      "phone": "Телефон",
+      "responsibility": "Подтверждаю ответственность за корректность данных и соблюдение требований маркировки рекламы",
+      "save": "Сохранить",
+      "test": "Проверить подключение",
+      "readOnly": "У вас нет прав на изменение подключения ОРД.",
+      "savedTitle": "Подключение сохранено",
+      "savedBody": "Параметры ОРД обновлены.",
+      "errorTitle": "Не удалось сохранить",
+      "testOkTitle": "Подключение работает",
+      "testFailTitle": "Проверка не прошла",
+      "testFailBody": "Настройте API-ключ и повторите проверку."
+    },
+    "contractors": {
+      "add": "Добавить контрагента",
+      "edit": "Изменить",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "inn": "ИНН",
+      "innLabel": "ИНН",
+      "name": "Наименование",
+      "orgType": "Тип организации",
+      "kpp": "КПП",
+      "phone": "Телефон",
+      "address": "Адрес",
+      "createTitle": "Новый контрагент",
+      "editTitle": "Редактирование контрагента",
+      "dialogDescription": "Данные контрагента для регистрации в ОРД.",
+      "emptyTitle": "Контрагентов пока нет",
+      "emptyBody": "Добавьте рекламодателя или исполнителя для договоров ОРД.",
+      "createdTitle": "Контрагент создан",
+      "updatedTitle": "Контрагент обновлён",
+      "errorTitle": "Не удалось сохранить контрагента"
+    },
+    "contracts": {
+      "emptyTitle": "Договоров пока нет",
+      "emptyBody": "Договоры появятся после настройки ОРД и контрагентов."
+    },
+    "reports": {
+      "placeholder": "Выгрузка отчётов в ОРД будет доступна в следующих итерациях."
+    },
+    "validation": {
+      "responsibilityRequired": "Необходимо подтвердить ответственность",
+      "publisherInnRequired": "Укажите ИНН издателя",
+      "publisherNameRequired": "Укажите наименование",
+      "orgTypeRequired": "Укажите тип организации",
+      "innRequired": "Укажите ИНН",
+      "nameRequired": "Укажите наименование"
+    },
+    "errors": {
+      "ad_inn_invalid": "Некорректный ИНН (проверьте контрольную сумму)"
     }
   },
   "errors": {

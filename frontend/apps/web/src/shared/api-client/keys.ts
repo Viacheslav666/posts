@@ -98,6 +98,20 @@ export const queryKeys = {
       [...queryKeys.billing.all(workspaceId), 'subscription'] as const,
   },
 
+  ord: {
+    all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'ord'] as const,
+    connections: (workspaceId: string) =>
+      [...queryKeys.ord.all(workspaceId), 'connections'] as const,
+    contractors: (workspaceId: string) =>
+      [...queryKeys.ord.all(workspaceId), 'contractors'] as const,
+    contracts: (workspaceId: string) => [...queryKeys.ord.all(workspaceId), 'contracts'] as const,
+    creative: (workspaceId: string, postId: string) =>
+      [...queryKeys.ord.all(workspaceId), 'creative', postId] as const,
+    dictionaries: () => [...queryKeys.root, 'ord', 'dictionaries'] as const,
+    kktu: () => [...queryKeys.ord.dictionaries(), 'kktu'] as const,
+    oksm: () => [...queryKeys.ord.dictionaries(), 'oksm'] as const,
+  },
+
   ingest: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'ingest'] as const,
     rules: (workspaceId: string, projectId: string, filters?: Record<string, unknown>) =>

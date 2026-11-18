@@ -1,3 +1,10 @@
+import type {
+  AdMarking,
+  PollOptions,
+  PostVariantOptions,
+  Recurrence,
+  RepostTarget,
+} from '@posts/api-client';
 import type { NetworkId, TiptapNode } from '@posts/domain';
 
 import type { EditorChannelOption } from '@/features/channels/hooks/use-workspace-channels';
@@ -17,6 +24,26 @@ export type EditorVariant = {
   doc: TiptapNode | null;
 };
 
+export type PublishMode = 'schedule' | 'now';
+
+/** Shared post-level options (FE-12 parity with CreatePostRequest + PostVariantOptions). */
+export type EditorPostOptions = {
+  title: string;
+  publishMode: PublishMode;
+  scheduledAt: string;
+  timezone: string;
+  recurrence: Recurrence;
+  stopAt: string | null;
+  removeAfterPublish: boolean;
+  repost: RepostTarget | null;
+  /** Shared variant options applied to all selected networks (unsupported greyed in UI). */
+  variant: PostVariantOptions;
+  isAd: boolean;
+  ad: AdMarking;
+  /** Selected ORD provider for registration preview. */
+  ordProvider: 'vk_ord' | 'yandex_ord';
+};
+
 export type EditorDraft = {
   id: string;
   workspaceId: string;
@@ -28,9 +55,31 @@ export type EditorDraft = {
   previewNetwork: 'vk' | 'tg' | 'ok' | 'max';
   activeVariant: 'base' | NetworkId;
   media: EditorMediaItem[];
+  options: EditorPostOptions;
 };
+
+export type EditorOptionKey =
+  | 'signed'
+  | 'mute'
+  | 'closeComments'
+  | 'pin'
+  | 'unpinAt'
+  | 'deleteAfter'
+  | 'coOwnerIds'
+  | 'donutDays'
+  | 'primaryAttachmentsMode'
+  | 'firstComment'
+  | 'repost'
+  | 'buttons'
+  | 'actionButton'
+  | 'poll'
+  | 'geo'
+  | 'copyrightUrl'
+  | 'isAd';
 
 export const EMPTY_DOC: TiptapNode = {
   type: 'doc',
   content: [{ type: 'paragraph' }],
 };
+
+export type { PollOptions };

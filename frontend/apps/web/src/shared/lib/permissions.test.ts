@@ -36,14 +36,19 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'posts.schedule': ['owner', 'admin', 'editor'],
   'posts.bulk': ['owner', 'admin', 'editor'],
   'posts.retry_publish': ['owner', 'admin', 'editor'],
+  'posts.ad.schedule': ['owner', 'admin', 'editor'],
   'calendar.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'calendar.move': ['owner', 'admin', 'editor'],
+  'ord.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
+  'ord.connection.manage': ['owner', 'admin'],
+  'ord.contractors.manage': ['owner', 'admin', 'editor'],
+  'ord.reports.run': ['owner', 'admin'],
   'automations.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'automations.manage': ['owner', 'admin', 'editor'],
   'automations.moderate': ['owner', 'admin', 'editor'],
 };
 
-describe('permissions matrix (FE-5/FE-6/FE-7/FE-8)', () => {
+describe('permissions matrix (FE-5…FE-14)', () => {
   it('covers all permission actions for every role', () => {
     for (const role of ROLES) {
       for (const action of PERMISSION_ACTIONS) {
@@ -57,8 +62,8 @@ describe('permissions matrix (FE-5/FE-6/FE-7/FE-8)', () => {
   it('denies null/undefined roles', () => {
     expect(can(null, 'workspace.view')).toBe(false);
     expect(can(undefined, 'members.invite')).toBe(false);
-    expect(can(null, 'channels.manage')).toBe(false);
-    expect(can(null, 'calendar.move')).toBe(false);
-    expect(can(null, 'media.manage')).toBe(false);
+    expect(can(null, 'ord.connection.manage')).toBe(false);
+    expect(can(null, 'posts.ad.schedule')).toBe(false);
+    expect(can(null, 'automations.manage')).toBe(false);
   });
 });

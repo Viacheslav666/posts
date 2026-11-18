@@ -6,6 +6,8 @@ import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/ap
 import { resetChannelStore } from '@/mocks/channel-store';
 import { resetGrabberStore } from '@/mocks/grabber-store';
 import { resetMediaStoreForTests } from '@/mocks/media-store';
+import { resetOrdStore } from '@/mocks/ord-store';
+import { resetPostStore } from '@/mocks/post-store';
 import { server } from '@/mocks/server';
 import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
@@ -71,6 +73,8 @@ afterEach(() => {
   resetChannelStore();
   resetGrabberStore();
   resetMediaStoreForTests();
+  resetPostStore();
+  resetOrdStore();
   resetApiClient();
   clearAccessToken();
   clearPendingLogin();

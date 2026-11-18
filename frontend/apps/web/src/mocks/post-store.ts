@@ -1,12 +1,15 @@
 import type {
+  AdMarking,
   AdMarkingSummary,
   BulkPostsRequest,
   BulkPostsResponse,
   CalendarItem,
+  CreatePostRequest,
   MoveCalendarItemRequest,
   Post,
   Publication,
   PublicationAttempt,
+  UpdatePostRequest,
 } from '@posts/api-client';
 
 import { CHANNEL_IDS } from './channel-store';
@@ -42,6 +45,8 @@ export type StoredPost = Post & {
   channelIds: string[];
   networks: Network[];
   adMarking?: AdMarkingSummary;
+  /** Full ORD payload kept for MSW register (not exposed on list DTO). */
+  adPayload?: AdMarking;
 };
 
 type PostStoreState = {
@@ -288,6 +293,145 @@ let state = createInitialState();
 
 export function resetPostStore(): void {
   state = createInitialState();
+}
+
+const CHANNEL_NETWORK: Record<string, Network> = {
+  [CHANNEL_IDS.vkNews]: 'vk',
+  [CHANNEL_IDS.vkShop]: 'vk',
+  [CHANNEL_IDS.tgNews]: 'tg',
+  [CHANNEL_IDS.tgReauth]: 'tg',
+  [CHANNEL_IDS.okBrand]: 'ok',
+  [CHANNEL_IDS.maxBrand]: 'max',
+};
+
+function networksForChannels(channelIds: string[]): Network[] {
+  const networks: Network[] = [];
+  for (const id of channelIds) {
+    const network = CHANNEL_NETWORK[id];
+    if (network && !networks.includes(network)) {
+      networks.push(network);
+    }
+  }
+  return networks.length > 0 ? networks : ['vk'];
+}
+
+function toAdSummary(ad: boolean | undefined, marking?: AdMarking | null): AdMarkingSummary {
+  if (!ad) {
+    return { enabled: false };
+  }
+  return {
+    enabled: true,
+    erid: marking?.erid,
+    advertiserName: marking?.advertiserName,
+  };
+}
+
+export function createPost(body: CreatePostRequest): StoredPost {
+  const now = new Date().toISOString();
+  const channelIds =
+    body.variants
+      ?.map((variant) => variant.channelId)
+      .filter((id): id is string => Boolean(id)) ?? [];
+  const networks = networksForChannels(channelIds);
+  const post: StoredPost = {
+    id: nextId('post'),
+    workspaceId: body.workspaceId,
+    projectId: body.projectId ?? DEFAULT_PROJECT_ID,
+    authorId: DEMO_USER_ID,
+    title: body.title || (body.baseContent?.text ?? '').slice(0, 80) || 'Без названия',
+    status: body.scheduledAt ? 'scheduled' : 'draft',
+    scheduledAt: body.scheduledAt,
+    timezone: body.timezone ?? 'Europe/Moscow',
+    recurrence: body.recurrence,
+    stopAt: body.stopAt,
+    removeAfterPublish: body.removeAfterPublish ?? false,
+    repost: body.repost,
+    contentKind: body.contentKind ?? 'post',
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    channelIds,
+    networks,
+    baseContent: body.baseContent,
+    variants: body.variants?.map((variant, index) => ({
+      id: `019a0000-nvar-7000-8000-${String(state.seq + index + 1).padStart(12, '0')}`,
+      channelId: variant.channelId,
+      network: variant.network,
+      content: variant.content,
+      options: variant.options,
+    })),
+    ad: Boolean(body.ad),
+    adMarking: toAdSummary(body.ad, body.adMarking),
+    adPayload: body.ad ? body.adMarking : undefined,
+  };
+  state.posts.push(post);
+
+  if (post.status === 'scheduled' && post.scheduledAt) {
+    for (const network of networks) {
+      const channelId =
+        channelIds.find((id) => CHANNEL_NETWORK[id] === network) ?? channelIds[0];
+      state.publications.push({
+        id: nextId('publ'),
+        postId: post.id,
+        channelId,
+        network,
+        state: 'pending',
+        runAt: post.scheduledAt,
+        attempts: 0,
+      });
+    }
+  }
+
+  return post;
+}
+
+export function updatePost(postId: string, body: UpdatePostRequest): StoredPost | null {
+  const post = getPost(postId);
+  if (!post) return null;
+  if (body.title != null) post.title = body.title;
+  if (body.baseContent != null) post.baseContent = body.baseContent;
+  if (body.scheduledAt != null) post.scheduledAt = body.scheduledAt;
+  if (body.timezone != null) post.timezone = body.timezone;
+  if (body.recurrence != null) post.recurrence = body.recurrence;
+  if (body.stopAt !== undefined) post.stopAt = body.stopAt ?? undefined;
+  if (body.removeAfterPublish != null) post.removeAfterPublish = body.removeAfterPublish;
+  if (body.repost !== undefined) post.repost = body.repost ?? undefined;
+  if (body.ad != null) post.ad = body.ad;
+  if (body.adMarking !== undefined) {
+    post.adMarking = toAdSummary(post.ad, body.adMarking);
+    post.adPayload = body.adMarking ?? undefined;
+  }
+  if (body.variants) {
+    post.variants = body.variants.map((variant, index) => ({
+      id: variant.id ?? `019a0000-nvar-7000-8000-${String(state.seq + index + 1).padStart(12, '0')}`,
+      channelId: variant.channelId,
+      network: variant.network,
+      content: variant.content,
+      options: variant.options,
+    }));
+    const channelIds = body.variants
+      .map((variant) => variant.channelId)
+      .filter((id): id is string => Boolean(id));
+    if (channelIds.length) {
+      post.channelIds = channelIds;
+      post.networks = networksForChannels(channelIds);
+    }
+  }
+  post.version = (post.version ?? 1) + 1;
+  post.updatedAt = new Date().toISOString();
+  return post;
+}
+
+export function attachEridToPost(postId: string, erid: string, advertiserName?: string): void {
+  const post = getPost(postId);
+  if (!post) return;
+  post.ad = true;
+  post.adMarking = {
+    enabled: true,
+    erid,
+    advertiserName: advertiserName ?? post.adMarking?.advertiserName,
+  };
+  post.updatedAt = new Date().toISOString();
 }
 
 function nextId(prefix: 'post' | 'publ' | 'attm'): string {
@@ -624,7 +768,7 @@ export function applyPublicationUpdate(
 }
 
 export function toApiPost(post: StoredPost): Post {
-  const { channelIds: _c, networks: _n, ...rest } = post;
+  const { channelIds: _c, networks: _n, adPayload: _payload, ...rest } = post;
   return {
     ...rest,
     contentKind: post.contentKind ?? 'post',
