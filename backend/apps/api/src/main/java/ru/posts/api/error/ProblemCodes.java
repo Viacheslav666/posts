@@ -14,6 +14,9 @@ public final class ProblemCodes {
     public static final String IDEMPOTENCY_CONFLICT = "idempotency_conflict";
     public static final String INSUFFICIENT_PERMISSIONS = "insufficient_permissions";
     public static final String TRIAL_ALREADY_USED = "trial_already_used";
+    public static final String PROMO_INVALID = "promo_invalid";
+    public static final String PAYMENT_PROVIDER_ERROR = "payment_provider_error";
+    public static final String BILLING_FROZEN = "billing_frozen";
     public static final String EMAIL_NOT_VERIFIED = "email_not_verified";
     public static final String CHANNEL_REAUTH_REQUIRED = "channel_reauth_required";
     public static final String OPTIMISTIC_LOCK_CONFLICT = "optimistic_lock_conflict";
@@ -59,6 +62,9 @@ public final class ProblemCodes {
             - idempotency_conflict — Idempotency-Key reuse with different body
             - insufficient_permissions — channel/bot lacks required rights
             - trial_already_used — Pro trial already consumed for the account
+            - promo_invalid — promo code inactive, expired, or not applicable
+            - payment_provider_error — YooKassa / payment provider failure
+            - billing_frozen — workspace frozen for non-payment; mutations blocked
             - email_not_verified — action requires verified email
             - channel_reauth_required — channel token revoked/expired
             - totp_required — password ok, TOTP/backup code required (401)

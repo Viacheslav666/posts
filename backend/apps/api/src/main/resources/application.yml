@@ -126,6 +126,15 @@ posts:
       max-bytes: 2097152
       max-redirects: 5
 
+  billing:
+    grace-days: 3
+    trial-days: 7
+    yookassa:
+      shop-id: ${POSTS_YOOKASSA_SHOP_ID:test-shop-id-00000000}
+      secret-key: ${POSTS_YOOKASSA_SECRET_KEY:test-secret-key-not-a-real-credential}
+      base-url: ${POSTS_YOOKASSA_BASE_URL:https://api.yookassa.ru/v3}
+      return-url: ${POSTS_YOOKASSA_RETURN_URL:http://localhost:3000/billing/return}
+
 logging:
   level:
     root: INFO

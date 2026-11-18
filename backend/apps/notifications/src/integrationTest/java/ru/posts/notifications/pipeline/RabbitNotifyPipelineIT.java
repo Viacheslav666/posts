@@ -228,13 +228,13 @@ class RabbitNotifyPipelineIT {
     private SeededUser seedOwner() {
         UUID userId = UuidV7.generate();
         UUID workspaceId = UuidV7.generate();
-        UUID planId = jdbcTemplate.queryForObject("SELECT id FROM plans WHERE code = 'free'", UUID.class);
+        UUID planId = jdbcTemplate.queryForObject("SELECT id FROM plans WHERE code = 'agency'", UUID.class);
         String email = "rabbit-" + userId + "@example.com";
         jdbcTemplate.update("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", userId, email, "Rabbit User");
         jdbcTemplate.update(
                 """
                 INSERT INTO workspaces (id, name, owner_user_id, plan_id, billing_status)
-                VALUES (?, ?, ?, ?, 'trial')
+                VALUES (?, ?, ?, ?, 'active')
                 """,
                 workspaceId,
                 "Rabbit WS",

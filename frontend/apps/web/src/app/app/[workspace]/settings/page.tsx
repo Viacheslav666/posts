@@ -1,4 +1,4 @@
-import { WorkspaceSettingsPanel } from '@/features/workspace/components/workspace-settings-panel';
+import { SettingsHub } from '@/features/settings/components/settings-hub';
 
 type SettingsRouteProps = {
   params: Promise<{ workspace: string }>;
@@ -6,5 +6,5 @@ type SettingsRouteProps = {
 
 export default async function WorkspaceSettingsPage({ params }: SettingsRouteProps) {
   const { workspace } = await params;
-  return <WorkspaceSettingsPanel workspaceId={workspace} />;
+  return <SettingsHub workspaceId={workspace} />;
 }

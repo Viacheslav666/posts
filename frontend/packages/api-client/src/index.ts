@@ -121,6 +121,26 @@ export type GrabberBulkModerationResponse = components['schemas']['GrabberBulkMo
 export type IngestPreviewRequest = components['schemas']['IngestPreviewRequest'];
 export type IngestPreviewResponse = components['schemas']['IngestPreviewResponse'];
 
+export type Notification = components['schemas']['Notification'];
+export type NotificationPage = components['schemas']['NotificationPage'];
+export type NotificationSettings = components['schemas']['NotificationSettings'];
+export type UpdateNotificationSettingsRequest =
+  components['schemas']['UpdateNotificationSettingsRequest'];
+export type MarkNotificationsReadRequest = components['schemas']['MarkNotificationsReadRequest'];
+export type ChannelPreference = components['schemas']['ChannelPreference'];
+export type QuietHours = components['schemas']['QuietHours'];
+export type TelegramLinkStatus = components['schemas']['TelegramLinkStatus'];
+export type TelegramLinkStartResponse = components['schemas']['TelegramLinkStartResponse'];
+export type WebPushSubscribeRequest = components['schemas']['WebPushSubscribeRequest'];
+export type VapidPublicKeyResponse = components['schemas']['VapidPublicKeyResponse'];
+export type UnsubscribeResponse = components['schemas']['UnsubscribeResponse'];
+export type UpdateMeRequest = components['schemas']['UpdateMeRequest'];
+export type UpdatePasswordRequest = components['schemas']['UpdatePasswordRequest'];
+export type SessionDto = components['schemas']['SessionDto'];
+export type TwoFactorSetupResponse = components['schemas']['TwoFactorSetupResponse'];
+export type TwoFactorConfirmRequest = components['schemas']['TwoFactorConfirmRequest'];
+export type TwoFactorDisableRequest = components['schemas']['TwoFactorDisableRequest'];
+
 export type PostsApiClient = ReturnType<typeof createPostsApiClient>;
 
 export type CreatePostsApiClientOptions = ClientOptions & {

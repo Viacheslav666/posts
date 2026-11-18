@@ -3,6 +3,7 @@ package ru.posts.api.channel;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
@@ -14,10 +15,13 @@ import ru.posts.api.error.ProblemCodes;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.UsageCounterEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.InvitationRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.UsageCounterRepository;
+import ru.posts.persistence.repository.WorkspaceMemberRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 
 @Service
@@ -25,30 +29,50 @@ import ru.posts.persistence.repository.WorkspaceRepository;
 @Transactional(readOnly = true)
 public class PlanLimitService {
 
+    private static final List<String> GRABBER_TYPES = List.of("grabber", "rss", "website");
+
     private final WorkspaceRepository workspaceRepository;
     private final PlanRepository planRepository;
     private final ChannelRepository channelRepository;
     private final PostRepository postRepository;
     private final UsageCounterRepository usageCounterRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final InvitationRepository invitationRepository;
+    private final AutomationRuleRepository automationRuleRepository;
 
     public PlanLimitService(
             WorkspaceRepository workspaceRepository,
             PlanRepository planRepository,
             ChannelRepository channelRepository,
             PostRepository postRepository,
-            UsageCounterRepository usageCounterRepository) {
+            UsageCounterRepository usageCounterRepository,
+            WorkspaceMemberRepository workspaceMemberRepository,
+            InvitationRepository invitationRepository,
+            AutomationRuleRepository automationRuleRepository) {
         this.workspaceRepository = workspaceRepository;
         this.planRepository = planRepository;
         this.channelRepository = channelRepository;
         this.postRepository = postRepository;
         this.usageCounterRepository = usageCounterRepository;
+        this.workspaceMemberRepository = workspaceMemberRepository;
+        this.invitationRepository = invitationRepository;
+        this.automationRuleRepository = automationRuleRepository;
+    }
+
+    public void ensureNotFrozen(UUID workspaceId) {
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        if ("frozen".equals(workspace.getBillingStatus())) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.BILLING_FROZEN,
+                    "Workspace billing is frozen",
+                    Map.of("billing_status", "frozen"));
+        }
     }
 
     public void ensureCanAddChannels(UUID workspaceId, int additional) {
-        WorkspaceEntity workspace = workspaceRepository
-                .findByIdAndDeletedAtIsNull(workspaceId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Workspace not found"));
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
         int limit = channelLimit(workspace);
         long current = channelRepository.countActiveByWorkspaceId(workspaceId);
         if (current + additional > limit) {
@@ -60,35 +84,71 @@ public class PlanLimitService {
         }
     }
 
+    public void ensureCanAddSeat(UUID workspaceId, boolean includePendingInvites) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        int seats = intLimit(workspace, "seats", 1);
+        long members = workspaceMemberRepository.countByWorkspaceId(workspaceId);
+        long pending = includePendingInvites ? invitationRepository.countPendingByWorkspaceId(workspaceId) : 0L;
+        if (members + pending >= seats) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace seat limit reached",
+                    Map.of("limit", "seats", "seats", seats, "current", members + pending));
+        }
+    }
+
+    public void ensureCanCreateGrabberRule(UUID workspaceId) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        Integer limit = nullableIntLimit(workspace, "grabber_rules");
+        if (limit == null) {
+            return;
+        }
+        long current = automationRuleRepository.countByWorkspaceIdAndTypeInAndStatusNot(
+                workspaceId, GRABBER_TYPES, "archived");
+        if (current >= limit) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace grabber rule limit reached",
+                    Map.of("limit", "grabber_rules", "grabber_rules", limit, "current", current));
+        }
+    }
+
+    public void ensureCanCreateStory(UUID workspaceId) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        Integer limit = nullableIntLimit(workspace, "stories_month");
+        if (limit == null) {
+            return;
+        }
+        Instant monthStart =
+                YearMonth.now(ZoneOffset.UTC).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        long current = postRepository.countByWorkspaceIdAndContentKindAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(
+                workspaceId, "story", monthStart);
+        if (current >= limit) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace monthly story limit reached",
+                    Map.of("limit", "stories_month", "stories_month", limit, "current", current));
+        }
+    }
+
     public int channelLimit(UUID workspaceId) {
-        WorkspaceEntity workspace = workspaceRepository
-                .findByIdAndDeletedAtIsNull(workspaceId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Workspace not found"));
-        return channelLimit(workspace);
+        return channelLimit(requireWorkspace(workspaceId));
     }
 
     private int channelLimit(WorkspaceEntity workspace) {
-        if (workspace.getPlanId() == null) {
-            return 3;
-        }
-        PlanEntity plan = planRepository.findById(workspace.getPlanId()).orElse(null);
-        if (plan == null || plan.getLimits() == null) {
-            return 3;
-        }
-        Object channels = plan.getLimits().get("channels");
-        if (channels instanceof Number number) {
-            return number.intValue();
-        }
-        return 3;
+        return intLimit(workspace, "channels", 3);
     }
 
     /** Enforces {@code plans.limits.posts_month} when set (null = unlimited). */
     public void ensureCanCreatePost(UUID workspaceId) {
-        WorkspaceEntity workspace = workspaceRepository
-                .findByIdAndDeletedAtIsNull(workspaceId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Workspace not found"));
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
         Integer limit = postsMonthLimit(workspace);
         if (limit == null) {
             return;
@@ -125,20 +185,40 @@ public class PlanLimitService {
     }
 
     private Integer postsMonthLimit(WorkspaceEntity workspace) {
+        return nullableIntLimit(workspace, "posts_month", 30);
+    }
+
+    private int intLimit(WorkspaceEntity workspace, String key, int defaultValue) {
+        Integer value = nullableIntLimit(workspace, key);
+        return value == null ? defaultValue : value;
+    }
+
+    private Integer nullableIntLimit(WorkspaceEntity workspace, String key) {
+        return nullableIntLimit(workspace, key, null);
+    }
+
+    private Integer nullableIntLimit(WorkspaceEntity workspace, String key, Integer missingPlanDefault) {
         if (workspace.getPlanId() == null) {
-            return 30;
+            return missingPlanDefault;
         }
         PlanEntity plan = planRepository.findById(workspace.getPlanId()).orElse(null);
         if (plan == null || plan.getLimits() == null) {
-            return 30;
+            return missingPlanDefault;
         }
-        Object postsMonth = plan.getLimits().get("posts_month");
-        if (postsMonth == null) {
+        Object raw = plan.getLimits().get(key);
+        if (raw == null) {
             return null;
         }
-        if (postsMonth instanceof Number number) {
+        if (raw instanceof Number number) {
             return number.intValue();
         }
         return null;
+    }
+
+    private WorkspaceEntity requireWorkspace(UUID workspaceId) {
+        return workspaceRepository
+                .findByIdAndDeletedAtIsNull(workspaceId)
+                .orElseThrow(
+                        () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Workspace not found"));
     }
 }

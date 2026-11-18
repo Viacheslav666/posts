@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.auth.ClientRequestContext;
+import ru.posts.api.channel.PlanLimitService;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
 import ru.posts.api.idempotency.IdempotencyService;
@@ -65,6 +66,7 @@ public class IngestServiceImpl implements IngestService {
     private final WorkspaceAccessService access;
     private final AuditRecorder auditRecorder;
     private final IdempotencyService idempotencyService;
+    private final PlanLimitService planLimitService;
     private final GrabberRunProcessor runProcessor;
     private final GrabberPostFactory postFactory;
     private final RssFetcher rssFetcher;
@@ -84,6 +86,7 @@ public class IngestServiceImpl implements IngestService {
             WorkspaceAccessService access,
             AuditRecorder auditRecorder,
             IdempotencyService idempotencyService,
+            PlanLimitService planLimitService,
             GrabberRunProcessor runProcessor,
             GrabberPostFactory postFactory,
             RssFetcher rssFetcher,
@@ -102,6 +105,7 @@ public class IngestServiceImpl implements IngestService {
         this.access = access;
         this.auditRecorder = auditRecorder;
         this.idempotencyService = idempotencyService;
+        this.planLimitService = planLimitService;
         this.runProcessor = runProcessor;
         this.postFactory = postFactory;
         this.rssFetcher = rssFetcher;
@@ -159,6 +163,7 @@ public class IngestServiceImpl implements IngestService {
         requireWebsiteEnabled(request.type());
         WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "automations.manage");
         access.requireVisibleProject(membership, projectId);
+        planLimitService.ensureCanCreateGrabberRule(workspaceId);
         ChannelEntity channel = requireChannel(workspaceId, request.targetChannelId());
         Map<String, Object> config = buildConfig(request.type(), request.config());
         validateConfig(request.type(), config);

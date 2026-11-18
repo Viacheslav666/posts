@@ -23,7 +23,7 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
-                        .ignoringRequestMatchers("/hooks/**"))
+                        .ignoringRequestMatchers("/hooks/**", "/webhooks/**"))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/hooks/**",
                                 "/hooks/telegram-notify",
                                 "/hooks/telegram-notify/**",
+                                "/webhooks/**",
                                 "/ws",
                                 "/ws/**",
                                 "/.well-known/jwks.json",

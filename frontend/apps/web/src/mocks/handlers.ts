@@ -32,14 +32,19 @@ import type {
   ProjectMembersRequest,
   RegisterRequest,
   TokenResponse,
+  MarkNotificationsReadRequest,
   UpdateChannelRequest,
   UpdateChannelSetRequest,
   UpdateMemberRequest,
+  UpdateMeRequest,
+  UpdateNotificationSettingsRequest,
   UpdateOrdContractorRequest,
+  UpdatePasswordRequest,
   UpdatePostRequest,
   UpdateProjectRequest,
   UpdateWorkspaceRequest,
   UpsertOrdConnectionRequest,
+  WebPushSubscribeRequest,
 } from '@posts/api-client';
 import { http, HttpResponse } from 'msw';
 
@@ -129,6 +134,17 @@ import {
   validateAdMarking,
 } from './ord-store';
 import {
+  getNotificationSettings,
+  getVapidPublicKey,
+  listNotifications,
+  markNotificationsRead,
+  startTelegramLink,
+  subscribeWebPush,
+  unlinkTelegram,
+  unsubscribeWebPush,
+  updateNotificationSettings,
+} from './notification-store';
+import {
   attachEridToPost,
   batchCreateStories,
   bulkPosts,
@@ -152,6 +168,7 @@ import {
 import {
   acceptInvitation,
   cancelInvitation,
+  changeDemoPassword,
   createInvitation,
   createProject,
   createWorkspace,
@@ -163,12 +180,16 @@ import {
   isKnownWorkspace,
   isMemberOfWorkspace,
   listAudit,
+  listDemoSessions,
   listInvitations,
   listMembers,
   listProjects,
   listWorkspaces,
   previewInvitation,
   removeMember,
+  revokeDemoSession,
+  setDemoTotpEnabled,
+  updateDemoProfile,
   updateMember,
   updateProject,
   updateWorkspace,
@@ -364,6 +385,86 @@ export const handlers = [
       return unauthorized;
     }
     return HttpResponse.json(getDemoProfile());
+  }),
+
+  http.patch('/api/v1/me', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    const body = (await request.json()) as UpdateMeRequest;
+    return HttpResponse.json(updateDemoProfile(body));
+  }),
+
+  http.post('/api/v1/me/password', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    const body = (await request.json()) as UpdatePasswordRequest;
+    const result = changeDemoPassword(body);
+    if ('error' in result) {
+      return problem(400, 'validation_failed', result.error, 'Validation failed');
+    }
+    return HttpResponse.json(result);
+  }),
+
+  http.get('/api/v1/me/sessions', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    return HttpResponse.json({ items: listDemoSessions(), hasMore: false });
+  }),
+
+  http.delete('/api/v1/me/sessions/:sessionId', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    const ok = revokeDemoSession(String(params.sessionId));
+    if (!ok) {
+      return problem(404, 'not_found', 'Session not found', 'Not found');
+    }
+    return HttpResponse.json({ message: 'ok' });
+  }),
+
+  http.post('/api/v1/auth/2fa/setup', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    return HttpResponse.json({
+      secret: 'JBSWY3DPEHPK3PXP',
+      otpauthUrl: 'otpauth://totp/Posts:demo@posts.app?secret=JBSWY3DPEHPK3PXP&issuer=Posts',
+      backupCodes: ['11111111', '22222222', '33333333'],
+    });
+  }),
+
+  http.post('/api/v1/auth/2fa/confirm', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    const body = (await request.json()) as { code?: string };
+    if (body.code !== '123456') {
+      return problem(400, 'validation_failed', 'Invalid TOTP code', 'Validation failed');
+    }
+    setDemoTotpEnabled(true);
+    return HttpResponse.json({ message: 'ok' });
+  }),
+
+  http.post('/api/v1/auth/2fa/disable', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) {
+      return unauthorized;
+    }
+    const body = (await request.json()) as { password?: string; totpCode?: string };
+    if (body.password !== 'Password1!' || body.totpCode !== '123456') {
+      return problem(400, 'validation_failed', 'Invalid credentials', 'Validation failed');
+    }
+    setDemoTotpEnabled(false);
+    return HttpResponse.json({ message: 'ok' });
   }),
 
   http.post('/api/v1/auth/register', async ({ request }) => {
@@ -1934,5 +2035,125 @@ export const handlers = [
     const result = previewSource(workspaceId, body);
     if (isGrabberError(result)) return grabberError(result);
     return HttpResponse.json(result);
+  }),
+
+  // --- Notifications (FE-9 / BE-11) ---
+  http.get('/api/v1/notifications', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const unreadOnly = url.searchParams.get('unreadOnly') === 'true';
+    const cursor = url.searchParams.get('cursor') ?? undefined;
+    const limitRaw = url.searchParams.get('limit');
+    const limit = limitRaw ? Number(limitRaw) : 20;
+    return HttpResponse.json(
+      listNotifications({ workspaceId, unreadOnly, cursor, limit }),
+    );
+  }),
+
+  http.put('/api/v1/notifications/read', async ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as MarkNotificationsReadRequest;
+    return HttpResponse.json(markNotificationsRead(workspaceId, body));
+  }),
+
+  http.get('/api/v1/notifications/vapid-public-key', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    return HttpResponse.json(getVapidPublicKey());
+  }),
+
+  http.get('/api/v1/notification-settings', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    return HttpResponse.json(getNotificationSettings(workspaceId));
+  }),
+
+  http.put('/api/v1/notification-settings', async ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    const body = (await request.json()) as UpdateNotificationSettingsRequest;
+    return HttpResponse.json(updateNotificationSettings(workspaceId, body));
+  }),
+
+  http.post('/api/v1/notification-settings/telegram/link', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    return HttpResponse.json(startTelegramLink(workspaceId));
+  }),
+
+  http.delete('/api/v1/notification-settings/telegram', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    return HttpResponse.json(unlinkTelegram(workspaceId));
+  }),
+
+  http.post('/api/v1/notification-settings/web-push', async ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return problem(400, 'validation_failed', 'workspaceId is required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    const body = (await request.json()) as WebPushSubscribeRequest;
+    if (!body.endpoint || !body.p256dh || !body.auth) {
+      return problem(400, 'validation_failed', 'endpoint, p256dh and auth are required');
+    }
+    return HttpResponse.json(subscribeWebPush(workspaceId, body));
+  }),
+
+  http.delete('/api/v1/notification-settings/web-push', ({ request }) => {
+    const url = new URL(request.url);
+    const workspaceId = url.searchParams.get('workspaceId');
+    const endpoint = url.searchParams.get('endpoint');
+    if (!workspaceId || !endpoint) {
+      return problem(400, 'validation_failed', 'workspaceId and endpoint are required');
+    }
+    const access = requireWorkspaceAccess(request, workspaceId);
+    if (access) return access;
+    const denied = requirePermission(request, 'notifications.manage_self');
+    if (denied) return denied;
+    return HttpResponse.json(unsubscribeWebPush(workspaceId, endpoint));
   }),
 ];

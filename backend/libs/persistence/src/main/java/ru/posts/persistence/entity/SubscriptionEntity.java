@@ -31,6 +31,18 @@ public class SubscriptionEntity extends BaseUuidEntity {
     @Column(name = "provider_payment_method_id")
     private String providerPaymentMethodId;
 
+    @Column(name = "billing_period")
+    private String billingPeriod;
+
+    @Column(name = "pending_plan_id")
+    private UUID pendingPlanId;
+
+    @Column(name = "grace_ends_at")
+    private Instant graceEndsAt;
+
+    @Column(name = "frozen_at")
+    private Instant frozenAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -91,6 +103,38 @@ public class SubscriptionEntity extends BaseUuidEntity {
 
     public void setProviderPaymentMethodId(String providerPaymentMethodId) {
         this.providerPaymentMethodId = providerPaymentMethodId;
+    }
+
+    public String getBillingPeriod() {
+        return billingPeriod;
+    }
+
+    public void setBillingPeriod(String billingPeriod) {
+        this.billingPeriod = billingPeriod;
+    }
+
+    public UUID getPendingPlanId() {
+        return pendingPlanId;
+    }
+
+    public void setPendingPlanId(UUID pendingPlanId) {
+        this.pendingPlanId = pendingPlanId;
+    }
+
+    public Instant getGraceEndsAt() {
+        return graceEndsAt;
+    }
+
+    public void setGraceEndsAt(Instant graceEndsAt) {
+        this.graceEndsAt = graceEndsAt;
+    }
+
+    public Instant getFrozenAt() {
+        return frozenAt;
+    }
+
+    public void setFrozenAt(Instant frozenAt) {
+        this.frozenAt = frozenAt;
     }
 
     public Instant getCreatedAt() {

@@ -108,6 +108,11 @@ final class RbacHttpProbeSupport {
 
     boolean isNotImplemented(EndpointIds ids, RbacEndpointMapLoader.Endpoint endpoint) {
         return NOT_IMPLEMENTED.computeIfAbsent(endpoint.operationId(), op -> {
+            // Trust the curated map once an operation is marked implemented — avoids mutating the
+            // shared agency fixture (e.g. billingStartTrial → Pro/3 seats breaks invite probes).
+            if (endpoint.implementedHint()) {
+                return false;
+            }
             try {
                 // Never probe DELETE/destructive against the fixture workspace (would wipe it).
                 Scope probeScope = endpoint.destructive() ? Scope.FOREIGN : Scope.OWN;
@@ -117,7 +122,7 @@ final class RbacHttpProbeSupport {
                 }
                 // Stub controllers with @Valid bodies may return 400 before ApiStub (501).
                 // Treat that as not-implemented for RBAC HTTP until the handler runs authz.
-                if (!endpoint.implementedHint() && status == 400) {
+                if (status == 400) {
                     return true;
                 }
                 return false;
@@ -146,7 +151,8 @@ final class RbacHttpProbeSupport {
             req.param(q.getKey(), q.getValue());
         }
         if (needsBody(endpoint.method())) {
-            req.contentType(MediaType.APPLICATION_JSON).content(defaultBody(endpoint.operationId(), ids, scope));
+            req.contentType(MediaType.APPLICATION_JSON)
+                    .content(defaultBody(endpoint.operationId(), ids, scope, accessToken));
             req.with(csrf());
         }
         if (accessToken != null) {
@@ -178,6 +184,9 @@ final class RbacHttpProbeSupport {
                         "cancel-" + UUID.randomUUID() + "@example.com",
                         "viewer",
                         List.of(ids.projectAlpha()));
+                assertThat(inv.get("id"))
+                        .as("createInvitation for cancel must succeed")
+                        .isNotNull();
                 yield statusOf(delete("/api/v1/invitations/" + inv.get("id").asText())
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
@@ -382,10 +391,18 @@ final class RbacHttpProbeSupport {
         return values;
     }
 
-    private String defaultBody(String operationId, EndpointIds ids, Scope scope) {
+    private String defaultBody(String operationId, EndpointIds ids, Scope scope, String accessToken) throws Exception {
         UUID workspaceId = scope == Scope.FOREIGN ? ids.foreignWorkspaceId() : ids.workspaceId();
         UUID projectId = scope == Scope.FOREIGN ? ids.foreignProjectId() : ids.projectAlpha();
         UUID channelId = scope == Scope.FOREIGN || ids.channelId() == null ? UUID.randomUUID() : ids.channelId();
+        // Mutating billing ops must not touch the shared agency fixture (seat/plan limits).
+        // Only owner gets a disposable workspace (they are owner there). Deny roles keep the
+        // shared fixture membership so billing.manage/view correctly returns 403.
+        if (scope == Scope.OWN
+                && ("billingStartTrial".equals(operationId) || "billingCheckout".equals(operationId))
+                && isAllowed(ids.roleOf(accessToken), "billing.manage")) {
+            workspaceId = createWorkspace(accessToken, "RBAC billing " + UUID.randomUUID());
+        }
         return switch (operationId) {
             case "workspacesUpdate" -> "{\"name\":\"RBAC Probe Rename\"}";
             case "projectsCreate" -> "{\"name\":\"RBAC Probe " + UUID.randomUUID() + "\",\"color\":\"#123456\"}";
@@ -408,7 +425,7 @@ final class RbacHttpProbeSupport {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
                 node.put("planCode", "pro");
-                node.put("period", "monthly");
+                node.put("period", "month");
                 yield node.toString();
             }
             case "billingApplyPromo" -> {

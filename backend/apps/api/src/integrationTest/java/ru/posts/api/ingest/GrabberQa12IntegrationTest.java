@@ -706,6 +706,7 @@ class GrabberQa12IntegrationTest {
     private Fixture bootstrap() throws Exception {
         String token = registerVerifyLogin("grab-qa12-" + UUID.randomUUID() + "@example.com", "Grab Owner");
         UUID workspaceId = firstWorkspaceId(token);
+        upgradeToAgency(workspaceId);
         JsonNode project = readJson(mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/projects")
                         .with(csrf())
                         .header("Authorization", bearer(token))
