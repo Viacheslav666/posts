@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.posts.emulator.store.EmulatedPost;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
+import ru.posts.emulator.vk.StoryTokenStore;
 import ru.posts.emulator.vk.WallSourceStore;
 
 @RestController
@@ -24,11 +25,17 @@ public class ControlController {
     private final ScenarioService scenarioService;
     private final PostStore postStore;
     private final WallSourceStore wallSourceStore;
+    private final StoryTokenStore storyTokenStore;
 
-    public ControlController(ScenarioService scenarioService, PostStore postStore, WallSourceStore wallSourceStore) {
+    public ControlController(
+            ScenarioService scenarioService,
+            PostStore postStore,
+            WallSourceStore wallSourceStore,
+            StoryTokenStore storyTokenStore) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
         this.wallSourceStore = wallSourceStore;
+        this.storyTokenStore = storyTokenStore;
     }
 
     @GetMapping("/health")
@@ -50,10 +57,32 @@ public class ControlController {
     public Map<String, Object> reset(@RequestParam(name = "scenario", defaultValue = "true") boolean resetScenario) {
         postStore.reset();
         wallSourceStore.reset();
+        storyTokenStore.reset();
         if (resetScenario) {
             scenarioService.reset();
         }
         return Map.of("reset", true, "scenarioReset", resetScenario, "counts", postStore.counts());
+    }
+
+    /**
+     * QA-11 / TC-STORY-20: revoke VK community stories token so subsequent stories.* calls return
+     * error_code=5 (auth failed).
+     */
+    @PostMapping("/vk/story-tokens/{groupId}/revoke")
+    public Map<String, Object> revokeStoryToken(@org.springframework.web.bind.annotation.PathVariable String groupId) {
+        storyTokenStore.revoke(groupId);
+        return Map.of("groupId", groupId, "revoked", true, "revokedGroups", storyTokenStore.snapshot());
+    }
+
+    @PostMapping("/vk/story-tokens/{groupId}/restore")
+    public Map<String, Object> restoreStoryToken(@org.springframework.web.bind.annotation.PathVariable String groupId) {
+        storyTokenStore.restore(groupId);
+        return Map.of("groupId", groupId, "revoked", false, "revokedGroups", storyTokenStore.snapshot());
+    }
+
+    @GetMapping("/vk/story-tokens")
+    public Map<String, Object> listRevokedStoryTokens() {
+        return Map.of("revokedGroups", storyTokenStore.snapshot());
     }
 
     /**

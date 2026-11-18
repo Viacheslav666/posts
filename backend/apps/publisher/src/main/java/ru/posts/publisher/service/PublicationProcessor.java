@@ -241,8 +241,15 @@ public class PublicationProcessor {
         if (errorClass == ErrorClass.AUTH || errorClass == ErrorClass.PERMANENT) {
             ErrorClass finalClass = errorClass;
             String finalCode = errorCode;
+            boolean storyWaiting = finalClass == ErrorClass.AUTH && "story".equals(claim.contentKind());
             transactionTemplate.executeWithoutResult(status -> {
-                lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), finalCode, message);
+                if (storyWaiting) {
+                    // BE-16 / TC-STORY-20: revoked stories scope → waiting_for_channel (retry after reconnect).
+                    lifecycleJdbc.markWaitingForChannel(claim.id(), claim.runAt(), finalCode, message);
+                    lifecycleJdbc.markStoryConnectionRevoked(claim.channelId());
+                } else {
+                    lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), finalCode, message);
+                }
                 lifecycleJdbc.recordAttempt(
                         claim.id(),
                         claim.runAt(),
@@ -258,7 +265,7 @@ public class PublicationProcessor {
                 outboxJdbc.append(
                         "publication",
                         claim.id(),
-                        "publication.failed",
+                        storyWaiting ? "publication.waiting_for_channel" : "publication.failed",
                         "{\"network\":\""
                                 + claim.network()
                                 + "\",\"result\":\""
@@ -267,7 +274,9 @@ public class PublicationProcessor {
                                 + claim.workspaceId()
                                 + "\"}");
             });
-            metrics.recordFailure(claim.network(), finalClass.name().toLowerCase(Locale.ROOT));
+            metrics.recordFailure(
+                    claim.network(),
+                    storyWaiting ? "waiting_for_channel" : finalClass.name().toLowerCase(Locale.ROOT));
             return true;
         }
 

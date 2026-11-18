@@ -9080,15 +9080,11 @@ components:
           items:
             type: string
             format: uuid
-          maxItems: 50
-          minItems: 0
         mediaIds:
           type: array
           items:
             type: string
             format: uuid
-          maxItems: 50
-          minItems: 0
         projectId:
           type: string
           format: uuid

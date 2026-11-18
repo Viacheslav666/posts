@@ -23,6 +23,8 @@ public final class StorySupport {
 
     private static final Set<ApiEnums.Network> SUPPORTED = EnumSet.of(ApiEnums.Network.vk, ApiEnums.Network.ok);
     private static final long VK_VIDEO_MAX_BYTES = 350L * 1024L * 1024L;
+    private static final Set<String> ALLOWED_PHOTO_MIME =
+            Set.of("image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heif", "image/heic");
 
     private StorySupport() {}
 
@@ -86,12 +88,12 @@ public final class StorySupport {
         MediaAssetEntity asset = assets.getFirst();
         String mime = asset.getMime() == null ? "" : asset.getMime().toLowerCase(Locale.ROOT);
         boolean video = mime.startsWith("video/");
-        boolean photo = mime.startsWith("image/");
+        boolean photo = ALLOWED_PHOTO_MIME.contains(mime);
         if (!video && !photo) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     ProblemCodes.STORY_MEDIA_INVALID,
-                    "Story media must be image or video");
+                    "Story media must be JPG/PNG/GIF/WEBP/HEIF photo or video");
         }
         if (video && asset.getSizeBytes() != null && asset.getSizeBytes() > VK_VIDEO_MAX_BYTES) {
             throw new ApiException(
