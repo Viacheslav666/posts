@@ -61,7 +61,7 @@ class YandexOrdProviderWireMockTest {
                                   "unixtimestamp": 1,
                                   "object_type": "creative",
                                   "status": "Request accepted by ORD",
-                                  "token": "BRBCaQT7cqRWN3uEegTZAahjid1wCWQ",
+                                  "token": "test-erid-yandex-0001",
                                   "object_ids": ["creative-1"]
                                 }
                                 """)));
@@ -69,7 +69,7 @@ class YandexOrdProviderWireMockTest {
         CreativeRegistrationResult result = provider.registerCreative(credentials, sampleCreative("creative-1"));
 
         assertThat(result.externalId()).isEqualTo("creative-1");
-        assertThat(result.erid()).isEqualTo("BRBCaQT7cqRWN3uEegTZAahjid1wCWQ");
+        assertThat(result.erid()).isEqualTo("test-erid-yandex-0001");
         assertThat(result.providerRef()).isEqualTo("req-1");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/api/v8/creative"))
                 .withHeader("Authorization", equalTo("Bearer yandex-token"))

@@ -47,7 +47,7 @@
 
 ### Схема
 
-Flyway `V11__ord_be15.sql`: `ord_connections`, `ord_contractors`, `ord_contracts`, `ord_creatives`, `ord_platforms`, `ord_invoices`, `ord_statistics`, словари ККТУ/ОКСМ, `ord_report_runs`. Expand-only; CHECK через `NOT VALID` + `VALIDATE`.
+Flyway `V12__ord_be15.sql` (после V11 граббера BE-17): `ord_connections`, `ord_contractors`, `ord_contracts`, `ord_creatives`, `ord_platforms`, `ord_invoices`, `ord_statistics`, словари ККТУ/ОКСМ, `ord_report_runs`. Expand-only; CHECK через `NOT VALID` + `VALIDATE`.
 
 ## Альтернативы
 
