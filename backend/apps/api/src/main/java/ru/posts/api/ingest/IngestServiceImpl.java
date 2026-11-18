@@ -639,6 +639,13 @@ public class IngestServiceImpl implements IngestService {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.INGEST_SSRF_BLOCKED, ex.getMessage());
         } catch (IllegalArgumentException ex) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.INGEST_SOURCE_UNREACHABLE,
+                    ex.getMessage() == null ? "Source unreachable" : ex.getMessage());
         }
         List<IngestDtos.GrabberItem> items = candidates.stream()
                 .limit(limit)

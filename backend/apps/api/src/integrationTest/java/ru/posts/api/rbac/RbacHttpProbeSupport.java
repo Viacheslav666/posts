@@ -534,9 +534,10 @@ final class RbacHttpProbeSupport {
                 yield node.toString();
             }
             case "ingestPreview" -> {
+                // RSS + loopback URL: SSRF guard returns 422 after authz without network I/O.
                 var node = objectMapper.createObjectNode();
-                node.put("type", "grabber");
-                node.putArray("sourceIds").add("-123");
+                node.put("type", "rss");
+                node.put("rssUrl", "http://127.0.0.1/rbac-probe-feed.xml");
                 node.put("limit", 1);
                 yield node.toString();
             }
