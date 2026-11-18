@@ -382,6 +382,7 @@ DESTRUCTIVE = {
     "postsDelete",
     "meDelete",
     "mediaDelete",
+    "billingDeletePaymentMethod",
 }
 
 WORKSPACE_QUERY_OPS = {
@@ -397,6 +398,16 @@ WORKSPACE_QUERY_OPS = {
     "billingApplyPromo",
     "billingGetSubscription",
     "billingStartTrial",
+    "billingGetAutopay",
+    "billingUpdateAutopay",
+    "billingGetPaymentMethod",
+    "billingDeletePaymentMethod",
+    "billingGetWallet",
+    "billingListPayments",
+    "billingListTransactions",
+    "billingRequestInvoice",
+    "billingSetAutoRenew",
+    "billingChangePlan",
     "notificationSettingsGet",
     "notificationSettingsUpdate",
     "notificationsList",
@@ -405,7 +416,7 @@ WORKSPACE_QUERY_OPS = {
     "notificationTelegramUnlink",
     "notificationWebPushSubscribe",
     "notificationWebPushUnsubscribe",
-    # postsPreview / postsBulk / postsBatch / storiesBatch: no workspaceId query — tenant via body/resource id
+    # postsPreview / postsBulk / postsBatch: no workspaceId query — tenant via body/resource id
     # notificationVapidPublicKey / notificationUnsubscribe: no workspace query
     "mediaCreateUpload",
     "mediaImportUrl",
@@ -413,7 +424,11 @@ WORKSPACE_QUERY_OPS = {
     "ordReportsRun",
     "ingestPreview",
     "storiesBatch",
-    "postsBatch",
+}
+
+# Extra query params beyond workspaceId (probe fixtures / required OpenAPI params).
+EXTRA_QUERY = {
+    "ingestItemsExport": {"format": "csv"},
 }
 
 
@@ -463,6 +478,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
+        # Billing invoice PDF/act paths use generic {id}; probe resolves via {invoiceId}.
+        "{id}": ("id", "{invoiceId}"),
     }
     for token, (key, value) in mapping.items():
         if token in path:
@@ -503,6 +520,10 @@ def main() -> int:
                 entry["pathParams"] = ph
             if oid in WORKSPACE_QUERY_OPS:
                 entry["query"] = {"workspaceId": "{workspaceId}"}
+            if oid in EXTRA_QUERY:
+                q = dict(entry.get("query") or {})
+                q.update(EXTRA_QUERY[oid])
+                entry["query"] = q
             if oid in DESTRUCTIVE:
                 entry["destructive"] = True
         endpoints.append(entry)
