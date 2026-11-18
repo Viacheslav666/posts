@@ -29,6 +29,7 @@ import {
   resumeIngestRule,
   startIngestRun,
 } from '../api/grabber-api';
+import { HistoryExportButtons } from './history-export-buttons';
 import { ModerationQueue } from './moderation-queue';
 import { RuleForm } from './rule-form';
 import { RuleStatusBadge } from './rule-status-badge';
@@ -177,7 +178,11 @@ export function RuleDetailPage({ workspaceId, ruleId }: RuleDetailPageProps) {
           />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
-          <div className="space-y-2" data-testid="grabber-items-history">
+          <div className="space-y-4" data-testid="grabber-items-history">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">{t('export.hint')}</p>
+              <HistoryExportButtons ruleId={ruleId} />
+            </div>
             {(historyQuery.data?.items ?? []).map((item) => (
               <div key={item.id} className="border-b border-border py-3 text-sm">
                 <p className="font-medium">{item.status}</p>

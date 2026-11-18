@@ -10,7 +10,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
+import ru.posts.persistence.jdbc.ChannelMediaCacheJdbc;
 import ru.posts.persistence.jdbc.DailyBillingJdbc;
+import ru.posts.persistence.jdbc.MediaAssetLoadJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.OutboxRelayJdbc;
 import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
@@ -68,6 +70,18 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(AutomationRuleClaimJdbc.class)
     AutomationRuleClaimJdbc automationRuleClaimJdbc(DataSource dataSource) {
         return new AutomationRuleClaimJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ChannelMediaCacheJdbc.class)
+    ChannelMediaCacheJdbc channelMediaCacheJdbc(DataSource dataSource) {
+        return new ChannelMediaCacheJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(MediaAssetLoadJdbc.class)
+    MediaAssetLoadJdbc mediaAssetLoadJdbc(DataSource dataSource) {
+        return new MediaAssetLoadJdbc(JdbcClient.create(dataSource));
     }
 
     @Bean

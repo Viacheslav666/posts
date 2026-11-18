@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
     implementation(project(":libs:ord-api"))
+    implementation(libs.aws.s3)
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)

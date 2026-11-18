@@ -1,0 +1,15 @@
+{
+  "response": {
+    "count": 1,
+    "items": [
+      {
+        "id": 42,
+        "owner_id": -100,
+        "from_id": -100,
+        "date": 1730000000,
+        "text": "hello from posts",
+        "attachments": []
+      }
+    ]
+  }
+}

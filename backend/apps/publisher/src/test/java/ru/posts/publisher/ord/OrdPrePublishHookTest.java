@@ -97,6 +97,7 @@ class OrdPrePublishHookTest {
                 null,
                 null,
                 "photo",
+                "[]",
                 placement);
     }
 }

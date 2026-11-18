@@ -100,12 +100,46 @@ public class OkApiController {
         return switch (method) {
             case "mediatopic.post" -> mediatopicPost(form, json, rawResponse);
             case "mediatopic.delete" -> ResponseEntity.ok(Map.of("success", true));
+            case "photosV2.getUploadUrl", "photos.getUploadUrl" -> ResponseEntity.ok(photosUploadUrl(form, json));
+            case "stream.get" -> ResponseEntity.ok(streamGet(form, json));
             case "moments.getUploadUrl" -> ResponseEntity.ok(momentsGetUploadUrl(form, json));
             case "moments.commit" -> momentsCommit(form, json, rawResponse);
             case "moments.delete" -> ResponseEntity.ok(Map.of("success", true));
             default -> ResponseEntity.badRequest()
                     .body(Map.of("error_code", 100, "error_msg", "Unsupported method: " + method));
         };
+    }
+
+    private Map<String, Object> photosUploadUrl(MultiValueMap<String, String> form, Map<String, Object> json) {
+        String uploadId = UUID.randomUUID().toString();
+        String uploadUrl = "http://localhost:8090/ok/upload/" + uploadId;
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("upload_url", uploadUrl);
+        body.put("upload_urls", java.util.List.of(uploadUrl));
+        body.put("gid", first(form, json, "gid", "group_id"));
+        return body;
+    }
+
+    private Map<String, Object> streamGet(MultiValueMap<String, String> form, Map<String, Object> json) {
+        String gid = first(form, json, "gid", "group_id");
+        java.util.List<ru.posts.emulator.store.EmulatedPost> posts =
+                postStore.list(Network.OK, gid == null ? null : gid);
+        Map<String, Object> topics = new LinkedHashMap<>();
+        java.util.List<Map<String, Object>> mediaTopics = new java.util.ArrayList<>();
+        for (ru.posts.emulator.store.EmulatedPost post : posts) {
+            if (post.metadata() != null && "story".equals(post.metadata().get("contentType"))) {
+                continue;
+            }
+            Map<String, Object> topic = new LinkedHashMap<>();
+            topic.put("id", post.remotePostId());
+            topic.put("text", post.text());
+            topics.put(post.remotePostId(), topic);
+            mediaTopics.add(topic);
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("entities", Map.of("topics", topics));
+        body.put("media_topics", mediaTopics);
+        return body;
     }
 
     private Map<String, Object> momentsGetUploadUrl(MultiValueMap<String, String> form, Map<String, Object> json) {
@@ -161,9 +195,31 @@ public class OkApiController {
 
         String finalGid = gid == null ? "unknown" : gid;
 
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("method", "mediatopic.post");
+        metadata.put("attachment", text);
+        metadata.put("disable_comments", first(form, json, "disable_comments"));
+        metadata.put("application_key", first(form, json, "application_key"));
+        metadata.put("sig_present", first(form, json, "sig") != null);
+
+        // Prefer plain text from JSON attachment media[0].text when attachment is JSON.
+        String plainText = text;
+        if (text != null && text.trim().startsWith("{")) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode node =
+                        new com.fasterxml.jackson.databind.ObjectMapper().readTree(text);
+                if (node.path("media").isArray() && !node.path("media").isEmpty()) {
+                    plainText = node.path("media").get(0).path("text").asText(text);
+                }
+            } catch (Exception ignored) {
+                plainText = text;
+            }
+        }
+        String finalText = plainText;
+
         return publishSupport.execute(Network.OK, rawResponse, () -> {
-            PostStore.CreateResult result = postStore.createOrGet(
-                    Network.OK, finalGid, idempotencyKey, text, Map.of("method", "mediatopic.post"));
+            PostStore.CreateResult result =
+                    postStore.createOrGet(Network.OK, finalGid, idempotencyKey, finalText, metadata);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("id", result.post().remotePostId());
             body.put("success", true);

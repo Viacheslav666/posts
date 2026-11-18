@@ -435,6 +435,32 @@ N items → N posts / N successful publications (или в пределах rate
 
 ---
 
+## TC-GRAB-29 — UI настроек: группы фильтров / очистки / окна / лимитов (FE-17)
+
+| Поле | Значение |
+|---|---|
+| Story / AC | FE-17 / BE-27 parity |
+| Приоритет | P0 |
+| **Автоматизация** | **авто** (Playwright `grabber-settings.spec.ts`, Vitest round-trip) |
+
+### Ожидание
+Форма правила показывает секции «Не публиковать, если», «Удалять из поста», «Замена слов», «Окно работы», «Лимиты», «Первый комментарий», «Прикрепляемый текст и вложения»; `publish_mode` default `moderate`; сохранение/чтение без потери полей; first_comment честно помечен `pending_be23`.
+
+---
+
+## TC-GRAB-30 — Импорт настроек (clone-config) и экспорт истории
+
+| Поле | Значение |
+|---|---|
+| Story / AC | FE-17 / BE-27 |
+| Приоритет | P0 |
+| **Автоматизация** | **авто** |
+
+### Ожидание
+`POST /ingest/rules/{id}/clone-config` копирует filters/transform/schedule/limits/first_comment, не меняя sources и publish_mode; `GET …/items/export?format=csv|xlsx` отдаёт файл.
+
+---
+
 ## Чеклист качества набора
 
 - [x] Все P0 AC-G1…G11 покрыты ≥ 1 TC
@@ -449,3 +475,4 @@ N items → N posts / N successful publications (или в пределах rate
 |---|---|
 | 2026-11-17 | Первичный набор TC-GRAB-01…28 (QA-12 / AN-P) |
 | 2026-11-18 | QA-12: автотесты P0/P1; трассировка → [`docs/qa/traceability-tc-grab.md`](../traceability-tc-grab.md) |
+| 2026-11-18 | FE-17: TC-GRAB-29/30 (UI parity, clone-config, export) |

@@ -1,6 +1,7 @@
 import type {
   GrabberBulkModerationRequest,
   GrabberBulkModerationResponse,
+  GrabberCloneConfigRequest,
   GrabberItem,
   GrabberItemApproveRequest,
   GrabberItemEditApproveRequest,
@@ -16,7 +17,8 @@ import type {
   IngestPreviewResponse,
 } from '@posts/api-client';
 
-import { getApiClient, unwrapApi } from '@/shared/api-client';
+import { getApiBaseUrl, getAccessToken, getApiClient, unwrapApi } from '@/shared/api-client';
+import { toApiProblemError } from '@/shared/lib/errors';
 
 import type { IngestRuleType, ItemStatus } from '../model/types';
 
@@ -243,4 +245,72 @@ export async function previewIngestSource(
       body,
     }),
   );
+}
+
+export async function cloneIngestRuleConfig(
+  ruleId: string,
+  body: GrabberCloneConfigRequest,
+): Promise<GrabberRule> {
+  const client = getApiClient();
+  return unwrapApi(
+    await client.POST('/api/v1/ingest/rules/{ruleId}/clone-config', {
+      params: { path: { ruleId } },
+      body,
+    }),
+  );
+}
+
+export type IngestExportResult = {
+  blob: Blob;
+  filename: string;
+  contentType: string;
+};
+
+/**
+ * Binary CSV/XLSX export. Uses fetch+blob because OpenAPI marks the body as JSON string.
+ */
+export async function exportIngestItems(
+  ruleId: string,
+  options?: { format?: 'csv' | 'xlsx'; status?: ItemStatus },
+): Promise<IngestExportResult> {
+  const format = options?.format ?? 'csv';
+  const url = new URL(`${getApiBaseUrl()}/api/v1/ingest/rules/${ruleId}/items/export`);
+  url.searchParams.set('format', format);
+  if (options?.status) {
+    url.searchParams.set('status', options.status);
+  }
+
+  const headers = new Headers({ Accept: format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv' });
+  const token = getAccessToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    let problem: unknown = { title: response.statusText };
+    try {
+      problem = await response.json();
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw toApiProblemError(problem, response.status);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename =
+    match?.[1] ?? `grabber-${ruleId}.${format === 'xlsx' ? 'xlsx' : 'csv'}`;
+  const contentType =
+    response.headers.get('Content-Type') ??
+    (format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv; charset=utf-8');
+  const blob = await response.blob();
+  return { blob, filename, contentType };
 }
