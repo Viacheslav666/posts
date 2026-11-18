@@ -11,8 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -33,9 +31,6 @@ import ru.posts.emulator.web.PublishSupport;
 
 @RestController
 public class VkApiController {
-
-    private static final Pattern EXECUTE_API_CALL =
-            Pattern.compile("API\\.([a-zA-Z0-9_.]+)\\s*\\(\\s*(\\{[^}]*\\}|)\\s*\\)");
 
     private final PostStore postStore;
     private final ModerationStore moderationStore;
@@ -424,18 +419,16 @@ public class VkApiController {
             return ResponseEntity.ok(Map.of(
                     "error", Map.of("error_code", 100, "error_msg", "code is required", "request_params", List.of())));
         }
-        Matcher matcher = EXECUTE_API_CALL.matcher(code);
-        List<Object> results = new ArrayList<>();
-        int count = 0;
-        while (matcher.find() && count < 25) {
-            String method = matcher.group(1);
-            String argsJson = matcher.group(2);
-            MultiValueMap<String, String> callParams = parseExecuteArgs(argsJson);
+        // Linear scan — no regex — to avoid ReDoS on attacker-controlled execute code.
+        List<ExecuteCall> calls = parseExecuteCalls(code, 25);
+        List<Object> results = new ArrayList<>(calls.size());
+        for (ExecuteCall call : calls) {
+            MultiValueMap<String, String> callParams = parseExecuteArgs(call.argsJson());
             // Carry over access_token from outer execute call.
             if (first(params, "access_token") != null && callParams.getFirst("access_token") == null) {
                 callParams.add("access_token", first(params, "access_token"));
             }
-            ResponseEntity<?> result = dispatchSync(method, callParams);
+            ResponseEntity<?> result = dispatchSync(call.method(), callParams);
             Object body = result.getBody();
             if (body instanceof Map<?, ?> map && map.containsKey("response")) {
                 results.add(map.get("response"));
@@ -444,10 +437,94 @@ public class VkApiController {
             } else {
                 results.add(body);
             }
-            count++;
         }
         return ResponseEntity.ok(Map.of("response", results));
     }
+
+    /**
+     * Parses {@code API.method({...})} / {@code API.method()} calls with O(n) scanning only.
+     * Nested braces inside string literals are not supported (emulator execute codes are flat).
+     */
+    static List<ExecuteCall> parseExecuteCalls(String code, int maxCalls) {
+        List<ExecuteCall> calls = new ArrayList<>();
+        if (code == null || code.isEmpty() || maxCalls <= 0) {
+            return calls;
+        }
+        int i = 0;
+        int n = code.length();
+        while (i < n && calls.size() < maxCalls) {
+            int apiAt = code.indexOf("API.", i);
+            if (apiAt < 0) {
+                break;
+            }
+            int methodStart = apiAt + 4;
+            int methodEnd = methodStart;
+            while (methodEnd < n) {
+                char c = code.charAt(methodEnd);
+                if ((c >= 'a' && c <= 'z')
+                        || (c >= 'A' && c <= 'Z')
+                        || (c >= '0' && c <= '9')
+                        || c == '_'
+                        || c == '.') {
+                    methodEnd++;
+                } else {
+                    break;
+                }
+            }
+            if (methodEnd == methodStart) {
+                i = methodStart;
+                continue;
+            }
+            int cursor = methodEnd;
+            while (cursor < n && Character.isWhitespace(code.charAt(cursor))) {
+                cursor++;
+            }
+            if (cursor >= n || code.charAt(cursor) != '(') {
+                i = methodEnd;
+                continue;
+            }
+            cursor++; // skip '('
+            while (cursor < n && Character.isWhitespace(code.charAt(cursor))) {
+                cursor++;
+            }
+            String argsJson = "";
+            if (cursor < n && code.charAt(cursor) == '{') {
+                int depth = 0;
+                int argsStart = cursor;
+                while (cursor < n) {
+                    char c = code.charAt(cursor);
+                    if (c == '{') {
+                        depth++;
+                    } else if (c == '}') {
+                        depth--;
+                        if (depth == 0) {
+                            cursor++;
+                            argsJson = code.substring(argsStart, cursor);
+                            break;
+                        }
+                    }
+                    cursor++;
+                }
+                if (depth != 0) {
+                    // Unbalanced braces — stop parsing further calls.
+                    break;
+                }
+            }
+            while (cursor < n && Character.isWhitespace(code.charAt(cursor))) {
+                cursor++;
+            }
+            if (cursor >= n || code.charAt(cursor) != ')') {
+                i = methodEnd;
+                continue;
+            }
+            cursor++; // skip ')'
+            calls.add(new ExecuteCall(code.substring(methodStart, methodEnd), argsJson));
+            i = cursor;
+        }
+        return calls;
+    }
+
+    record ExecuteCall(String method, String argsJson) {}
 
     /** Execute nested API calls without re-entering scenario faults / HTTP layer. */
     private ResponseEntity<?> dispatchSync(String method, MultiValueMap<String, String> params) {
