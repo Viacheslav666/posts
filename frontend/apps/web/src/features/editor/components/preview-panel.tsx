@@ -10,6 +10,8 @@ import { Button, PostPreview, type PostPreviewNetwork } from '@posts/ui';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 
+import type { EditorMediaItem } from '@/features/media/model/types';
+
 import { sanitizePreviewHtml } from '../lib/sanitize';
 
 type PreviewPanelProps = {
@@ -17,6 +19,7 @@ type PreviewPanelProps = {
   network: NetworkId;
   onNetworkChange: (network: 'vk' | 'tg' | 'ok' | 'max') => void;
   channelName?: string;
+  media?: EditorMediaItem[];
 };
 
 const PREVIEW_NETWORKS: Array<'vk' | 'tg' | 'ok' | 'max'> = ['vk', 'tg', 'ok', 'max'];
@@ -28,9 +31,16 @@ const toPreviewNetwork: Record<'vk' | 'tg' | 'ok' | 'max', PostPreviewNetwork> =
   max: 'max',
 };
 
-export function PreviewPanel({ html, network, onNetworkChange, channelName }: PreviewPanelProps) {
+export function PreviewPanel({
+  html,
+  network,
+  onNetworkChange,
+  channelName,
+  media = [],
+}: PreviewPanelProps) {
   const t = useTranslations('editor.preview');
   const deferredHtml = useDeferredValue(html);
+  const deferredMedia = useDeferredValue(media);
 
   const rendered = useMemo(() => renderFromCanonicalHtml(deferredHtml), [deferredHtml]);
 
@@ -90,6 +100,32 @@ export function PreviewPanel({ html, network, onNetworkChange, channelName }: Pr
         mode="mobile"
         className="w-full max-w-none"
       />
+      {deferredMedia.length > 0 ? (
+        <div
+          className="grid grid-cols-2 gap-2"
+          data-testid="preview-media"
+          aria-label={t('media')}
+        >
+          {deferredMedia.slice(0, 4).map((item) =>
+            item.previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={item.id}
+                src={item.previewUrl}
+                alt={item.filename}
+                className="aspect-square w-full rounded-md object-cover"
+              />
+            ) : (
+              <div
+                key={item.id}
+                className="flex aspect-square items-center justify-center rounded-md bg-muted text-xs"
+              >
+                {item.filename}
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
       <p className="text-xs text-muted-foreground">{t('length', { count: content.length })}</p>
     </section>
   );

@@ -76,10 +76,12 @@ export const queryKeys = {
 
   media: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'media'] as const,
-    list: (workspaceId: string, cursor?: string) =>
-      [...queryKeys.media.all(workspaceId), 'list', { cursor }] as const,
+    list: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.media.all(workspaceId), 'list', filters ?? {}] as const,
     detail: (workspaceId: string, mediaId: string) =>
       [...queryKeys.media.all(workspaceId), mediaId] as const,
+    quota: (workspaceId: string) => [...queryKeys.media.all(workspaceId), 'quota'] as const,
+    folders: (workspaceId: string) => [...queryKeys.media.all(workspaceId), 'folders'] as const,
   },
 
   notifications: {

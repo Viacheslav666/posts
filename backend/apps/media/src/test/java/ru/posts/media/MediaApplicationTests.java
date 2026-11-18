@@ -1,11 +1,13 @@
 package ru.posts.media;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class MediaApplicationTests {
 
     @Test
-    void contextLoads() {}
+    void applicationEntryPointIsPresent() {
+        assertThat(MediaApplication.class.getName()).contains("MediaApplication");
+    }
 }

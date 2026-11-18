@@ -86,7 +86,15 @@ jobs:
           if [ "${{ matrix.service }}" = "media" ]; then
             EXTRA="-PpostsMediaBaseImage=docker://${{ env.MEDIA_BASE_NAME }}:${{ env.MEDIA_BASE_TAG }}"
           fi
-          ./gradlew ":apps:${{ matrix.service }}:jibDockerBuild" $EXTRA
+          # Matrix builds can hit Maven Central 429; retry a few times.
+          for attempt in 1 2 3 4; do
+            if ./gradlew ":apps:${{ matrix.service }}:jibDockerBuild" $EXTRA; then
+              exit 0
+            fi
+            echo "jibDockerBuild failed (attempt ${attempt}); sleeping before retry"
+            sleep $((attempt * 15))
+          done
+          exit 1
 
       - name: Push image to GHCR
         if: github.event_name != 'pull_request'

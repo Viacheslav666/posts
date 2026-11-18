@@ -14,6 +14,12 @@ spring:
 posts:
   ratelimit:
     enabled: false
+  crypto:
+    kek: openapi-docs-kek
+  channels:
+    social-base-url: http://127.0.0.1:8090
+    tg-bot-token: emulator-token
+    max-bot-token: emulator-max-token
 
 management:
   health:

@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { resetChannelStore } from '@/mocks/channel-store';
+import { resetMediaStoreForTests } from '@/mocks/media-store';
 import { server } from '@/mocks/server';
 import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
@@ -15,10 +16,10 @@ beforeAll(() => {
       y: 0,
       top: 0,
       left: 0,
-      bottom: 0,
-      right: 0,
-      width: 0,
-      height: 0,
+      bottom: 720,
+      right: 800,
+      width: 800,
+      height: 720,
       toJSON: () => ({}),
     };
     const clientRects = {
@@ -31,6 +32,16 @@ beforeAll(() => {
     Element.prototype.getBoundingClientRect = () => rect as DOMRect;
     Element.prototype.getClientRects = () => clientRects;
     document.elementFromPoint = () => null;
+
+    if (!('ResizeObserver' in window)) {
+      class ResizeObserverStub {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      // @ts-expect-error jsdom polyfill
+      window.ResizeObserver = ResizeObserverStub;
+    }
   }
 });
 
@@ -43,6 +54,7 @@ afterEach(() => {
   server.resetHandlers();
   resetWorkspaceStore();
   resetChannelStore();
+  resetMediaStoreForTests();
   resetApiClient();
   clearAccessToken();
   clearPendingLogin();

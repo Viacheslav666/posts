@@ -1,6 +1,6 @@
 /**
  * Workspace RBAC matrix (mirrors docs/product/roles-permissions.md).
- * FE-5 team + FE-6 channels + FE-8 posts/calendar actions.
+ * FE-5 team + FE-6 channels + FE-7 media + FE-8 posts/calendar actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
@@ -25,6 +25,8 @@ export const PERMISSION_ACTIONS = [
   'channels.manage',
   'channel_sets.view',
   'channel_sets.manage',
+  'media.view',
+  'media.manage',
   'posts.view',
   'posts.create',
   'posts.update',
@@ -49,6 +51,7 @@ const ALL_VIEW: PermissionAction[] = [
   'projects.view',
   'channels.view',
   'channel_sets.view',
+  'media.view',
   'posts.view',
   'calendar.view',
 ];
@@ -64,6 +67,7 @@ const ADMIN_TEAM: PermissionAction[] = [
   'audit.export',
   'channels.manage',
   'channel_sets.manage',
+  'media.manage',
   'posts.create',
   'posts.update',
   'posts.delete',
@@ -81,6 +85,7 @@ const OWNER_ONLY: PermissionAction[] = [
 
 const EDITOR_EXTRA: PermissionAction[] = [
   'channel_sets.manage',
+  'media.manage',
   'posts.create',
   'posts.update',
   'posts.delete',
@@ -91,6 +96,7 @@ const EDITOR_EXTRA: PermissionAction[] = [
 ];
 
 const AUTHOR_EXTRA: PermissionAction[] = [
+  'media.manage',
   'posts.create',
   'posts.update',
   'posts.delete',

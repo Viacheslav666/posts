@@ -682,6 +682,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/import-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import a remote media URL into the library */
+        post: operations["mediaImportUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/uploads": {
         parameters: {
             query?: never;
@@ -713,7 +730,8 @@ export interface paths {
         get: operations["mediaGet"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Soft-delete a media asset */
+        delete: operations["mediaDelete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1202,6 +1220,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hooks/max/{botId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Max Bot webhook */
+        post: operations["hooksMax"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hooks/tg/{botId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram Bot webhook */
+        post: operations["hooksTg"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hooks/vk/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** VK Callback API endpoint */
+        post: operations["hooksVk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1442,6 +1511,7 @@ export interface components {
         };
         CreateUploadRequest: {
             filename?: string;
+            folder?: string;
             /**
              * @description Media asset kind
              * @enum {string}
@@ -1453,6 +1523,7 @@ export interface components {
             sha256?: string;
             /** Format: int64 */
             sizeBytes: number;
+            tags?: string[];
             /** Format: uuid */
             workspaceId: string;
         };
@@ -1464,6 +1535,8 @@ export interface components {
             };
             /** Format: uuid */
             mediaId?: string;
+            /** @description S3 multipart upload id when multipart is used */
+            uploadId?: string;
             /** @description Presigned multipart/PUT upload URL */
             uploadUrl?: string;
         };
@@ -1496,6 +1569,22 @@ export interface components {
             chatId?: string;
             /** @example 42 */
             messageId?: string;
+        };
+        ImportUrlRequest: {
+            filename?: string;
+            /** @example https://cdn.example.com/photo.jpg */
+            url: string;
+            /** Format: uuid */
+            workspaceId: string;
+        };
+        ImportUrlResponse: {
+            /** Format: uuid */
+            mediaId?: string;
+            /**
+             * @description Media processing status
+             * @enum {string}
+             */
+            status?: "uploading" | "processing" | "ready" | "failed";
         };
         InlineButton: {
             /** @description Callback data for bot buttons */
@@ -1548,6 +1637,7 @@ export interface components {
             items?: components["schemas"]["Invoice"][];
             nextCursor?: string;
         };
+        JsonNode: Record<string, never>;
         LoginRequest: {
             /** @example user@example.com */
             email: string;
@@ -1574,6 +1664,9 @@ export interface components {
             };
             /** Format: int32 */
             durationMs?: number;
+            errorMessage?: string;
+            filename?: string;
+            folder?: string;
             /** Format: int32 */
             height?: number;
             /** Format: uuid */
@@ -1592,8 +1685,10 @@ export interface components {
              * @enum {string}
              */
             status?: "uploading" | "processing" | "ready" | "failed";
+            tags?: string[];
             /** Format: uuid */
             uploaderId?: string;
+            usedIn?: components["schemas"]["MediaUsage"][];
             /** Format: int32 */
             width?: number;
             /** Format: uuid */
@@ -1616,6 +1711,16 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["MediaAsset"][];
             nextCursor?: string;
+        };
+        MediaUsage: {
+            /** Format: uuid */
+            postId?: string;
+            /**
+             * @description Aggregate post status. `deleted_from_network` = removed from social networks via auto-delete/manual delete; soft-deleted drafts use `archived`.
+             * @enum {string}
+             */
+            status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
+            title?: string;
         };
         MembershipSummary: {
             /**
@@ -6123,6 +6228,9 @@ export interface operations {
                 workspaceId: string;
                 kind?: "image" | "video" | "doc" | "audio";
                 status?: "uploading" | "processing" | "ready" | "failed";
+                q?: string;
+                folder?: string;
+                tag?: string;
                 /**
                  * @description Opaque cursor from a previous response `nextCursor`
                  * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
@@ -6147,6 +6255,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mediaImportUrl: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Import started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportUrlResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -6321,6 +6518,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaAsset"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mediaDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -9806,6 +10088,94 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    hooksMax: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Max-Bot-Api-Secret"?: string;
+            };
+            path: {
+                botId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    hooksTg: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Telegram-Bot-Api-Secret-Token"?: string;
+            };
+            path: {
+                botId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    hooksVk: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Callback-Secret"?: string;
+            };
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

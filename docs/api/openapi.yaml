@@ -52,6 +52,8 @@ tags:
   name: Channel sets
 - description: Connected social channels and connect flows
   name: Channels
+- description: Inbound webhooks for VK / Telegram / Max (validate + enqueue)
+  name: Social hooks
 - description: In-app notifications and delivery settings (US-5.4)
   name: Notifications
 - description: "Plans, subscription, checkout, invoices, promo codes"
@@ -3150,6 +3152,21 @@ paths:
           - processing
           - ready
           - failed
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: folder
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: tag
+        required: false
+        schema:
+          type: string
       - description: Opaque cursor from a previous response `nextCursor`
         example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
         in: query
@@ -3225,6 +3242,74 @@ paths:
       summary: List media assets in a workspace
       tags:
       - Media
+  /api/v1/media/import-url:
+    post:
+      operationId: mediaImportUrl
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportUrlRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportUrlResponse"
+          description: Import started
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Import a remote media URL into the library
+      tags:
+      - Media
   /api/v1/media/uploads:
     post:
       description: "Client uploads bytes directly to S3, then calls complete (US-4.2)."
@@ -3295,6 +3380,68 @@ paths:
       tags:
       - Media
   /api/v1/media/{mediaId}:
+    delete:
+      operationId: mediaDelete
+      parameters:
+      - in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Soft-delete a media asset
+      tags:
+      - Media
     get:
       operationId: mediaGet
       parameters:
@@ -6149,6 +6296,103 @@ paths:
       summary: Create a project
       tags:
       - Projects
+  /hooks/max/{botId}:
+    post:
+      operationId: hooksMax
+      parameters:
+      - in: path
+        name: botId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Max-Bot-Api-Secret
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: Max Bot webhook
+      tags:
+      - Social hooks
+  /hooks/tg/{botId}:
+    post:
+      operationId: hooksTg
+      parameters:
+      - in: path
+        name: botId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Telegram-Bot-Api-Secret-Token
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: Telegram Bot webhook
+      tags:
+      - Social hooks
+  /hooks/vk/{channelId}:
+    post:
+      operationId: hooksVk
+      parameters:
+      - in: path
+        name: channelId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: X-Callback-Secret
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: OK
+      summary: VK Callback API endpoint
+      tags:
+      - Social hooks
 components:
   schemas:
     AcceptInvitationRequest:
@@ -6614,6 +6858,8 @@ components:
       properties:
         filename:
           type: string
+        folder:
+          type: string
         kind:
           type: string
           description: Media asset kind
@@ -6634,6 +6880,10 @@ components:
           type: integer
           format: int64
           minimum: 1
+        tags:
+          type: array
+          items:
+            type: string
         workspaceId:
           type: string
           format: uuid
@@ -6655,6 +6905,9 @@ components:
         mediaId:
           type: string
           format: uuid
+        uploadId:
+          type: string
+          description: S3 multipart upload id when multipart is used
         uploadUrl:
           type: string
           description: Presigned multipart/PUT upload URL
@@ -6718,6 +6971,34 @@ components:
         messageId:
           type: string
           example: 42
+    ImportUrlRequest:
+      type: object
+      properties:
+        filename:
+          type: string
+        url:
+          type: string
+          example: https://cdn.example.com/photo.jpg
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - url
+      - workspaceId
+    ImportUrlResponse:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Media processing status
+          enum:
+          - uploading
+          - processing
+          - ready
+          - failed
     InlineButton:
       type: object
       properties:
@@ -6808,6 +7089,8 @@ components:
             $ref: "#/components/schemas/Invoice"
         nextCursor:
           type: string
+    JsonNode:
+      type: object
     LoginRequest:
       type: object
       properties:
@@ -6853,6 +7136,12 @@ components:
         durationMs:
           type: integer
           format: int32
+        errorMessage:
+          type: string
+        filename:
+          type: string
+        folder:
+          type: string
         height:
           type: integer
           format: int32
@@ -6882,9 +7171,17 @@ components:
           - processing
           - ready
           - failed
+        tags:
+          type: array
+          items:
+            type: string
         uploaderId:
           type: string
           format: uuid
+        usedIn:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaUsage"
         width:
           type: integer
           format: int32
@@ -6916,6 +7213,31 @@ components:
           items:
             $ref: "#/components/schemas/MediaAsset"
         nextCursor:
+          type: string
+    MediaUsage:
+      type: object
+      properties:
+        postId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Aggregate post status. `deleted_from_network` = removed from
+            social networks via auto-delete/manual delete; soft-deleted drafts use
+            `archived`.
+          enum:
+          - draft
+          - pending_approval
+          - approved
+          - scheduled
+          - publishing
+          - published
+          - partially_published
+          - failed
+          - paused
+          - archived
+          - deleted_from_network
+        title:
           type: string
     MembershipSummary:
       type: object

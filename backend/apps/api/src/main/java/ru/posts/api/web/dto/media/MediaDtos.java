@@ -15,6 +15,9 @@ public final class MediaDtos {
 
     private MediaDtos() {}
 
+    @Schema(name = "MediaUsage")
+    public record MediaUsage(UUID postId, String title, ApiEnums.PostStatus status) {}
+
     @Schema(name = "MediaAsset")
     public record MediaAsset(
             UUID id,
@@ -29,7 +32,12 @@ public final class MediaDtos {
             String sha256,
             ApiEnums.MediaStatus status,
             Map<String, Object> derivatives,
-            Instant createdAt) {}
+            Instant createdAt,
+            String filename,
+            String folder,
+            List<String> tags,
+            String errorMessage,
+            List<MediaUsage> usedIn) {}
 
     @Schema(name = "CreateUploadRequest")
     public record CreateUploadRequest(
@@ -38,16 +46,28 @@ public final class MediaDtos {
             @NotBlank @Schema(example = "image/jpeg") String mime,
             @NotNull @Min(1) Long sizeBytes,
             @Size(min = 64, max = 64) @Schema(description = "SHA-256 hex of the file") String sha256,
-            String filename) {}
+            String filename,
+            String folder,
+            List<String> tags) {}
 
     @Schema(name = "CreateUploadResponse")
     public record CreateUploadResponse(
             UUID mediaId,
             @Schema(description = "Presigned multipart/PUT upload URL") String uploadUrl,
             Map<String, String> headers,
-            Instant expiresAt) {}
+            Instant expiresAt,
+            @Schema(description = "S3 multipart upload id when multipart is used") String uploadId) {}
 
     @Schema(name = "CompleteUploadRequest")
     public record CompleteUploadRequest(
             @Schema(description = "S3 multipart upload id when applicable") String uploadId, List<String> etags) {}
+
+    @Schema(name = "ImportUrlRequest")
+    public record ImportUrlRequest(
+            @NotNull UUID workspaceId,
+            @NotBlank @Schema(example = "https://cdn.example.com/photo.jpg") String url,
+            String filename) {}
+
+    @Schema(name = "ImportUrlResponse")
+    public record ImportUrlResponse(UUID mediaId, ApiEnums.MediaStatus status) {}
 }

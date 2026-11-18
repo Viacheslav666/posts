@@ -150,7 +150,7 @@ endpoints:
 - operationId: channelSetsList
   method: GET
   path: /api/v1/channel-sets
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channel_sets.view
   query:
@@ -158,7 +158,7 @@ endpoints:
 - operationId: channelSetsCreate
   method: POST
   path: /api/v1/channel-sets
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channel_sets.manage
   query:
@@ -166,7 +166,7 @@ endpoints:
 - operationId: channelSetsDelete
   method: DELETE
   path: /api/v1/channel-sets/{setId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channel_sets.manage
   pathParams:
@@ -175,7 +175,7 @@ endpoints:
 - operationId: channelSetsGet
   method: GET
   path: /api/v1/channel-sets/{setId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channel_sets.view
   pathParams:
@@ -183,7 +183,7 @@ endpoints:
 - operationId: channelSetsUpdate
   method: PUT
   path: /api/v1/channel-sets/{setId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channel_sets.manage
   pathParams:
@@ -191,7 +191,7 @@ endpoints:
 - operationId: channelsList
   method: GET
   path: /api/v1/channels
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.view
   query:
@@ -199,7 +199,7 @@ endpoints:
 - operationId: channelsConnectCallback
   method: POST
   path: /api/v1/channels/connect/{network}/callback
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.manage
   pathParams:
@@ -207,7 +207,7 @@ endpoints:
 - operationId: channelsConnectConfirm
   method: POST
   path: /api/v1/channels/connect/{network}/confirm
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.manage
   pathParams:
@@ -215,15 +215,17 @@ endpoints:
 - operationId: channelsConnectStart
   method: POST
   path: /api/v1/channels/connect/{network}/start
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.manage
   pathParams:
     network: vk
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: channelsDelete
   method: DELETE
   path: /api/v1/channels/{channelId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.manage
   pathParams:
@@ -232,7 +234,7 @@ endpoints:
 - operationId: channelsGet
   method: GET
   path: /api/v1/channels/{channelId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.view
   pathParams:
@@ -240,7 +242,7 @@ endpoints:
 - operationId: channelsUpdate
   method: PUT
   path: /api/v1/channels/{channelId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: channels.manage
   pathParams:
@@ -248,9 +250,9 @@ endpoints:
 - operationId: channelsCheck
   method: POST
   path: /api/v1/channels/{channelId}/check
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
-  action: channels.view
+  action: channels.manage
   pathParams:
     channelId: '{channelId}'
 - operationId: invitationsAccept
@@ -310,23 +312,40 @@ endpoints:
 - operationId: mediaList
   method: GET
   path: /api/v1/media
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: mediaImportUrl
+  method: POST
+  path: /api/v1/media/import-url
+  implementedHint: true
+  rbac: matrix
+  action: media.manage
   query:
     workspaceId: '{workspaceId}'
 - operationId: mediaCreateUpload
   method: POST
   path: /api/v1/media/uploads
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.manage
   query:
     workspaceId: '{workspaceId}'
+- operationId: mediaDelete
+  method: DELETE
+  path: /api/v1/media/{mediaId}
+  implementedHint: true
+  rbac: matrix
+  action: media.manage
+  pathParams:
+    mediaId: '{mediaId}'
+  destructive: true
 - operationId: mediaGet
   method: GET
   path: /api/v1/media/{mediaId}
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.view
   pathParams:
@@ -334,7 +353,7 @@ endpoints:
 - operationId: mediaCompleteUpload
   method: POST
   path: /api/v1/media/{mediaId}/complete
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: media.manage
   pathParams:
@@ -342,7 +361,7 @@ endpoints:
 - operationId: networksCapabilities
   method: GET
   path: /api/v1/networks/capabilities
-  implementedHint: false
+  implementedHint: true
   rbac: none
 - operationId: notificationSettingsGet
   method: GET
@@ -635,3 +654,18 @@ endpoints:
   action: projects.manage
   pathParams:
     workspaceId: '{workspaceId}'
+- operationId: hooksMax
+  method: POST
+  path: /hooks/max/{botId}
+  implementedHint: true
+  rbac: none
+- operationId: hooksTg
+  method: POST
+  path: /hooks/tg/{botId}
+  implementedHint: true
+  rbac: none
+- operationId: hooksVk
+  method: POST
+  path: /hooks/vk/{channelId}
+  implementedHint: true
+  rbac: none

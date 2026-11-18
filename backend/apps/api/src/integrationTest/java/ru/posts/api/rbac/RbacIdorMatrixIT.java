@@ -23,6 +23,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.api.rbac.RbacHttpProbeSupport.EndpointIds;
 import ru.posts.api.rbac.RbacHttpProbeSupport.Scope;
+import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 
@@ -60,13 +63,30 @@ class RbacIdorMatrixIT {
     @Autowired
     private WorkspaceRepository workspaceRepository;
 
+    @Autowired
+    private ChannelRepository channelRepository;
+
+    @Autowired
+    private ChannelSetRepository channelSetRepository;
+
+    @Autowired
+    private MediaAssetRepository mediaAssetRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
     @BeforeEach
     void setUp() throws Exception {
         if (probes == null) {
-            probes = new RbacHttpProbeSupport(mockMvc, objectMapper, mailSender, planRepository, workspaceRepository);
+            probes = new RbacHttpProbeSupport(
+                    mockMvc,
+                    objectMapper,
+                    mailSender,
+                    planRepository,
+                    workspaceRepository,
+                    channelRepository,
+                    channelSetRepository,
+                    mediaAssetRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
