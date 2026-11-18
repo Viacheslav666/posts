@@ -57,7 +57,7 @@ public class OutboxRelayService {
                 CorrelationData correlation = new CorrelationData("outbox-" + row.id());
                 rabbitTemplate.convertAndSend(
                         NotifyTopology.NOTIFY_EXCHANGE,
-                        row.eventType(),
+                        NotifyTopology.eventRoutingKey(row.eventType()),
                         event,
                         AmqpTraceHeaders.withTraceparent(trace),
                         correlation);

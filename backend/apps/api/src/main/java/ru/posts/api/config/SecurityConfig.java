@@ -42,6 +42,8 @@ public class SecurityConfig {
                                 "/hooks/**",
                                 "/hooks/telegram-notify",
                                 "/hooks/telegram-notify/**",
+                                "/ws",
+                                "/ws/**",
                                 "/.well-known/jwks.json",
                                 "/v3/api-docs",
                                 "/v3/api-docs.yaml",

@@ -21,7 +21,8 @@ public class NotifyTopology {
 
     public static final String EVENTS_QUEUE = "notify.events";
     public static final String EVENTS_DLQ = "notify.events.dlq";
-    public static final String EVENTS_RK = "events";
+    /** Domain events use routing key {@code event.<eventType>} so they do not collide with channel RKs. */
+    public static final String EVENTS_RK_PREFIX = "event.";
 
     public static final String EMAIL_QUEUE = "notify.email";
     public static final String EMAIL_DLQ = "notify.email.dlq";
@@ -44,6 +45,10 @@ public class NotifyTopology {
 
     public static final int DELIVERY_LIMIT = 10;
 
+    public static String eventRoutingKey(String eventType) {
+        return EVENTS_RK_PREFIX + (eventType == null ? "unknown" : eventType);
+    }
+
     @Bean
     Declarables notifyDeclarables() {
         TopicExchange notify = new TopicExchange(NOTIFY_EXCHANGE, true, false);
@@ -55,7 +60,8 @@ public class NotifyTopology {
         declarables.add(dlx);
         declarables.add(wsFanout);
 
-        addQueue(declarables, notify, dlx, EVENTS_QUEUE, EVENTS_DLQ, "#");
+        // Domain events only (not email/tg/push/ws channel commands)
+        addQueue(declarables, notify, dlx, EVENTS_QUEUE, EVENTS_DLQ, "event.#");
         addQueue(declarables, notify, dlx, EMAIL_QUEUE, EMAIL_DLQ, EMAIL_RK);
         addQueue(declarables, notify, dlx, TG_QUEUE, TG_DLQ, TG_RK);
         addQueue(declarables, notify, dlx, PUSH_QUEUE, PUSH_DLQ, PUSH_RK);
@@ -70,17 +76,18 @@ public class NotifyTopology {
             String queueName,
             String dlqName,
             String routingKey) {
+        String dlqRoutingKey = routingKey.contains("#") || routingKey.contains("*") ? queueName : routingKey;
         Queue queue = QueueBuilder.durable(queueName)
                 .withArgument("x-queue-type", "quorum")
                 .withArgument("x-dead-letter-exchange", NOTIFY_DLX)
-                .withArgument("x-dead-letter-routing-key", routingKey)
+                .withArgument("x-dead-letter-routing-key", dlqRoutingKey)
                 .withArgument("x-delivery-limit", DELIVERY_LIMIT)
                 .build();
         Queue dlq = QueueBuilder.durable(dlqName)
                 .withArgument("x-queue-type", "quorum")
                 .build();
         Binding binding = BindingBuilder.bind(queue).to(notify).with(routingKey);
-        Binding dlqBinding = BindingBuilder.bind(dlq).to(dlx).with(routingKey);
+        Binding dlqBinding = BindingBuilder.bind(dlq).to(dlx).with(dlqRoutingKey);
         declarables.add(queue);
         declarables.add(dlq);
         declarables.add(binding);
