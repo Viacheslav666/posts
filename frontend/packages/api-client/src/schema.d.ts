@@ -4416,7 +4416,7 @@ export interface components {
              */
             status?: "missing" | "pending" | "ready" | "revoked" | "error";
         };
-        /** @description Story-specific options (BE-16 / E11) */
+        /** @description Story-specific options (BE-16 / E11 / BE-24) */
         StoryOptions: {
             /** @description VK stories.add_to_news (default true) */
             addToNews?: boolean;
