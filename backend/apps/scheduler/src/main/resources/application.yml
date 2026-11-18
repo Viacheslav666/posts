@@ -57,6 +57,8 @@ posts:
     confirm-timeout: 5s
     dispatch-interval-ms: 1000
     reaper-interval-ms: 30000
+    outbox-relay-interval-ms: 1000
+    outbox-relay-batch-size: 200
 
 logging:
   level:

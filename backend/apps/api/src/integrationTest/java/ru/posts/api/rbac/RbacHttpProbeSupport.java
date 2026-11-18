@@ -311,6 +311,9 @@ final class RbacHttpProbeSupport {
         if ("ingestPreview".equals(endpoint.operationId())) {
             out.putIfAbsent("workspaceId", values.get("{workspaceId}"));
         }
+        if ("notificationWebPushUnsubscribe".equals(endpoint.operationId())) {
+            out.putIfAbsent("endpoint", "https://example.com/push/rbac-probe");
+        }
         return out;
     }
 
@@ -508,7 +511,15 @@ final class RbacHttpProbeSupport {
             case "channelsConnectStart",
                     "channelsStoryConnectionStart",
                     "notificationSettingsUpdate",
-                    "notificationsMarkRead" -> "{}";
+                    "notificationsMarkRead",
+                    "notificationTelegramLinkStart" -> "{}";
+            case "notificationWebPushSubscribe" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("endpoint", "https://example.com/push/" + UUID.randomUUID());
+                node.put("p256dh", "BNcRdreALRFXTkOOUHM6JtV4M4yL4k4xqHqHqHqHqHq");
+                node.put("auth", "tBHItJI5svbpez7KI4CCXg");
+                yield node.toString();
+            }
             case "storiesBatch" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());

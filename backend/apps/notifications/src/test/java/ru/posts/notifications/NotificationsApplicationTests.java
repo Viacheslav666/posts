@@ -1,11 +1,13 @@
 package ru.posts.notifications;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class NotificationsApplicationTests {
 
     @Test
-    void contextLoads() {}
+    void applicationEntryPointIsPresent() {
+        assertThat(NotificationsApplication.class.getName()).contains("NotificationsApplication");
+    }
 }

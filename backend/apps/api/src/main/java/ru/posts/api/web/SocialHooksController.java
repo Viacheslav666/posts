@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.posts.api.channel.IngestPublisher;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
+import ru.posts.api.notification.NotificationService;
 import ru.posts.persistence.entity.TelegramBotEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.TelegramBotRepository;
@@ -36,15 +37,18 @@ public class SocialHooksController {
     private final ChannelRepository channelRepository;
     private final TelegramBotRepository telegramBotRepository;
     private final IngestPublisher ingestPublisher;
+    private final NotificationService notificationService;
     private final ConcurrentHashMap<UUID, String> vkSecrets = new ConcurrentHashMap<>();
 
     public SocialHooksController(
             ChannelRepository channelRepository,
             TelegramBotRepository telegramBotRepository,
-            IngestPublisher ingestPublisher) {
+            IngestPublisher ingestPublisher,
+            NotificationService notificationService) {
         this.channelRepository = channelRepository;
         this.telegramBotRepository = telegramBotRepository;
         this.ingestPublisher = ingestPublisher;
+        this.notificationService = notificationService;
     }
 
     @PostMapping("/vk/{channelId}")
@@ -98,5 +102,15 @@ public class SocialHooksController {
         }
         ingestPublisher.publish("max", botId.toString(), body);
         return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @PostMapping("/telegram-notify")
+    @Operation(
+            operationId = "hooksTelegramNotify",
+            summary = "Telegram notification-bot webhook (account linking via /start CODE)")
+    public ResponseEntity<Map<String, Object>> telegramNotify(
+            @RequestBody JsonNode body,
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secret) {
+        return ResponseEntity.ok(notificationService.handleTelegramNotifyWebhook(body, secret));
     }
 }

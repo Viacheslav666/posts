@@ -16,12 +16,18 @@ public class NotificationEntity extends BaseUuidEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "workspace_id")
+    private UUID workspaceId;
+
     @Column(nullable = false)
     private String type;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> payload = Map.of();
+
+    @Column(name = "dedupe_key")
+    private String dedupeKey;
 
     @Column(name = "read_at")
     private Instant readAt;
@@ -35,6 +41,14 @@ public class NotificationEntity extends BaseUuidEntity {
 
     public void setUserId(UUID userId) {
         this.userId = userId;
+    }
+
+    public UUID getWorkspaceId() {
+        return workspaceId;
+    }
+
+    public void setWorkspaceId(UUID workspaceId) {
+        this.workspaceId = workspaceId;
     }
 
     public String getType() {
@@ -51,6 +65,14 @@ public class NotificationEntity extends BaseUuidEntity {
 
     public void setPayload(Map<String, Object> payload) {
         this.payload = payload;
+    }
+
+    public String getDedupeKey() {
+        return dedupeKey;
+    }
+
+    public void setDedupeKey(String dedupeKey) {
+        this.dedupeKey = dedupeKey;
     }
 
     public Instant getReadAt() {
