@@ -182,6 +182,7 @@ public class MediaServiceImpl implements MediaService {
         asset.setTags(request.tags() == null ? List.of() : List.copyOf(request.tags()));
         asset.setStatus("uploading");
         asset.setDerivatives(Map.of());
+        asset.setMeta(Map.of());
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         // temporary key until id assigned
@@ -362,6 +363,7 @@ public class MediaServiceImpl implements MediaService {
         asset.setStatus("processing");
         asset.setOriginalUrl(request.url());
         asset.setDerivatives(Map.of());
+        asset.setMeta(Map.of());
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         asset.setS3Key("pending");
@@ -620,7 +622,7 @@ public class MediaServiceImpl implements MediaService {
         String ext =
                 switch (kind) {
                     case image -> mime != null && mime.contains("png") ? "png" : "jpg";
-                    case video -> "mp4";
+                    case video, clip -> "mp4";
                     case audio -> "mp3";
                     case doc -> "bin";
                 };

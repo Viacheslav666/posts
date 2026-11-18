@@ -47,6 +47,8 @@ import ru.posts.content.ContentRenderResult;
 import ru.posts.content.ContentRenderer;
 import ru.posts.content.DefaultContentRenderer;
 import ru.posts.content.NetworkTextLimits;
+import ru.posts.content.VariableTemplateRenderer;
+import ru.posts.content.VkStringAttachmentValidator;
 import ru.posts.ord.api.AdMarker;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
@@ -204,8 +206,10 @@ public class PostServiceImpl implements PostService {
         List<PostDtos.PostVariantUpsert> variants = request.variants() == null ? List.of() : request.variants();
         validateVariants(request.workspaceId(), variants);
         validateMedia(request.workspaceId(), PostContentMapper.mediaIds(request.baseContent()));
+        validateStringAttachments(request.baseContent());
         for (PostDtos.PostVariantUpsert v : variants) {
             validateMedia(request.workspaceId(), PostContentMapper.mediaIds(v.content()));
+            validateStringAttachments(v.content());
             AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
         }
         validateContentAgainstNetworks(request.baseContent(), variants);
@@ -306,6 +310,7 @@ public class PostServiceImpl implements PostService {
             }
             post.setBaseContent(base);
             validateMedia(post.getWorkspaceId(), PostContentMapper.mediaIds(request.baseContent()));
+            validateStringAttachments(request.baseContent());
         } else if (request.repost() != null) {
             Map<String, Object> base = new LinkedHashMap<>(post.getBaseContent());
             base.put("repost", objectMapper.convertValue(request.repost(), Map.class));
@@ -346,6 +351,7 @@ public class PostServiceImpl implements PostService {
             validateVariants(post.getWorkspaceId(), request.variants());
             for (PostDtos.PostVariantUpsert v : request.variants()) {
                 validateMedia(post.getWorkspaceId(), PostContentMapper.mediaIds(v.content()));
+                validateStringAttachments(v.content());
                 AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
             }
             deleteVariants(post.getId());
@@ -610,9 +616,37 @@ public class PostServiceImpl implements PostService {
     public PostDtos.PreviewResponse preview(UUID userId, PostDtos.PreviewRequest request) {
         // Preview is workspace-agnostic content render; still requires auth.
         AdMarkingValidator.validateNetworkOptions(request.network(), request.options());
+        List<PostDtos.ValidationIssue> attachmentIssues = new ArrayList<>();
+        List<String> invalidAttachments =
+                VkStringAttachmentValidator.invalidOf(PostContentMapper.stringAttachments(request.content()));
+        for (String bad : invalidAttachments) {
+            attachmentIssues.add(new PostDtos.ValidationIssue(
+                    ProblemCodes.VK_STRING_ATTACHMENT_INVALID,
+                    "error",
+                    "Invalid VK string attachment: " + bad,
+                    "stringAttachments"));
+        }
         NetworkTextLimits limits = limitsFor(request.network());
-        boolean hasMedia = !PostContentMapper.mediaIds(request.content()).isEmpty();
+        boolean hasMedia = !PostContentMapper.mediaIds(request.content()).isEmpty()
+                || !PostContentMapper.stringAttachments(request.content()).isEmpty();
         String text = PostContentMapper.extractText(request.content());
+        boolean htmlNetwork = request.network() == ApiEnums.Network.tg || request.network() == ApiEnums.Network.max;
+        String seed = request.spintaxSeed() == null || request.spintaxSeed().isBlank()
+                ? "preview:" + Integer.toHexString(text.hashCode())
+                : request.spintaxSeed();
+        text = VariableTemplateRenderer.render(
+                text,
+                VariableTemplateRenderer.Context.builder()
+                        .at(request.at() == null ? Instant.now() : request.at())
+                        .zone(request.timezone())
+                        .groupId(request.groupId())
+                        .groupName(request.groupName())
+                        .birthdays(request.birthdays())
+                        .json(request.json())
+                        .htmlNetwork(htmlNetwork)
+                        .spintaxSeed(seed)
+                        .build());
+        String expandedText = text;
         List<String> placementWarnings = List.of();
         if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
             OrdDtos.AdMarking marking = request.adMarking();
@@ -634,9 +668,10 @@ public class PostServiceImpl implements PostService {
         }
         ContentRenderResult rendered = contentRenderer.render(
                 new ContentRenderRequest(request.network().name(), text, hasMedia, limits));
-        List<PostDtos.ValidationIssue> issues = rendered.issues().stream()
+        List<PostDtos.ValidationIssue> issues = new ArrayList<>(attachmentIssues);
+        rendered.issues().stream()
                 .map(i -> new PostDtos.ValidationIssue(i.code(), i.severity(), i.message(), i.field()))
-                .toList();
+                .forEach(issues::add);
         String plain = rendered.plainText();
         String html = rendered.html();
         if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
@@ -669,14 +704,13 @@ public class PostServiceImpl implements PostService {
                         .text();
             }
         }
+        boolean valid = issues.stream().noneMatch(i -> "error".equals(i.severity())) && rendered.valid();
+        List<String> warnings = new ArrayList<>(rendered.warnings());
         if (!placementWarnings.isEmpty()) {
-            List<String> warnings = new java.util.ArrayList<>(rendered.warnings());
             warnings.addAll(placementWarnings);
-            return new PostDtos.PreviewResponse(
-                    request.network(), html, plain, rendered.valid(), List.copyOf(warnings), issues);
         }
         return new PostDtos.PreviewResponse(
-                request.network(), html, plain, rendered.valid(), rendered.warnings(), issues);
+                request.network(), html, plain, valid, List.copyOf(warnings), List.copyOf(issues), expandedText);
     }
 
     @Override
@@ -917,6 +951,17 @@ public class PostServiceImpl implements PostService {
         }
     }
 
+    private void validateStringAttachments(PostDtos.PostContent content) {
+        List<String> invalid = VkStringAttachmentValidator.invalidOf(PostContentMapper.stringAttachments(content));
+        if (!invalid.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.VK_STRING_ATTACHMENT_INVALID,
+                    "Invalid VK string attachment(s): " + String.join(", ", invalid),
+                    Map.of("invalid", invalid));
+        }
+    }
+
     private void validateContentAgainstNetworks(PostDtos.PostContent base, List<PostDtos.PostVariantUpsert> variants) {
         for (PostDtos.PostVariantUpsert v : variants) {
             PostDtos.PostContent content = v.content() == null ? base : v.content();
@@ -927,7 +972,9 @@ public class PostServiceImpl implements PostService {
                 }
             }
             boolean hasMedia = !PostContentMapper.mediaIds(content).isEmpty()
-                    || !PostContentMapper.mediaIds(base).isEmpty();
+                    || !PostContentMapper.mediaIds(base).isEmpty()
+                    || !PostContentMapper.stringAttachments(content).isEmpty()
+                    || !PostContentMapper.stringAttachments(base).isEmpty();
             ContentRenderResult result = contentRenderer.render(new ContentRenderRequest(
                     v.network().name(), text == null ? "" : text, hasMedia, limitsFor(v.network())));
             if (!result.valid()) {
@@ -1166,6 +1213,81 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public PostDtos.BatchPostsResponse batchPosts(
+            UUID userId, PostDtos.BatchPostsRequest request, String idempotencyKey, ClientRequestContext ctx) {
+        int max = 50;
+        if (request.mediaIds().size() > max || request.channelIds().size() > max) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.POST_BATCH_LIMIT,
+                    "Batch posts limited to " + max + " media items");
+        }
+        access.requirePermission(request.workspaceId(), userId, "posts.bulk");
+        access.requirePermission(request.workspaceId(), userId, "posts.schedule");
+        if (request.stringAttachments() != null) {
+            validateStringAttachments(
+                    new PostDtos.PostContent(request.text(), null, List.of(), request.stringAttachments()));
+        }
+        List<UUID> created = new ArrayList<>();
+        List<PostDtos.BatchPostFailure> failures = new ArrayList<>();
+        Instant base = request.scheduledAt();
+        int step = request.stepMinutes() == null ? 0 : request.stepMinutes();
+        String sharedText = request.text() == null ? "" : request.text();
+        for (int i = 0; i < request.mediaIds().size(); i++) {
+            UUID mediaId = request.mediaIds().get(i);
+            Instant scheduledAt = base.plusSeconds(step * 60L * i);
+            try {
+                List<PostDtos.PostVariantUpsert> variants = new ArrayList<>();
+                for (UUID channelId : request.channelIds()) {
+                    ChannelEntity channel = channelRepository
+                            .findByIdAndDeletedAtIsNull(channelId)
+                            .orElseThrow(() -> new ApiException(
+                                    HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Channel not found"));
+                    variants.add(new PostDtos.PostVariantUpsert(
+                            null,
+                            channelId,
+                            ApiEnums.Network.valueOf(channel.getNetwork()),
+                            new PostDtos.PostContent(sharedText, null, List.of(mediaId), request.stringAttachments()),
+                            request.options()));
+                }
+                PostDtos.CreatePostRequest create = new PostDtos.CreatePostRequest(
+                        request.workspaceId(),
+                        request.projectId(),
+                        "Post batch " + (i + 1),
+                        new PostDtos.PostContent(sharedText, null, List.of(mediaId), request.stringAttachments()),
+                        scheduledAt,
+                        request.recurrence(),
+                        null,
+                        request.ad(),
+                        request.adMarking(),
+                        null,
+                        null,
+                        null,
+                        request.timezone(),
+                        PostDtos.ContentKind.post,
+                        null,
+                        variants);
+                PostDtos.Post post = create(userId, create, null, ctx);
+                created.add(post.id());
+            } catch (ApiException ex) {
+                failures.add(new PostDtos.BatchPostFailure(mediaId, ex.getCode(), ex.getMessage()));
+            } catch (RuntimeException ex) {
+                failures.add(new PostDtos.BatchPostFailure(mediaId, ProblemCodes.VALIDATION_FAILED, ex.getMessage()));
+            }
+        }
+        auditRecorder.record(
+                request.workspaceId(),
+                userId,
+                "post.batch_created",
+                "post",
+                null,
+                Map.of("created", created.size(), "failed", failures.size()),
+                ctx == null ? null : ctx.ip());
+        return new PostDtos.BatchPostsResponse(created.size(), created, failures);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PostDtos.BatchStoriesResponse batchStories(
             UUID userId, PostDtos.BatchStoriesRequest request, String idempotencyKey, ClientRequestContext ctx) {
         int max = 50;
@@ -1258,14 +1380,18 @@ public class PostServiceImpl implements PostService {
             }
         }
         String mediaKind = "photo";
+        List<String> mediaWarnings = List.of();
         List<UUID> mediaIds = PostContentMapper.mediaIds(baseContent);
         if (!mediaIds.isEmpty()) {
             MediaAssetEntity asset = mediaAssetRepository
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(workspaceId, mediaIds.getFirst())
                     .orElse(null);
             mediaKind = StorySupport.mediaKindOf(asset);
+            if (asset != null) {
+                mediaWarnings = StorySupport.assertMedia(baseContent, List.of(asset));
+            }
         }
-        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind));
+        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind, mediaWarnings));
     }
 
     private void validateStoryForSchedule(
@@ -1287,7 +1413,24 @@ public class PostServiceImpl implements PostService {
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(post.getWorkspaceId(), mediaId)
                     .ifPresent(assets::add);
         }
-        StorySupport.assertMedia(baseContent, assets);
+        List<String> mediaWarnings = StorySupport.assertMedia(baseContent, assets);
+        if (!mediaWarnings.isEmpty()) {
+            Map<String, Object> opts =
+                    new LinkedHashMap<>(post.getStoryOptions() == null ? Map.of() : post.getStoryOptions());
+            @SuppressWarnings("unchecked")
+            List<String> existing = opts.get("warnings") instanceof List<?> list
+                    ? list.stream()
+                            .map(String::valueOf)
+                            .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+                    : new ArrayList<>();
+            for (String w : mediaWarnings) {
+                if (!existing.contains(w)) {
+                    existing.add(w);
+                }
+            }
+            opts.put("warnings", existing);
+            post.setStoryOptions(opts);
+        }
         List<ApiEnums.Network> networks =
                 variants.stream().map(PostDtos.PostVariantUpsert::network).toList();
         StorySupport.assertLink(

@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -173,7 +175,7 @@ public class VkSocialAdapter implements SocialAdapter {
         try {
             MultiValueMap<String, String> serverForm = new LinkedMultiValueMap<>();
             serverForm.add("group_id", stripMinus(ctx.externalId()));
-            serverForm.add("add_to_news", "1");
+            serverForm.add("add_to_news", addToNews(content) ? "1" : "0");
             if (idempotencyKey != null && !idempotencyKey.isBlank()) {
                 serverForm.add("guid", idempotencyKey);
             }
@@ -307,10 +309,110 @@ public class VkSocialAdapter implements SocialAdapter {
         }
         String kind = normalizeKind(asset.kind(), asset.mime());
         return switch (kind) {
-            case "video", "clip" -> uploadVideo(ctx, asset, kind);
+            case "clip" -> uploadClip(ctx, asset);
+            case "video" -> uploadVideo(ctx, asset, kind);
             case "doc" -> uploadDoc(ctx, asset);
             default -> uploadPhoto(ctx, asset);
         };
+    }
+
+    @Override
+    public String resolveBirthdays(ChannelContext ctx, Instant at, String timezone) {
+        ZoneId zone;
+        try {
+            zone = timezone == null || timezone.isBlank() ? ZoneId.of("Europe/Moscow") : ZoneId.of(timezone.trim());
+        } catch (Exception ex) {
+            zone = ZoneId.of("Europe/Moscow");
+        }
+        LocalDate today = (at == null ? Instant.now() : at).atZone(zone).toLocalDate();
+        List<String> names = new ArrayList<>();
+        int offset = 0;
+        int pageSize = 1000;
+        int guard = 0;
+        while (guard++ < 50) {
+            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+            form.add("group_id", stripMinus(ctx.externalId()));
+            form.add("sort", "id_asc");
+            form.add("offset", String.valueOf(offset));
+            form.add("count", String.valueOf(pageSize));
+            form.add("fields", "bdate,first_name,last_name");
+            form.add("access_token", token(ctx));
+            form.add("v", apiVersion);
+            try {
+                JsonNode body = restClient
+                        .post()
+                        .uri("/method/groups.getMembers")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body(form)
+                        .retrieve()
+                        .body(JsonNode.class);
+                assertNoVkErrorForBirthdays(body);
+                JsonNode response = body.path("response");
+                JsonNode items = response.path("items");
+                if (!items.isArray() || items.isEmpty()) {
+                    break;
+                }
+                for (JsonNode item : items) {
+                    String bdate = item.path("bdate").asText(null);
+                    if (!isBirthdayToday(bdate, today)) {
+                        continue;
+                    }
+                    String first = item.path("first_name").asText("").trim();
+                    String last = item.path("last_name").asText("").trim();
+                    String display = (first + " " + last).trim();
+                    if (!display.isEmpty()) {
+                        names.add(display);
+                    }
+                }
+                int count = response.path("count").asInt(items.size());
+                offset += items.size();
+                if (offset >= count || items.size() < pageSize) {
+                    break;
+                }
+            } catch (SocialApiException ex) {
+                throw ex;
+            } catch (RestClientResponseException ex) {
+                throw mapHttpError(ex);
+            } catch (RestClientException ex) {
+                throw new SocialApiException(
+                        ErrorClass.RETRYABLE, "VK groups.getMembers failed: " + ex.getMessage(), null, null, ex);
+            }
+        }
+        return formatBirthdays(names);
+    }
+
+    static boolean isBirthdayToday(String bdate, LocalDate today) {
+        if (bdate == null || bdate.isBlank() || today == null) {
+            return false;
+        }
+        String[] parts = bdate.trim().split("\\.");
+        if (parts.length < 2) {
+            return false;
+        }
+        try {
+            int day = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            return today.getDayOfMonth() == day && today.getMonthValue() == month;
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    static String formatBirthdays(List<String> displayNames) {
+        if (displayNames == null || displayNames.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String name : displayNames) {
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            if (!sb.isEmpty()) {
+                sb.append(", ");
+            }
+            sb.append(name.trim());
+        }
+        return sb.toString();
     }
 
     @Override
@@ -606,6 +708,86 @@ public class VkSocialAdapter implements SocialAdapter {
             throw mapHttpError(ex);
         } catch (RestClientException ex) {
             throw new SocialApiException(ErrorClass.RETRYABLE, "VK upload failed: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    /**
+     * BE-29: upload via {@code shortVideo.create} + multipart + {@code shortVideo.publish}. When the
+     * method is unavailable for the app/token, fails with a clear {@code vk_clips_unavailable} error.
+     */
+    private RemoteMediaRef uploadClip(ChannelContext ctx, MediaAssetRef asset) {
+        byte[] bytes = requireBytes(asset, 0, "clip");
+        try {
+            MultiValueMap<String, String> createForm = new LinkedMultiValueMap<>();
+            createForm.add("group_id", stripMinus(ctx.externalId()));
+            createForm.add("file_size", String.valueOf(bytes.length));
+            createForm.add("wallpost", "0");
+            createForm.add("access_token", token(ctx));
+            createForm.add("v", apiVersion);
+            JsonNode createBody = restClient
+                    .post()
+                    .uri("/method/shortVideo.create")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(createForm)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkErrorForClips(createBody);
+            JsonNode response = createBody.path("response");
+            String uploadUrl = response.path("upload_url").asText(null);
+            if (uploadUrl == null || uploadUrl.isBlank()) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "VK shortVideo missing upload_url");
+            }
+            String filename = asset.id() == null ? "clip.mp4" : asset.id() + ".mp4";
+            String mime = asset.mime() == null ? "video/mp4" : asset.mime();
+            MultipartBodyBuilder multipart = new MultipartBodyBuilder();
+            multipart
+                    .part("file", new ByteArrayResource(bytes) {
+                        @Override
+                        public String getFilename() {
+                            return filename;
+                        }
+                    })
+                    .contentType(MediaType.parseMediaType(mime));
+            JsonNode uploadBody = absoluteClient
+                    .post()
+                    .uri(URI.create(uploadUrl))
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(multipart.build())
+                    .retrieve()
+                    .body(JsonNode.class);
+            long ownerId = uploadBody == null
+                    ? Long.parseLong("-" + stripMinus(ctx.externalId()))
+                    : uploadBody.path("owner_id").asLong(Long.parseLong("-" + stripMinus(ctx.externalId())));
+            long videoId = uploadBody == null ? 0 : uploadBody.path("video_id").asLong(0);
+            if (videoId == 0) {
+                videoId = response.path("video_id").asLong(0);
+            }
+            if (videoId == 0) {
+                throw new SocialApiException(ErrorClass.RETRYABLE, "VK shortVideo missing video_id after upload");
+            }
+            MultiValueMap<String, String> publishForm = new LinkedMultiValueMap<>();
+            publishForm.add("owner_id", String.valueOf(ownerId));
+            publishForm.add("video_id", String.valueOf(videoId));
+            publishForm.add("license_agree", "1");
+            publishForm.add("wallpost", "0");
+            publishForm.add("access_token", token(ctx));
+            publishForm.add("v", apiVersion);
+            JsonNode publishBody = restClient
+                    .post()
+                    .uri("/method/shortVideo.publish")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(publishForm)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkErrorForClips(publishBody);
+            return new RemoteMediaRef("video" + ownerId + "_" + videoId, "clip");
+        } catch (SocialApiException ex) {
+            throw ex;
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "VK clip upload failed: " + ex.getMessage(), null, null, ex);
         }
     }
 
@@ -948,6 +1130,58 @@ public class VkSocialAdapter implements SocialAdapter {
         throw new SocialApiException(clazz, msg, null, retryAfter, null);
     }
 
+    private void assertNoVkErrorForClips(JsonNode body) {
+        if (body == null) {
+            throw new SocialApiException(ErrorClass.RETRYABLE, "VK empty response");
+        }
+        JsonNode error = body.get("error");
+        if (error == null || error.isNull()) {
+            return;
+        }
+        int code = error.path("error_code").asInt(0);
+        String msg = error.path("error_msg").asText("VK error " + code);
+        // 3 = unknown method; 15/203 = access denied — clips API not available for this app/token.
+        if (code == 3
+                || code == 15
+                || code == 203
+                || msg.toLowerCase(Locale.ROOT).contains("unknown method")) {
+            throw new SocialApiException(
+                    ErrorClass.PERMANENT,
+                    "vk_clips_unavailable: VK shortVideo/clips API is not available for this token or app ("
+                            + msg
+                            + ")",
+                    422);
+        }
+        ErrorClass clazz = classifyVkErrorCode(code);
+        Duration retryAfter = clazz == ErrorClass.RATE_LIMITED ? Duration.ofHours(1) : null;
+        throw new SocialApiException(clazz, msg, null, retryAfter, null);
+    }
+
+    private void assertNoVkErrorForBirthdays(JsonNode body) {
+        if (body == null) {
+            throw new SocialApiException(ErrorClass.RETRYABLE, "VK empty response");
+        }
+        JsonNode error = body.get("error");
+        if (error == null || error.isNull()) {
+            return;
+        }
+        int code = error.path("error_code").asInt(0);
+        String msg = error.path("error_msg").asText("VK error " + code);
+        if (code == 15 || code == 203 || code == 212 || code == 260 || code == 7) {
+            throw new SocialApiException(
+                    ErrorClass.PERMANENT,
+                    "vk_birthdays_forbidden: community token lacks rights to read members' birthdays via "
+                            + "groups.getMembers (bdate). Grant members access or remove {birthdays}/{именинники}. "
+                            + "("
+                            + msg
+                            + ")",
+                    403);
+        }
+        ErrorClass clazz = classifyVkErrorCode(code);
+        Duration retryAfter = clazz == ErrorClass.RATE_LIMITED ? Duration.ofHours(1) : null;
+        throw new SocialApiException(clazz, msg, null, retryAfter, null);
+    }
+
     private ErrorClass classifyVkErrorBody(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
@@ -998,9 +1232,24 @@ public class VkSocialAdapter implements SocialAdapter {
         if (!media.isEmpty() && media.getFirst().hasContentBytes()) {
             return media.getFirst().contentBytes();
         }
-        return video
-                ? new byte[] {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}
-                : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        throw new SocialApiException(
+                ErrorClass.PERMANENT,
+                "VK story publish requires media bytes from S3 (MediaPublishSupport); missing "
+                        + (video ? "video" : "photo")
+                        + " payload");
+    }
+
+    private static boolean addToNews(PostVariantContent content) {
+        Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
+        Object raw = options.get("addToNews");
+        if (raw == null) {
+            return true;
+        }
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        return !"false".equals(s) && !"0".equals(s) && !"no".equals(s);
     }
 
     private static byte[] requireBytes(MediaAssetRef asset, long maxBytes, String kind) {

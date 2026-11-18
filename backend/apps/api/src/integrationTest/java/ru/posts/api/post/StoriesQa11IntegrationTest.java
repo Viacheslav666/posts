@@ -67,7 +67,7 @@ import ru.posts.persistence.repository.WorkspaceRepository;
 class StoriesQa11IntegrationTest {
 
     private static final Pattern TOKEN_IN_BODY = Pattern.compile("token=([A-Za-z0-9_-]+)");
-    private static final long OVERSIZE_VIDEO_BYTES = 350L * 1024L * 1024L + 1L;
+    private static final long OVERSIZE_VIDEO_BYTES = 50L * 1024L * 1024L + 1L;
 
     @RegisterExtension
     static WireMockExtension vkOrd = WireMockExtension.newInstance()
@@ -696,7 +696,7 @@ class StoriesQa11IntegrationTest {
     }
 
     @Test
-    @DisplayName("TC-STORY-30: video media sizeBytes > 350MB → 422 story_media_invalid")
+    @DisplayName("TC-STORY-30: video media sizeBytes > 50MB → 422 story_media_size")
     void tcStory30OversizedVideoRejected() throws Exception {
         String token = registerVerifyLogin("story-30-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
@@ -729,7 +729,7 @@ class StoriesQa11IntegrationTest {
                                         "content",
                                         Map.of("mediaIds", List.of(mediaId.toString()))))))))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("story_media_invalid"));
+                .andExpect(jsonPath("$.code").value("story_media_size"));
     }
 
     @Test
@@ -872,6 +872,31 @@ class StoriesQa11IntegrationTest {
         asset.setStatus("ready");
         asset.setTags(List.of());
         asset.setDerivatives(Map.of());
+        boolean video = "video".equals(kind);
+        if (!"image/bmp".equals(mime) && !"application/octet-stream".equals(mime)) {
+            asset.setWidth(1080);
+            asset.setHeight(1920);
+            if (video) {
+                asset.setDurationMs(15_000);
+                asset.setMeta(Map.of(
+                        "width",
+                        1080,
+                        "height",
+                        1920,
+                        "durationMs",
+                        15_000,
+                        "videoCodec",
+                        "h264",
+                        "audioCodec",
+                        "aac",
+                        "sizeBytes",
+                        sizeBytes));
+            } else {
+                asset.setMeta(Map.of("width", 1080, "height", 1920, "sizeBytes", sizeBytes, "codec", "jpeg"));
+            }
+        } else {
+            asset.setMeta(Map.of());
+        }
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         return mediaAssetRepository.save(asset).getId();

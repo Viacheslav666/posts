@@ -85,7 +85,8 @@ public class NetworkCapabilitiesService {
                         bool(features.get("inline_buttons")),
                         bool(features.get("native_schedule")),
                         bool(features.get("stories")),
-                        bool(features.get("repost"))),
+                        bool(features.get("repost")),
+                        bool(features.get("clips"))),
                 new NetworkDtos.RateLimits(
                         doubleValue(first(rates.get("global_rps"), rates.get("global_msg_rps"))),
                         doubleValue(
@@ -104,7 +105,7 @@ public class NetworkCapabilitiesService {
                 new NetworkDtos.TextLimits(null, null),
                 new NetworkDtos.FormattingCapability("plain", List.of(), List.of()),
                 new NetworkDtos.MediaLimits(null, Map.of(), Map.of()),
-                new NetworkDtos.FeatureFlags(false, false, true, false, false, false, false, false),
+                new NetworkDtos.FeatureFlags(false, false, true, false, false, false, false, false, false),
                 new NetworkDtos.RateLimits(null, null, null, Map.of()));
     }
 

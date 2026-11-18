@@ -8,6 +8,7 @@ public class MediaProperties {
     private int prefetch = 10;
     private final Clamav clamav = new Clamav();
     private final Limits limits = new Limits();
+    private final Stories stories = new Stories();
     private int previewMaxEdge = 1280;
 
     public int getPrefetch() {
@@ -26,12 +27,29 @@ public class MediaProperties {
         return limits;
     }
 
+    public Stories getStories() {
+        return stories;
+    }
+
     public int getPreviewMaxEdge() {
         return previewMaxEdge;
     }
 
     public void setPreviewMaxEdge(int previewMaxEdge) {
         this.previewMaxEdge = previewMaxEdge;
+    }
+
+    /** Optional story-oriented transcode (BE-24). Default off. */
+    public static class Stories {
+        private boolean transcode;
+
+        public boolean isTranscode() {
+            return transcode;
+        }
+
+        public void setTranscode(boolean transcode) {
+            this.transcode = transcode;
+        }
     }
 
     public static class Clamav {
@@ -87,7 +105,7 @@ public class MediaProperties {
         public long forKind(String kind) {
             return switch (kind) {
                 case "image" -> imageMaxBytes;
-                case "video" -> videoMaxBytes;
+                case "video", "clip" -> videoMaxBytes;
                 case "audio" -> audioMaxBytes;
                 default -> docMaxBytes;
             };

@@ -76,7 +76,11 @@ function createInitialState(): OrdStoreState {
         publisherName: 'ООО Посты',
         orgType: 'juridical',
         phone: '+79990001122',
-        roles: ['publisher'],
+        address: 'Москва, ул. Примерная, 1',
+        vatRate: 'without_vat',
+        isForeign: false,
+        notifyProblems: true,
+        roles: ['advertiser', 'publisher'],
         createdAt: now,
         updatedAt: now,
         apiKey: 'vk-ord-demo-key',
@@ -165,6 +169,10 @@ export function upsertOrdConnection(
     existing.publisherName = body.publisherName ?? existing.publisherName;
     existing.orgType = body.orgType ?? existing.orgType;
     existing.phone = body.phone ?? existing.phone;
+    existing.address = body.address ?? existing.address;
+    existing.vatRate = body.vatRate ?? existing.vatRate;
+    existing.isForeign = body.isForeign ?? existing.isForeign;
+    existing.notifyProblems = body.notifyProblems ?? existing.notifyProblems;
     existing.roles = body.roles ?? existing.roles;
     existing.isDefault = body.isDefault ?? existing.isDefault;
     existing.status = existing.hasApiKey ? 'active' : 'pending';
@@ -183,7 +191,11 @@ export function upsertOrdConnection(
     publisherName: body.publisherName,
     orgType: body.orgType,
     phone: body.phone,
-    roles: body.roles ?? ['publisher'],
+    address: body.address,
+    vatRate: body.vatRate ?? 'without_vat',
+    isForeign: body.isForeign ?? false,
+    notifyProblems: body.notifyProblems !== false,
+    roles: body.roles ?? ['advertiser', 'publisher'],
     createdAt: now,
     updatedAt: now,
     apiKey: body.apiKey?.trim() || undefined,

@@ -18,13 +18,22 @@ import ru.posts.api.web.dto.post.PostDtos;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
 
-/** Validation and helpers for content_kind=story (BE-16). */
+/** Validation and helpers for content_kind=story (BE-16 / BE-24). */
 public final class StorySupport {
 
     private static final Set<ApiEnums.Network> SUPPORTED = EnumSet.of(ApiEnums.Network.vk, ApiEnums.Network.ok);
-    private static final long VK_VIDEO_MAX_BYTES = 350L * 1024L * 1024L;
+    /** Product story video limit (stricter than VK API 350 MB). */
+    private static final long STORY_VIDEO_MAX_BYTES = 50L * 1024L * 1024L;
+
+    private static final long STORY_VIDEO_MAX_DURATION_MS = 60_000L;
+    private static final int STORY_MIN_WIDTH = 720;
+    private static final int STORY_MIN_HEIGHT = 1280;
+    private static final double ASPECT_9_16 = 9.0 / 16.0;
+    private static final double ASPECT_TOLERANCE = 0.03;
     private static final Set<String> ALLOWED_PHOTO_MIME =
             Set.of("image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heif", "image/heic");
+    private static final Set<String> H264_ALIASES = Set.of("h264", "avc", "avc1", "libx264");
+    private static final Set<String> AAC_ALIASES = Set.of("aac", "mp4a");
 
     private StorySupport() {}
 
@@ -73,7 +82,11 @@ public final class StorySupport {
         }
     }
 
-    public static void assertMedia(PostDtos.PostContent content, List<MediaAssetEntity> assets) {
+    /**
+     * Validates story media. Returns soft warnings (e.g. near-miss aspect) that callers may persist
+     * into {@code story_options.warnings}.
+     */
+    public static List<String> assertMedia(PostDtos.PostContent content, List<MediaAssetEntity> assets) {
         List<java.util.UUID> mediaIds = content == null || content.mediaIds() == null ? List.of() : content.mediaIds();
         if (mediaIds.size() != 1) {
             throw new ApiException(
@@ -95,12 +108,81 @@ public final class StorySupport {
                     ProblemCodes.STORY_MEDIA_INVALID,
                     "Story media must be JPG/PNG/GIF/WEBP/HEIF photo or video");
         }
-        if (video && asset.getSizeBytes() != null && asset.getSizeBytes() > VK_VIDEO_MAX_BYTES) {
+
+        List<String> warnings = new ArrayList<>();
+        Integer width = firstInt(asset.getWidth(), metaNumber(asset, "width"));
+        Integer height = firstInt(asset.getHeight(), metaNumber(asset, "height"));
+        Integer durationMs = firstInt(asset.getDurationMs(), metaNumber(asset, "durationMs"));
+        Long sizeBytes = asset.getSizeBytes();
+        if (sizeBytes == null) {
+            Number metaSize = metaNumber(asset, "sizeBytes");
+            if (metaSize != null) {
+                sizeBytes = metaSize.longValue();
+            }
+        }
+
+        if (width == null || height == null || width <= 0 || height <= 0) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
-                    ProblemCodes.STORY_MEDIA_INVALID,
-                    "VK story video must be ≤ 350 MB");
+                    ProblemCodes.STORY_MEDIA_RESOLUTION,
+                    "Story media must be processed with width/height (min 720×1280, 9:16)");
         }
+        if (width < STORY_MIN_WIDTH || height < STORY_MIN_HEIGHT) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.STORY_MEDIA_RESOLUTION,
+                    "Story media must be at least 720×1280 (got " + width + "×" + height + ")");
+        }
+        double aspect = width / (double) height;
+        if (Math.abs(aspect - ASPECT_9_16) > ASPECT_TOLERANCE) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.STORY_MEDIA_ASPECT,
+                    "Story media aspect ratio must be 9:16 (got " + width + "×" + height + ")");
+        }
+        if (Math.abs(aspect - ASPECT_9_16) > 0.01) {
+            warnings.add("Story aspect is close but not exact 9:16; networks may letterbox");
+        }
+
+        if (video) {
+            if (sizeBytes != null && sizeBytes > STORY_VIDEO_MAX_BYTES) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.STORY_MEDIA_SIZE, "Story video must be ≤ 50 MB");
+            }
+            if (durationMs != null && durationMs > STORY_VIDEO_MAX_DURATION_MS) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        ProblemCodes.STORY_MEDIA_DURATION,
+                        "Story video must be ≤ 60 seconds");
+            }
+            if (durationMs == null) {
+                warnings.add("Story video duration unknown; ensure ≤ 60 s before publish");
+            }
+            String videoCodec = metaString(asset, "videoCodec");
+            String audioCodec = metaString(asset, "audioCodec");
+            if (videoCodec == null || videoCodec.isBlank()) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        ProblemCodes.STORY_MEDIA_CODEC,
+                        "Story video must declare H.264 codec in media metadata");
+            }
+            if (!isH264(videoCodec)) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        ProblemCodes.STORY_MEDIA_CODEC,
+                        "Story video codec must be H.264 (got " + videoCodec + ")");
+            }
+            if (audioCodec != null && !audioCodec.isBlank() && !isAac(audioCodec)) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        ProblemCodes.STORY_MEDIA_CODEC,
+                        "Story video audio codec must be AAC (got " + audioCodec + ")");
+            }
+            if (audioCodec == null || audioCodec.isBlank()) {
+                warnings.add("Story video has no audio track; AAC is required when audio is present");
+            }
+        }
+        return List.copyOf(warnings);
     }
 
     public static void assertLink(PostDtos.StoryOptions story, List<ApiEnums.Network> networks) {
@@ -159,6 +241,14 @@ public final class StorySupport {
 
     public static Map<String, Object> toStoryOptionsMap(
             PostDtos.StoryOptions story, List<ApiEnums.Network> networks, String mediaKind) {
+        return toStoryOptionsMap(story, networks, mediaKind, List.of());
+    }
+
+    public static Map<String, Object> toStoryOptionsMap(
+            PostDtos.StoryOptions story,
+            List<ApiEnums.Network> networks,
+            String mediaKind,
+            List<String> mediaWarnings) {
         Map<String, Object> map = new LinkedHashMap<>();
         ApiEnums.StoryTtl ttl = resolveTtl(story);
         map.put("ttl", ttl.name());
@@ -186,15 +276,25 @@ public final class StorySupport {
             if (story.deleteAfterPublish() != null) {
                 map.put("deleteAfterPublish", story.deleteAfterPublish());
             }
+            if (story.addToNews() != null) {
+                map.put("addToNews", story.addToNews());
+            } else {
+                map.put("addToNews", true);
+            }
             if (story.warnings() != null) {
                 warnings.addAll(story.warnings());
             }
+        } else {
+            map.put("addToNews", true);
+        }
+        if (mediaWarnings != null) {
+            warnings.addAll(mediaWarnings);
         }
         if (mediaKind != null) {
             map.put("mediaKind", mediaKind);
         }
         if (!warnings.isEmpty()) {
-            map.put("warnings", warnings);
+            map.put("warnings", warnings.stream().distinct().toList());
         }
         return map;
     }
@@ -214,6 +314,7 @@ public final class StorySupport {
         Integer autoDeleteAfterMinutes = null;
         Instant autoDeleteAt = null;
         Boolean deleteAfterPublish = null;
+        Boolean addToNews = null;
         List<String> warnings = null;
         if (options != null) {
             Object eff = options.get("effectiveTtl");
@@ -244,6 +345,15 @@ public final class StorySupport {
             if (dap instanceof Boolean b) {
                 deleteAfterPublish = b;
             }
+            Object atn = options.get("addToNews");
+            if (atn instanceof Boolean b) {
+                addToNews = b;
+            } else if (atn != null) {
+                String s = String.valueOf(atn).trim().toLowerCase(Locale.ROOT);
+                if ("true".equals(s) || "1".equals(s) || "false".equals(s) || "0".equals(s)) {
+                    addToNews = "true".equals(s) || "1".equals(s);
+                }
+            }
             Object w = options.get("warnings");
             if (w instanceof List<?> list) {
                 warnings = list.stream().map(String::valueOf).toList();
@@ -259,7 +369,8 @@ public final class StorySupport {
                 deleteAfterPublish,
                 effective,
                 warnings,
-                null);
+                null,
+                addToNews);
     }
 
     public static Instant resolveAutoDeleteAt(PostDtos.StoryOptions story, Instant scheduledAt) {
@@ -287,5 +398,58 @@ public final class StorySupport {
             return "photo";
         }
         return asset.getMime().toLowerCase(Locale.ROOT).startsWith("video/") ? "video" : "photo";
+    }
+
+    private static boolean isH264(String codec) {
+        String c = codec.toLowerCase(Locale.ROOT).replace('-', '_');
+        for (String alias : H264_ALIASES) {
+            if (c.contains(alias)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isAac(String codec) {
+        String c = codec.toLowerCase(Locale.ROOT);
+        for (String alias : AAC_ALIASES) {
+            if (c.contains(alias)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Integer firstInt(Integer primary, Number fallback) {
+        if (primary != null) {
+            return primary;
+        }
+        return fallback == null ? null : fallback.intValue();
+    }
+
+    private static Number metaNumber(MediaAssetEntity asset, String key) {
+        if (asset.getMeta() == null) {
+            return null;
+        }
+        Object v = asset.getMeta().get(key);
+        if (v instanceof Number n) {
+            return n;
+        }
+        if (v == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(v));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static String metaString(MediaAssetEntity asset, String key) {
+        if (asset.getMeta() == null) {
+            return null;
+        }
+        Object v = asset.getMeta().get(key);
+        return v == null ? null : String.valueOf(v);
     }
 }

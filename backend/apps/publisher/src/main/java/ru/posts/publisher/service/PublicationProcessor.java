@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.PublicationClaim;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
+import ru.posts.publisher.channel.ChannelAccessResolver;
 import ru.posts.publisher.config.PublisherProperties;
 import ru.posts.publisher.extension.PrePublishHook;
 import ru.posts.publisher.media.MediaPublishSupport;
@@ -56,6 +57,7 @@ public class PublicationProcessor {
     private final PublicationMetrics metrics;
     private final List<PrePublishHook> prePublishHooks;
     private final MediaPublishSupport mediaPublishSupport;
+    private final ChannelAccessResolver channelAccessResolver;
 
     public PublicationProcessor(
             PublicationLifecycleJdbc lifecycleJdbc,
@@ -71,7 +73,8 @@ public class PublicationProcessor {
             PublisherProperties properties,
             PublicationMetrics metrics,
             List<PrePublishHook> prePublishHooks,
-            MediaPublishSupport mediaPublishSupport) {
+            MediaPublishSupport mediaPublishSupport,
+            ChannelAccessResolver channelAccessResolver) {
         this.lifecycleJdbc = lifecycleJdbc;
         this.outboxJdbc = outboxJdbc;
         this.scheduledActionsFactory = scheduledActionsFactory;
@@ -86,6 +89,7 @@ public class PublicationProcessor {
         this.metrics = metrics;
         this.prePublishHooks = prePublishHooks;
         this.mediaPublishSupport = mediaPublishSupport;
+        this.channelAccessResolver = channelAccessResolver;
     }
 
     /**
@@ -119,11 +123,10 @@ public class PublicationProcessor {
                 content = hook.beforePublish(claim, content);
             }
 
-            ChannelContext ctx = new ChannelContext(
+            ChannelContext ctx = channelAccessResolver.context(
                     claim.workspaceId(),
                     claim.channelId(),
                     claim.externalChannelId(),
-                    "emulator-token",
                     Network.fromCode(claim.network()));
 
             if (claim.remotePostId() != null && !claim.remotePostId().isBlank()) {
@@ -163,10 +166,11 @@ public class PublicationProcessor {
                 return true;
             }
 
-            // BE-23: options + mediaIds → meta; upload media (channel_media_cache) immediately before publish.
+            // BE-23/BE-28: options + mediaIds → meta; upload or inline-media enrich before publish.
             content = mediaPublishSupport.enrich(claim, content, socialAdapter, ctx);
 
             PublishResult result = invokeSocial(ctx, content, claim);
+            mediaPublishSupport.cacheUploadedFromPublish(claim.channelId(), result);
             finishSuccess(claim, result, startedAt, "published");
             return true;
         } catch (Exception ex) {
@@ -232,11 +236,10 @@ public class PublicationProcessor {
         }
 
         if (errorClass == ErrorClass.UNKNOWN_OUTCOME) {
-            ChannelContext ctx = new ChannelContext(
+            ChannelContext ctx = channelAccessResolver.context(
                     claim.workspaceId(),
                     claim.channelId(),
                     claim.externalChannelId(),
-                    "emulator-token",
                     Network.fromCode(claim.network()));
             Optional<PublishResult> recovered =
                     findExisting(ctx, claim, mediaPublishSupport.withOptionsMeta(claim, toContent(claim)));

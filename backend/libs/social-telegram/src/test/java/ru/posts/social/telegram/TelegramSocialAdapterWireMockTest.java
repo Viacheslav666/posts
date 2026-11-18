@@ -140,10 +140,33 @@ class TelegramSocialAdapterWireMockTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("{\"ok\":true,\"result\":true}")));
 
-        RemoteMediaRef media = adapter.uploadMedia(ctx, new MediaAssetRef("asset-1", "photo", "image/jpeg", 10, "abc"));
+        RemoteMediaRef media = adapter.uploadMedia(
+                ctx,
+                new MediaAssetRef("asset-1", "photo", "image/jpeg", 10, "abc").withContentBytes(new byte[] {1, 2}));
         assertThat(media.attachmentId()).isEqualTo("9");
 
         adapter.delete(ctx, "9");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/botbot-token/deleteMessage")));
+    }
+
+    @Test
+    void publishAlbumUsesSendMediaGroup() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/botbot-token/sendMediaGroup"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withBody(
+                                                "{\"ok\":true,\"result\":[{\"message_id\":11,\"photo\":[{\"file_id\":\"f1\"}]},{\"message_id\":12,\"photo\":[{\"file_id\":\"f2\"}]}]}")));
+
+        MediaAssetRef a = new MediaAssetRef("a1", "image", "image/jpeg", 2, "s1").withContentBytes(new byte[] {1});
+        MediaAssetRef b = new MediaAssetRef("a2", "image", "image/jpeg", 2, "s2").withContentBytes(new byte[] {2});
+        PostVariantContent content = new PostVariantContent("album")
+                .withMeta(java.util.Map.of(ru.posts.social.api.PostVariantMeta.MEDIA, java.util.List.of(a, b)));
+
+        PublishResult result = adapter.publish(ctx, content, "album-key");
+        assertThat(result.remotePostId()).isEqualTo("11");
+        assertThat(result.uploadedMediaByAssetId()).containsKeys("a1", "a2");
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/botbot-token/sendMediaGroup")));
     }
 }

@@ -102,6 +102,16 @@ export const queryKeys = {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'billing'] as const,
     plans: () => [...queryKeys.root, 'billing', 'plans'] as const,
     usage: (workspaceId: string) => [...queryKeys.billing.all(workspaceId), 'usage'] as const,
+    wallet: (workspaceId: string) => [...queryKeys.billing.all(workspaceId), 'wallet'] as const,
+    autopay: (workspaceId: string) => [...queryKeys.billing.all(workspaceId), 'autopay'] as const,
+    paymentMethod: (workspaceId: string) =>
+      [...queryKeys.billing.all(workspaceId), 'paymentMethod'] as const,
+    transactions: (workspaceId: string, filters?: { kind?: string; cursor?: string }) =>
+      [...queryKeys.billing.all(workspaceId), 'transactions', filters ?? {}] as const,
+    payments: (workspaceId: string, cursor?: string) =>
+      [...queryKeys.billing.all(workspaceId), 'payments', { cursor }] as const,
+    invoices: (workspaceId: string, cursor?: string) =>
+      [...queryKeys.billing.all(workspaceId), 'invoices', { cursor }] as const,
   },
 
   admin: {
@@ -136,8 +146,8 @@ export const queryKeys = {
     creative: (workspaceId: string, postId: string) =>
       [...queryKeys.ord.all(workspaceId), 'creative', postId] as const,
     dictionaries: () => [...queryKeys.root, 'ord', 'dictionaries'] as const,
-    kktu: () => [...queryKeys.ord.dictionaries(), 'kktu'] as const,
-    oksm: () => [...queryKeys.ord.dictionaries(), 'oksm'] as const,
+    kktu: (q = '') => [...queryKeys.ord.dictionaries(), 'kktu', q] as const,
+    oksm: (q = '') => [...queryKeys.ord.dictionaries(), 'oksm', q] as const,
   },
 
   ingest: {

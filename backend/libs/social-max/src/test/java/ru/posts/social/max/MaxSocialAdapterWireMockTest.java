@@ -123,4 +123,39 @@ class MaxSocialAdapterWireMockTest {
 
         adapter.delete(ctx, "missing");
     }
+
+    @Test
+    void uploadMediaThenPublishWithAttachment() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/max/uploads"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"url\":\"" + wireMock.baseUrl() + "/max/uploads/tok-1\",\"token\":\"tok-1\"}")));
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/max/uploads/tok-1"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"token\":\"tok-1\"}")));
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/max/messages"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withBody(
+                                                "{\"message\":{\"body\":{\"mid\":\"m-media\",\"text\":\"hi\"},\"recipient\":{\"chat_id\":\"chat-1\"}}}")));
+
+        ru.posts.social.api.RemoteMediaRef remote = adapter.uploadMedia(
+                ctx,
+                new ru.posts.social.api.MediaAssetRef("m1", "image", "image/jpeg", 2, "sha")
+                        .withContentBytes(new byte[] {1, 2}));
+        assertThat(remote.attachmentId()).isEqualTo("image:tok-1");
+
+        PublishResult result = adapter.publish(
+                ctx,
+                new PostVariantContent("hi")
+                        .withMeta(java.util.Map.of(
+                                ru.posts.social.api.PostVariantMeta.ATTACHMENTS,
+                                java.util.List.of(remote.attachmentId()))),
+                "idem-media");
+        assertThat(result.remotePostId()).isEqualTo("m-media");
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/max/messages")));
+    }
 }

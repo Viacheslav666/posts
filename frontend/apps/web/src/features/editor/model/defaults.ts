@@ -23,14 +23,22 @@ export function createDefaultAdMarking(): AdMarking {
     oksmCountry: '643',
     vatRate: 'without_vat',
     roles: ['advertiser'],
+    customerRole: 'advertiser',
+    executor: 'self',
+    placement: 'text_start',
     isForeign: false,
     selfPromo: false,
+    socialAd: false,
+    socialAdQuota: false,
     displayPeriodDays: 30,
     autoDeleteAfterPeriod: true,
-    markingType: '0',
+    markingType: '1',
     description: '',
     phone: '',
     address: '',
+    foreignInn: '',
+    foreignRegNumber: '',
+    foreignEpayment: '',
   };
 }
 

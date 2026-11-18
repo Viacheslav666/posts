@@ -7,8 +7,10 @@ import type {
   OrdContractor,
   OrdContractorPage,
   OrdProvider,
+  OrdVatCalculateRequest,
   UpdateOrdContractorRequest,
   UpsertOrdConnectionRequest,
+  VatBreakdown,
 } from '@posts/api-client';
 
 import { getApiClient, unwrapApi } from '@/shared/api-client';
@@ -95,12 +97,29 @@ export async function listOrdContracts(workspaceId: string): Promise<OrdContract
   );
 }
 
-export async function listOrdKktu(): Promise<OrdDictionaryItem[]> {
+export async function listOrdKktu(q?: string): Promise<OrdDictionaryItem[]> {
   const client = getApiClient();
-  return unwrapApi(await client.GET('/api/v1/ord/dictionaries/kktu', {}));
+  return unwrapApi(
+    await client.GET('/api/v1/ord/dictionaries/kktu', {
+      params: { query: q?.trim() ? { q: q.trim() } : undefined },
+    }),
+  );
 }
 
-export async function listOrdOksm(): Promise<OrdDictionaryItem[]> {
+export async function listOrdOksm(q?: string): Promise<OrdDictionaryItem[]> {
   const client = getApiClient();
-  return unwrapApi(await client.GET('/api/v1/ord/dictionaries/oksm', {}));
+  return unwrapApi(
+    await client.GET('/api/v1/ord/dictionaries/oksm', {
+      params: { query: q?.trim() ? { q: q.trim() } : undefined },
+    }),
+  );
+}
+
+export async function calculateOrdVat(body: OrdVatCalculateRequest): Promise<VatBreakdown> {
+  const client = getApiClient();
+  return unwrapApi(
+    await client.POST('/api/v1/ord/vat/calculate', {
+      body,
+    }),
+  );
 }

@@ -616,6 +616,19 @@ final class RbacHttpProbeSupport {
                 story.put("ttl", "ttl_24h");
                 yield node.toString();
             }
+            case "postsBatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("projectId", projectId.toString());
+                node.put("scheduledAt", "2026-12-15T12:00:00Z");
+                node.put("stepMinutes", 5);
+                node.put("ad", false);
+                node.put("text", "RBAC probe batch");
+                node.put("timezone", "Europe/Moscow");
+                node.putArray("channelIds").add(channelId.toString());
+                node.putArray("mediaIds").add(UUID.randomUUID().toString());
+                yield node.toString();
+            }
             case "ordConnectionsUpsert" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("apiKey", "rbac-probe-ord-key");

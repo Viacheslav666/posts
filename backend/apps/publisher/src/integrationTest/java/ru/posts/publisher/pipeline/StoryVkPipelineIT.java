@@ -61,6 +61,10 @@ class StoryVkPipelineIT extends AbstractVkPipelineIT {
         JsonNode posts = objectMapper.readTree(emulator().get("/_control/posts?network=vk&contentType=story"));
         assertThat(posts).hasSize(1);
         assertThat(posts.get(0).path("metadata").path("contentType").asText()).isEqualTo("story");
+        // BE-24: emulator received deterministic photo stub bytes from MediaPublishSupport (no S3 in IT).
+        assertThat(posts.get(0).path("metadata").path("contentSha256").asText())
+                .isEqualTo("32461d5bd1773012acef0ba15636752949bd7c2ce50f9172159d9f56cf0dd9af");
+        assertThat(posts.get(0).path("metadata").path("contentSize").asInt()).isEqualTo(4);
     }
 
     @Test

@@ -25,6 +25,7 @@ import ru.posts.social.api.ChannelContext;
 import ru.posts.social.api.MediaAssetRef;
 import ru.posts.social.api.PostVariantContent;
 import ru.posts.social.api.PostVariantMeta;
+import ru.posts.social.api.PublishResult;
 import ru.posts.social.api.RemoteMediaRef;
 import ru.posts.social.api.SocialAdapter;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -35,6 +36,12 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 /**
  * Resolves {@code mediaIds} from the claim, downloads bytes from S3 when configured, reuses
  * {@code channel_media_cache}, and uploads missing assets via {@link SocialAdapter#uploadMedia}.
+ *
+ * <p>Stories ({@code contentKind=story}) load original bytes into {@link PostVariantMeta#MEDIA} for
+ * {@code publishStory} (BE-24). Networks with {@code features.inlineMediaPublish=true} (Telegram)
+ * keep pending wall-post bytes in {@code meta.media} so the adapter can send them as part of {@code
+ * publish}; file_ids returned in {@link PublishResult#uploadedMediaByAssetId()} are cached
+ * afterwards (BE-28).
  */
 @Service
 public class MediaPublishSupport {
@@ -79,6 +86,9 @@ public class MediaPublishSupport {
     public PostVariantContent enrich(
             PublicationClaim claim, PostVariantContent base, SocialAdapter adapter, ChannelContext ctx) {
         PostVariantContent withMeta = withOptionsMeta(claim, base);
+        if ("story".equals(claim.contentKind())) {
+            return enrichStory(claim, withMeta);
+        }
         Map<String, Object> meta = new LinkedHashMap<>(withMeta.meta());
 
         List<UUID> mediaIds = parseMediaIds(claim.mediaIdsJson());
@@ -96,24 +106,94 @@ public class MediaPublishSupport {
             }
         }
 
-        for (MediaAssetRef asset : pendingUpload) {
-            MediaAssetRef withBytes = ensureBytes(asset);
-            RemoteMediaRef remote = adapter.uploadMedia(ctx, withBytes);
-            if (remote != null && remote.attachmentId() != null) {
-                attachments.add(remote.attachmentId());
-                channelMediaCacheJdbc.upsert(
-                        claim.channelId(),
-                        UUID.fromString(asset.id()),
-                        remote.attachmentId(),
-                        remote.kind() == null ? "other" : normalizeCacheKind(remote.kind()),
-                        Instant.now().plus(7, ChronoUnit.DAYS));
+        boolean inlineMediaPublish =
+                Boolean.TRUE.equals(adapter.capabilities().features().get("inlineMediaPublish"));
+
+        if (inlineMediaPublish) {
+            List<MediaAssetRef> pendingWithBytes = new ArrayList<>();
+            for (MediaAssetRef asset : pendingUpload) {
+                pendingWithBytes.add(ensureBytes(asset));
+            }
+            if (!pendingWithBytes.isEmpty()) {
+                meta.put(PostVariantMeta.MEDIA, pendingWithBytes);
+            }
+        } else {
+            for (MediaAssetRef asset : pendingUpload) {
+                MediaAssetRef withBytes = ensureBytes(asset);
+                RemoteMediaRef remote = adapter.uploadMedia(ctx, withBytes);
+                if (remote != null && remote.attachmentId() != null) {
+                    attachments.add(remote.attachmentId());
+                    channelMediaCacheJdbc.upsert(
+                            claim.channelId(),
+                            UUID.fromString(asset.id()),
+                            remote.attachmentId(),
+                            remote.kind() == null ? "other" : normalizeCacheKind(remote.kind()),
+                            Instant.now().plus(7, ChronoUnit.DAYS));
+                }
             }
         }
+
+        // BE-29: passthrough VK string attachments (photo-1_2, …) already validated by API.
+        attachments.addAll(parseStringList(claim.stringAttachmentsJson()));
 
         if (!attachments.isEmpty()) {
             meta.put(PostVariantMeta.ATTACHMENTS, attachments);
         }
         return withMeta.withMeta(meta);
+    }
+
+    /**
+     * Stories upload via {@code publishStory} (VK stories.* / OK moments.*), not wall {@code
+     * uploadMedia}. Load original bytes from S3 into {@link PostVariantMeta#MEDIA}.
+     */
+    private PostVariantContent enrichStory(PublicationClaim claim, PostVariantContent withMeta) {
+        Map<String, Object> meta = new LinkedHashMap<>(withMeta.meta());
+        List<UUID> mediaIds = parseMediaIds(claim.mediaIdsJson());
+        List<MediaAssetRef> assets = loadAssets(claim.workspaceId(), mediaIds);
+        List<MediaAssetRef> withBytes = new ArrayList<>();
+        for (MediaAssetRef asset : assets) {
+            withBytes.add(ensureBytes(asset));
+        }
+        if (!withBytes.isEmpty()) {
+            meta.put(PostVariantMeta.MEDIA, List.copyOf(withBytes));
+        }
+        // Default VK add_to_news=true unless variant options override.
+        Map<String, Object> options = new LinkedHashMap<>(PostVariantMeta.options(meta));
+        if (!options.containsKey("addToNews")) {
+            options.put("addToNews", true);
+        }
+        meta.put(PostVariantMeta.OPTIONS, options);
+        return withMeta.withMeta(meta);
+    }
+
+    /** Persist file_ids / remote refs returned by inline-media publish (Telegram albums). */
+    public void cacheUploadedFromPublish(UUID channelId, PublishResult result) {
+        if (result == null
+                || result.uploadedMediaByAssetId() == null
+                || result.uploadedMediaByAssetId().isEmpty()) {
+            return;
+        }
+        Instant expires = Instant.now().plus(7, ChronoUnit.DAYS);
+        for (Map.Entry<String, RemoteMediaRef> entry :
+                result.uploadedMediaByAssetId().entrySet()) {
+            if (entry.getKey() == null
+                    || entry.getValue() == null
+                    || entry.getValue().attachmentId() == null) {
+                continue;
+            }
+            try {
+                UUID assetId = UUID.fromString(entry.getKey());
+                RemoteMediaRef remote = entry.getValue();
+                channelMediaCacheJdbc.upsert(
+                        channelId,
+                        assetId,
+                        remote.attachmentId(),
+                        remote.kind() == null ? "other" : normalizeCacheKind(remote.kind()),
+                        expires);
+            } catch (IllegalArgumentException ex) {
+                log.warn("Skipping cache for non-UUID media key {}: {}", entry.getKey(), ex.getMessage());
+            }
+        }
     }
 
     private List<MediaAssetRef> loadAssets(UUID workspaceId, List<UUID> mediaIds) {
@@ -189,6 +269,25 @@ public class MediaPublishSupport {
             return out;
         } catch (Exception ex) {
             log.warn("Failed to parse mediaIds JSON: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> parseStringList(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+            return List.of();
+        }
+        try {
+            List<String> raw = objectMapper.readValue(json, STRING_LIST);
+            List<String> out = new ArrayList<>();
+            for (String value : raw) {
+                if (value != null && !value.isBlank()) {
+                    out.add(value.trim());
+                }
+            }
+            return List.copyOf(out);
+        } catch (Exception ex) {
+            log.warn("Failed to parse stringAttachments JSON: {}", ex.getMessage());
             return List.of();
         }
     }

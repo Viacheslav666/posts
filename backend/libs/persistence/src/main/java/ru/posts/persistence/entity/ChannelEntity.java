@@ -67,6 +67,14 @@ public class ChannelEntity extends BaseUuidEntity {
     @Column(name = "bot_id")
     private UUID botId;
 
+    /** Telegram forum topic id ({@code message_thread_id}). */
+    @Column(name = "thread_id")
+    private String threadId;
+
+    /** Custom TG/Max bot token sealed with workspace DEK (ADR-0006). */
+    @Column(name = "bot_token_enc")
+    private byte[] botTokenEnc;
+
     /** missing|pending|ready|revoked|error — VK stories scope (BE-16). */
     @Column(name = "story_connection_status", nullable = false)
     private String storyConnectionStatus = "missing";
@@ -222,6 +230,22 @@ public class ChannelEntity extends BaseUuidEntity {
 
     public void setBotId(UUID botId) {
         this.botId = botId;
+    }
+
+    public String getThreadId() {
+        return threadId;
+    }
+
+    public void setThreadId(String threadId) {
+        this.threadId = threadId;
+    }
+
+    public byte[] getBotTokenEnc() {
+        return botTokenEnc;
+    }
+
+    public void setBotTokenEnc(byte[] botTokenEnc) {
+        this.botTokenEnc = botTokenEnc;
     }
 
     public String getStoryConnectionStatus() {
