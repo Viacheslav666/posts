@@ -148,7 +148,7 @@ ACTION: dict[str, str | None] = {
     "ordDictionariesKktu": None,
     "ordDictionariesOksm": None,
     "ordVatCalculate": None,
-    "postsOrdRegister": "ord.view",
+    "postsOrdRegister": "ord.register",
     "postsOrdStatus": "ord.view",
     "ordReportsRun": "ord.reports.run",
     "ingestRulesList": "automations.view",

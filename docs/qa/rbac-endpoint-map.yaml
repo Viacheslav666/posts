@@ -899,7 +899,7 @@ endpoints:
   path: /api/v1/posts/{postId}/ord/register
   implementedHint: true
   rbac: matrix
-  action: ord.view
+  action: ord.register
   pathParams:
     postId: '{postId}'
 - operationId: postsOrdStatus
