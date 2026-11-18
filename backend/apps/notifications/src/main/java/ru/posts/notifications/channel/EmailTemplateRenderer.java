@@ -29,7 +29,7 @@ public class EmailTemplateRenderer {
             case "channel.reauth_required" -> "Требуется повторная авторизация канала";
             case "channel.no_permissions" -> "Недостаточно прав у канала";
             case "grabber.moderation_queued" -> "Материал на модерации";
-            case "ord.error", "ord.erid_failed" -> "Ошибка ОРД / erid";
+            case "ord.error", "ord.erid_failed", "ord.problem" -> "Ошибка ОРД / erid";
             case "invitation.created" -> "Приглашение в workspace";
             case "team.approval_requested" -> "Запрос на согласование";
             case "billing.low_balance" -> "Мало средств на балансе";

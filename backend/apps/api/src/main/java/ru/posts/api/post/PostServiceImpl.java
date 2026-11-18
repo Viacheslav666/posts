@@ -214,7 +214,7 @@ public class PostServiceImpl implements PostService {
             OrdDtos.AdMarking marking = request.adMarking() != null
                     ? request.adMarking()
                     : objectMapper.convertValue(adPayload, OrdDtos.AdMarking.class);
-            AdMarkingValidator.requireValidWhenAd(true, marking);
+            ordService.validateAdMarking(true, marking);
         }
 
         Instant now = Instant.now();
@@ -324,7 +324,7 @@ public class PostServiceImpl implements PostService {
             boolean adFlag = request.ad() != null ? request.ad() : post.isAd();
             Map<String, Object> adPayload = resolveAdPayload(adFlag, request.adMarking(), request.adPayload());
             if (adFlag && request.adMarking() != null) {
-                AdMarkingValidator.requireValidWhenAd(true, request.adMarking());
+                ordService.validateAdMarking(true, request.adMarking());
             }
             post.setAdPayload(adPayload);
         }
@@ -613,6 +613,7 @@ public class PostServiceImpl implements PostService {
         NetworkTextLimits limits = limitsFor(request.network());
         boolean hasMedia = !PostContentMapper.mediaIds(request.content()).isEmpty();
         String text = PostContentMapper.extractText(request.content());
+        List<String> placementWarnings = List.of();
         if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
             OrdDtos.AdMarking marking = request.adMarking();
             String name = marking == null ? "" : nullToEmpty(marking.advertiserName());
@@ -620,7 +621,16 @@ public class PostServiceImpl implements PostService {
             String erid =
                     request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
             String marker = AdMarker.format(name, inn, erid);
-            text = AdMarker.prepend(text, marker);
+            String placementName = marking == null || marking.placement() == null
+                    ? null
+                    : marking.placement().name();
+            String markingType = marking == null ? null : marking.markingType();
+            ru.posts.ord.api.MarkingPlacement placement =
+                    ru.posts.ord.api.MarkingPlacement.resolve(placementName, markingType);
+            AdMarker.ApplyResult applied = AdMarker.apply(
+                    text, marker, erid, placement, request.network().name(), null);
+            text = applied.text();
+            placementWarnings = applied.warnings();
         }
         ContentRenderResult rendered = contentRenderer.render(
                 new ContentRenderRequest(request.network().name(), text, hasMedia, limits));
@@ -637,12 +647,33 @@ public class PostServiceImpl implements PostService {
             String erid =
                     request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
             String marker = AdMarker.format(name, inn, erid);
+            String placementName = marking == null || marking.placement() == null
+                    ? null
+                    : marking.placement().name();
+            String markingType = marking == null ? null : marking.markingType();
+            ru.posts.ord.api.MarkingPlacement placement =
+                    ru.posts.ord.api.MarkingPlacement.resolve(placementName, markingType);
             if (plain == null || !plain.contains("erid:")) {
-                plain = AdMarker.prepend(plain, marker);
+                plain = AdMarker.apply(
+                                plain,
+                                marker,
+                                erid,
+                                placement,
+                                request.network().name(),
+                                null)
+                        .text();
             }
             if (html == null || !html.contains("erid:")) {
-                html = AdMarker.prepend(html, marker);
+                html = AdMarker.apply(
+                                html, marker, erid, placement, request.network().name(), null)
+                        .text();
             }
+        }
+        if (!placementWarnings.isEmpty()) {
+            List<String> warnings = new java.util.ArrayList<>(rendered.warnings());
+            warnings.addAll(placementWarnings);
+            return new PostDtos.PreviewResponse(
+                    request.network(), html, plain, rendered.valid(), List.copyOf(warnings), issues);
         }
         return new PostDtos.PreviewResponse(
                 request.network(), html, plain, rendered.valid(), rendered.warnings(), issues);
@@ -1364,7 +1395,7 @@ public class PostServiceImpl implements PostService {
         }
         if (post.getAdPayload() != null && !post.getAdPayload().isEmpty()) {
             OrdDtos.AdMarking marking = objectMapper.convertValue(post.getAdPayload(), OrdDtos.AdMarking.class);
-            AdMarkingValidator.requireValidWhenAd(true, marking);
+            ordService.validateAdMarking(true, marking);
         } else {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,

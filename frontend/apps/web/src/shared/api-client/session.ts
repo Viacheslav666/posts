@@ -5,6 +5,13 @@
 
 let accessToken: string | null = null;
 let pendingLogin: PendingLogin | null = null;
+let impersonationTarget: ImpersonationTarget | null = null;
+
+export type ImpersonationTarget = {
+  userId: string;
+  email: string;
+  reason?: string;
+};
 
 export function getAccessToken(): string | null {
   return accessToken;
@@ -16,6 +23,19 @@ export function setAccessToken(token: string | null): void {
 
 export function clearAccessToken(): void {
   accessToken = null;
+  impersonationTarget = null;
+}
+
+export function getImpersonationTarget(): ImpersonationTarget | null {
+  return impersonationTarget;
+}
+
+export function setImpersonationTarget(value: ImpersonationTarget | null): void {
+  impersonationTarget = value;
+}
+
+export function clearImpersonationTarget(): void {
+  impersonationTarget = null;
 }
 
 export type PendingLogin = {

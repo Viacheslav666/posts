@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@posts/ui';
-import { Menu, Plus, Search } from 'lucide-react';
+import { Menu, Plus, Search, Shield } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
@@ -29,6 +29,7 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
   const t = useTranslations('common');
   const { data: me } = useMe();
   const initials = (me?.name?.trim()?.charAt(0) || 'П').toUpperCase();
+  const showAdmin = Boolean(me?.platformAdmin) && !me?.impersonation?.active;
 
   return (
     <header className="sticky top-0 z-40 flex h-header items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur md:px-6">
@@ -54,6 +55,14 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
         <HeaderPlanChip workspaceId={workspaceId} />
+        {showAdmin ? (
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+            <Link href="/admin" data-testid="header-admin-link" aria-label={t('adminPanel')}>
+              <Shield aria-hidden className="h-4 w-4" />
+              {t('adminPanel')}
+            </Link>
+          </Button>
+        ) : null}
         <Button variant="ghost" size="icon" aria-label={t('search')} className="hidden sm:inline-flex">
           <Search aria-hidden />
         </Button>

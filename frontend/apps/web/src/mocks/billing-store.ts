@@ -116,3 +116,30 @@ export function getPlanLimits(code: string): PlanLimits {
   const found = PLAN_DEFS.find((plan) => plan.code === code);
   return found?.limits ?? PLAN_DEFS[0]!.limits;
 }
+
+export function upsertPlanLimits(input: {
+  code: string;
+  name: string;
+  priceMonth: number;
+  priceYear: number;
+  limits: Record<string, number | null>;
+}): Plan {
+  const existing = state.plans.find((plan) => plan.code === input.code);
+  if (existing) {
+    existing.name = input.name;
+    existing.priceMonth = input.priceMonth;
+    existing.priceYear = input.priceYear;
+    existing.limits = { ...input.limits } as unknown as Plan['limits'];
+    return { ...existing, limits: { ...(existing.limits ?? {}) } as Plan['limits'] };
+  }
+  const created: Plan = {
+    id: nextId(String(state.plans.length + 10)),
+    code: input.code,
+    name: input.name,
+    priceMonth: input.priceMonth,
+    priceYear: input.priceYear,
+    limits: { ...input.limits } as unknown as Plan['limits'],
+  };
+  state.plans = [...state.plans, created];
+  return { ...created, limits: { ...(created.limits ?? {}) } as Plan['limits'] };
+}

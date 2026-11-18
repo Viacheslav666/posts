@@ -18,6 +18,9 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
     testClassesDirs = integrationTest.output.classesDirs
     classpath = integrationTest.runtimeClasspath
     useJUnitPlatform()
+    // Spring Boot + Testcontainers + Flyway dictionary seeds (KKTU/OKSM) need more than the
+    // default ~512m worker heap; OOM otherwise surfaces mid-suite as failed context loads.
+    maxHeapSize = "2g"
     shouldRunAfter(tasks.test)
 }
 
