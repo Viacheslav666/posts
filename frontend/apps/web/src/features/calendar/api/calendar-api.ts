@@ -11,6 +11,7 @@ export type ListCalendarParams = {
   authorId?: string;
   network?: string;
   status?: string;
+  contentKind?: 'post' | 'story';
   timezone?: string;
 };
 
@@ -43,6 +44,7 @@ export async function listCalendar(params: ListCalendarParams): Promise<Calendar
               | 'deleted_from_network'
               | undefined
             ),
+          contentKind: params.contentKind,
           timezone: params.timezone,
         },
       },

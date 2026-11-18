@@ -19,6 +19,8 @@ import { useTranslations } from 'next-intl';
 import { queryKeys } from '@/shared/api-client';
 import { getErrorMessage } from '@/shared/lib/errors';
 
+import { StoryConnectButton } from '@/features/stories/components/story-connect-button';
+
 import { checkChannel, deleteChannel, updateChannel } from '../api/channels-api';
 import { toSocialNetwork } from '../model/network-map';
 import type { ConnectableNetwork } from '../model/types';
@@ -155,6 +157,14 @@ export function ChannelCard({
         </div>
       ) : null}
 
+      {channel.network === 'vk' ? (
+        <p className="text-xs text-muted-foreground" data-testid={`story-status-${channel.id}`}>
+          {(channel.storyConnectionStatus ?? 'missing') === 'ready'
+            ? t('storyConnect.ready')
+            : t('storyConnect.missing')}
+        </p>
+      ) : null}
+
       {canManage ? (
         <div className="flex flex-wrap gap-2">
           {(status === 'reauth_required' || status === 'no_permissions') &&
@@ -170,6 +180,10 @@ export function ChannelCard({
             >
               {t('actions.reconnect')}
             </Button>
+          ) : null}
+          {channel.network === 'vk' &&
+          (channel.storyConnectionStatus ?? 'missing') !== 'ready' ? (
+            <StoryConnectButton channelId={channel.id!} workspaceId={workspaceId} />
           ) : null}
           <Button
             type="button"

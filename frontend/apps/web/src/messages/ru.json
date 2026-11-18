@@ -37,7 +37,8 @@
     "team": "Команда",
     "settings": "Настройки",
     "billing": "Биллинг",
-    "dashboard": "Дашборд"
+    "dashboard": "Дашборд",
+    "stories": "Истории"
   },
   "workspaceSwitcher": {
     "label": "Workspace",
@@ -184,6 +185,13 @@
       "emptyTitle": "Наборов пока нет",
       "emptyBody": "Создайте набор, чтобы быстрее выбирать каналы в редакторе.",
       "noChannels": "Без каналов"
+    },
+    "storyConnect": {
+      "cta": "Подключить истории",
+      "ready": "Истории подключены",
+      "missing": "Нужно подключить истории VK",
+      "pending": "Подключение историй…",
+      "error": "Ошибка подключения историй"
     }
   },
   "workspace": {
@@ -518,7 +526,11 @@
       "allStatuses": "Все статусы",
       "allNetworks": "Все сети",
       "allChannels": "Все каналы",
-      "allAuthors": "Все авторы"
+      "allAuthors": "Все авторы",
+      "contentKind": "Тип",
+      "allKinds": "Все типы",
+      "posts": "Посты",
+      "stories": "Истории"
     },
     "sort": {
       "scheduledDesc": "Сначала поздние",
@@ -613,7 +625,11 @@
       "status": "Статус",
       "network": "Сеть",
       "allStatuses": "Все статусы",
-      "allNetworks": "Все сети"
+      "allNetworks": "Все сети",
+      "contentKind": "Тип",
+      "allKinds": "Все типы",
+      "posts": "Посты",
+      "stories": "Истории"
     },
     "networks": {
       "vk": "ВКонтакте",
@@ -1199,5 +1215,153 @@
   "health": {
     "title": "Health",
     "status": "status: ok"
+  },
+  "stories": {
+    "title": "Отложенные истории",
+    "description": "Планирование историй VK и Moments OK с маркировкой рекламы.",
+    "editorTitle": "Создать историю",
+    "editorDescription": "Медиа 9:16, TTL, ссылка, каналы VK/OK и маркировка ОРД.",
+    "create": "Создать историю",
+    "badge": "История",
+    "untitled": "Без названия",
+    "noSchedule": "Без даты",
+    "forbiddenTitle": "Нет доступа",
+    "forbiddenBody": "Недостаточно прав для просмотра историй.",
+    "emptyTitle": "Историй пока нет",
+    "emptyBody": "Создайте историю или измените фильтры.",
+    "errorTitle": "Не удалось загрузить истории",
+    "errorBody": "Проверьте соединение и попробуйте снова.",
+    "retry": "Повторить",
+    "filters": {
+      "status": "Статус",
+      "allStatuses": "Все статусы"
+    },
+    "status": {
+      "draft": "Черновик",
+      "scheduled": "Запланирована",
+      "published": "Опубликована",
+      "failed": "Ошибка",
+      "paused": "Пауза",
+      "publishing": "Публикуется",
+      "partially_published": "Частично",
+      "pending_approval": "На согласовании",
+      "archived": "Архив",
+      "approved": "Согласована",
+      "deleted_from_network": "Удалена из сети"
+    },
+    "actions": {
+      "batch": "Пакет историй",
+      "saveDraft": "Сохранить черновик",
+      "schedule": "Запланировать",
+      "publish": "Опубликовать сейчас",
+      "blockedTitle": "Нельзя продолжить",
+      "noCreatePermission": "Недостаточно прав для создания",
+      "noSchedulePermission": "Недостаточно прав для планирования",
+      "authorHint": "Роль Author может сохранять черновик, но не планировать публикацию.",
+      "draftSaved": "Черновик истории сохранён",
+      "scheduled": "История запланирована",
+      "errorTitle": "Ошибка",
+      "error": "Не удалось сохранить историю"
+    },
+    "validation": {
+      "mediaRequired": "Добавьте одно фото или видео для истории",
+      "channelsRequired": "Выберите хотя бы один канал VK или OK",
+      "unsupportedNetwork": "Истории поддерживаются только для VK и OK",
+      "storyConnectRequired": "Для VK нужно отдельно подключить истории",
+      "linkPair": "Укажите и текст кнопки, и URL ссылки",
+      "vkLinkOnly": "Для VK ссылка должна быть на vk.com или vk.ru",
+      "adsNetworks": "Маркировка историй доступна только для VK и OK",
+      "autoDeleteOrder": "Дата автоудаления должна быть позже публикации"
+    },
+    "ad": {
+      "unavailable": "Выберите каналы VK/OK, чтобы включить маркировку рекламы.",
+      "noPermission": "Недостаточно прав для планирования рекламы",
+      "ordNotConfigured": "Подключите ОРД в настройках workspace",
+      "innInvalid": "Укажите корректный ИНН рекламодателя",
+      "kktuRequired": "Выберите код ККТУ",
+      "eridMissingBlock": "Зарегистрируйте креатив в ОРД и получите erid",
+      "registerOk": "Креатив зарегистрирован",
+      "eridError": "Не удалось получить erid"
+    },
+    "channels": {
+      "label": "Каналы для истории",
+      "title": "Каналы",
+      "hint": "Доступны VK и OK. Telegram и Max для историй вне scope продукта.",
+      "search": "Поиск канала",
+      "loading": "Загрузка каналов…",
+      "selected": "Выбрано: {count}",
+      "empty": "Нет подходящих каналов",
+      "needsConnect": "Нет stories",
+      "connect": "Подключить",
+      "unsupportedTitle": "Недоступны для историй",
+      "unsupportedTg": "Истории Telegram вне scope продукта (только research Phase 3).",
+      "unsupportedMax": "Истории Max не поддерживаются публичным API."
+    },
+    "connect": {
+      "cta": "Подключить истории",
+      "connecting": "Подключение…",
+      "successTitle": "Подключение историй",
+      "ready": "Права stories получены",
+      "pending": "Ожидается подтверждение",
+      "errorTitle": "Не удалось подключить истории"
+    },
+    "media": {
+      "label": "Медиа истории",
+      "title": "Медиа",
+      "hint": "Ровно 1 фото или видео, предпочтительно 9:16",
+      "pick": "Выбрать медиа",
+      "replace": "Заменить",
+      "remove": "Удалить",
+      "photo": "Фото",
+      "video": "Видео"
+    },
+    "options": {
+      "label": "Параметры истории",
+      "title": "Параметры",
+      "internalTitle": "Внутреннее название",
+      "internalTitlePlaceholder": "Например, утренний сторис",
+      "scheduledAt": "Дата и время",
+      "ttl": "Время показа",
+      "okTtlWarning": "Моменты OK живут ~24 ч; будет применено 24 часа.",
+      "linkText": "Текст кнопки",
+      "linkTextPlaceholder": "Без кнопки",
+      "linkNone": "Без кнопки",
+      "linkUrl": "URL ссылки",
+      "linkUrlPlaceholder": "https://vk.com/…",
+      "linkUrlHint": "Для VK — только внутренние ссылки vk.com / vk.ru",
+      "deleteAfterPublish": "Удалить задачу из сервиса после публикации",
+      "autoDeleteAfter": "Удалить из сети через N минут",
+      "autoDeleteAfterPlaceholder": "например, 120"
+    },
+    "preview": {
+      "label": "Предпросмотр истории",
+      "title": "Предпросмотр 9:16",
+      "empty": "Добавьте медиа для предпросмотра",
+      "channel": "Канал"
+    },
+    "batch": {
+      "title": "Пакет историй",
+      "description": "До {max} медиа за операцию — каждое станет отдельной историей.",
+      "back": "К списку историй",
+      "forbiddenTitle": "Нет доступа",
+      "forbiddenBody": "Пакетное создание требует прав posts.bulk и posts.schedule.",
+      "mediaLabel": "Файлы пакета",
+      "mediaTitle": "Медиа",
+      "addMedia": "Добавить медиа",
+      "mediaEmpty": "Выберите файлы для пакета",
+      "remove": "Убрать",
+      "scheduledAt": "Старт",
+      "stepMinutes": "Шаг, мин",
+      "ttl": "TTL",
+      "readyHint": "Каналов готово: {channels}; файлов: {files}",
+      "submit": "Создать пакет",
+      "submitting": "Создание…",
+      "needChannels": "Выберите каналы",
+      "needMedia": "Добавьте медиа",
+      "limit": "Не больше {max} файлов за раз",
+      "successTitle": "Пакет создан",
+      "successBody": "Создано: {created}, ошибок: {failed}",
+      "errorTitle": "Не удалось создать пакет"
+    }
   }
 }

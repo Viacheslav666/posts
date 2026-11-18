@@ -1,9 +1,11 @@
 import type {
   BulkPostsRequest,
+  BatchStoriesRequest,
   ChannelConnectCallbackRequest,
   ChannelConnectConfirmRequest,
   CompleteUploadRequest,
   CreateChannelSetRequest,
+  StartStoryConnectionRequest,
   CreateInvitationRequest,
   CreateOrdContractRequest,
   CreateOrdContractorRequest,
@@ -67,9 +69,11 @@ import {
   deleteChannelSet,
   getChannel,
   getChannelSet,
+  getStoryConnection,
   listChannelSets,
   listChannels,
   startConnect,
+  startStoryConnection,
   updateChannel,
   updateChannelSet,
   type ConnectNetwork,
@@ -126,6 +130,7 @@ import {
 } from './ord-store';
 import {
   attachEridToPost,
+  batchCreateStories,
   bulkPosts,
   createPost,
   deletePost,
@@ -197,6 +202,90 @@ function problem(status: number, code: string, detail: string, title?: string, i
     status,
     headers: { 'Content-Type': 'application/problem+json' },
   });
+}
+
+const VK_STORY_LINK = /^https:\/\/(vk\.com|vk\.ru|m\.vk\.com|m\.vk\.ru)(\/|$)/i;
+
+function validateStoryCreate(
+  body: CreatePostRequest,
+): { code: string; detail: string; title: string } | null {
+  const mediaIds = body.baseContent?.mediaIds ?? [];
+  if (mediaIds.length !== 1) {
+    return {
+      code: 'story_media_invalid',
+      detail: 'Story requires exactly one media asset',
+      title: 'Invalid story media',
+    };
+  }
+
+  const channelIds =
+    body.variants
+      ?.map((variant) => variant.channelId)
+      .filter((id): id is string => Boolean(id)) ?? [];
+  if (channelIds.length === 0) {
+    return {
+      code: 'validation_failed',
+      detail: 'At least one channel is required',
+      title: 'Validation failed',
+    };
+  }
+
+  let hasVk = false;
+  for (const channelId of channelIds) {
+    const channel = getChannel(channelId);
+    if (!channel?.network) {
+      return {
+        code: 'not_found',
+        detail: `Channel ${channelId} not found`,
+        title: 'Not found',
+      };
+    }
+    if (channel.network !== 'vk' && channel.network !== 'ok') {
+      return {
+        code: 'story_unsupported_network',
+        detail: `Stories are not supported for ${channel.network}`,
+        title: 'Unsupported network',
+      };
+    }
+    if (channel.network === 'vk') {
+      hasVk = true;
+      if ((channel.storyConnectionStatus ?? 'missing') !== 'ready') {
+        return {
+          code: 'story_connection_required',
+          detail: 'VK channel requires a separate stories connection',
+          title: 'Story connection required',
+        };
+      }
+    }
+  }
+
+  const linkText = body.story?.linkText?.trim();
+  const linkUrl = body.story?.linkUrl?.trim();
+  if ((linkText && !linkUrl) || (!linkText && linkUrl)) {
+    return {
+      code: 'story_link_invalid',
+      detail: 'linkText and linkUrl must be set together',
+      title: 'Invalid story link',
+    };
+  }
+  if (hasVk && linkUrl && !VK_STORY_LINK.test(linkUrl)) {
+    return {
+      code: 'story_link_invalid',
+      detail: 'VK story CTA URL must be vk.com / vk.ru',
+      title: 'Invalid story link',
+    };
+  }
+
+  const ttl = body.story?.ttl;
+  if (ttl && !['ttl_1h', 'ttl_12h', 'ttl_24h', 'ttl_48h'].includes(ttl)) {
+    return {
+      code: 'story_ttl_unsupported',
+      detail: 'Unsupported story TTL',
+      title: 'Unsupported TTL',
+    };
+  }
+
+  return null;
 }
 
 function tokenResponse(overrides?: Partial<TokenResponse>): TokenResponse {
@@ -829,6 +918,39 @@ export const handlers = [
     return HttpResponse.json(result);
   }),
 
+  http.get('/api/v1/channels/:channelId/story-connection', ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedView = requirePermission(request, 'channels.view');
+    if (deniedView) return deniedView;
+    const connection = getStoryConnection(String(params.channelId));
+    if (!connection) {
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json(connection);
+  }),
+
+  http.post('/api/v1/channels/:channelId/story-connection', async ({ request, params }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedManage = requirePermission(request, 'channels.manage');
+    if (deniedManage) return deniedManage;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as StartStoryConnectionRequest;
+    const result = startStoryConnection(String(params.channelId), body);
+    if ('error' in result) {
+      if (result.error === 'unsupported') {
+        return problem(
+          422,
+          'story_unsupported_network',
+          'Story connect is only for VK (OK does not require it)',
+          'Unsupported network',
+        );
+      }
+      return problem(404, 'not_found', 'Channel not found', 'Not found');
+    }
+    return HttpResponse.json(result);
+  }),
+
   // --- Channel sets ---
   http.get('/api/v1/channel-sets', ({ request }) => {
     const url = new URL(request.url);
@@ -1083,6 +1205,7 @@ export const handlers = [
     if (denied) return denied;
     const deniedView = requirePermission(request, 'calendar.view');
     if (deniedView) return deniedView;
+    const contentKind = url.searchParams.get('contentKind');
     const items = listCalendar({
       workspaceId,
       from,
@@ -1092,6 +1215,8 @@ export const handlers = [
       authorId: url.searchParams.get('authorId') ?? undefined,
       network: url.searchParams.get('network') ?? undefined,
       status: url.searchParams.get('status') ?? undefined,
+      contentKind:
+        contentKind === 'post' || contentKind === 'story' ? contentKind : undefined,
     });
     return HttpResponse.json(items);
   }),
@@ -1124,9 +1249,38 @@ export const handlers = [
     const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
     if (deniedWs) return deniedWs;
 
+    if (body.scheduledAt) {
+      const deniedSchedule = requirePermission(request, 'posts.schedule');
+      if (deniedSchedule) return deniedSchedule;
+    }
+
+    if (body.contentKind === 'story') {
+      const storyError = validateStoryCreate(body);
+      if (storyError) {
+        return problem(422, storyError.code, storyError.detail, storyError.title);
+      }
+    }
+
     if (body.ad) {
       const deniedAd = requirePermission(request, 'posts.ad.schedule');
       if (deniedAd) return deniedAd;
+      if (body.contentKind === 'story') {
+        const channelIds =
+          body.variants
+            ?.map((variant) => variant.channelId)
+            .filter((id): id is string => Boolean(id)) ?? [];
+        for (const channelId of channelIds) {
+          const channel = getChannel(channelId);
+          if (channel && channel.network !== 'vk' && channel.network !== 'ok') {
+            return problem(
+              422,
+              'ads_not_allowed_for_network',
+              'Маркировка историй доступна только для VK и OK',
+              'Ads not allowed',
+            );
+          }
+        }
+      }
       if (!hasActiveOrdConnection(body.workspaceId)) {
         return problem(
           422,
@@ -1386,6 +1540,7 @@ export const handlers = [
     if (deniedView) return deniedView;
 
     const sort = url.searchParams.get('sort') as ListPostsFilters['sort'] | null;
+    const contentKind = url.searchParams.get('contentKind');
     const page = listPosts({
       workspaceId,
       from: url.searchParams.get('from') ?? undefined,
@@ -1395,6 +1550,8 @@ export const handlers = [
       projectId: url.searchParams.get('projectId') ?? undefined,
       network: url.searchParams.get('network') ?? undefined,
       authorId: url.searchParams.get('authorId') ?? undefined,
+      contentKind:
+        contentKind === 'post' || contentKind === 'story' ? contentKind : undefined,
       q: url.searchParams.get('q') ?? undefined,
       cursor: url.searchParams.get('cursor') ?? undefined,
       limit: url.searchParams.get('limit')
@@ -1408,6 +1565,53 @@ export const handlers = [
       hasMore: page.hasMore,
       nextCursor: page.nextCursor,
     });
+  }),
+
+  http.post('/api/v1/stories/batch', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedBulk = requirePermission(request, 'posts.bulk');
+    if (deniedBulk) return deniedBulk;
+    const deniedSchedule = requirePermission(request, 'posts.schedule');
+    if (deniedSchedule) return deniedSchedule;
+    const body = (await request.json()) as BatchStoriesRequest;
+    if (!body.workspaceId || !body.channelIds?.length || !body.mediaIds?.length || !body.scheduledAt) {
+      return problem(
+        400,
+        'validation_failed',
+        'workspaceId, channelIds, mediaIds and scheduledAt are required',
+        'Validation failed',
+      );
+    }
+    const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
+    if (deniedWs) return deniedWs;
+    if (body.mediaIds.length > 50) {
+      return problem(422, 'story_batch_limit', 'Batch exceeds 50 stories', 'Batch limit');
+    }
+    for (const channelId of body.channelIds) {
+      const channel = getChannel(channelId);
+      if (!channel) {
+        return problem(404, 'not_found', `Channel ${channelId} not found`, 'Not found');
+      }
+      if (channel.network !== 'vk' && channel.network !== 'ok') {
+        return problem(
+          422,
+          'story_unsupported_network',
+          `Stories are not supported for ${channel.network}`,
+          'Unsupported network',
+        );
+      }
+      if (channel.network === 'vk' && (channel.storyConnectionStatus ?? 'missing') !== 'ready') {
+        return problem(
+          422,
+          'story_connection_required',
+          'VK channel requires a separate stories connection',
+          'Story connection required',
+        );
+      }
+    }
+    const result = batchCreateStories(body);
+    return HttpResponse.json(result, { status: 201 });
   }),
 
   http.post('/api/v1/posts/bulk', async ({ request }) => {

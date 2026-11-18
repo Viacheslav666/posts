@@ -4,6 +4,7 @@ export type CalendarFiltersState = {
   authorId?: string;
   network?: string;
   status?: string;
+  contentKind?: 'post' | 'story';
   q?: string;
 };
 

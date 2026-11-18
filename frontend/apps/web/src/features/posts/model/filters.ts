@@ -6,6 +6,7 @@ export type PostsFiltersState = {
   projectId?: string;
   network?: string;
   authorId?: string;
+  contentKind?: 'post' | 'story';
   from?: string;
   to?: string;
   q?: string;
@@ -23,6 +24,7 @@ export function postsFiltersToQuery(filters: PostsFiltersState): Record<string, 
   if (filters.projectId) query.projectId = filters.projectId;
   if (filters.network) query.network = filters.network;
   if (filters.authorId) query.authorId = filters.authorId;
+  if (filters.contentKind) query.contentKind = filters.contentKind;
   if (filters.from) query.from = filters.from;
   if (filters.to) query.to = filters.to;
   if (filters.q?.trim()) query.q = filters.q.trim();

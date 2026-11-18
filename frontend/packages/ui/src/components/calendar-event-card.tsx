@@ -54,6 +54,7 @@ export type CalendarEventCardProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   title: string;
   networks?: string[];
   status?: string;
+  contentKind?: 'post' | 'story';
   selected?: boolean;
 };
 
@@ -64,6 +65,7 @@ export const CalendarEventCard = forwardRef<HTMLButtonElement, CalendarEventCard
       title,
       networks = [],
       status = 'draft',
+      contentKind = 'post',
       selected = false,
       className,
       type = 'button',
@@ -76,6 +78,7 @@ export const CalendarEventCard = forwardRef<HTMLButtonElement, CalendarEventCard
     const icons = networks
       .map(toSocialNetwork)
       .filter((n): n is SocialNetwork => n !== null);
+    const isStory = contentKind === 'story';
 
     return (
       <button
@@ -83,10 +86,12 @@ export const CalendarEventCard = forwardRef<HTMLButtonElement, CalendarEventCard
         type={type}
         data-testid="calendar-event"
         data-status={status}
+        data-content-kind={contentKind}
         className={cn(
           'flex w-full flex-col gap-0.5 rounded-md border border-border border-l-4 bg-background px-2 py-1.5 text-left text-xs shadow-sm transition-colors',
           'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           accent,
+          isStory && 'bg-violet-500/5',
           selected && 'ring-2 ring-ring',
           className,
         )}
@@ -95,6 +100,14 @@ export const CalendarEventCard = forwardRef<HTMLButtonElement, CalendarEventCard
         <span className="flex items-center gap-1.5">
           <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dot)} aria-hidden />
           <span className="font-medium tabular-nums text-muted-foreground">{time}</span>
+          {isStory ? (
+            <span
+              className="rounded bg-violet-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
+              data-testid="calendar-story-badge"
+            >
+              Story
+            </span>
+          ) : null}
           {icons.length > 0 ? (
             <span className="ml-auto flex items-center gap-0.5">
               {icons.map((network) => (

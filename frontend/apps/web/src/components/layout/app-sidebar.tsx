@@ -13,6 +13,7 @@ import {
   Megaphone,
   Radio,
   Settings,
+  Sparkles,
   Users,
   Workflow,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { key: 'dashboard', href: '', icon: LayoutDashboard },
   { key: 'calendar', href: '/calendar', icon: CalendarDays },
   { key: 'posts', href: '/posts', icon: Megaphone },
+  { key: 'stories', href: '/stories', icon: Sparkles },
   { key: 'channels', href: '/channels', icon: Radio },
   { key: 'media', href: '/media', icon: FolderOpen },
   { key: 'analytics', href: '/analytics', icon: BarChart3 },
