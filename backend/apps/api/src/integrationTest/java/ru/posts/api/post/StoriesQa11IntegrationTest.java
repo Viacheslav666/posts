@@ -973,7 +973,10 @@ class StoriesQa11IntegrationTest {
         JsonNode list = readJson(mockMvc.perform(get("/api/v1/workspaces").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn());
-        return UUID.fromString(list.path("items").get(0).path("id").asText());
+        UUID workspaceId = UUID.fromString(list.path("items").get(0).path("id").asText());
+        // V15 free plan stories_month=0; story ITs need a paid plan (same as StoriesApiIntegrationTest).
+        upgradeToAgency(workspaceId);
+        return workspaceId;
     }
 
     private void upgradeToAgency(UUID workspaceId) {
