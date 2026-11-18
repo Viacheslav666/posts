@@ -700,13 +700,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private BillingDtos.Plan toPlan(PlanEntity plan) {
+        BigDecimal monthDisplay = plan.getPriceDayKopecks() > 0
+                ? BigDecimal.valueOf(plan.getPriceDayKopecks() * 30L, 2)
+                : plan.getPriceMonth();
         return new BillingDtos.Plan(
                 plan.getId(),
                 plan.getCode(),
                 plan.getName(),
                 plan.getPriceMonth(),
                 plan.getPriceYear(),
-                plan.getLimits());
+                plan.getPriceDayKopecks(),
+                monthDisplay,
+                plan.getBillingModel(),
+                plan.getLimits() == null ? Map.of() : plan.getLimits());
     }
 
     private AdminDtos.PromoCode toPromo(PromoCodeEntity promo) {
