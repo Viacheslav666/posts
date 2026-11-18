@@ -97,4 +97,20 @@ export const queryKeys = {
     subscription: (workspaceId: string) =>
       [...queryKeys.billing.all(workspaceId), 'subscription'] as const,
   },
+
+  ingest: {
+    all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'ingest'] as const,
+    rules: (workspaceId: string, projectId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.ingest.all(workspaceId), 'rules', projectId, filters ?? {}] as const,
+    rule: (workspaceId: string, ruleId: string) =>
+      [...queryKeys.ingest.all(workspaceId), 'rule', ruleId] as const,
+    runs: (workspaceId: string, ruleId: string, cursor?: string) =>
+      [...queryKeys.ingest.rule(workspaceId, ruleId), 'runs', { cursor }] as const,
+    items: (workspaceId: string, ruleId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.ingest.rule(workspaceId, ruleId), 'items', filters ?? {}] as const,
+    item: (workspaceId: string, itemId: string) =>
+      [...queryKeys.ingest.all(workspaceId), 'item', itemId] as const,
+    queue: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.ingest.all(workspaceId), 'queue', filters ?? {}] as const,
+  },
 } as const;

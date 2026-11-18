@@ -37,8 +37,27 @@ export const INSUFFICIENT_PERMISSIONS_CODE = 'insufficient_permissions';
 /** OpenAPI ProblemCodes: channel/seat/post quota of the current plan. */
 export const PLAN_LIMIT_EXCEEDED_CODE = 'plan_limit_exceeded';
 
+/** Grabber / ingest problem codes (BE-17 / BE-17b). */
+export const INGEST_SSRF_BLOCKED_CODE = 'ingest_ssrf_blocked';
+export const INGEST_RESPONSIBILITY_REQUIRED_CODE = 'ingest_responsibility_required';
+export const INGEST_ATTRIBUTION_REQUIRED_CODE = 'ingest_attribution_required';
+export const INGEST_RATE_LIMITED_CODE = 'ingest_rate_limited';
+export const INGEST_VALIDATION_FAILED_CODE = 'ingest_validation_failed';
+
 export function isApiProblemError(error: unknown): error is ApiProblemError {
   return error instanceof ApiProblemError;
+}
+
+export function isIngestSsrfBlocked(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === INGEST_SSRF_BLOCKED_CODE;
+}
+
+export function isIngestResponsibilityRequired(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === INGEST_RESPONSIBILITY_REQUIRED_CODE;
+}
+
+export function isIngestAttributionRequired(error: unknown): boolean {
+  return isApiProblemError(error) && error.code === INGEST_ATTRIBUTION_REQUIRED_CODE;
 }
 
 export function isTwoFactorRequired(error: unknown): boolean {

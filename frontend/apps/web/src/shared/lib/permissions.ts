@@ -36,6 +36,9 @@ export const PERMISSION_ACTIONS = [
   'posts.retry_publish',
   'calendar.view',
   'calendar.move',
+  'automations.view',
+  'automations.manage',
+  'automations.moderate',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -54,6 +57,7 @@ const ALL_VIEW: PermissionAction[] = [
   'media.view',
   'posts.view',
   'calendar.view',
+  'automations.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -75,6 +79,8 @@ const ADMIN_TEAM: PermissionAction[] = [
   'posts.bulk',
   'posts.retry_publish',
   'calendar.move',
+  'automations.manage',
+  'automations.moderate',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -93,6 +99,8 @@ const EDITOR_EXTRA: PermissionAction[] = [
   'posts.bulk',
   'posts.retry_publish',
   'calendar.move',
+  'automations.manage',
+  'automations.moderate',
 ];
 
 const AUTHOR_EXTRA: PermissionAction[] = [
