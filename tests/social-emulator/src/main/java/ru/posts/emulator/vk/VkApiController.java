@@ -2,6 +2,9 @@ package ru.posts.emulator.vk;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -88,12 +91,25 @@ public class VkApiController {
         session.server = "emulated";
         session.photo = payload == null ? "emulated-photo" : payload.getOriginalFilename();
         session.hash = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        if (payload != null) {
+            try {
+                byte[] bytes = payload.getBytes();
+                session.contentSize = bytes.length;
+                session.contentSha256 = sha256Hex(bytes);
+            } catch (IOException ex) {
+                session.contentSha256 = null;
+            }
+        }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("server", 1);
         body.put("photo", session.photo);
         body.put("hash", session.hash);
         body.put("file", "doc-file-" + uploadId);
         body.put("success", true);
+        if (session.contentSha256 != null) {
+            body.put("content_sha256", session.contentSha256);
+            body.put("content_size", session.contentSize);
+        }
         if (session.video) {
             body.put("video_id", photoSeq.incrementAndGet());
         }
@@ -300,6 +316,10 @@ public class VkApiController {
             metadata.put("link_text", linkText);
             metadata.put("link_url", linkUrl);
             metadata.put("mediaKind", video ? "video" : "photo");
+            if (session != null && session.contentSha256 != null) {
+                metadata.put("contentSha256", session.contentSha256);
+                metadata.put("contentSize", session.contentSize);
+            }
 
             PostStore.CreateResult result = postStore.createOrGet(Network.VK, channelId, guid, "story", metadata);
             long storyId;
@@ -366,5 +386,14 @@ public class VkApiController {
             }
         }
         return null;
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (Exception ex) {
+            return HexFormat.of().formatHex(Integer.toHexString(bytes.length).getBytes(StandardCharsets.UTF_8));
+        }
     }
 }

@@ -57,6 +57,9 @@ public class VkUploadSessionStore {
         String linkUrl;
         String guid;
         boolean video;
+        /** SHA-256 hex of uploaded multipart bytes (BE-24 acceptance). */
+        String contentSha256;
+        long contentSize;
 
         Session(String uploadId, String groupId) {
             this.uploadId = uploadId;

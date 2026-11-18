@@ -2,6 +2,8 @@ package ru.posts.emulator.ok;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +31,7 @@ public class OkApiController {
     private final PublishSupport publishSupport;
     private final EmulatorProperties emulatorProperties;
     private final ConcurrentMap<String, String> momentUploads = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, UploadMeta> momentUploadMeta = new ConcurrentHashMap<>();
 
     public OkApiController(PostStore postStore, PublishSupport publishSupport, EmulatorProperties emulatorProperties) {
         this.postStore = postStore;
@@ -85,7 +88,23 @@ public class OkApiController {
     public Map<String, Object> uploadMoment(
             @PathVariable String uploadId, @RequestPart(name = "file", required = false) MultipartFile file) {
         momentUploads.put(uploadId, file == null ? "empty" : String.valueOf(file.getSize()));
-        return Map.of("token", "ok-upload-" + uploadId, "success", true);
+        if (file != null) {
+            try {
+                byte[] bytes = file.getBytes();
+                momentUploadMeta.put(uploadId, new UploadMeta(sha256Hex(bytes), bytes.length));
+            } catch (IOException ignored) {
+                // leave meta unset
+            }
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("token", "ok-upload-" + uploadId);
+        body.put("success", true);
+        UploadMeta meta = momentUploadMeta.get(uploadId);
+        if (meta != null) {
+            body.put("content_sha256", meta.sha256());
+            body.put("content_size", meta.size());
+        }
+        return body;
     }
 
     private ResponseEntity<?> dispatch(
@@ -171,6 +190,15 @@ public class OkApiController {
         metadata.put("link_text", first(form, json, "link_text"));
         String type = first(form, json, "type");
         metadata.put("mediaKind", type != null && type.toUpperCase().contains("VIDEO") ? "video" : "photo");
+        String uploadToken = first(form, json, "upload_token");
+        if (uploadToken != null && uploadToken.startsWith("ok-upload-")) {
+            String uploadId = uploadToken.substring("ok-upload-".length());
+            UploadMeta uploadMeta = momentUploadMeta.get(uploadId);
+            if (uploadMeta != null) {
+                metadata.put("contentSha256", uploadMeta.sha256());
+                metadata.put("contentSize", uploadMeta.size());
+            }
+        }
 
         return publishSupport.execute(Network.OK, rawResponse, () -> {
             PostStore.CreateResult result = postStore.createOrGet(Network.OK, finalGid, requestedKey, text, metadata);
@@ -253,4 +281,15 @@ public class OkApiController {
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (Exception ex) {
+            return HexFormat.of().formatHex(new byte[] {(byte) bytes.length});
+        }
+    }
+
+    private record UploadMeta(String sha256, long size) {}
 }

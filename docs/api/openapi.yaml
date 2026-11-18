@@ -15540,8 +15540,11 @@ components:
           - error
     StoryOptions:
       type: object
-      description: Story-specific options (BE-16 / E11)
+      description: Story-specific options (BE-16 / E11 / BE-24)
       properties:
+        addToNews:
+          type: boolean
+          description: VK stories.add_to_news (default true)
         ads:
           $ref: "#/components/schemas/AdMarking"
         autoDeleteAfterMinutes:

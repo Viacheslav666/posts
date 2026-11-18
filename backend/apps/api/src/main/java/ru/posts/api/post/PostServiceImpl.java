@@ -1227,14 +1227,18 @@ public class PostServiceImpl implements PostService {
             }
         }
         String mediaKind = "photo";
+        List<String> mediaWarnings = List.of();
         List<UUID> mediaIds = PostContentMapper.mediaIds(baseContent);
         if (!mediaIds.isEmpty()) {
             MediaAssetEntity asset = mediaAssetRepository
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(workspaceId, mediaIds.getFirst())
                     .orElse(null);
             mediaKind = StorySupport.mediaKindOf(asset);
+            if (asset != null) {
+                mediaWarnings = StorySupport.assertMedia(baseContent, List.of(asset));
+            }
         }
-        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind));
+        post.setStoryOptions(StorySupport.toStoryOptionsMap(story, networks, mediaKind, mediaWarnings));
     }
 
     private void validateStoryForSchedule(
@@ -1256,7 +1260,24 @@ public class PostServiceImpl implements PostService {
                     .findByWorkspaceIdAndIdAndDeletedAtIsNull(post.getWorkspaceId(), mediaId)
                     .ifPresent(assets::add);
         }
-        StorySupport.assertMedia(baseContent, assets);
+        List<String> mediaWarnings = StorySupport.assertMedia(baseContent, assets);
+        if (!mediaWarnings.isEmpty()) {
+            Map<String, Object> opts =
+                    new LinkedHashMap<>(post.getStoryOptions() == null ? Map.of() : post.getStoryOptions());
+            @SuppressWarnings("unchecked")
+            List<String> existing = opts.get("warnings") instanceof List<?> list
+                    ? list.stream()
+                            .map(String::valueOf)
+                            .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+                    : new ArrayList<>();
+            for (String w : mediaWarnings) {
+                if (!existing.contains(w)) {
+                    existing.add(w);
+                }
+            }
+            opts.put("warnings", existing);
+            post.setStoryOptions(opts);
+        }
         List<ApiEnums.Network> networks =
                 variants.stream().map(PostDtos.PostVariantUpsert::network).toList();
         StorySupport.assertLink(

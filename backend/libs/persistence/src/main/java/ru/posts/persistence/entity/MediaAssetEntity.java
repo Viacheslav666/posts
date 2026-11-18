@@ -47,6 +47,11 @@ public class MediaAssetEntity extends BaseUuidEntity {
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> derivatives = Map.of();
 
+    /** Probe metadata (ffprobe): width, height, durationMs, codecs, sizeBytes (BE-24). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> meta = Map.of();
+
     private String filename;
 
     private String folder;
@@ -164,6 +169,14 @@ public class MediaAssetEntity extends BaseUuidEntity {
 
     public void setDerivatives(Map<String, Object> derivatives) {
         this.derivatives = derivatives;
+    }
+
+    public Map<String, Object> getMeta() {
+        return meta;
+    }
+
+    public void setMeta(Map<String, Object> meta) {
+        this.meta = meta == null ? Map.of() : meta;
     }
 
     public String getFilename() {

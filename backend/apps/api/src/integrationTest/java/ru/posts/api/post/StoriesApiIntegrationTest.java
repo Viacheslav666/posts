@@ -408,11 +408,14 @@ class StoriesApiIntegrationTest {
         asset.setKind("image");
         asset.setMime("image/jpeg");
         asset.setSizeBytes(2048L);
+        asset.setWidth(1080);
+        asset.setHeight(1920);
         asset.setFilename("story.jpg");
         asset.setS3Key("workspaces/" + workspaceId + "/media/" + asset.getId() + "/story.jpg");
         asset.setStatus("ready");
         asset.setTags(List.of());
         asset.setDerivatives(Map.of());
+        asset.setMeta(Map.of("width", 1080, "height", 1920, "sizeBytes", 2048L, "codec", "jpeg"));
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         return mediaAssetRepository.save(asset).getId();

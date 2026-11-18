@@ -4418,6 +4418,8 @@ export interface components {
         };
         /** @description Story-specific options (BE-16 / E11) */
         StoryOptions: {
+            /** @description VK stories.add_to_news (default true) */
+            addToNews?: boolean;
             ads?: components["schemas"]["AdMarking"];
             /** Format: int32 */
             autoDeleteAfterMinutes?: number;
