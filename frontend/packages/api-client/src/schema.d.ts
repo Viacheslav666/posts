@@ -3675,11 +3675,8 @@ export interface components {
             apiKey?: string;
             isDefault?: boolean;
             isForeign?: boolean;
-            /**
-             * @description Notify workspace about ORD / marking problems
-             * @default true
-             */
-            notifyProblems: boolean;
+            /** @description Notify workspace about ORD / marking problems; omit to keep existing / default true */
+            notifyProblems?: boolean;
             orgType?: string;
             phone?: string;
             publisherInn?: string;

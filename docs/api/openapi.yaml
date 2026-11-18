@@ -12594,8 +12594,8 @@ components:
           type: boolean
         notifyProblems:
           type: boolean
-          default: "true"
-          description: Notify workspace about ORD / marking problems
+          description: Notify workspace about ORD / marking problems; omit to keep
+            existing / default true
         orgType:
           type: string
         phone:
