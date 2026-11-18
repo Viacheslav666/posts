@@ -1,10 +1,14 @@
 package ru.posts.persistence.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import ru.posts.persistence.entity.GrabberItemEntity;
 
 public interface GrabberItemRepository extends JpaRepository<GrabberItemEntity, UUID> {
@@ -25,5 +29,39 @@ public interface GrabberItemRepository extends JpaRepository<GrabberItemEntity, 
 
     long countByRuleIdAndStatus(UUID ruleId, String status);
 
-    long countByRuleIdAndStatusAndDetectedAtAfter(UUID ruleId, String status, java.time.Instant after);
+    long countByRuleIdAndStatusAndDetectedAtAfter(UUID ruleId, String status, Instant after);
+
+    long countByRuleIdAndSourceIdAndStatusInAndDetectedAtAfter(
+            UUID ruleId, String sourceId, Collection<String> statuses, Instant after);
+
+    long countByRuleIdAndStatusInAndDetectedAtAfter(UUID ruleId, Collection<String> statuses, Instant after);
+
+    Optional<GrabberItemEntity> findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
+            UUID ruleId, Collection<String> statuses);
+
+    @Query(
+            """
+            SELECT i FROM GrabberItemEntity i
+            WHERE i.ruleId = :ruleId
+              AND i.simhash IS NOT NULL
+              AND i.status NOT IN :excluded
+            ORDER BY i.createdAt DESC
+            """)
+    List<GrabberItemEntity> findRecentWithSimhashByRule(
+            @Param("ruleId") UUID ruleId, @Param("excluded") Collection<String> excluded, Pageable pageable);
+
+    @Query(
+            """
+            SELECT i FROM GrabberItemEntity i
+            WHERE i.workspaceId = :workspaceId
+              AND i.targetChannelId = :channelId
+              AND i.simhash IS NOT NULL
+              AND i.status NOT IN :excluded
+            ORDER BY i.createdAt DESC
+            """)
+    List<GrabberItemEntity> findRecentWithSimhashByChannel(
+            @Param("workspaceId") UUID workspaceId,
+            @Param("channelId") UUID channelId,
+            @Param("excluded") Collection<String> excluded,
+            Pageable pageable);
 }

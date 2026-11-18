@@ -7,12 +7,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/** Defaults and accessors for automation_rules.config jsonb (grabber.md §5.1). */
+/** Defaults and accessors for automation_rules.config jsonb (grabber.md §5.1 + BE-27). */
 public final class GrabberConfigSupport {
 
     public static final String PUBLISH_MODE_MODERATE = "moderate";
     public static final String PUBLISH_MODE_AUTO = "auto";
     public static final String PUBLISH_MODE_DRAFT = "draft";
+
+    /** BE-27 config schema version. Older configs are migrated on read via {@link #withDefaults}. */
+    public static final int CURRENT_CONFIG_VERSION = 2;
+
+    public static final int MAX_SOURCES_PER_RULE = 20;
 
     public static final Set<Integer> ALLOWED_SCAN_INTERVALS = Set.of(15, 30, 60, 120, 180, 360, 720, 1440);
 
@@ -24,6 +29,9 @@ public final class GrabberConfigSupport {
         if (input != null) {
             config.putAll(input);
         }
+        int fromVersion = config.get("config_version") instanceof Number n ? n.intValue() : 1;
+        migrate(config, fromVersion);
+
         config.putIfAbsent("source_ids", List.of());
         config.putIfAbsent("scan_interval_minutes", 180);
         config.putIfAbsent("publish_mode", PUBLISH_MODE_MODERATE);
@@ -33,11 +41,27 @@ public final class GrabberConfigSupport {
         Map<String, Object> filters = map(config.get("filters"));
         filters.putIfAbsent("keyword_include", List.of());
         filters.putIfAbsent("keyword_exclude", List.of());
+        filters.putIfAbsent("stop_words", List.of());
         filters.putIfAbsent("keyword_match", "any");
         filters.putIfAbsent("attachment_types", List.of("photo", "video", "doc", "link", "audio", "poll", "none"));
         filters.putIfAbsent("require_attachments", false);
         filters.putIfAbsent("exclude_ads", true);
         filters.putIfAbsent("exclude_reposts", true);
+        filters.putIfAbsent("exclude_links", false);
+        filters.putIfAbsent("skip_if_no_text", false);
+        filters.putIfAbsent("skip_if_no_media", false);
+        filters.putIfAbsent("skip_if_any_text", false);
+        filters.putIfAbsent("skip_if_homoglyphs", false);
+        filters.putIfAbsent("skip_if_caps", false);
+        filters.putIfAbsent("caps_threshold", 0.8d);
+        filters.putIfAbsent("caps_min_letters", 8);
+        filters.putIfAbsent("skip_if_phone", false);
+        filters.putIfAbsent("require_phone", false);
+        filters.putIfAbsent("require_phone_or_signature", false);
+        filters.putIfAbsent("only_group_posts", false);
+        filters.putIfAbsent("skip_if_missing_attachment_types", List.of());
+        filters.putIfAbsent("skip_if_has_attachment_types", List.of());
+        filters.putIfAbsent("max_age_days", null);
         config.put("filters", filters);
 
         Map<String, Object> transform = map(config.get("transform"));
@@ -45,6 +69,33 @@ public final class GrabberConfigSupport {
         transform.putIfAbsent("append_text", "");
         transform.putIfAbsent("strip_hashtags", false);
         transform.putIfAbsent("strip_mentions", false);
+        transform.putIfAbsent("strip_all_text", false);
+        transform.putIfAbsent("strip_phones", false);
+        transform.putIfAbsent("strip_all_links", false);
+        transform.putIfAbsent("strip_links", false);
+        transform.putIfAbsent("strip_photo", false);
+        transform.putIfAbsent("strip_video", false);
+        transform.putIfAbsent("strip_clip", false);
+        transform.putIfAbsent("strip_audio", false);
+        transform.putIfAbsent("strip_music", false);
+        transform.putIfAbsent("strip_playlist", false);
+        transform.putIfAbsent("strip_doc", false);
+        transform.putIfAbsent("strip_file", false);
+        transform.putIfAbsent("strip_poll", false);
+        transform.putIfAbsent("strip_album", false);
+        transform.putIfAbsent("strip_market", false);
+        transform.putIfAbsent("strip_product", false);
+        transform.putIfAbsent("strip_market_album", false);
+        transform.putIfAbsent("strip_wiki", false);
+        transform.putIfAbsent("strip_article", false);
+        transform.putIfAbsent("strip_attachment_types", List.of());
+        transform.putIfAbsent("word_replacements", Map.of());
+        transform.putIfAbsent("remove_keywords", List.of());
+        transform.putIfAbsent("attached_attachments", List.of());
+        transform.putIfAbsent("attach_when_no_attachments", false);
+        transform.putIfAbsent("attachments_mode", "grid");
+        transform.putIfAbsent("link_to_source", false);
+        transform.putIfAbsent("link_to_author", false);
         transform.putIfAbsent("text_max_length", null);
         config.put("transform", transform);
 
@@ -57,21 +108,52 @@ public final class GrabberConfigSupport {
         Map<String, Object> limits = map(config.get("limits"));
         limits.putIfAbsent("rate_limit_per_hour", 10);
         limits.putIfAbsent("rate_limit_per_day", 50);
+        limits.putIfAbsent("rate_limit_per_source_per_day", 0); // 0 = disabled
+        limits.putIfAbsent("min_interval_minutes", 0);
         config.put("limits", limits);
 
         Map<String, Object> reliability = map(config.get("reliability"));
         reliability.putIfAbsent("dedup_enabled", true);
         reliability.putIfAbsent("dedup_scope", "channel");
+        reliability.putIfAbsent("similarity_dedup_enabled", true);
+        reliability.putIfAbsent("similarity_threshold", 0.8d);
+        reliability.putIfAbsent("similarity_lookback", 15);
         reliability.putIfAbsent("ignore_edits", true);
         reliability.putIfAbsent("auto_pause_on_errors", true);
         reliability.putIfAbsent("auto_pause_error_threshold", 5);
         config.put("reliability", reliability);
 
+        Map<String, Object> schedule = map(config.get("schedule"));
+        schedule.putIfAbsent("enabled", false);
+        schedule.putIfAbsent("timezone", "Europe/Moscow");
+        schedule.putIfAbsent("days_of_week", List.of(1, 2, 3, 4, 5, 6, 7));
+        schedule.putIfAbsent("hours_from", 0);
+        schedule.putIfAbsent("hours_to", 24);
+        config.put("schedule", schedule);
+
+        Map<String, Object> firstComment = map(config.get("first_comment"));
+        firstComment.putIfAbsent("enabled", false);
+        firstComment.putIfAbsent("text", "");
+        firstComment.putIfAbsent("attachments", List.of());
+        // Stub until BE-23 wires VK comment adapters
+        firstComment.putIfAbsent("pending_be23", true);
+        config.put("first_comment", firstComment);
+
+        config.putIfAbsent("macros", Map.of());
         config.putIfAbsent("ai_rewrite_enabled", false);
         config.putIfAbsent("rss_max_items_per_run", 20);
         config.putIfAbsent("website_urls", List.of());
         config.putIfAbsent("website_selector", null);
+        config.put("config_version", CURRENT_CONFIG_VERSION);
         return config;
+    }
+
+    private static void migrate(Map<String, Object> config, int fromVersion) {
+        if (fromVersion >= CURRENT_CONFIG_VERSION) {
+            return;
+        }
+        // v1 → v2: introduce schedule / first_comment / similarity defaults (applied by putIfAbsent)
+        config.put("config_version", CURRENT_CONFIG_VERSION);
     }
 
     public static String publishMode(Map<String, Object> config) {
@@ -156,6 +238,28 @@ public final class GrabberConfigSupport {
         return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
     }
 
+    public static boolean similarityDedupEnabled(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object enabled = reliability.get("similarity_dedup_enabled");
+        return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
+    }
+
+    public static double similarityThreshold(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object value = reliability.get("similarity_threshold");
+        if (value instanceof Number n) {
+            return n.doubleValue();
+        }
+        return 0.8d;
+    }
+
+    public static int similarityLookback(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object value = reliability.get("similarity_lookback");
+        int n = value instanceof Number num ? num.intValue() : 15;
+        return Math.max(1, Math.min(n, 100));
+    }
+
     public static int autoPauseThreshold(Map<String, Object> config) {
         Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
         Object value = reliability.get("auto_pause_error_threshold");
@@ -174,6 +278,25 @@ public final class GrabberConfigSupport {
         return value instanceof Number n ? n.intValue() : 10;
     }
 
+    public static int rateLimitPerDay(Map<String, Object> config) {
+        Map<String, Object> limits = map(config == null ? null : config.get("limits"));
+        Object value = limits.get("rate_limit_per_day");
+        return value instanceof Number n ? n.intValue() : 50;
+    }
+
+    public static int rateLimitPerSourcePerDay(Map<String, Object> config) {
+        Map<String, Object> limits = map(config == null ? null : config.get("limits"));
+        Object value = limits.get("rate_limit_per_source_per_day");
+        return value instanceof Number n ? n.intValue() : 0;
+    }
+
+    public static int minIntervalMinutes(Map<String, Object> config) {
+        Map<String, Object> limits = map(config == null ? null : config.get("limits"));
+        Object value = limits.get("min_interval_minutes");
+        int n = value instanceof Number num ? num.intValue() : 0;
+        return Math.max(0, Math.min(n, 120));
+    }
+
     @SuppressWarnings("unchecked")
     public static Map<String, Object> filters(Map<String, Object> config) {
         return map(config == null ? null : config.get("filters"));
@@ -182,6 +305,16 @@ public final class GrabberConfigSupport {
     @SuppressWarnings("unchecked")
     public static Map<String, Object> transform(Map<String, Object> config) {
         return map(config == null ? null : config.get("transform"));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> schedule(Map<String, Object> config) {
+        return map(config == null ? null : config.get("schedule"));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> firstComment(Map<String, Object> config) {
+        return map(config == null ? null : config.get("first_comment"));
     }
 
     @SuppressWarnings("unchecked")

@@ -61,4 +61,12 @@ public interface IngestService {
             UUID userId, IngestDtos.GrabberBulkModerationRequest request, ClientRequestContext ctx);
 
     IngestDtos.IngestPreviewResponse preview(UUID userId, UUID workspaceId, IngestDtos.IngestPreviewRequest request);
+
+    /** Copy filters/transform/schedule/limits/first_comment from another rule in the same workspace. */
+    IngestDtos.GrabberRule cloneConfig(
+            UUID userId, UUID ruleId, IngestDtos.GrabberCloneConfigRequest request, ClientRequestContext ctx);
+
+    /** Export item history as CSV or XLSX bytes. */
+    IngestDtos.GrabberItemsExport exportItems(
+            UUID userId, UUID ruleId, IngestDtos.ItemStatus status, IngestDtos.ExportFormat format);
 }

@@ -606,6 +606,16 @@ final class RbacHttpProbeSupport {
                 node.put("version", ids.ruleVersion());
                 yield node.toString();
             }
+            case "ingestRulesCloneConfig" -> {
+                var node = objectMapper.createObjectNode();
+                // Self-clone is valid and avoids needing a second seeded rule.
+                node.put(
+                        "sourceRuleId",
+                        ids.ruleId() == null
+                                ? UUID.randomUUID().toString()
+                                : ids.ruleId().toString());
+                yield node.toString();
+            }
             case "ingestItemsApprove", "ingestItemsReject" -> "{}";
             case "ingestItemsEditAndApprove" -> {
                 var node = objectMapper.createObjectNode();
