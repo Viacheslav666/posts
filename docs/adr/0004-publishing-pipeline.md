@@ -74,7 +74,8 @@ RETURNING p.id, p.network, …;
 
 ## Последствия
 
-- Прототип конвейера — задача BE-4; прод-качество (лимиты, DLQ, метрики) — BE-10.
+- Прототип конвейера — задача BE-4; **прод-качество реализовано в BE-10** (см. ADR-0010): Bucket4j AIMD, Bulkhead, `scheduled_actions` / `actions.*`, outbox, хуки BE-15/16/17, метрики под 04-devops §6.
 - Партиционирование `publications` по `run_at` (месяцы) обязательно до нагрузки MVP.
-- Метрики: `posts_publication_delay_seconds`, `posts_publications_total{network,result}`; алерты на DLQ и рост `failed_retryable`.
+- Метрики: `posts_publication_delay_seconds`, `posts_publications_total{network,result}`, retries/DLQ/throttling/scheduler; алерты на DLQ и рост `failed_retryable`.
 - Топология брокера — ADR-0005.
+- Нативная отложка VK (§5.6) — не в MVP; флаг `posts.publisher.vk.native-deferred.enabled` (ADR-0010).

@@ -175,7 +175,7 @@ public class TelegramSocialAdapter implements SocialAdapter {
         }
     }
 
-    /** Optional pin helper used by scheduled actions (not part of the core publish path). */
+    @Override
     public void pin(ChannelContext ctx, String remotePostId, boolean pinned) {
         String token = resolveToken(ctx);
         String method = pinned ? "pinChatMessage" : "unpinChatMessage";
@@ -192,6 +192,33 @@ public class TelegramSocialAdapter implements SocialAdapter {
         } catch (RestClientException ex) {
             throw new SocialApiException(
                     ErrorClass.RETRYABLE, "Telegram pin failed: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    @Override
+    public void comment(ChannelContext ctx, String remotePostId, String text) {
+        String token = resolveToken(ctx);
+        try {
+            restClient
+                    .post()
+                    .uri("/bot{token}/sendMessage", token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "chat_id",
+                            ctx.externalId(),
+                            "text",
+                            text == null ? "" : text,
+                            "reply_to_message_id",
+                            remotePostId,
+                            "idempotency_key",
+                            "comment:" + remotePostId + ":" + (text == null ? "" : text.hashCode())))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "Telegram comment failed: " + ex.getMessage(), null, null, ex);
         }
     }
 

@@ -19,6 +19,11 @@ public class DispatchScheduler {
         dispatchService.dispatchDueBatch();
     }
 
+    @Scheduled(fixedDelayString = "${posts.scheduler.dispatch-interval-ms:1000}")
+    public void dispatchActions() {
+        dispatchService.dispatchDueActions();
+    }
+
     @Scheduled(fixedDelayString = "${posts.scheduler.reaper-interval-ms:30000}")
     @SchedulerLock(name = "publicationReaper", lockAtMostFor = "25s", lockAtLeastFor = "5s")
     public void reaper() {

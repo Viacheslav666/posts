@@ -1,10 +1,13 @@
 package ru.posts.publisher.service;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,9 +20,11 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.PublicationClaim;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
 import ru.posts.publisher.config.PublisherProperties;
+import ru.posts.publisher.extension.PrePublishHook;
 import ru.posts.publisher.metrics.PublicationMetrics;
 import ru.posts.ratelimit.RateLimitDecision;
 import ru.posts.ratelimit.SocialRateLimiter;
@@ -37,34 +42,46 @@ public class PublicationProcessor {
     private static final Logger log = LoggerFactory.getLogger(PublicationProcessor.class);
 
     private final PublicationLifecycleJdbc lifecycleJdbc;
+    private final OutboxJdbc outboxJdbc;
+    private final ScheduledActionsFactory scheduledActionsFactory;
     private final SocialAdapter socialAdapter;
     private final SocialRateLimiter rateLimiter;
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
+    private final Bulkhead bulkhead;
     private final ExecutorService executorService;
     private final TransactionTemplate transactionTemplate;
     private final PublisherProperties properties;
     private final PublicationMetrics metrics;
+    private final List<PrePublishHook> prePublishHooks;
 
     public PublicationProcessor(
             PublicationLifecycleJdbc lifecycleJdbc,
+            OutboxJdbc outboxJdbc,
+            ScheduledActionsFactory scheduledActionsFactory,
             SocialAdapter socialAdapter,
             SocialRateLimiter rateLimiter,
             CircuitBreaker socialCircuitBreaker,
             TimeLimiter socialTimeLimiter,
+            Bulkhead socialBulkhead,
             ExecutorService publisherVirtualExecutor,
             TransactionTemplate transactionTemplate,
             PublisherProperties properties,
-            PublicationMetrics metrics) {
+            PublicationMetrics metrics,
+            List<PrePublishHook> prePublishHooks) {
         this.lifecycleJdbc = lifecycleJdbc;
+        this.outboxJdbc = outboxJdbc;
+        this.scheduledActionsFactory = scheduledActionsFactory;
         this.socialAdapter = socialAdapter;
         this.rateLimiter = rateLimiter;
         this.circuitBreaker = socialCircuitBreaker;
         this.timeLimiter = socialTimeLimiter;
+        this.bulkhead = socialBulkhead;
         this.executorService = publisherVirtualExecutor;
         this.transactionTemplate = transactionTemplate;
         this.properties = properties;
         this.metrics = metrics;
+        this.prePublishHooks = prePublishHooks;
     }
 
     /**
@@ -91,6 +108,10 @@ public class PublicationProcessor {
 
     private boolean handleClaim(PublicationClaim claim, Instant startedAt) {
         PostVariantContent content = new PostVariantContent(claim.contentText());
+        for (PrePublishHook hook : prePublishHooks) {
+            content = hook.beforePublish(claim, content);
+        }
+
         ChannelContext ctx = new ChannelContext(
                 claim.workspaceId(),
                 claim.channelId(),
@@ -105,7 +126,7 @@ public class PublicationProcessor {
 
         // findExisting only on retries / unknown prior outcome — first attempt goes straight to publish.
         if (claim.attempts() > 1) {
-            Optional<PublishResult> existing = socialAdapter.findExisting(ctx, claim.idempotencyKey(), content);
+            Optional<PublishResult> existing = findExisting(ctx, claim, content);
             if (existing.isPresent()) {
                 finishSuccess(claim, existing.get(), startedAt, "find_existing");
                 return true;
@@ -134,7 +155,7 @@ public class PublicationProcessor {
         }
 
         try {
-            PublishResult result = invokeSocial(ctx, content, claim.idempotencyKey());
+            PublishResult result = invokeSocial(ctx, content, claim);
             finishSuccess(claim, result, startedAt, "published");
             return true;
         } catch (Exception ex) {
@@ -142,15 +163,29 @@ public class PublicationProcessor {
         }
     }
 
-    private PublishResult invokeSocial(ChannelContext ctx, PostVariantContent content, String idempotencyKey)
+    private Optional<PublishResult> findExisting(
+            ChannelContext ctx, PublicationClaim claim, PostVariantContent content) {
+        if ("story".equals(claim.contentKind())) {
+            return socialAdapter.findExistingStory(ctx, claim.idempotencyKey(), content);
+        }
+        return socialAdapter.findExisting(ctx, claim.idempotencyKey(), content);
+    }
+
+    private PublishResult invokeSocial(ChannelContext ctx, PostVariantContent content, PublicationClaim claim)
             throws Exception {
-        Callable<PublishResult> callable = CircuitBreaker.decorateCallable(
-                circuitBreaker, () -> socialAdapter.publish(ctx, content, idempotencyKey));
+        Callable<PublishResult> publishCall = () -> {
+            if ("story".equals(claim.contentKind())) {
+                return socialAdapter.publishStory(ctx, content, claim.idempotencyKey());
+            }
+            return socialAdapter.publish(ctx, content, claim.idempotencyKey());
+        };
+        Callable<PublishResult> withBulkhead = Bulkhead.decorateCallable(bulkhead, publishCall);
+        Callable<PublishResult> withCb = CircuitBreaker.decorateCallable(circuitBreaker, withBulkhead);
         Callable<PublishResult> withTimeout =
                 () -> timeLimiter.executeFutureSupplier(() -> CompletableFuture.supplyAsync(
                         () -> {
                             try {
-                                return callable.call();
+                                return withCb.call();
                             } catch (Exception e) {
                                 if (e instanceof RuntimeException runtime) {
                                     throw runtime;
@@ -170,6 +205,21 @@ public class PublicationProcessor {
         String errorCode = errorClass.name().toLowerCase(Locale.ROOT);
         String message = root.getMessage() == null ? root.toString() : root.getMessage();
 
+        if (errorClass == ErrorClass.RATE_LIMITED) {
+            Duration retryAfter = root instanceof SocialApiException social
+                    ? social.retryAfter().orElse(Duration.ofSeconds(5))
+                    : Duration.ofSeconds(5);
+            // Short 429: wait via next_attempt_at only. Long flood / VK error 9 → AIMD key block
+            // (02-backend.md §5.4: flood control → block key up to 1 h).
+            if ("vk".equals(claim.network()) && retryAfter.compareTo(Duration.ofMinutes(5)) >= 0) {
+                rateLimiter.penalize(
+                        claim.network(), claim.channelId().toString(), claim.externalChannelId(), Duration.ofHours(1));
+            } else if (retryAfter.compareTo(Duration.ofSeconds(30)) >= 0) {
+                rateLimiter.penalize(
+                        claim.network(), claim.channelId().toString(), claim.externalChannelId(), retryAfter);
+            }
+        }
+
         if (errorClass == ErrorClass.UNKNOWN_OUTCOME) {
             ChannelContext ctx = new ChannelContext(
                     claim.workspaceId(),
@@ -177,8 +227,7 @@ public class PublicationProcessor {
                     claim.externalChannelId(),
                     "emulator-token",
                     Network.fromCode(claim.network()));
-            Optional<PublishResult> recovered = socialAdapter.findExisting(
-                    ctx, claim.idempotencyKey(), new PostVariantContent(claim.contentText()));
+            Optional<PublishResult> recovered = findExisting(ctx, claim, new PostVariantContent(claim.contentText()));
             if (recovered.isPresent()) {
                 finishSuccess(claim, recovered.get(), startedAt, "recovered_unknown_outcome");
                 return true;
@@ -201,6 +250,20 @@ public class PublicationProcessor {
                         httpStatus,
                         finalCode,
                         excerpt(message));
+                if (finalClass == ErrorClass.AUTH) {
+                    lifecycleJdbc.markChannelReauthRequired(claim.channelId());
+                }
+                outboxJdbc.append(
+                        "publication",
+                        claim.id(),
+                        "publication.failed",
+                        "{\"network\":\""
+                                + claim.network()
+                                + "\",\"result\":\""
+                                + finalCode
+                                + "\",\"workspaceId\":\""
+                                + claim.workspaceId()
+                                + "\"}");
             });
             metrics.recordFailure(claim.network(), finalClass.name().toLowerCase(Locale.ROOT));
             return true;
@@ -222,6 +285,15 @@ public class PublicationProcessor {
                         httpStatus,
                         "attempts_exhausted",
                         excerpt(message));
+                outboxJdbc.append(
+                        "publication",
+                        claim.id(),
+                        "publication.failed",
+                        "{\"network\":\""
+                                + claim.network()
+                                + "\",\"result\":\"attempts_exhausted\",\"workspaceId\":\""
+                                + claim.workspaceId()
+                                + "\"}");
             });
             metrics.recordFailure(claim.network(), "attempts_exhausted");
             return true;
@@ -263,12 +335,28 @@ public class PublicationProcessor {
                     200,
                     path,
                     "{\"remotePostId\":\"" + result.remotePostId() + "\"}");
+            scheduledActionsFactory.createAfterSuccess(claim, result.remotePostId());
+            outboxJdbc.append(
+                    "publication",
+                    claim.id(),
+                    "publication.succeeded",
+                    "{\"network\":\""
+                            + claim.network()
+                            + "\",\"remotePostId\":\""
+                            + result.remotePostId()
+                            + "\",\"workspaceId\":\""
+                            + claim.workspaceId()
+                            + "\",\"contentKind\":\""
+                            + (claim.contentKind() == null ? "post" : claim.contentKind())
+                            + "\",\"source\":\""
+                            + (claim.source() == null ? "manual" : claim.source())
+                            + "\"}");
         });
-        metrics.recordSuccess(claim.network(), claim.runAt());
+        metrics.recordSuccess(claim.network(), claim.runAt(), claim.contentKind());
     }
 
     private ErrorClass classify(Throwable error) {
-        if (error instanceof CallNotPermittedException) {
+        if (error instanceof CallNotPermittedException || error instanceof BulkheadFullException) {
             return ErrorClass.RETRYABLE;
         }
         if (error instanceof TimeoutException) {

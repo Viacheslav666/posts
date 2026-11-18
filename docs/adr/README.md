@@ -13,3 +13,4 @@
 | 0007 | [0007-jpa-vs-jooq-hot-path.md](0007-jpa-vs-jooq-hot-path.md) | JPA vs JdbcClient/jOOQ | accepted |
 | 0008 | [0008-dev1-skeleton-decisions.md](0008-dev1-skeleton-decisions.md) | Практические решения скелета DEV-1 | accepted |
 | 0009 | [0009-dev3-container-images.md](0009-dev3-container-images.md) | Сборка и публикация образов (DEV-3) | accepted |
+| 0010 | [0010-pipeline-prod-extensions.md](0010-pipeline-prod-extensions.md) | Прод-качество конвейера (BE-10) | accepted |

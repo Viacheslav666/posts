@@ -10,6 +10,8 @@ import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import ru.posts.messaging.publish.PublishCommand;
+import ru.posts.publisher.config.PublisherProperties;
+import ru.posts.publisher.metrics.PublicationMetrics;
 import ru.posts.publisher.service.PublicationProcessor;
 
 @Component
@@ -18,9 +20,14 @@ public class PublishCommandListener {
     private static final Logger log = LoggerFactory.getLogger(PublishCommandListener.class);
 
     private final PublicationProcessor processor;
+    private final PublicationMetrics metrics;
+    private final String network;
 
-    public PublishCommandListener(PublicationProcessor processor) {
+    public PublishCommandListener(
+            PublicationProcessor processor, PublicationMetrics metrics, PublisherProperties properties) {
         this.processor = processor;
+        this.metrics = metrics;
+        this.network = properties.network();
     }
 
     @RabbitListener(queues = "publish.${posts.publisher.network}")
@@ -29,6 +36,7 @@ public class PublishCommandListener {
         UUID publicationId = command == null ? null : command.publicationId();
         if (publicationId == null) {
             log.error("Dropping malformed publish command");
+            metrics.recordDlq(network, "publish");
             channel.basicNack(deliveryTag, false, false);
             return;
         }
@@ -37,10 +45,12 @@ public class PublishCommandListener {
             if (ack) {
                 channel.basicAck(deliveryTag, false);
             } else {
+                metrics.recordDlq(network, "publish");
                 channel.basicNack(deliveryTag, false, false);
             }
         } catch (Exception ex) {
             log.error("Unhandled error processing publication {}", publicationId, ex);
+            metrics.recordDlq(network, "publish");
             channel.basicNack(deliveryTag, false, false);
         }
     }

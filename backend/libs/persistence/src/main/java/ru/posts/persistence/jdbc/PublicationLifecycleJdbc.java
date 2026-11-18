@@ -29,7 +29,11 @@ public class PublicationLifecycleJdbc {
     private static final String LOAD_CONTENT =
             """
             SELECT c.external_id AS external_channel_id,
-                   coalesce(pv.content ->> 'text', p.base_content ->> 'text', '') AS content_text
+                   coalesce(pv.content ->> 'text', p.base_content ->> 'text', '') AS content_text,
+                   coalesce(p.content_kind, 'post') AS content_kind,
+                   coalesce(pv.options::text, '{}') AS options_json,
+                   coalesce(p.is_ad, false) AS ad,
+                   coalesce(p.source_type, 'manual') AS source
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -63,7 +67,11 @@ public class PublicationLifecycleJdbc {
                         null,
                         null,
                         rs.getString("remote_post_id"),
-                        rs.getInt("attempts")))
+                        rs.getInt("attempts"),
+                        "post",
+                        "{}",
+                        false,
+                        "manual"))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -89,7 +97,11 @@ public class PublicationLifecycleJdbc {
                         rs.getString("external_channel_id"),
                         rs.getString("content_text"),
                         base.remotePostId(),
-                        base.attempts()))
+                        base.attempts(),
+                        rs.getString("content_kind"),
+                        rs.getString("options_json"),
+                        rs.getBoolean("ad"),
+                        rs.getString("source")))
                 .optional()
                 .orElse(base);
     }
@@ -160,6 +172,19 @@ public class PublicationLifecycleJdbc {
                 .param("runAt", Timestamp.from(runAt))
                 .param("errorCode", errorCode)
                 .param("errorMessage", truncate(errorMessage, 1000))
+                .update();
+    }
+
+    @Transactional
+    public void markChannelReauthRequired(UUID channelId) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE channels
+                        SET status = 'reauth_required', updated_at = now()
+                        WHERE id = :channelId
+                        """)
+                .param("channelId", channelId)
                 .update();
     }
 
@@ -238,6 +263,20 @@ public class PublicationLifecycleJdbc {
         Long count = jdbcClient
                 .sql("SELECT count(*) FROM publications WHERE state = :state")
                 .param("state", state)
+                .query(Long.class)
+                .single();
+        return count == null ? 0 : count;
+    }
+
+    @Transactional(readOnly = true)
+    public long countDuePending() {
+        Long count = jdbcClient
+                .sql(
+                        """
+                        SELECT count(*) FROM publications
+                        WHERE state IN ('pending', 'failed_retryable')
+                          AND coalesce(next_attempt_at, run_at) <= now()
+                        """)
                 .query(Long.class)
                 .single();
         return count == null ? 0 : count;

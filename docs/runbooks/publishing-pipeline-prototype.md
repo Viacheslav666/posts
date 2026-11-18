@@ -1,5 +1,7 @@
 # Runbook: прототип публикационного конвейера (BE-4)
 
+> **Актуально для прода:** см. [`publishing-pipeline.md`](publishing-pipeline.md) (BE-10).
+
 ## Компоненты
 
 | Сервис | Порт (local) | Env |
