@@ -90,14 +90,19 @@ final class PipelineTestSupport {
                 postId,
                 workspaceId,
                 "{\"text\":\"" + text.replace("\"", "\\\"") + "\"}");
+        String network = jdbc.queryForObject("SELECT network FROM channels WHERE id = ?", String.class, channelId);
+        if (network == null) {
+            network = "tg";
+        }
         jdbc.update(
                 """
                 INSERT INTO post_variants (id, post_id, channel_id, network, content, options)
-                VALUES (?, ?, ?, 'tg', ?::jsonb, '{}'::jsonb)
+                VALUES (?, ?, ?, ?, ?::jsonb, '{}'::jsonb)
                 """,
                 variantId,
                 postId,
                 channelId,
+                network,
                 "{\"text\":\"" + text.replace("\"", "\\\"") + "\"}");
     }
 

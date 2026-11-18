@@ -1,5 +1,8 @@
 package ru.posts.publisher.config;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -74,6 +77,15 @@ public class PublisherConfiguration {
     }
 
     @Bean
+    BulkheadRegistry bulkheadRegistry(@Value("${posts.publisher.bulkhead-max-concurrent:80}") int maxConcurrent) {
+        BulkheadConfig config = BulkheadConfig.custom()
+                .maxConcurrentCalls(maxConcurrent)
+                .maxWaitDuration(Duration.ZERO)
+                .build();
+        return BulkheadRegistry.of(config);
+    }
+
+    @Bean
     CircuitBreaker socialCircuitBreaker(CircuitBreakerRegistry registry, PublisherProperties properties) {
         return registry.circuitBreaker("social-" + properties.network());
     }
@@ -81,5 +93,10 @@ public class PublisherConfiguration {
     @Bean
     TimeLimiter socialTimeLimiter(TimeLimiterRegistry registry, PublisherProperties properties) {
         return registry.timeLimiter("social-" + properties.network());
+    }
+
+    @Bean
+    Bulkhead socialBulkhead(BulkheadRegistry registry, PublisherProperties properties) {
+        return registry.bulkhead("social-" + properties.network());
     }
 }

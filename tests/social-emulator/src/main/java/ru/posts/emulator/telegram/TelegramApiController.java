@@ -107,6 +107,49 @@ public class TelegramApiController {
         });
     }
 
+    @PostMapping(
+            path = {"/bot{token}/deleteMessage", "/telegram/bot{token}/deleteMessage"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> deleteMessage(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form) {
+        String chatId = stringParam(jsonBody, form, "chat_id");
+        String messageId = stringParam(jsonBody, form, "message_id");
+        postStore.deleteByRemoteId(Network.TELEGRAM, chatId, messageId);
+        // Idempotent: deleting an already-deleted message is success.
+        return ResponseEntity.ok(Map.of("ok", true, "result", true));
+    }
+
+    @PostMapping(
+            path = {
+                "/bot{token}/pinChatMessage",
+                "/telegram/bot{token}/pinChatMessage",
+                "/bot{token}/unpinChatMessage",
+                "/telegram/bot{token}/unpinChatMessage"
+            },
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> pinOrUnpin(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String chatId = stringParam(jsonBody, form, "chat_id");
+        String messageId = stringParam(jsonBody, form, "message_id");
+        String uri = request.getRequestURI() == null ? "" : request.getRequestURI();
+        boolean pinned = !uri.contains("unpin");
+        postStore.markPinned(Network.TELEGRAM, chatId, messageId, pinned);
+        return ResponseEntity.ok(Map.of("ok", true, "result", true));
+    }
+
     private ResponseEntity<?> publish(
             String token,
             String chatId,

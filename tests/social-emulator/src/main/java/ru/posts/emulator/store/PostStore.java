@@ -167,6 +167,48 @@ public class PostStore {
                 duplicates.isEmpty());
     }
 
+    public boolean deleteByRemoteId(Network network, String channelId, String remotePostId) {
+        Optional<EmulatedPost> found = postsById.values().stream()
+                .filter(post -> post.network() == network)
+                .filter(post -> channelId == null || channelId.equals(post.channelId()))
+                .filter(post -> remotePostId != null && remotePostId.equals(post.remotePostId()))
+                .findFirst();
+        if (found.isEmpty()) {
+            return false;
+        }
+        EmulatedPost post = found.get();
+        postsById.remove(post.id());
+        if (post.idempotencyKey() != null) {
+            idempotencyIndex.remove(indexKey(network, post.channelId(), post.idempotencyKey()));
+        }
+        return true;
+    }
+
+    public boolean markPinned(Network network, String channelId, String remotePostId, boolean pinned) {
+        Optional<EmulatedPost> found = postsById.values().stream()
+                .filter(post -> post.network() == network)
+                .filter(post -> channelId == null || channelId.equals(post.channelId()))
+                .filter(post -> remotePostId != null && remotePostId.equals(post.remotePostId()))
+                .findFirst();
+        if (found.isEmpty()) {
+            return false;
+        }
+        EmulatedPost post = found.get();
+        Map<String, Object> meta = new LinkedHashMap<>(post.metadata());
+        meta.put("pinned", pinned);
+        EmulatedPost updated = new EmulatedPost(
+                post.id(),
+                post.network(),
+                post.channelId(),
+                post.remotePostId(),
+                post.idempotencyKey(),
+                post.text(),
+                post.createdAt(),
+                Map.copyOf(meta));
+        postsById.put(post.id(), updated);
+        return true;
+    }
+
     public void reset() {
         postsById.clear();
         idempotencyIndex.clear();

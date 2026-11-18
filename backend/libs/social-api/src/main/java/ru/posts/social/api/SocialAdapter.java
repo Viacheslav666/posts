@@ -16,7 +16,22 @@ public interface SocialAdapter {
 
     PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey);
 
+    /**
+     * BE-16 extension: publish a story. Default throws permanent — networks without stories must
+     * reject explicitly.
+     */
+    default PublishResult publishStory(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
+        throw new SocialApiException(
+                ErrorClass.PERMANENT,
+                "stories are not supported for network " + network().code());
+    }
+
     Optional<PublishResult> findExisting(ChannelContext ctx, String idempotencyKey, PostVariantContent content);
+
+    default Optional<PublishResult> findExistingStory(
+            ChannelContext ctx, String idempotencyKey, PostVariantContent content) {
+        return findExisting(ctx, idempotencyKey, content);
+    }
 
     ErrorClass classifyError(Throwable error);
 
@@ -27,6 +42,18 @@ public interface SocialAdapter {
     }
 
     default void delete(ChannelContext ctx, String remotePostId) {
+        // no-op by default — already-deleted is success for scheduled_actions
+    }
+
+    default void deleteStory(ChannelContext ctx, String remoteStoryId) {
+        delete(ctx, remoteStoryId);
+    }
+
+    default void pin(ChannelContext ctx, String remotePostId, boolean pinned) {
+        // no-op by default
+    }
+
+    default void comment(ChannelContext ctx, String remotePostId, String text) {
         // no-op by default
     }
 

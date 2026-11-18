@@ -11,12 +11,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import ru.posts.messaging.topology.ActionsTopology;
 import ru.posts.messaging.topology.MediaTopology;
 import ru.posts.messaging.topology.PublishTopology;
 
 @AutoConfiguration
 @ConditionalOnClass(RabbitTemplate.class)
-@Import({PublishTopology.class, MediaTopology.class})
+@Import({PublishTopology.class, ActionsTopology.class, MediaTopology.class})
 public class MessagingAutoConfiguration {
 
     @Bean

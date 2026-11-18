@@ -61,6 +61,10 @@ posts:
     max-attempts: 8
     max-age-after-run-at: 60m
     publish-timeout: 15s
+    bulkhead-max-concurrent: ${POSTS_PUBLISHER_BULKHEAD:80}
+    vk:
+      native-deferred:
+        enabled: false
   social:
     telegram:
       base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
@@ -72,6 +76,18 @@ posts:
         global-per-second: 200
         token-per-second: 200
         chat-per-minute: 600
+      vk:
+        global-per-second: 20
+        token-per-second: 3
+        chat-per-minute: 60
+      ok:
+        global-per-second: 5
+        token-per-second: 5
+        chat-per-minute: 30
+      max:
+        global-per-second: 5
+        token-per-second: 5
+        chat-per-minute: 30
 
 logging:
   level:
