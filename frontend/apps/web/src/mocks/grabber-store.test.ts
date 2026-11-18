@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   approveItem,
+  cloneRuleConfig,
   createRule,
+  exportItemsCsv,
   getItem,
+  getRule,
   ITEM_IDS,
   previewSource,
   resetGrabberStore,
@@ -69,5 +72,31 @@ describe('grabber-store MSW', () => {
       websiteUrls: ['http://10.0.0.5/article'],
     });
     expect(result).toMatchObject({ code: 'ingest_ssrf_blocked' });
+  });
+
+  it('clones filters/transform from another rule without changing sources', () => {
+    const donor = getRule(RULE_IDS.rssModerate);
+    expect(donor).toBeTruthy();
+    // seed a strip flag on donor
+    if (donor?.config) {
+      donor.config = {
+        ...donor.config,
+        transform: { strip_all_text: true } as never,
+        limits: { min_interval_minutes: 45, rate_limit_per_day: 10, rate_limit_per_hour: 2 } as never,
+      };
+    }
+    const result = cloneRuleConfig(RULE_IDS.vkActive, RULE_IDS.rssModerate);
+    expect('code' in result).toBe(false);
+    if (!('code' in result)) {
+      expect(result.config?.sourceIds).toEqual(['-123456', 'club_demo']);
+      expect(result.config?.transform).toMatchObject({ strip_all_text: true });
+      expect(result.config?.limits).toMatchObject({ min_interval_minutes: 45 });
+    }
+  });
+
+  it('exports item history as CSV', () => {
+    const csv = exportItemsCsv(RULE_IDS.vkActive);
+    expect(csv.split('\n')[0]).toContain('remote_post_id');
+    expect(csv).toContain('pending_moderation');
   });
 });

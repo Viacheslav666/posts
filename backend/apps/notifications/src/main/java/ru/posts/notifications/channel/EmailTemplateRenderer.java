@@ -32,6 +32,8 @@ public class EmailTemplateRenderer {
             case "ord.error", "ord.erid_failed" -> "Ошибка ОРД / erid";
             case "invitation.created" -> "Приглашение в workspace";
             case "team.approval_requested" -> "Запрос на согласование";
+            case "billing.low_balance" -> "Мало средств на балансе";
+            case "billing.access_suspended" -> "Доступ приостановлен";
             default -> "Уведомление Posts";
         };
     }

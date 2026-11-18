@@ -105,6 +105,7 @@ export type OrdReportRunResponse = components['schemas']['OrdReportRunResponse']
 export type OrdProvider = NonNullable<OrdConnection['provider']>;
 
 export type GrabberConfig = components['schemas']['GrabberConfig'];
+export type GrabberCloneConfigRequest = components['schemas']['GrabberCloneConfigRequest'];
 export type GrabberRule = components['schemas']['GrabberRule'];
 export type GrabberRuleCreate = components['schemas']['GrabberRuleCreate'];
 export type GrabberRulePatch = components['schemas']['GrabberRulePatch'];

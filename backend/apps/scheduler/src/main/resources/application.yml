@@ -60,8 +60,13 @@ posts:
     outbox-relay-interval-ms: 1000
     outbox-relay-batch-size: 200
   billing:
+    model: balance
     grace-days: 3
     trial-days: 7
+    daily-charge-batch-size: 500
+    max-catch-up-days: 14
+    low-balance-days-threshold: 3
+    autopay-batch-size: 200
     yookassa:
       shop-id: ${POSTS_YOOKASSA_SHOP_ID:test-shop-id-00000000}
       secret-key: ${POSTS_YOOKASSA_SECRET_KEY:test-secret-key-not-a-real-credential}

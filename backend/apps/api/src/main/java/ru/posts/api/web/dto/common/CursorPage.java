@@ -73,6 +73,12 @@ public final class CursorPage {
     @Schema(name = "InvoicePage")
     public record InvoicePage(List<BillingDtos.Invoice> items, String nextCursor, boolean hasMore) {}
 
+    @Schema(name = "TransactionPage")
+    public record TransactionPage(List<BillingDtos.Transaction> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "PaymentPage")
+    public record PaymentPage(List<BillingDtos.PaymentListItem> items, String nextCursor, boolean hasMore) {}
+
     @Schema(name = "AuditLogPage")
     public record AuditLogPage(List<WorkspaceDtos.AuditLogEntry> items, String nextCursor, boolean hasMore) {}
 

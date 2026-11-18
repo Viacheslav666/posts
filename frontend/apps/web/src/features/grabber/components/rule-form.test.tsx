@@ -91,4 +91,25 @@ describe('RuleForm (FE-14)', () => {
     rerender(<AutoModeWarning visible />);
     expect(screen.getByTestId('grabber-auto-warning')).toBeInTheDocument();
   });
+
+  it('renders FE-17 settings groups including pending first-comment notice', async () => {
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    expect(screen.getByTestId('grabber-section-filters')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-strip')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-replacements')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-schedule')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-limits')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-first-comment')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-section-attached')).toBeInTheDocument();
+    expect(screen.getByTestId('pending-feature-notice')).toHaveTextContent(
+      /появится позже/i,
+    );
+  });
 });

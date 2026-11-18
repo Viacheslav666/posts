@@ -201,6 +201,22 @@ endpoints:
   path: /api/v1/auth/register
   implementedHint: true
   rbac: none
+- operationId: billingApplyPromo
+  method: POST
+  path: /api/v1/billing/promo/apply
+  implementedHint: true
+  rbac: matrix
+  action: billing.apply_promo
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingChangePlan
+  method: POST
+  path: /api/v1/billing/plan/change
+  implementedHint: true
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: billingCheckout
   method: POST
   path: /api/v1/billing/checkout
@@ -209,25 +225,29 @@ endpoints:
   action: billing.manage
   query:
     workspaceId: '{workspaceId}'
-- operationId: billingListInvoices
+- operationId: billingDeletePaymentMethod
+  method: DELETE
+  path: /api/v1/billing/payment-method
+  implementedHint: true
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
+  destructive: true
+- operationId: billingGetAutopay
   method: GET
-  path: /api/v1/billing/invoices
+  path: /api/v1/billing/autopay
   implementedHint: true
   rbac: matrix
   action: billing.view
   query:
     workspaceId: '{workspaceId}'
-- operationId: billingListPlans
+- operationId: billingGetPaymentMethod
   method: GET
-  path: /api/v1/billing/plans
-  implementedHint: true
-  rbac: none
-- operationId: billingApplyPromo
-  method: POST
-  path: /api/v1/billing/promo/apply
+  path: /api/v1/billing/payment-method
   implementedHint: true
   rbac: matrix
-  action: billing.apply_promo
+  action: billing.view
   query:
     workspaceId: '{workspaceId}'
 - operationId: billingGetSubscription
@@ -238,9 +258,86 @@ endpoints:
   action: billing.view
   query:
     workspaceId: '{workspaceId}'
+- operationId: billingGetWallet
+  method: GET
+  path: /api/v1/billing/wallet
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingInvoiceActPdf
+  method: GET
+  path: /api/v1/billing/invoices/{id}/act
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  pathParams:
+    id: '{invoiceId}'
+- operationId: billingInvoicePdf
+  method: GET
+  path: /api/v1/billing/invoices/{id}/pdf
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  pathParams:
+    id: '{invoiceId}'
+- operationId: billingListInvoices
+  method: GET
+  path: /api/v1/billing/invoices
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingListPayments
+  method: GET
+  path: /api/v1/billing/payments
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingListPlans
+  method: GET
+  path: /api/v1/billing/plans
+  implementedHint: true
+  rbac: none
+- operationId: billingListTransactions
+  method: GET
+  path: /api/v1/billing/transactions
+  implementedHint: true
+  rbac: matrix
+  action: billing.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingRequestInvoice
+  method: POST
+  path: /api/v1/billing/invoices/request
+  implementedHint: true
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingSetAutoRenew
+  method: POST
+  path: /api/v1/billing/subscription/auto-renew
+  implementedHint: true
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: billingStartTrial
   method: POST
   path: /api/v1/billing/trial/start
+  implementedHint: true
+  rbac: matrix
+  action: billing.manage
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: billingUpdateAutopay
+  method: PUT
+  path: /api/v1/billing/autopay
   implementedHint: true
   rbac: matrix
   action: billing.manage

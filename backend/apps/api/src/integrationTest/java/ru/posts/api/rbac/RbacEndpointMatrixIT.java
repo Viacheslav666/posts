@@ -95,6 +95,9 @@ class RbacEndpointMatrixIT {
     @Autowired
     private GrabberItemRepository grabberItemRepository;
 
+    @Autowired
+    private ru.posts.persistence.repository.InvoiceRepository invoiceRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -114,7 +117,8 @@ class RbacEndpointMatrixIT {
                     postVariantRepository,
                     publicationRepository,
                     automationRuleRepository,
-                    grabberItemRepository);
+                    grabberItemRepository,
+                    invoiceRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
