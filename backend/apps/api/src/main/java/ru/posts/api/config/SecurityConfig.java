@@ -23,7 +23,7 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
-                        .ignoringRequestMatchers("/hooks/**"))
+                        .ignoringRequestMatchers("/hooks/**", "/webhooks/**"))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
@@ -39,6 +39,7 @@ public class SecurityConfig {
                                 "/api/v1/invitations/preview",
                                 "/api/v1/networks/capabilities",
                                 "/hooks/**",
+                                "/webhooks/**",
                                 "/.well-known/jwks.json",
                                 "/v3/api-docs",
                                 "/v3/api-docs.yaml",

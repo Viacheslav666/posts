@@ -24,6 +24,9 @@ info:
     - idempotency_conflict — Idempotency-Key reuse with different body
     - insufficient_permissions — channel/bot lacks required rights
     - trial_already_used — Pro trial already consumed for the account
+    - promo_invalid — promo code inactive, expired, or not applicable
+    - payment_provider_error — YooKassa / payment provider failure
+    - billing_frozen — workspace frozen for non-payment; mutations blocked
     - email_not_verified — action requires verified email
     - channel_reauth_required — channel token revoked/expired
     - totp_required — password ok, TOTP/backup code required (401)
@@ -84,6 +87,8 @@ tags:
   name: Stories
 - description: "Posts, variants, schedule actions, preview, bulk"
   name: Posts
+- description: YooKassa payment notifications
+  name: Billing webhooks
 - description: Projects (clients/brands) inside a workspace
   name: Projects
 - description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b)"
@@ -8890,6 +8895,29 @@ paths:
       summary: VK Callback API endpoint
       tags:
       - Social hooks
+  /webhooks/yookassa:
+    post:
+      description: IP-allowlisted; idempotent inbox by event_id; verifies payment
+        via YooKassa API.
+      operationId: webhooksYookassa
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: YooKassa payment webhook
+      tags:
+      - Billing webhooks
 components:
   schemas:
     AcceptInvitationRequest:

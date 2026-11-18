@@ -27,6 +27,7 @@ public final class ModuleClasspath {
         "libs/ord-api/build/classes/java/main",
         "libs/ord-vk/build/classes/java/main",
         "libs/ord-yandex/build/classes/java/main",
+        "libs/yookassa/build/classes/java/main",
         "apps/api/build/classes/java/main",
         "apps/scheduler/build/classes/java/main",
         "apps/publisher/build/classes/java/main",

@@ -32,6 +32,7 @@ include(
     "libs:ord-api",
     "libs:ord-vk",
     "libs:ord-yandex",
+    "libs:yookassa",
     "libs:test-support",
     "apps:api",
     "apps:scheduler",

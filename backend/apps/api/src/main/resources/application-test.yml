@@ -30,3 +30,18 @@ posts:
       allowed-hosts:
         - localhost
         - 127.0.0.1
+  billing:
+    yookassa:
+      shop-id: test-shop-id-00000000
+      secret-key: test-secret-key-not-a-real-credential
+      # base-url overridden in WireMock ITs; dead default is fine for RBAC matrix (≠401/403)
+      webhook-ip-cidrs:
+        - 127.0.0.1/32
+        - "::1/128"
+        - 185.71.76.0/27
+        - 185.71.77.0/27
+        - 77.75.153.0/25
+        - 77.75.156.11/32
+        - 77.75.156.35/32
+        - 77.75.154.128/25
+        - "2a02:5180::/32"

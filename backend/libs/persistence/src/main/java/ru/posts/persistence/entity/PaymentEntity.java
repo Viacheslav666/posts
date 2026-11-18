@@ -5,7 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "payments")
@@ -31,6 +34,25 @@ public class PaymentEntity extends BaseUuidEntity {
 
     @Column(name = "receipt_id")
     private String receiptId;
+
+    @Column(name = "plan_id")
+    private UUID planId;
+
+    @Column(name = "billing_period")
+    private String billingPeriod;
+
+    @Column(name = "promo_code")
+    private String promoCode;
+
+    @Column(name = "confirmation_url")
+    private String confirmationUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> metadata = Map.of();
+
+    @Column(name = "idempotence_key")
+    private String idempotenceKey;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
@@ -92,6 +114,54 @@ public class PaymentEntity extends BaseUuidEntity {
 
     public void setReceiptId(String receiptId) {
         this.receiptId = receiptId;
+    }
+
+    public UUID getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(UUID planId) {
+        this.planId = planId;
+    }
+
+    public String getBillingPeriod() {
+        return billingPeriod;
+    }
+
+    public void setBillingPeriod(String billingPeriod) {
+        this.billingPeriod = billingPeriod;
+    }
+
+    public String getPromoCode() {
+        return promoCode;
+    }
+
+    public void setPromoCode(String promoCode) {
+        this.promoCode = promoCode;
+    }
+
+    public String getConfirmationUrl() {
+        return confirmationUrl;
+    }
+
+    public void setConfirmationUrl(String confirmationUrl) {
+        this.confirmationUrl = confirmationUrl;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
+
+    public String getIdempotenceKey() {
+        return idempotenceKey;
+    }
+
+    public void setIdempotenceKey(String idempotenceKey) {
+        this.idempotenceKey = idempotenceKey;
     }
 
     public Instant getCreatedAt() {

@@ -20,7 +20,7 @@ public class WorkspaceEntity extends BaseUuidEntity {
     private UUID planId;
 
     @Column(name = "billing_status", nullable = false)
-    private String billingStatus = "trial";
+    private String billingStatus = "active";
 
     @Column(name = "trial_ends_at")
     private Instant trialEndsAt;

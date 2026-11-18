@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
+    implementation(project(":libs:yookassa"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)

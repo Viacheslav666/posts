@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":libs:ord-yandex"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:social-vk"))
+    implementation(project(":libs:yookassa"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
