@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -164,18 +166,36 @@ public class OrdReportRunner {
             List<OrdCreativeEntity> creatives =
                     creativeRepository.findVisibleInPeriod(workspaceId, provider, periodStart, periodEnd);
             Map<UUID, OrdContractEntity> contractsById = new HashMap<>();
-            List<OrdStatisticsItem> statsItems = new ArrayList<>();
+            Map<String, OrdStatisticsEntity> existingStatsByKey = indexStatistics(
+                    statisticsRepository.findByWorkspaceIdAndPeriodYearAndPeriodMonth(workspaceId, year, month));
+            List<OrdStatisticsItem> statsItems = new ArrayList<>(creatives.size());
+            List<OrdStatisticsEntity> statsToPersist = new ArrayList<>(creatives.size());
+            List<OrdCreativeEntity> creativesToPersist = new ArrayList<>();
             int statisticsCount = 0;
 
+            // Prefetch publications for creatives that have posts (avoids N+1).
+            List<UUID> postIds = creatives.stream()
+                    .map(OrdCreativeEntity::getPostId)
+                    .filter(id -> id != null)
+                    .distinct()
+                    .toList();
+            Map<UUID, List<PublicationEntity>> pubsByPostId = new HashMap<>();
+            for (UUID postId : postIds) {
+                pubsByPostId.put(
+                        postId,
+                        publicationRepository.findByPostId(postId).stream()
+                                .filter(p -> "succeeded".equals(p.getState())
+                                        || "deleted".equals(p.getState())
+                                        || p.getRemotePostId() != null)
+                                .toList());
+            }
+
+            Instant now = Instant.now();
             for (OrdCreativeEntity creative : creatives) {
                 boolean creativeDirty = false;
                 List<PublicationEntity> publications = creative.getPostId() == null
                         ? List.of()
-                        : publicationRepository.findByPostId(creative.getPostId()).stream()
-                                .filter(p -> "succeeded".equals(p.getState())
-                                        || "deleted".equals(p.getState())
-                                        || p.getRemotePostId() != null)
-                                .toList();
+                        : pubsByPostId.getOrDefault(creative.getPostId(), List.of());
                 if (creative.getDisplayStartedAt() == null) {
                     publications.stream()
                             .map(PublicationEntity::getPublishedAt)
@@ -212,8 +232,20 @@ public class OrdReportRunner {
                     }
                 }
 
-                OrdStatisticsEntity stats =
-                        upsertStatistics(workspaceId, provider, creative, platform, year, month, imps, viewsSource);
+                OrdStatisticsEntity stats = upsertStatisticsInMemory(
+                        existingStatsByKey,
+                        workspaceId,
+                        provider,
+                        creative,
+                        platform,
+                        year,
+                        month,
+                        imps,
+                        viewsSource,
+                        now);
+                if (!"submitted".equals(stats.getStatus())) {
+                    statsToPersist.add(stats);
+                }
                 if ("submitted".equals(stats.getStatus()) || "draft".equals(stats.getStatus())) {
                     statisticsCount++;
                 }
@@ -263,18 +295,25 @@ public class OrdReportRunner {
                     creativeDirty = true;
                 }
                 if (creativeDirty) {
-                    creative.setUpdatedAt(Instant.now());
-                    creativeRepository.save(creative);
+                    creative.setUpdatedAt(now);
+                    creativesToPersist.add(creative);
                 }
             }
 
+            if (!creativesToPersist.isEmpty()) {
+                creativeRepository.saveAll(creativesToPersist);
+            }
+
             int invoicesCount = 0;
+            Set<UUID> creativeContractIds = creatives.stream()
+                    .map(OrdCreativeEntity::getContractId)
+                    .filter(id -> id != null)
+                    .collect(Collectors.toSet());
             List<OrdContractEntity> contracts =
                     contractRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId).stream()
                             .filter(c -> provider.equals(c.getProvider()))
                             .filter(c -> !c.isSelfPromo())
-                            .filter(c ->
-                                    creatives.stream().anyMatch(cr -> c.getId().equals(cr.getContractId())))
+                            .filter(c -> creativeContractIds.contains(c.getId()))
                             .toList();
             for (OrdContractEntity contract : contracts) {
                 OrdInvoiceEntity invoice = upsertInvoice(
@@ -287,19 +326,15 @@ public class OrdReportRunner {
             if (!statsItems.isEmpty()) {
                 ordProvider.submitStatistics(credentials, new OrdStatisticsRequest(statsItems));
                 Instant submittedAt = Instant.now();
-                List<OrdStatisticsEntity> toSubmit = new ArrayList<>();
-                for (OrdStatisticsEntity row :
-                        statisticsRepository.findByWorkspaceIdAndPeriodYearAndPeriodMonth(workspaceId, year, month)) {
-                    if (!"submitted".equals(row.getStatus())) {
-                        row.setStatus("submitted");
-                        row.setSubmittedAt(submittedAt);
-                        row.setUpdatedAt(submittedAt);
-                        toSubmit.add(row);
-                    }
+                for (OrdStatisticsEntity row : statsToPersist) {
+                    row.setStatus("submitted");
+                    row.setSubmittedAt(submittedAt);
+                    row.setUpdatedAt(submittedAt);
                 }
-                if (!toSubmit.isEmpty()) {
-                    statisticsRepository.saveAll(toSubmit);
-                }
+            }
+            if (!statsToPersist.isEmpty()) {
+                // Single batched persist after ORD submit (draft→submitted) — avoids double 10k write.
+                statisticsRepository.saveAll(statsToPersist);
             }
 
             run.setStatus("succeeded");
@@ -349,7 +384,13 @@ public class OrdReportRunner {
         }
     }
 
-    private OrdStatisticsEntity upsertStatistics(
+    /**
+     * In-memory upsert keyed by {@code (creativeId, platformId)}. Existing rows are prefetched once
+     * per run to avoid N+1 queries and the O(n²) null-platform fallback that Spring Data {@code
+     * ...AndPlatformId(null)} cannot match.
+     */
+    private OrdStatisticsEntity upsertStatisticsInMemory(
+            Map<String, OrdStatisticsEntity> existingByKey,
             UUID workspaceId,
             String provider,
             OrdCreativeEntity creative,
@@ -357,24 +398,13 @@ public class OrdReportRunner {
             int year,
             int month,
             long imps,
-            String viewsSource) {
+            String viewsSource,
+            Instant now) {
         UUID platformId = platform == null ? null : platform.getId();
-        OrdStatisticsEntity stats = statisticsRepository
-                .findByWorkspaceIdAndCreativeIdAndPeriodYearAndPeriodMonthAndPlatformId(
-                        workspaceId, creative.getId(), year, month, platformId)
-                .orElseGet(() -> {
-                    // platformId null unique index uses sentinel — also try null platform rows
-                    return statisticsRepository
-                            .findByWorkspaceIdAndPeriodYearAndPeriodMonth(workspaceId, year, month)
-                            .stream()
-                            .filter(s -> creative.getId().equals(s.getCreativeId())
-                                    && ((platformId == null && s.getPlatformId() == null)
-                                            || (platformId != null && platformId.equals(s.getPlatformId()))))
-                            .findFirst()
-                            .orElseGet(OrdStatisticsEntity::new);
-                });
-        Instant now = Instant.now();
-        if (stats.getId() == null) {
+        String key = statisticsKey(creative.getId(), platformId);
+        OrdStatisticsEntity stats = existingByKey.get(key);
+        if (stats == null) {
+            stats = new OrdStatisticsEntity();
             stats.setId(UuidV7.generate());
             stats.setWorkspaceId(workspaceId);
             stats.setCreativeId(creative.getId());
@@ -384,6 +414,7 @@ public class OrdReportRunner {
             stats.setPeriodMonth(month);
             stats.setCreatedAt(now);
             stats.setStatus("draft");
+            existingByKey.put(key, stats);
         }
         if ("submitted".equals(stats.getStatus())) {
             return stats;
@@ -391,7 +422,19 @@ public class OrdReportRunner {
         stats.setImpsFact(imps);
         stats.setViewsSource(viewsSource);
         stats.setUpdatedAt(now);
-        return statisticsRepository.save(stats);
+        return stats;
+    }
+
+    private static Map<String, OrdStatisticsEntity> indexStatistics(List<OrdStatisticsEntity> rows) {
+        Map<String, OrdStatisticsEntity> map = new HashMap<>(Math.max(16, rows.size() * 2));
+        for (OrdStatisticsEntity row : rows) {
+            map.put(statisticsKey(row.getCreativeId(), row.getPlatformId()), row);
+        }
+        return map;
+    }
+
+    private static String statisticsKey(UUID creativeId, UUID platformId) {
+        return creativeId + "|" + (platformId == null ? "_" : platformId);
     }
 
     private OrdInvoiceEntity upsertInvoice(
