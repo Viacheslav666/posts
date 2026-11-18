@@ -108,9 +108,8 @@ public class PostStore {
     public List<EmulatedPost> list(Network network, String channelId) {
         return postsById.values().stream()
                 .filter(post -> network == null || post.network() == network)
-                .filter(post -> channelId == null
-                        || channelId.isBlank()
-                        || channelIdsEqual(channelId, post.channelId()))
+                .filter(post ->
+                        channelId == null || channelId.isBlank() || channelIdsEqual(channelId, post.channelId()))
                 .sorted(Comparator.comparing(EmulatedPost::createdAt))
                 .toList();
     }
