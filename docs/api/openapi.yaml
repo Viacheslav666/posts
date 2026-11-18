@@ -16271,7 +16271,6 @@ components:
         workspaceId:
           type: string
           format: uuid
-
     WebPushSubscribeRequest:
       type: object
       properties:
