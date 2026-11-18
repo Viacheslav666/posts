@@ -18,4 +18,6 @@ public interface AutomationRuleRepository extends JpaRepository<AutomationRuleEn
 
     long countByWorkspaceIdAndTargetChannelIdAndStatusIn(
             UUID workspaceId, UUID targetChannelId, Collection<String> statuses);
+
+    long countByWorkspaceIdAndTypeInAndStatusNot(UUID workspaceId, Collection<String> types, String status);
 }

@@ -34,10 +34,14 @@ import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
+import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PublicationEntity;
+import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
+import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PublicationRepository;
+import ru.posts.persistence.repository.WorkspaceRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -71,6 +75,12 @@ class StoriesApiIntegrationTest {
 
     @Autowired
     PublicationRepository publicationRepository;
+
+    @Autowired
+    PlanRepository planRepository;
+
+    @Autowired
+    WorkspaceRepository workspaceRepository;
 
     @BeforeEach
     void setUp() {
@@ -448,7 +458,13 @@ class StoriesApiIntegrationTest {
         JsonNode list = readJson(mockMvc.perform(get("/api/v1/workspaces").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn());
-        return UUID.fromString(list.get("items").get(0).get("id").asText());
+        UUID workspaceId = UUID.fromString(list.get("items").get(0).get("id").asText());
+        // Free plan has stories_month=0; stories IT needs a paid plan.
+        PlanEntity agency = planRepository.findByCode("agency").orElseThrow();
+        WorkspaceEntity workspace = workspaceRepository.findById(workspaceId).orElseThrow();
+        workspace.setPlanId(agency.getId());
+        workspaceRepository.save(workspace);
+        return workspaceId;
     }
 
     private JsonNode readJson(MvcResult result) throws Exception {

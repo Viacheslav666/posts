@@ -65,4 +65,7 @@ public interface PostRepository extends JpaRepository<PostEntity, UUID> {
             @Param("q") String q);
 
     long countByWorkspaceIdAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(UUID workspaceId, Instant createdAt);
+
+    long countByWorkspaceIdAndContentKindAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(
+            UUID workspaceId, String contentKind, Instant createdAt);
 }

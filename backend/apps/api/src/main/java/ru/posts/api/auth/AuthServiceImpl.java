@@ -613,8 +613,8 @@ public class AuthServiceImpl implements AuthService {
         workspace.setName("Личное пространство");
         workspace.setOwnerUserId(user.getId());
         workspace.setPlanId(freePlan.getId());
-        workspace.setBillingStatus("trial");
-        workspace.setTrialEndsAt(Instant.now().plusSeconds(7L * 24 * 3600));
+        workspace.setBillingStatus("active");
+        workspace.setTrialEndsAt(null);
         workspace = workspaceRepository.save(workspace);
 
         WorkspaceMemberEntity member = new WorkspaceMemberEntity();

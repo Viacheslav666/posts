@@ -36,6 +36,9 @@ public class UserEntity extends BaseUuidEntity {
     @Column(name = "totp_enabled", nullable = false)
     private boolean totpEnabled;
 
+    @Column(name = "trial_used", nullable = false)
+    private boolean trialUsed;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -115,6 +118,14 @@ public class UserEntity extends BaseUuidEntity {
 
     public void setTotpEnabled(boolean totpEnabled) {
         this.totpEnabled = totpEnabled;
+    }
+
+    public boolean isTrialUsed() {
+        return trialUsed;
+    }
+
+    public void setTrialUsed(boolean trialUsed) {
+        this.trialUsed = trialUsed;
     }
 
     public Instant getCreatedAt() {

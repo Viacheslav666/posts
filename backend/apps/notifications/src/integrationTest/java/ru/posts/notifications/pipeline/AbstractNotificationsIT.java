@@ -158,13 +158,14 @@ abstract class AbstractNotificationsIT {
     protected SeededUser seedOwner() {
         UUID userId = UuidV7.generate();
         UUID workspaceId = UuidV7.generate();
-        UUID planId = jdbcTemplate.queryForObject("SELECT id FROM plans WHERE code = 'free'", UUID.class);
+        // Agency avoids free-plan grabber/stories/channel zeros from BE-12 limits.
+        UUID planId = jdbcTemplate.queryForObject("SELECT id FROM plans WHERE code = 'agency'", UUID.class);
         String email = "notif-" + userId + "@example.com";
         jdbcTemplate.update("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", userId, email, "Notify User");
         jdbcTemplate.update(
                 """
                 INSERT INTO workspaces (id, name, owner_user_id, plan_id, billing_status)
-                VALUES (?, ?, ?, ?, 'trial')
+                VALUES (?, ?, ?, ?, 'active')
                 """,
                 workspaceId,
                 "Notify WS",

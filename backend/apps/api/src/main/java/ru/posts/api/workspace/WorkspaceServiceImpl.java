@@ -112,8 +112,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         workspace.setName(request.name().trim());
         workspace.setOwnerUserId(userId);
         workspace.setPlanId(freePlan.getId());
-        workspace.setBillingStatus("trial");
-        workspace.setTrialEndsAt(Instant.now().plusSeconds(7L * 24 * 3600));
+        workspace.setBillingStatus("active");
+        workspace.setTrialEndsAt(null);
         workspace.setCreatedAt(Instant.now());
         workspace.setUpdatedAt(Instant.now());
         workspace = workspaceRepository.save(workspace);

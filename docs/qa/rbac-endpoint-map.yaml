@@ -89,7 +89,7 @@ endpoints:
 - operationId: billingCheckout
   method: POST
   path: /api/v1/billing/checkout
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: billing.manage
   query:
@@ -97,7 +97,7 @@ endpoints:
 - operationId: billingListInvoices
   method: GET
   path: /api/v1/billing/invoices
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: billing.view
   query:
@@ -105,12 +105,12 @@ endpoints:
 - operationId: billingListPlans
   method: GET
   path: /api/v1/billing/plans
-  implementedHint: false
+  implementedHint: true
   rbac: none
 - operationId: billingApplyPromo
   method: POST
   path: /api/v1/billing/promo/apply
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: billing.apply_promo
   query:
@@ -118,7 +118,7 @@ endpoints:
 - operationId: billingGetSubscription
   method: GET
   path: /api/v1/billing/subscription
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: billing.view
   query:
@@ -126,7 +126,7 @@ endpoints:
 - operationId: billingStartTrial
   method: POST
   path: /api/v1/billing/trial/start
-  implementedHint: false
+  implementedHint: true
   rbac: matrix
   action: billing.manage
   query:
@@ -988,5 +988,10 @@ endpoints:
 - operationId: hooksVk
   method: POST
   path: /hooks/vk/{channelId}
+  implementedHint: true
+  rbac: none
+- operationId: webhooksYookassa
+  method: POST
+  path: /webhooks/yookassa
   implementedHint: true
   rbac: none

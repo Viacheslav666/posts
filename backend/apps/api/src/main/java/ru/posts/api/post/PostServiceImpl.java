@@ -197,6 +197,9 @@ public class PostServiceImpl implements PostService {
             access.requireVisibleProject(membership, request.projectId());
         }
         planLimitService.ensureCanCreatePost(request.workspaceId());
+        if (request.contentKind() == PostDtos.ContentKind.story) {
+            planLimitService.ensureCanCreateStory(request.workspaceId());
+        }
 
         List<PostDtos.PostVariantUpsert> variants = request.variants() == null ? List.of() : request.variants();
         validateVariants(request.workspaceId(), variants);

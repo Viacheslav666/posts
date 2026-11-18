@@ -19,9 +19,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ru.posts.api.billing.BillingService;
 import ru.posts.api.web.dto.billing.BillingDtos;
 import ru.posts.api.web.dto.common.CursorPage;
-import ru.posts.api.web.support.ApiStub;
+import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
 @Validated
@@ -30,6 +31,12 @@ import ru.posts.api.web.support.ApiStub;
 @OpenApiResponses
 public class BillingController {
 
+    private final BillingService billingService;
+
+    public BillingController(BillingService billingService) {
+        this.billingService = billingService;
+    }
+
     @GetMapping("/plans")
     @Operation(operationId = "billingListPlans", summary = "List public billing plans (US-6.1)")
     @ApiResponse(
@@ -37,7 +44,8 @@ public class BillingController {
             description = "Plans",
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = BillingDtos.Plan.class))))
     public List<BillingDtos.Plan> listPlans() {
-        throw ApiStub.notImplemented("billingListPlans");
+        SecurityAuthSupport.requirePrincipal();
+        return billingService.listPlans();
     }
 
     @GetMapping("/subscription")
@@ -47,7 +55,8 @@ public class BillingController {
             description = "Subscription",
             content = @Content(schema = @Schema(implementation = BillingDtos.Subscription.class)))
     public BillingDtos.Subscription getSubscription(@RequestParam UUID workspaceId) {
-        throw ApiStub.notImplemented("billingGetSubscription");
+        return billingService.getSubscription(
+                SecurityAuthSupport.requirePrincipal().userId(), workspaceId);
     }
 
     @PostMapping("/checkout")
@@ -59,7 +68,7 @@ public class BillingController {
     public BillingDtos.CheckoutResponse checkout(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody BillingDtos.CheckoutRequest request) {
-        throw ApiStub.notImplemented("billingCheckout");
+        return billingService.checkout(SecurityAuthSupport.requirePrincipal().userId(), request, idempotencyKey);
     }
 
     @GetMapping("/invoices")
@@ -67,7 +76,8 @@ public class BillingController {
     @ApiResponse(responseCode = "200", description = "Invoices page")
     public CursorPage.InvoicePage listInvoices(
             @RequestParam UUID workspaceId, @Valid @ParameterObject CursorPage.Params page) {
-        throw ApiStub.notImplemented("billingListInvoices");
+        return billingService.listInvoices(
+                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, page);
     }
 
     @PostMapping("/promo/apply")
@@ -77,7 +87,7 @@ public class BillingController {
             description = "Promo applied",
             content = @Content(schema = @Schema(implementation = BillingDtos.ApplyPromoResponse.class)))
     public BillingDtos.ApplyPromoResponse applyPromo(@Valid @RequestBody BillingDtos.ApplyPromoRequest request) {
-        throw ApiStub.notImplemented("billingApplyPromo");
+        return billingService.applyPromo(SecurityAuthSupport.requirePrincipal().userId(), request);
     }
 
     @PostMapping("/trial/start")
@@ -93,6 +103,6 @@ public class BillingController {
     public BillingDtos.Subscription startTrial(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody BillingDtos.StartTrialRequest request) {
-        throw ApiStub.notImplemented("billingStartTrial");
+        return billingService.startTrial(SecurityAuthSupport.requirePrincipal().userId(), request, idempotencyKey);
     }
 }
