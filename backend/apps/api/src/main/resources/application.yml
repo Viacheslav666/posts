@@ -112,6 +112,14 @@ posts:
         redirect-uri: ${POSTS_OAUTH_YANDEX_REDIRECT_URI:http://localhost:3000/auth/callback/yandex}
         scopes: login:email login:info
 
+  grabber:
+    website-enabled: true
+    ssrf:
+      connect-timeout-ms: 3000
+      read-timeout-ms: 10000
+      max-bytes: 2097152
+      max-redirects: 5
+
 logging:
   level:
     root: INFO

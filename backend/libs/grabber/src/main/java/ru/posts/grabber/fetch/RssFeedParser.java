@@ -14,6 +14,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import ru.posts.grabber.sanitize.HtmlSanitizer;
 
 /** Minimal RSS 1.0 / 2.0 / Atom parser for BE-17. */
 public final class RssFeedParser {
@@ -103,7 +104,8 @@ public final class RssFeedParser {
             String title,
             String body,
             List<Map<String, Object>> attachments) {
-        String text = joinTitleBody(title, body);
+        String sanitizedHtml = body == null ? "" : HtmlSanitizer.sanitize(body);
+        String text = joinTitleBody(title, sanitizedHtml.isBlank() ? body : sanitizedHtml);
         String sourceId = feedSourceId(feedUrl);
         List<String> attachmentIds = new ArrayList<>();
         for (Map<String, Object> att : attachments) {
@@ -123,7 +125,7 @@ public final class RssFeedParser {
                 permalink,
                 sourceName == null || sourceName.isBlank() ? feedUrl : sourceName,
                 text,
-                body,
+                sanitizedHtml,
                 attachments,
                 List.of(),
                 attachmentIds,
@@ -234,6 +236,6 @@ public final class RssFeedParser {
     }
 
     private static String stripHtml(String html) {
-        return html.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
+        return HtmlSanitizer.toPlainText(html);
     }
 }

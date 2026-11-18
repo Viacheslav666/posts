@@ -394,6 +394,101 @@ class GrabberIngestIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-GRAB-21 website OG-extract moderate; SSRF on website URL")
+    void websiteExtractAndSsrf() throws Exception {
+        Fixture fx = bootstrap();
+        String html =
+                """
+                <html><head>
+                  <meta property="og:title" content="Site Title"/>
+                  <meta property="og:description" content="Site body"/>
+                  <meta property="og:image" content="https://cdn.example/img.jpg"/>
+                  <meta property="og:site_name" content="ExampleSite"/>
+                </head><body><article><p>Hello <script>alert(1)</script>world</p>
+                <img src="/x.jpg"/></article></body></html>
+                """;
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/article.html"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "text/html; charset=utf-8")
+                        .withBody(html)));
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/ssrf-hop"))
+                .willReturn(aResponse()
+                        .withStatus(302)
+                        .withHeader("Location", "http://169.254.169.254/latest/meta-data/")));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "website",
+                                "name",
+                                "Bad site",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of("websiteUrls", List.of("http://169.254.169.254/latest/meta-data"))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ingest_ssrf_blocked"));
+
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "website",
+                        "name",
+                        "Good site",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "websiteUrls",
+                                List.of(wireMock.baseUrl() + "/article.html"),
+                                "websiteSelector",
+                                "article",
+                                "scanIntervalMinutes",
+                                15)));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        assertThat(rule.get("config").get("publishMode").asText()).isEqualTo("moderate");
+        assertThat(rule.get("config").get("websiteUrls")).isNotNull();
+
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.itemsNew").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+
+        JsonNode pending = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].sourceNetwork").value("website"))
+                .andExpect(jsonPath("$.items[0].contentText").value(org.hamcrest.Matchers.containsString("Site Title")))
+                .andReturn());
+        assertThat(pending.get("items").get(0).get("postId").isNull()).isTrue();
+        assertThat(publicationRepository.findAll()).isEmpty();
+
+        // Redirect to metadata must be blocked on preview (SSRF on redirect hop).
+        mockMvc.perform(post("/api/v1/ingest/preview")
+                        .with(csrf())
+                        .param("workspaceId", fx.workspaceId.toString())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("type", "website", "websiteUrls", List.of(wireMock.baseUrl() + "/ssrf-hop")))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ingest_ssrf_blocked"));
+    }
+
+    @Test
     @DisplayName("TC-GRAB-16 IDOR foreign rule → 404")
     void idorForeignRule() throws Exception {
         Fixture a = bootstrap();

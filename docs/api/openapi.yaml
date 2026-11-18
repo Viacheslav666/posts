@@ -9448,6 +9448,14 @@ components:
           type: object
           additionalProperties:
             type: object
+        websiteSelector:
+          type: string
+          description: Optional CSS selector for article body (type=website)
+        websiteUrls:
+          type: array
+          description: "Website page URLs (type=website), max 20"
+          items:
+            type: string
     GrabberItemApproveRequest:
       type: object
       properties:
@@ -9683,6 +9691,12 @@ components:
           - grabber
           - rss
           - website
+        websiteSelector:
+          type: string
+        websiteUrls:
+          type: array
+          items:
+            type: string
       required:
       - type
     InlineButton:

@@ -26,10 +26,12 @@ import ru.posts.api.workspace.WorkspaceMembership;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.GrabberRunProcessor;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.config.SourceIdNormalizer;
 import ru.posts.grabber.fetch.RssFetcher;
 import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
+import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.publish.GrabberPostFactory;
 import ru.posts.grabber.ssrf.SsrfBlockedException;
@@ -66,10 +68,12 @@ public class IngestServiceImpl implements IngestService {
     private final GrabberRunProcessor runProcessor;
     private final GrabberPostFactory postFactory;
     private final RssFetcher rssFetcher;
+    private final WebsiteFetcher websiteFetcher;
     private final VkWallFetcher vkWallFetcher;
     private final GrabberTokenProvider tokenProvider;
     private final ObjectProvider<RabbitTemplate> rabbitTemplate;
     private final SsrfProperties ssrfProperties;
+    private final GrabberProperties grabberProperties;
     private final boolean inlineRuns;
 
     public IngestServiceImpl(
@@ -83,10 +87,12 @@ public class IngestServiceImpl implements IngestService {
             GrabberRunProcessor runProcessor,
             GrabberPostFactory postFactory,
             RssFetcher rssFetcher,
+            WebsiteFetcher websiteFetcher,
             VkWallFetcher vkWallFetcher,
             GrabberTokenProvider tokenProvider,
             ObjectProvider<RabbitTemplate> rabbitTemplate,
             SsrfProperties ssrfProperties,
+            GrabberProperties grabberProperties,
             @org.springframework.beans.factory.annotation.Value("${posts.grabber.inline-runs:true}")
                     boolean inlineRuns) {
         this.ruleRepository = ruleRepository;
@@ -99,10 +105,12 @@ public class IngestServiceImpl implements IngestService {
         this.runProcessor = runProcessor;
         this.postFactory = postFactory;
         this.rssFetcher = rssFetcher;
+        this.websiteFetcher = websiteFetcher;
         this.vkWallFetcher = vkWallFetcher;
         this.tokenProvider = tokenProvider;
         this.rabbitTemplate = rabbitTemplate;
         this.ssrfProperties = ssrfProperties;
+        this.grabberProperties = grabberProperties;
         this.inlineRuns = inlineRuns;
     }
 
@@ -148,10 +156,7 @@ public class IngestServiceImpl implements IngestService {
             UUID projectId,
             IngestDtos.GrabberRuleCreate request,
             ClientRequestContext ctx) {
-        if (request.type() == IngestDtos.RuleType.website) {
-            throw new ApiException(
-                    HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Website grabber is not enabled (BE-17b)");
-        }
+        requireWebsiteEnabled(request.type());
         WorkspaceMembership membership = access.requirePermission(workspaceId, userId, "automations.manage");
         access.requireVisibleProject(membership, projectId);
         ChannelEntity channel = requireChannel(workspaceId, request.targetChannelId());
@@ -612,16 +617,16 @@ public class IngestServiceImpl implements IngestService {
     public IngestDtos.IngestPreviewResponse preview(
             UUID userId, UUID workspaceId, IngestDtos.IngestPreviewRequest request) {
         access.requirePermission(workspaceId, userId, "automations.view");
-        if (request.type() == IngestDtos.RuleType.website) {
-            throw new ApiException(
-                    HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Website grabber is not enabled (BE-17b)");
-        }
+        requireWebsiteEnabled(request.type());
         int limit = request.limit() == null ? 5 : Math.min(20, Math.max(1, request.limit()));
         List<SourceCandidate> candidates;
         try {
             if (request.type() == IngestDtos.RuleType.rss) {
                 SsrfGuard.validateHttpUrl(request.rssUrl(), ssrfProperties.getAllowedHosts());
                 candidates = rssFetcher.fetch(request.rssUrl(), limit);
+            } else if (request.type() == IngestDtos.RuleType.website) {
+                websiteFetcher.validateUrls(request.websiteUrls());
+                candidates = websiteFetcher.fetch(request.websiteUrls(), request.websiteSelector());
             } else {
                 List<String> ids = SourceIdNormalizer.requireValid(request.sourceIds(), 50);
                 String token = tokenProvider
@@ -679,6 +684,12 @@ public class IngestServiceImpl implements IngestService {
             }
             if (dto.rssUrl() != null) {
                 raw.put("rss_url", dto.rssUrl());
+            }
+            if (dto.websiteUrls() != null) {
+                raw.put("website_urls", dto.websiteUrls());
+            }
+            if (dto.websiteSelector() != null) {
+                raw.put("website_selector", dto.websiteSelector());
             }
             if (dto.scanIntervalMinutes() != null) {
                 raw.put("scan_interval_minutes", dto.scanIntervalMinutes());
@@ -745,6 +756,23 @@ public class IngestServiceImpl implements IngestService {
                         HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.INGEST_SSRF_BLOCKED, ex.getMessage());
             }
         }
+        if (type == IngestDtos.RuleType.website) {
+            try {
+                websiteFetcher.validateUrls(GrabberConfigSupport.websiteUrls(config));
+            } catch (SsrfBlockedException ex) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.INGEST_SSRF_BLOCKED, ex.getMessage());
+            } catch (IllegalArgumentException ex) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
+            }
+        }
+    }
+
+    private void requireWebsiteEnabled(IngestDtos.RuleType type) {
+        if (type == IngestDtos.RuleType.website && !grabberProperties.isWebsiteEnabled()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Website grabber is not enabled");
+        }
     }
 
     private ChannelEntity requireChannel(UUID workspaceId, UUID channelId) {
@@ -805,6 +833,8 @@ public class IngestServiceImpl implements IngestService {
         return new IngestDtos.GrabberConfig(
                 GrabberConfigSupport.sourceIds(c),
                 GrabberConfigSupport.rssUrl(c),
+                GrabberConfigSupport.websiteUrls(c),
+                GrabberConfigSupport.websiteSelector(c),
                 GrabberConfigSupport.scanIntervalMinutes(c),
                 mode,
                 String.valueOf(c.getOrDefault("schedule_mode", "immediate")),
