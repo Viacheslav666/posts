@@ -614,7 +614,7 @@
       "mediaEmpty": "Выберите файлы для пакета",
       "remove": "Убрать",
       "text": "Общий текст / шаблон",
-      "textPlaceholder": "Сегодня {date}. [rand]привет|здравствуйте[/rand]",
+      "textPlaceholder": "Сегодня '{'date'}'. [rand]привет|здравствуйте[/rand]",
       "scheduledAt": "Старт",
       "stepMinutes": "Шаг, мин",
       "asClips": "Публиковать видео как клипы VK",
