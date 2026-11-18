@@ -23,5 +23,10 @@ posts:
     refresh-cookie-secure: false
   grabber:
     inline-runs: true
+    website-enabled: true
     vk:
       access-token: test-token
+    ssrf:
+      allowed-hosts:
+        - localhost
+        - 127.0.0.1
