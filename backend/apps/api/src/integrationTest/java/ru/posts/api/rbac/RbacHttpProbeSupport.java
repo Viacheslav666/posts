@@ -31,6 +31,7 @@ import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
+import ru.posts.persistence.entity.InvoiceEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PostEntity;
@@ -41,6 +42,7 @@ import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
+import ru.posts.persistence.repository.InvoiceRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -72,6 +74,7 @@ final class RbacHttpProbeSupport {
     private final PublicationRepository publicationRepository;
     private final AutomationRuleRepository automationRuleRepository;
     private final GrabberItemRepository grabberItemRepository;
+    private final InvoiceRepository invoiceRepository;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -86,7 +89,8 @@ final class RbacHttpProbeSupport {
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             AutomationRuleRepository automationRuleRepository,
-            GrabberItemRepository grabberItemRepository) {
+            GrabberItemRepository grabberItemRepository,
+            InvoiceRepository invoiceRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -100,6 +104,7 @@ final class RbacHttpProbeSupport {
         this.publicationRepository = publicationRepository;
         this.automationRuleRepository = automationRuleRepository;
         this.grabberItemRepository = grabberItemRepository;
+        this.invoiceRepository = invoiceRepository;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -165,6 +170,13 @@ final class RbacHttpProbeSupport {
     private int performDestructiveAllow(String accessToken, RbacEndpointMapLoader.Endpoint endpoint, EndpointIds ids)
             throws Exception {
         return switch (endpoint.operationId()) {
+            case "billingDeletePaymentMethod" -> {
+                UUID disposable = createWorkspace(accessToken, "RBAC billing pm " + UUID.randomUUID());
+                yield statusOf(delete("/api/v1/billing/payment-method")
+                        .param("workspaceId", disposable.toString())
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             case "workspacesDelete" -> {
                 UUID disposable = createWorkspace(accessToken, "RBAC disposable " + UUID.randomUUID());
                 yield statusOf(delete("/api/v1/workspaces/" + disposable)
@@ -388,6 +400,11 @@ final class RbacHttpProbeSupport {
             values.put("{publicationId}", randomUuid());
         }
         values.put("{sessionId}", randomUuid());
+        values.put(
+                "{invoiceId}",
+                scope == Scope.FOREIGN || ids.invoiceId() == null
+                        ? randomUuid()
+                        : ids.invoiceId().toString());
         return values;
     }
 
@@ -399,7 +416,14 @@ final class RbacHttpProbeSupport {
         // Only owner gets a disposable workspace (they are owner there). Deny roles keep the
         // shared fixture membership so billing.manage/view correctly returns 403.
         if (scope == Scope.OWN
-                && ("billingStartTrial".equals(operationId) || "billingCheckout".equals(operationId))
+                && (operationId.startsWith("billing")
+                        && (operationId.contains("Trial")
+                                || operationId.contains("Checkout")
+                                || operationId.contains("Autopay")
+                                || operationId.contains("ChangePlan")
+                                || operationId.contains("RequestInvoice")
+                                || operationId.contains("AutoRenew")
+                                || operationId.contains("ApplyPromo")))
                 && isAllowed(ids.roleOf(accessToken), "billing.manage")) {
             workspaceId = createWorkspace(accessToken, "RBAC billing " + UUID.randomUUID());
         }
@@ -424,8 +448,7 @@ final class RbacHttpProbeSupport {
             case "billingCheckout" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("workspaceId", workspaceId.toString());
-                node.put("planCode", "pro");
-                node.put("period", "month");
+                node.put("amountKopecks", 50_000);
                 yield node.toString();
             }
             case "billingApplyPromo" -> {
@@ -438,6 +461,37 @@ final class RbacHttpProbeSupport {
                     .createObjectNode()
                     .put("workspaceId", workspaceId.toString())
                     .toString();
+            case "billingUpdateAutopay" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("enabled", false);
+                node.put("thresholdKopecks", 10_000);
+                node.put("topupAmountKopecks", 50_000);
+                yield node.toString();
+            }
+            case "billingSetAutoRenew" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("enabled", false);
+                yield node.toString();
+            }
+            case "billingChangePlan" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("planCode", "daily_6");
+                yield node.toString();
+            }
+            case "billingRequestInvoice" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("amountKopecks", 100_000);
+                var buyer = node.putObject("buyer");
+                buyer.put("name", "ООО Тест");
+                buyer.put("inn", "7707083893");
+                buyer.put("kpp", "773601001");
+                buyer.put("ogrn", "1027700132195");
+                yield node.toString();
+            }
             case "channelSetsCreate" -> {
                 var node = objectMapper.createObjectNode();
                 node.put("name", "RBAC Set " + UUID.randomUUID());
@@ -696,6 +750,7 @@ final class RbacHttpProbeSupport {
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
         SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
+        UUID invoiceId = insertInvoice(workspaceId);
 
         return new EndpointIds(
                 workspaceId,
@@ -715,12 +770,32 @@ final class RbacHttpProbeSupport {
                 seededGrabber.ruleId(),
                 seededGrabber.itemId(),
                 seededGrabber.ruleVersion(),
+                invoiceId,
                 ownerToken,
                 adminToken,
                 editorToken,
                 authorToken,
                 viewerToken,
                 foreignToken);
+    }
+
+    private UUID insertInvoice(UUID workspaceId) {
+        Instant now = Instant.now();
+        InvoiceEntity invoice = new InvoiceEntity();
+        invoice.setId(UuidV7.generate());
+        invoice.setWorkspaceId(workspaceId);
+        invoice.setAmount(java.math.BigDecimal.valueOf(500));
+        invoice.setAmountKopecks(50_000L);
+        invoice.setCurrency("RUB");
+        invoice.setStatus("issued");
+        invoice.setInvoiceNumber("RBAC-" + UUID.randomUUID().toString().substring(0, 8));
+        invoice.setDescription("RBAC fixture invoice");
+        invoice.setBuyerRequisites(Map.of("inn", "7707083893", "name", "RBAC LLC"));
+        invoice.setPdfUrl("/api/v1/billing/invoices/" + invoice.getId() + "/pdf");
+        invoice.setActPdfUrl("/api/v1/billing/invoices/" + invoice.getId() + "/act");
+        invoice.setCreatedAt(now);
+        invoice.setUpdatedAt(now);
+        return invoiceRepository.save(invoice).getId();
     }
 
     private SeededGrabber insertGrabber(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
@@ -1015,6 +1090,7 @@ final class RbacHttpProbeSupport {
             UUID ruleId,
             UUID itemId,
             int ruleVersion,
+            UUID invoiceId,
             String ownerToken,
             String adminToken,
             String editorToken,

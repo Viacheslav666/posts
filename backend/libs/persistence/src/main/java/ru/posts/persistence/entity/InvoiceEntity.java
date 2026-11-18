@@ -5,7 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "invoices")
@@ -20,6 +23,9 @@ public class InvoiceEntity extends BaseUuidEntity {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Column(name = "amount_kopecks", nullable = false)
+    private long amountKopecks;
+
     @Column(nullable = false)
     private String currency = "RUB";
 
@@ -28,6 +34,19 @@ public class InvoiceEntity extends BaseUuidEntity {
 
     @Column(name = "pdf_url")
     private String pdfUrl;
+
+    @Column(name = "act_pdf_url")
+    private String actPdfUrl;
+
+    @Column(name = "invoice_number")
+    private String invoiceNumber;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "buyer_requisites", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> buyerRequisites = Map.of();
+
+    @Column(name = "paid_at")
+    private Instant paidAt;
 
     private String description;
 
@@ -61,6 +80,14 @@ public class InvoiceEntity extends BaseUuidEntity {
         this.amount = amount;
     }
 
+    public long getAmountKopecks() {
+        return amountKopecks;
+    }
+
+    public void setAmountKopecks(long amountKopecks) {
+        this.amountKopecks = amountKopecks;
+    }
+
     public String getCurrency() {
         return currency;
     }
@@ -83,6 +110,38 @@ public class InvoiceEntity extends BaseUuidEntity {
 
     public void setPdfUrl(String pdfUrl) {
         this.pdfUrl = pdfUrl;
+    }
+
+    public String getActPdfUrl() {
+        return actPdfUrl;
+    }
+
+    public void setActPdfUrl(String actPdfUrl) {
+        this.actPdfUrl = actPdfUrl;
+    }
+
+    public String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
+    }
+
+    public Map<String, Object> getBuyerRequisites() {
+        return buyerRequisites;
+    }
+
+    public void setBuyerRequisites(Map<String, Object> buyerRequisites) {
+        this.buyerRequisites = buyerRequisites;
+    }
+
+    public Instant getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(Instant paidAt) {
+        this.paidAt = paidAt;
     }
 
     public String getDescription() {
