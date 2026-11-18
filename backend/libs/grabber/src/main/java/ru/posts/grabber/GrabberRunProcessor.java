@@ -1,0 +1,350 @@
+package ru.posts.grabber;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.posts.common.uuid.UuidV7;
+import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.SourceIdNormalizer;
+import ru.posts.grabber.fetch.RssFetcher;
+import ru.posts.grabber.fetch.SourceCandidate;
+import ru.posts.grabber.fetch.VkWallFetcher;
+import ru.posts.grabber.filter.GrabberFilters;
+import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.grabber.publish.GrabberPostFactory;
+import ru.posts.grabber.token.GrabberTokenProvider;
+import ru.posts.grabber.transform.ContentTransformer;
+import ru.posts.persistence.entity.AutomationRuleEntity;
+import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.GrabberItemEntity;
+import ru.posts.persistence.entity.GrabberRunEntity;
+import ru.posts.persistence.repository.AutomationRuleRepository;
+import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
+import ru.posts.persistence.repository.GrabberRunRepository;
+
+@Service
+@Profile("!openapi")
+public class GrabberRunProcessor {
+
+    private static final Logger log = LoggerFactory.getLogger(GrabberRunProcessor.class);
+
+    private final AutomationRuleRepository ruleRepository;
+    private final GrabberRunRepository runRepository;
+    private final GrabberItemRepository itemRepository;
+    private final ChannelRepository channelRepository;
+    private final RssFetcher rssFetcher;
+    private final VkWallFetcher vkWallFetcher;
+    private final GrabberTokenProvider tokenProvider;
+    private final GrabberPostFactory postFactory;
+    private final MeterRegistry meterRegistry;
+
+    public GrabberRunProcessor(
+            AutomationRuleRepository ruleRepository,
+            GrabberRunRepository runRepository,
+            GrabberItemRepository itemRepository,
+            ChannelRepository channelRepository,
+            RssFetcher rssFetcher,
+            VkWallFetcher vkWallFetcher,
+            GrabberTokenProvider tokenProvider,
+            GrabberPostFactory postFactory,
+            MeterRegistry meterRegistry) {
+        this.ruleRepository = ruleRepository;
+        this.runRepository = runRepository;
+        this.itemRepository = itemRepository;
+        this.channelRepository = channelRepository;
+        this.rssFetcher = rssFetcher;
+        this.vkWallFetcher = vkWallFetcher;
+        this.tokenProvider = tokenProvider;
+        this.postFactory = postFactory;
+        this.meterRegistry = meterRegistry;
+    }
+
+    @Transactional
+    public GrabberRunEntity process(UUID ruleId, UUID runId, String trigger, String traceId) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        AutomationRuleEntity rule = ruleRepository
+                .findById(ruleId)
+                .orElseThrow(() -> new IllegalArgumentException("Rule not found: " + ruleId));
+        GrabberRunEntity run = runId == null
+                ? createRun(rule, trigger, traceId)
+                : runRepository.findById(runId).orElseGet(() -> createRun(rule, trigger, traceId));
+        if (!"running".equals(run.getStatus()) && run.getFinishedAt() != null) {
+            return run; // idempotent redelivery of finished run
+        }
+        Instant now = Instant.now();
+        try {
+            ChannelEntity channel = channelRepository
+                    .findByIdAndDeletedAtIsNull(rule.getTargetChannelId())
+                    .orElse(null);
+            if (channel == null) {
+                failRun(rule, run, "ingest_source_unreachable", "Target channel missing", now);
+                return run;
+            }
+            if ("reauth_required".equals(channel.getStatus())) {
+                rule.setStatus("auto_paused");
+                rule.setUpdatedAt(now);
+                ruleRepository.save(rule);
+                failRun(rule, run, "channel_reauth_required", "Target channel requires reauth", now);
+                return run;
+            }
+
+            List<SourceCandidate> candidates = fetchCandidates(rule);
+            run.setSourcesScanned(Math.max(1, countSources(rule)));
+            run.setItemsFound(candidates.size());
+
+            int itemsNew = 0;
+            int itemsDeduped = 0;
+            int itemsPublished = 0;
+            String publishMode = GrabberConfigSupport.publishMode(rule.getConfig());
+
+            for (SourceCandidate candidate : candidates) {
+                String skip = GrabberFilters.skipReason(candidate, rule.getConfig());
+                String contentHash = ContentHasher.hash(
+                        candidate.contentText(), candidate.mediaHashes(), candidate.attachmentCanonicalIds());
+
+                if (itemRepository
+                        .findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
+                                rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId())
+                        .isPresent()) {
+                    itemsDeduped++;
+                    continue;
+                }
+
+                if (GrabberConfigSupport.dedupEnabled(rule.getConfig())
+                        && itemRepository.existsByWorkspaceIdAndTargetChannelIdAndContentHashAndStatusNotIn(
+                                rule.getWorkspaceId(),
+                                rule.getTargetChannelId(),
+                                contentHash,
+                                List.of("rejected", "suppressed_dedup", "filtered_out"))) {
+                    persistItem(rule, run, candidate, contentHash, "suppressed_dedup", "content_hash", now);
+                    itemsDeduped++;
+                    meterRegistry.counter("grabber_deduped").increment();
+                    continue;
+                }
+
+                if (skip != null) {
+                    persistItem(rule, run, candidate, contentHash, "filtered_out", skip, now);
+                    continue;
+                }
+
+                String transformed = ContentTransformer.transform(candidate.contentText(), rule.getConfig());
+                GrabberItemEntity item =
+                        persistItem(rule, run, candidate, contentHash, initialStatus(publishMode), null, now);
+                item.setContentText(transformed);
+
+                if (!GrabberConfigSupport.PUBLISH_MODE_AUTO.equals(publishMode)) {
+                    item.setStatus("pending_moderation");
+                    itemRepository.save(item);
+                    itemsNew++;
+                    meterRegistry.counter("grabber_items_new").increment();
+                    continue;
+                }
+
+                // auto
+                if (rateLimited(rule, now)) {
+                    item.setStatus("pending_moderation");
+                    item.setSkipReason("rate_limit");
+                    itemRepository.save(item);
+                    itemsNew++;
+                    continue;
+                }
+                try {
+                    GrabberPostFactory.PublishResult published =
+                            postFactory.publishItem(rule, item, rule.getCreatedBy(), null, now);
+                    itemRepository.save(item);
+                    itemsNew++;
+                    if (published.postId() != null) {
+                        itemsPublished++;
+                    }
+                    meterRegistry.counter("grabber_items_new").increment();
+                } catch (GrabberPostFactory.ChannelReauthRequiredException ex) {
+                    rule.setStatus("auto_paused");
+                    rule.setUpdatedAt(now);
+                    ruleRepository.save(rule);
+                    item.setStatus("failed_ingest");
+                    item.setSkipReason("channel_reauth_required");
+                    itemRepository.save(item);
+                    throw ex;
+                } catch (DataIntegrityViolationException ex) {
+                    itemsDeduped++;
+                }
+            }
+
+            run.setItemsNew(itemsNew);
+            run.setItemsDeduped(itemsDeduped);
+            run.setItemsPublished(itemsPublished);
+            run.setStatus("succeeded");
+            run.setFinishedAt(now);
+            runRepository.save(run);
+
+            rule.setLastRunAt(now);
+            rule.setConsecutiveFailures(0);
+            int interval = GrabberConfigSupport.scanIntervalMinutes(rule.getConfig());
+            rule.setNextRunAt(now.plus(interval, ChronoUnit.MINUTES));
+            rule.setUpdatedAt(now);
+            ruleRepository.save(rule);
+            return run;
+        } catch (Exception ex) {
+            log.warn("Grabber run failed ruleId={} runId={}: {}", ruleId, run.getId(), ex.getMessage());
+            failRun(rule, run, "ingest_source_unreachable", ex.getMessage(), Instant.now());
+            maybeAutoPause(rule);
+            return run;
+        } finally {
+            sample.stop(meterRegistry.timer("grabber_run_duration"));
+        }
+    }
+
+    private List<SourceCandidate> fetchCandidates(AutomationRuleEntity rule) {
+        if ("rss".equals(rule.getType())) {
+            String url = GrabberConfigSupport.rssUrl(rule.getConfig());
+            int max = rule.getConfig().get("rss_max_items_per_run") instanceof Number n ? n.intValue() : 20;
+            return rssFetcher.fetch(url, max);
+        }
+        List<String> sourceIds = SourceIdNormalizer.normalizeAll(GrabberConfigSupport.sourceIds(rule.getConfig()));
+        Optional<String> token = tokenProvider.resolveVkToken(rule.getWorkspaceId(), rule.getTargetChannelId());
+        if (token.isEmpty()) {
+            throw new IllegalStateException("No VK token available for grabber sources");
+        }
+        List<SourceCandidate> all = new ArrayList<>();
+        for (String sourceId : sourceIds) {
+            all.addAll(vkWallFetcher.fetch(sourceId, token.get(), 20));
+        }
+        return all;
+    }
+
+    private GrabberItemEntity persistItem(
+            AutomationRuleEntity rule,
+            GrabberRunEntity run,
+            SourceCandidate candidate,
+            String contentHash,
+            String status,
+            String skipReason,
+            Instant now) {
+        GrabberItemEntity item = new GrabberItemEntity();
+        item.setId(UuidV7.generate());
+        item.setRuleId(rule.getId());
+        item.setRunId(run.getId());
+        item.setWorkspaceId(rule.getWorkspaceId());
+        item.setTargetChannelId(rule.getTargetChannelId());
+        item.setSourceNetwork(candidate.sourceNetwork());
+        item.setSourceId(candidate.sourceId());
+        item.setRemotePostId(candidate.remotePostId());
+        item.setSourcePermalink(candidate.sourcePermalink());
+        item.setSourceName(candidate.sourceName());
+        item.setContentText(candidate.contentText());
+        item.setContentHtml(candidate.contentHtml());
+        item.setAttachmentsJson(candidate.attachments() == null ? List.of() : candidate.attachments());
+        item.setContentHash(contentHash);
+        item.setMediaHashes(
+                candidate.mediaHashes() == null
+                        ? new String[0]
+                        : candidate.mediaHashes().toArray(String[]::new));
+        item.setStatus(status);
+        item.setSkipReason(skipReason);
+        item.setRawPayload(truncateRaw(candidate.rawPayload()));
+        item.setDetectedAt(now);
+        item.setCreatedAt(now);
+        item.setUpdatedAt(now);
+        try {
+            return itemRepository.save(item);
+        } catch (DataIntegrityViolationException ex) {
+            // concurrent insert — treat as dedup
+            return itemRepository
+                    .findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
+                            rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId())
+                    .orElseThrow(() -> ex);
+        }
+    }
+
+    private Map<String, Object> truncateRaw(Map<String, Object> raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw.size() <= 32) {
+            return raw;
+        }
+        return Map.of("truncated", true, "keys", raw.keySet().stream().limit(16).toList());
+    }
+
+    private GrabberRunEntity createRun(AutomationRuleEntity rule, String trigger, String traceId) {
+        GrabberRunEntity run = new GrabberRunEntity();
+        run.setId(UuidV7.generate());
+        run.setRuleId(rule.getId());
+        run.setWorkspaceId(rule.getWorkspaceId());
+        run.setTrigger(trigger == null ? "scheduled" : trigger);
+        run.setStatus("running");
+        run.setStartedAt(Instant.now());
+        run.setTraceId(traceId);
+        return runRepository.save(run);
+    }
+
+    private void failRun(AutomationRuleEntity rule, GrabberRunEntity run, String code, String message, Instant now) {
+        run.setStatus("failed");
+        run.setErrorCode(code);
+        run.setErrorMessage(message == null ? null : message.substring(0, Math.min(message.length(), 1000)));
+        run.setFinishedAt(now);
+        runRepository.save(run);
+        rule.setLastRunAt(now);
+        rule.setConsecutiveFailures(rule.getConsecutiveFailures() + 1);
+        int interval = 180;
+        try {
+            interval = GrabberConfigSupport.scanIntervalMinutes(rule.getConfig());
+        } catch (Exception ignored) {
+            // keep default
+        }
+        rule.setNextRunAt(now.plus(interval, ChronoUnit.MINUTES));
+        rule.setUpdatedAt(now);
+        ruleRepository.save(rule);
+    }
+
+    private void maybeAutoPause(AutomationRuleEntity rule) {
+        if (!GrabberConfigSupport.autoPauseOnErrors(rule.getConfig())) {
+            return;
+        }
+        int threshold = GrabberConfigSupport.autoPauseThreshold(rule.getConfig());
+        if (rule.getConsecutiveFailures() >= threshold) {
+            rule.setStatus("auto_paused");
+            rule.setUpdatedAt(Instant.now());
+            ruleRepository.save(rule);
+        }
+    }
+
+    private boolean rateLimited(AutomationRuleEntity rule, Instant now) {
+        int perHour = GrabberConfigSupport.rateLimitPerHour(rule.getConfig());
+        long publishedLastHour = itemRepository.countByRuleIdAndStatusAndDetectedAtAfter(
+                rule.getId(), "scheduled", now.minus(1, ChronoUnit.HOURS));
+        publishedLastHour += itemRepository.countByRuleIdAndStatusAndDetectedAtAfter(
+                rule.getId(), "published", now.minus(1, ChronoUnit.HOURS));
+        return publishedLastHour >= perHour;
+    }
+
+    private static String initialStatus(String publishMode) {
+        if (GrabberConfigSupport.PUBLISH_MODE_AUTO.equals(publishMode)) {
+            return "approved";
+        }
+        return "pending_moderation";
+    }
+
+    private static int countSources(AutomationRuleEntity rule) {
+        if ("rss".equals(rule.getType())) {
+            return 1;
+        }
+        return Math.max(
+                1,
+                SourceIdNormalizer.normalizeAll(GrabberConfigSupport.sourceIds(rule.getConfig()))
+                        .size());
+    }
+}

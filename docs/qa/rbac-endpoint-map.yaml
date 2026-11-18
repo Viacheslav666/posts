@@ -255,6 +255,96 @@ endpoints:
   action: channels.manage
   pathParams:
     channelId: '{channelId}'
+- operationId: ingestItemsBulk
+  method: POST
+  path: /api/v1/ingest/items/bulk
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+- operationId: ingestItemsGet
+  method: GET
+  path: /api/v1/ingest/items/{itemId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+- operationId: ingestItemsApprove
+  method: POST
+  path: /api/v1/ingest/items/{itemId}/approve
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+- operationId: ingestItemsEditAndApprove
+  method: POST
+  path: /api/v1/ingest/items/{itemId}/edit-and-approve
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+- operationId: ingestItemsReject
+  method: POST
+  path: /api/v1/ingest/items/{itemId}/reject
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+- operationId: ingestPreview
+  method: POST
+  path: /api/v1/ingest/preview
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+- operationId: ingestRulesGet
+  method: GET
+  path: /api/v1/ingest/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+- operationId: ingestRulesPatch
+  method: PATCH
+  path: /api/v1/ingest/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+- operationId: ingestRulesActivate
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/activate
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+- operationId: ingestRulesArchive
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/archive
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+- operationId: ingestItemsList
+  method: GET
+  path: /api/v1/ingest/rules/{ruleId}/items
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+- operationId: ingestRulesPause
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/pause
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+- operationId: ingestRulesResume
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/resume
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+- operationId: ingestRunsList
+  method: GET
+  path: /api/v1/ingest/rules/{ruleId}/runs
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+- operationId: ingestRulesRun
+  method: POST
+  path: /api/v1/ingest/rules/{ruleId}/runs
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
 - operationId: invitationsAccept
   method: POST
   path: /api/v1/invitations/accept
@@ -658,6 +748,24 @@ endpoints:
   action: projects.manage
   pathParams:
     workspaceId: '{workspaceId}'
+- operationId: ingestRulesList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
+- operationId: ingestRulesCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
 - operationId: hooksMax
   method: POST
   path: /hooks/max/{botId}

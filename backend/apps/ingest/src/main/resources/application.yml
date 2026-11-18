@@ -3,9 +3,24 @@ spring:
     name: posts-ingest
   main:
     web-application-type: servlet
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  rabbitmq:
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 10
 
 server:
-  port: 8080
+  port: 8084
 
 management:
   endpoints:
@@ -16,3 +31,11 @@ management:
     health:
       probes:
         enabled: true
+
+posts:
+  grabber:
+    inline-runs: false
+    vk:
+      base-url: ${POSTS_VK_API_BASE_URL:https://api.vk.com}
+      api-version: "5.199"
+      access-token: ${POSTS_GRABBER_VK_TOKEN:}

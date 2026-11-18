@@ -7,6 +7,7 @@ import java.util.List;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.billing.BillingDtos;
 import ru.posts.api.web.dto.channel.ChannelDtos;
+import ru.posts.api.web.dto.ingest.IngestDtos;
 import ru.posts.api.web.dto.media.MediaDtos;
 import ru.posts.api.web.dto.notification.NotificationDtos;
 import ru.posts.api.web.dto.post.PostDtos;
@@ -72,4 +73,13 @@ public final class CursorPage {
 
     @Schema(name = "AuditLogPage")
     public record AuditLogPage(List<WorkspaceDtos.AuditLogEntry> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "GrabberRulePage")
+    public record GrabberRulePage(List<IngestDtos.GrabberRule> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "GrabberRunPage")
+    public record GrabberRunPage(List<IngestDtos.GrabberRun> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "GrabberItemPage")
+    public record GrabberItemPage(List<IngestDtos.GrabberItem> items, String nextCursor, boolean hasMore) {}
 }

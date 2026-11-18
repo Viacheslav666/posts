@@ -683,7 +683,7 @@ public class PostServiceImpl implements PostService {
         // Partitions are pre-created for near months; out-of-range → clear error for operators.
         YearMonth ym = YearMonth.from(runAt.atZone(ZoneOffset.UTC));
         YearMonth min = YearMonth.of(2026, 10);
-        YearMonth max = YearMonth.of(2027, 3);
+        YearMonth max = YearMonth.of(2027, 9);
         if (ym.isBefore(min) || ym.isAfter(max)) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,

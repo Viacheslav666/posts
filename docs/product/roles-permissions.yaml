@@ -142,6 +142,15 @@ actions:
   - id: notifications.manage_self
     resource: notifications
     description: Настройка собственных уведомлений
+  - id: automations.view
+    resource: automations
+    description: Просмотр правил граббера/RSS и очереди items
+  - id: automations.manage
+    resource: automations
+    description: Создание и управление правилами Ingest, ручной run
+  - id: automations.moderate
+    resource: automations
+    description: Модерация очереди граббера (approve/reject)
 
 # Эффекты: allow | deny
 # scope:
@@ -445,6 +454,30 @@ matrix:
     viewer: allow
     scope: workspace
 
+  - action: automations.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: automations.manage
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  - action: automations.moderate
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
 # Явные инварианты для smoke RBAC (дублируют матрицу — удобны генератору негативных кейсов)
 invariants:
   - id: INV-RBAC-001
@@ -466,3 +499,7 @@ invariants:
   - id: INV-RBAC-005
     description: Чужой workspace всегда 404
     rule: foreign_workspace_http_status_404
+  - id: INV-RBAC-006
+    description: Author/Viewer не управляют граббером и не модерируют очередь
+    actions: [automations.manage, automations.moderate]
+    denied_roles: [author, viewer]
