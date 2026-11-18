@@ -98,6 +98,13 @@ export const queryKeys = {
     vapid: () => [...queryKeys.root, 'notifications', 'vapid'] as const,
   },
 
+  analytics: {
+    all: (workspaceId: string) =>
+      [...queryKeys.workspaces.detail(workspaceId), 'analytics'] as const,
+    posts: (workspaceId: string, year: number) =>
+      [...queryKeys.analytics.all(workspaceId), 'posts', { year }] as const,
+  },
+
   billing: {
     all: (workspaceId: string) => [...queryKeys.workspaces.detail(workspaceId), 'billing'] as const,
     plans: () => [...queryKeys.root, 'billing', 'plans'] as const,

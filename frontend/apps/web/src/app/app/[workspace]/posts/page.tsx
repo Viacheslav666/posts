@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { PostsListPage } from '@/features/posts/components/posts-list-page';
 
 type PostsRouteProps = {
@@ -6,5 +8,9 @@ type PostsRouteProps = {
 
 export default async function WorkspacePostsPage({ params }: PostsRouteProps) {
   const { workspace } = await params;
-  return <PostsListPage workspaceId={workspace} />;
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Загрузка…</div>}>
+      <PostsListPage workspaceId={workspace} />
+    </Suspense>
+  );
 }
