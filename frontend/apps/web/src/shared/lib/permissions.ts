@@ -44,6 +44,7 @@ export const PERMISSION_ACTIONS = [
   'automations.view',
   'automations.manage',
   'automations.moderate',
+  'notifications.manage_self',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -64,6 +65,7 @@ const ALL_VIEW: PermissionAction[] = [
   'calendar.view',
   'ord.view',
   'automations.view',
+  'notifications.manage_self',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [

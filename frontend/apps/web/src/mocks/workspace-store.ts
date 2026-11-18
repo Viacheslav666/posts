@@ -3,6 +3,9 @@ import type {
   Invitation,
   MembershipSummary,
   Project,
+  SessionDto,
+  UpdateMeRequest,
+  UpdatePasswordRequest,
   UserProfile,
   Workspace,
   WorkspaceMember,
@@ -31,6 +34,9 @@ type WorkspaceStoreState = {
   invitations: StoredInvitation[];
   audit: AuditLogEntry[];
   memberships: MembershipSummary[];
+  profile: UserProfile;
+  sessions: SessionDto[];
+  password: string;
 };
 
 function isoDaysFromNow(days: number): string {
@@ -153,7 +159,47 @@ function createInitialState(): WorkspaceStoreState {
     },
   ];
 
-  return { workspaces, projects, members, invitations, audit, memberships };
+  const profile: UserProfile = {
+    id: DEMO_USER_ID,
+    email: 'demo@posts.app',
+    emailVerified: true,
+    name: 'Demo User',
+    timezone: 'Europe/Moscow',
+    locale: 'ru',
+    totpEnabled: false,
+    memberships: [...memberships],
+  };
+
+  const sessions: SessionDto[] = [
+    {
+      id: '019a0000-0002-7000-8000-000000000050',
+      createdAt: now,
+      lastUsedAt: now,
+      ip: '203.0.113.10',
+      userAgent: 'Mozilla/5.0 (Demo Browser)',
+      current: true,
+    },
+    {
+      id: '019a0000-0002-7000-8000-000000000051',
+      createdAt: isoDaysFromNow(-3),
+      lastUsedAt: isoDaysFromNow(-1),
+      ip: '198.51.100.7',
+      userAgent: 'Posts Mobile/1.0',
+      current: false,
+    },
+  ];
+
+  return {
+    workspaces,
+    projects,
+    members,
+    invitations,
+    audit,
+    memberships,
+    profile,
+    sessions,
+    password: 'Password1!',
+  };
 }
 
 /** Members are stored with workspaceId attached for filtering. */
@@ -200,15 +246,56 @@ export function resetWorkspaceStore(): void {
 
 export function getDemoProfile(): UserProfile {
   return {
-    id: DEMO_USER_ID,
-    email: 'demo@posts.app',
-    emailVerified: true,
-    name: 'Demo User',
-    timezone: 'Europe/Moscow',
-    locale: 'ru',
-    totpEnabled: false,
+    ...state.profile,
     memberships: [...state.memberships],
   };
+}
+
+export function updateDemoProfile(body: UpdateMeRequest): UserProfile {
+  state.profile = {
+    ...state.profile,
+    name: body.name ?? state.profile.name,
+    timezone: body.timezone ?? state.profile.timezone,
+    locale: body.locale ?? state.profile.locale,
+    avatarUrl: body.avatarUrl ?? state.profile.avatarUrl,
+    memberships: [...state.memberships],
+  };
+  return getDemoProfile();
+}
+
+export function changeDemoPassword(body: UpdatePasswordRequest): { message: string } | { error: string } {
+  if (!body.currentPassword || !body.newPassword) {
+    return { error: 'currentPassword and newPassword are required' };
+  }
+  if (body.currentPassword !== state.password) {
+    return { error: 'Current password is incorrect' };
+  }
+  if (body.newPassword.length < 10) {
+    return { error: 'password must be at least 10 characters' };
+  }
+  state.password = body.newPassword;
+  return { message: 'ok' };
+}
+
+export function listDemoSessions(): SessionDto[] {
+  return [...state.sessions];
+}
+
+export function revokeDemoSession(sessionId: string): boolean {
+  const target = state.sessions.find((s) => s.id === sessionId);
+  if (!target) {
+    return false;
+  }
+  if (target.current) {
+    return false;
+  }
+  state.sessions = state.sessions.filter((s) => s.id !== sessionId);
+  return true;
+}
+
+export function setDemoTotpEnabled(enabled: boolean): UserProfile {
+  state.profile = { ...state.profile, totpEnabled: enabled, memberships: [...state.memberships] };
+  return getDemoProfile();
 }
 
 export function listWorkspaces(): Workspace[] {

@@ -46,6 +46,7 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'automations.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'automations.manage': ['owner', 'admin', 'editor'],
   'automations.moderate': ['owner', 'admin', 'editor'],
+  'notifications.manage_self': ['owner', 'admin', 'editor', 'author', 'viewer'],
 };
 
 describe('permissions matrix (FE-5…FE-14)', () => {
