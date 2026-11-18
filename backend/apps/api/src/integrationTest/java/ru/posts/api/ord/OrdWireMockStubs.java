@@ -11,15 +11,15 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
  *
  * <p>Erid fixtures use the {@code test-erid-...} prefix to avoid gitleaks false positives.
  */
-final class OrdWireMockStubs {
+public final class OrdWireMockStubs {
 
-    static final String VK_ERID = "test-erid-vk-0001";
-    static final String YANDEX_ERID = "test-erid-yandex-0001";
-    static final String PREVIEW_ERID = "test-erid-preview-0001";
+    public static final String VK_ERID = "test-erid-vk-0001";
+    public static final String YANDEX_ERID = "test-erid-yandex-0001";
+    public static final String PREVIEW_ERID = "test-erid-preview-0001";
 
     private OrdWireMockStubs() {}
 
-    static void stubVkHappyPath(WireMockExtension wm) {
+    public static void stubVkHappyPath(WireMockExtension wm) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/v1/person/my"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -35,7 +35,7 @@ final class OrdWireMockStubs {
                 .willReturn(aResponse().withStatus(200)));
     }
 
-    static void stubYandexHappyPath(WireMockExtension wm) {
+    public static void stubYandexHappyPath(WireMockExtension wm) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlPathEqualTo("/api/v8/organization"))
                 .willReturn(aResponse().withStatus(404).withBody("{\"detail\":\"not found\"}")));
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/organization"))
@@ -49,14 +49,14 @@ final class OrdWireMockStubs {
         stubYandexCreativeSuccess(wm, YANDEX_ERID);
     }
 
-    static void stubVkCreativeSuccess(WireMockExtension wm, String erid) {
+    public static void stubVkCreativeSuccess(WireMockExtension wm, String erid) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v3/creative/.*"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"erid\":\"" + erid + "\",\"marker\":\"Реклама. erid: " + erid + "\"}")));
     }
 
-    static void stubYandexCreativeSuccess(WireMockExtension wm, String erid) {
+    public static void stubYandexCreativeSuccess(WireMockExtension wm, String erid) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -65,17 +65,17 @@ final class OrdWireMockStubs {
                                 + "\",\"status\":\"Request accepted by ORD\",\"request_id\":\"req-test\"}")));
     }
 
-    static void stubVkCreativeHttpStatus(WireMockExtension wm, int status) {
+    public static void stubVkCreativeHttpStatus(WireMockExtension wm, int status) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v3/creative/.*"))
                 .willReturn(aResponse().withStatus(status).withBody("{\"error\":\"ord-error-" + status + "\"}")));
     }
 
-    static void stubYandexCreativeHttpStatus(WireMockExtension wm, int status) {
+    public static void stubYandexCreativeHttpStatus(WireMockExtension wm, int status) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
                 .willReturn(aResponse().withStatus(status).withBody("{\"detail\":\"ord-error-" + status + "\"}")));
     }
 
-    static void stubVkCreativeFixedDelay(WireMockExtension wm, int delayMs) {
+    public static void stubVkCreativeFixedDelay(WireMockExtension wm, int delayMs) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.put(urlPathMatching("/v3/creative/.*"))
                 .willReturn(aResponse()
                         .withFixedDelay(delayMs)
@@ -83,7 +83,7 @@ final class OrdWireMockStubs {
                         .withBody("{\"erid\":\"" + VK_ERID + "\"}")));
     }
 
-    static void stubYandexCreativeFixedDelay(WireMockExtension wm, int delayMs) {
+    public static void stubYandexCreativeFixedDelay(WireMockExtension wm, int delayMs) {
         wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v8/creative"))
                 .willReturn(aResponse()
                         .withFixedDelay(delayMs)
