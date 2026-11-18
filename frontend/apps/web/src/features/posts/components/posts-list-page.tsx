@@ -20,7 +20,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Megaphone, Plus, ShieldOff } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 
@@ -52,9 +52,29 @@ type PostsListPageProps = {
   workspaceId: string;
 };
 
+function filtersFromSearchParams(params: URLSearchParams): PostsFiltersState {
+  const base = defaultPostsFilters();
+  const status = params.get('status') ?? undefined;
+  const network = params.get('network') ?? undefined;
+  const q = params.get('q') ?? undefined;
+  const channelId = params.get('channelId') ?? undefined;
+  const projectId = params.get('projectId') ?? undefined;
+  const contentKind = params.get('contentKind');
+  return {
+    ...base,
+    ...(status ? { status } : {}),
+    ...(network ? { network } : {}),
+    ...(q ? { q } : {}),
+    ...(channelId ? { channelId } : {}),
+    ...(projectId ? { projectId } : {}),
+    ...(contentKind === 'post' || contentKind === 'story' ? { contentKind } : {}),
+  };
+}
+
 export function PostsListPage({ workspaceId }: PostsListPageProps) {
   const t = useTranslations('posts');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const canView = useCan('posts.view', workspaceId);
   const canBulk = useCan('posts.bulk', workspaceId);
@@ -62,7 +82,9 @@ export function PostsListPage({ workspaceId }: PostsListPageProps) {
 
   usePublicationUpdates({ workspaceId, enabled: canView });
 
-  const [filters, setFilters] = useState<PostsFiltersState>(defaultPostsFilters);
+  const [filters, setFilters] = useState<PostsFiltersState>(() =>
+    filtersFromSearchParams(searchParams),
+  );
   const [selected, setSelected] = useState<Set<string>>(() => clearSelection());
   const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
   const currentCursor = cursorStack[cursorStack.length - 1];

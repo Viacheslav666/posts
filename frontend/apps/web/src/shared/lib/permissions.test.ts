@@ -40,6 +40,7 @@ const EXPECTED: Record<PermissionAction, WorkspaceRole[]> = {
   'posts.ad.schedule': ['owner', 'admin', 'editor'],
   'calendar.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'calendar.move': ['owner', 'admin', 'editor'],
+  'analytics.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'ord.view': ['owner', 'admin', 'editor', 'author', 'viewer'],
   'ord.connection.manage': ['owner', 'admin'],
   'ord.contractors.manage': ['owner', 'admin', 'editor'],

@@ -156,6 +156,13 @@ export type TwoFactorSetupResponse = components['schemas']['TwoFactorSetupRespon
 export type TwoFactorConfirmRequest = components['schemas']['TwoFactorConfirmRequest'];
 export type TwoFactorDisableRequest = components['schemas']['TwoFactorDisableRequest'];
 
+/** Analytics (BE-30 / FE-19) */
+export type PostsAnalyticsResponse = components['schemas']['PostsAnalyticsResponse'];
+export type PostsAnalyticsMonth = components['schemas']['PostsAnalyticsMonth'];
+export type NetworkPublicationStats = components['schemas']['NetworkPublicationStats'];
+export type AdRevenue = components['schemas']['AdRevenue'];
+export type TopPublicationError = components['schemas']['TopPublicationError'];
+
 /** Billing (BE-12 / BE-12b / BE-31) */
 export type Plan = components['schemas']['Plan'];
 export type Subscription = components['schemas']['Subscription'];

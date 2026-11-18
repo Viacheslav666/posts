@@ -38,7 +38,7 @@ const NAV_ITEMS = [
   { key: 'stories', href: '/stories', icon: Sparkles },
   { key: 'channels', href: '/channels', icon: Radio },
   { key: 'media', href: '/media', icon: FolderOpen },
-  { key: 'analytics', href: '/analytics', icon: BarChart3 },
+  { key: 'analytics', href: '/analytics', icon: BarChart3, permission: 'analytics.view' as const },
   { key: 'inbox', href: '/inbox', icon: Inbox },
   { key: 'automations', href: '/automations', icon: Workflow },
   { key: 'ord', href: '/ord', icon: BadgeCheck, permission: 'ord.view' as const },
@@ -52,6 +52,7 @@ export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const base = `/app/${workspaceId}`;
+  const canViewAnalytics = useCan('analytics.view', workspaceId);
   const canViewOrd = useCan('ord.view', workspaceId);
   const canViewBilling = useCan('billing.view', workspaceId);
 
@@ -61,11 +62,12 @@ export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
         if (!('permission' in item) || !item.permission) {
           return true;
         }
+        if (item.permission === 'analytics.view') return canViewAnalytics;
         if (item.permission === 'ord.view') return canViewOrd;
         if (item.permission === 'billing.view') return canViewBilling;
         return true;
       }),
-    [canViewBilling, canViewOrd],
+    [canViewAnalytics, canViewBilling, canViewOrd],
   );
 
   return (

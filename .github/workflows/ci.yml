@@ -255,6 +255,10 @@ jobs:
       - name: Playwright ORD reports (FE-16)
         working-directory: tests/e2e
         run: pnpm test:ord-reports
+      # FE-19: posts analytics (year / charts / errors / retry / a11y).
+      - name: Playwright posts analytics (FE-19)
+        working-directory: tests/e2e
+        run: pnpm test:analytics
       # QA-11: TC-STORY P0 UI историй на MSW (IG absent; TG/Max disabled).
       - name: Playwright scheduled-stories (TC-STORY P0 UI)
         working-directory: tests/e2e
