@@ -739,9 +739,31 @@ public class PostServiceImpl implements PostService {
         List<Instant> runAts =
                 RecurrenceMaterializer.materialize(post.getScheduledAt(), recurrence, post.getTimezone(), now);
         Instant stopAt = post.getStopAt();
+        List<PublicationEntity> existing = publicationRepository.findByPostId(post.getId());
         for (PostVariantEntity variant : variants) {
             for (Instant runAt : runAts) {
                 if (stopAt != null && !runAt.isBefore(stopAt)) {
+                    continue;
+                }
+                String key = publicationIdempotencyKey(variant.getId(), runAt, post.getContentKind());
+                PublicationEntity active = existing.stream()
+                        .filter(p -> key.equals(p.getIdempotencyKey()) && !"cancelled".equals(p.getState()))
+                        .findFirst()
+                        .orElse(null);
+                if (active != null) {
+                    // Already succeeded / pending / in flight — do not re-insert (UNIQUE idempotency_key,run_at).
+                    continue;
+                }
+                PublicationEntity cancelled = existing.stream()
+                        .filter(p -> key.equals(p.getIdempotencyKey()) && "cancelled".equals(p.getState()))
+                        .findFirst()
+                        .orElse(null);
+                if (cancelled != null) {
+                    cancelled.setState("pending");
+                    cancelled.setErrorCode(null);
+                    cancelled.setErrorMessage(null);
+                    cancelled.setNextAttemptAt(null);
+                    publicationRepository.save(cancelled);
                     continue;
                 }
                 ensurePublicationPartition(runAt);
@@ -753,7 +775,7 @@ public class PostServiceImpl implements PostService {
                 pub.setChannelId(variant.getChannelId());
                 pub.setNetwork(variant.getNetwork());
                 pub.setRunAt(runAt);
-                pub.setIdempotencyKey(publicationIdempotencyKey(variant.getId(), runAt, post.getContentKind()));
+                pub.setIdempotencyKey(key);
                 pub.setState("pending");
                 pub.setCreatedAt(now);
                 publicationRepository.save(pub);

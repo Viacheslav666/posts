@@ -7,7 +7,11 @@ import org.testcontainers.utility.DockerImageName;
 import ru.posts.testsupport.emulator.SocialEmulatorProcess;
 
 /**
- * JVM-singleton containers + social-emulator for publisher pipeline ITs (TG / VK / OK contexts).
+ * JVM-singleton containers + social-emulator for publisher pipeline ITs.
+ *
+ * <p>Postgres/Redis/emulator are shared. RabbitMQ is <strong>per publisher network</strong> so a
+ * cached VK/OK Spring context cannot drain {@code publish.vk}/{@code publish.ok} while TG ITs
+ * assert queue isolation (TC-PUB-11).
  */
 final class SharedPipelineInfra {
 
@@ -16,7 +20,16 @@ final class SharedPipelineInfra {
             .withUsername("posts")
             .withPassword("posts");
 
-    static final RabbitMQContainer RABBIT =
+    /** Rabbit for {@code posts.publisher.network=tg} contexts only. */
+    static final RabbitMQContainer RABBIT_TG =
+            new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
+
+    /** Isolated broker for VK story/publisher ITs. */
+    static final RabbitMQContainer RABBIT_VK =
+            new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
+
+    /** Isolated broker for OK Moments/publisher ITs. */
+    static final RabbitMQContainer RABBIT_OK =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
 
     static final GenericContainer<?> REDIS =
@@ -27,7 +40,9 @@ final class SharedPipelineInfra {
 
     static {
         POSTGRES.start();
-        RABBIT.start();
+        RABBIT_TG.start();
+        RABBIT_VK.start();
+        RABBIT_OK.start();
         REDIS.start();
     }
 

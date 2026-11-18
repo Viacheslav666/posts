@@ -23,7 +23,7 @@ abstract class AbstractVkPipelineIT {
     static final PostgreSQLContainer<?> POSTGRES = SharedPipelineInfra.POSTGRES;
 
     @ServiceConnection
-    static final RabbitMQContainer RABBIT = SharedPipelineInfra.RABBIT;
+    static final RabbitMQContainer RABBIT = SharedPipelineInfra.RABBIT_VK;
 
     static final GenericContainer<?> REDIS = SharedPipelineInfra.REDIS;
 
