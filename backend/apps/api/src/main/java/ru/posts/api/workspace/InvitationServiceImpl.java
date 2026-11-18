@@ -23,12 +23,14 @@ import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.workspace.WorkspaceDtos;
 import ru.posts.api.web.support.CursorPages;
 import ru.posts.persistence.entity.InvitationEntity;
+import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.ProjectMemberEntity;
 import ru.posts.persistence.entity.UserEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.entity.WorkspaceMemberEntity;
 import ru.posts.persistence.repository.InvitationRepository;
+import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.ProjectMemberRepository;
 import ru.posts.persistence.repository.ProjectRepository;
@@ -54,6 +56,7 @@ public class InvitationServiceImpl implements InvitationService {
     private final AuditRecorder auditRecorder;
     private final AuthMailSender mailSender;
     private final AuthProperties authProperties;
+    private final OutboxRepository outboxRepository;
 
     public InvitationServiceImpl(
             InvitationRepository invitationRepository,
@@ -65,7 +68,8 @@ public class InvitationServiceImpl implements InvitationService {
             WorkspaceAccessService access,
             AuditRecorder auditRecorder,
             AuthMailSender mailSender,
-            AuthProperties authProperties) {
+            AuthProperties authProperties,
+            OutboxRepository outboxRepository) {
         this.invitationRepository = invitationRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.projectRepository = projectRepository;
@@ -76,6 +80,7 @@ public class InvitationServiceImpl implements InvitationService {
         this.auditRecorder = auditRecorder;
         this.mailSender = mailSender;
         this.authProperties = authProperties;
+        this.outboxRepository = outboxRepository;
     }
 
     @Override
@@ -147,6 +152,17 @@ public class InvitationServiceImpl implements InvitationService {
                 invitation.getId(),
                 Map.of("email", email, "role", invitation.getRole()),
                 ctx.ip());
+        OutboxEntity outbox = new OutboxEntity();
+        outbox.setAggregate("invitation");
+        outbox.setAggregateId(invitation.getId());
+        outbox.setEventType("invitation.created");
+        outbox.setPayload(Map.of(
+                "workspaceId", workspaceId.toString(),
+                "email", email,
+                "invitationId", invitation.getId().toString(),
+                "role", invitation.getRole()));
+        outbox.setCreatedAt(Instant.now());
+        outboxRepository.save(outbox);
         return toDto(invitation);
     }
 

@@ -9,11 +9,15 @@ public class DispatchScheduler {
 
     private final PublicationDispatchService dispatchService;
     private final GrabberDispatchService grabberDispatchService;
+    private final OutboxRelayService outboxRelayService;
 
     public DispatchScheduler(
-            PublicationDispatchService dispatchService, GrabberDispatchService grabberDispatchService) {
+            PublicationDispatchService dispatchService,
+            GrabberDispatchService grabberDispatchService,
+            OutboxRelayService outboxRelayService) {
         this.dispatchService = dispatchService;
         this.grabberDispatchService = grabberDispatchService;
+        this.outboxRelayService = outboxRelayService;
     }
 
     /** Competitive claim — no ShedLock; SKIP LOCKED coordinates instances. */
@@ -31,6 +35,12 @@ public class DispatchScheduler {
     @Scheduled(fixedDelayString = "${posts.scheduler.grabber-dispatch-interval-ms:15000}")
     public void dispatchGrabber() {
         grabberDispatchService.dispatchDueRules();
+    }
+
+    /** BE-11: relay unpublished outbox rows to notify exchange. */
+    @Scheduled(fixedDelayString = "${posts.scheduler.outbox-relay-interval-ms:1000}")
+    public void relayOutbox() {
+        outboxRelayService.relayBatch();
     }
 
     @Scheduled(fixedDelayString = "${posts.scheduler.reaper-interval-ms:30000}")

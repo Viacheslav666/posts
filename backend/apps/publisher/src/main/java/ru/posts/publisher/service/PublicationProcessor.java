@@ -261,6 +261,21 @@ public class PublicationProcessor {
                         excerpt(message));
                 if (finalClass == ErrorClass.AUTH) {
                     lifecycleJdbc.markChannelReauthRequired(claim.channelId());
+                    outboxJdbc.append(
+                            "channel",
+                            claim.channelId(),
+                            "channel.reauth_required",
+                            "{\"workspaceId\":\""
+                                    + claim.workspaceId()
+                                    + "\",\"channelId\":\""
+                                    + claim.channelId()
+                                    + "\",\"network\":\""
+                                    + claim.network()
+                                    + "\",\"reason\":\""
+                                    + finalCode
+                                    + "\",\"publicationId\":\""
+                                    + claim.id()
+                                    + "\"}");
                 }
                 outboxJdbc.append(
                         "publication",

@@ -1,11 +1,54 @@
 spring:
   application:
     name: posts-notifications
-  main:
-    web-application-type: servlet
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: jdbc:postgresql://${POSTS_DB_HOST:localhost}:${POSTS_DB_PORT:5432}/${POSTS_DB_NAME:posts}
+    username: ${POSTS_DB_USER:posts}
+    password: ${POSTS_DB_PASSWORD:posts}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${POSTS_REDIS_HOST:localhost}
+      port: ${POSTS_REDIS_PORT:6379}
+  rabbitmq:
+    host: ${POSTS_RABBIT_HOST:localhost}
+    port: ${POSTS_RABBIT_PORT:5672}
+    username: ${POSTS_RABBIT_USER:posts}
+    password: ${POSTS_RABBIT_PASSWORD:posts}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: ${posts.notifications.prefetch:50}
+  mail:
+    host: ${POSTS_SMTP_HOST:localhost}
+    port: ${POSTS_SMTP_PORT:1025}
+    username: ${POSTS_SMTP_USER:}
+    password: ${POSTS_SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8088}
+  shutdown: graceful
 
 management:
   endpoints:
@@ -16,3 +59,34 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+posts:
+  notifications:
+    app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}
+    prefetch: 50
+    max-attempts: 8
+    retry-batch-size: 100
+    retry-poll-interval-ms: 2000
+    mail:
+      from: ${POSTS_MAIL_FROM:noreply@posts.local}
+      from-name: ${POSTS_MAIL_FROM_NAME:Posts}
+    telegram:
+      bot-token: ${POSTS_TG_NOTIFY_BOT_TOKEN:}
+      bot-username: ${POSTS_TG_NOTIFY_BOT_USERNAME:}
+      webhook-secret: ${POSTS_TG_NOTIFY_WEBHOOK_SECRET:}
+      api-base-url: ${POSTS_TG_NOTIFY_API_BASE_URL:https://api.telegram.org}
+    web-push:
+      vapid-public-key: ${POSTS_VAPID_PUBLIC_KEY:}
+      vapid-private-key: ${POSTS_VAPID_PRIVATE_KEY:}
+      vapid-subject: ${POSTS_VAPID_SUBJECT:mailto:noreply@posts.local}
+    rate-limits:
+      telegram-per-second: 25
+      telegram-min-interval: 40ms
+
+logging:
+  level:
+    root: INFO
+    ru.posts.notifications: INFO

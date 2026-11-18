@@ -4857,6 +4857,13 @@ paths:
   /api/v1/notification-settings:
     get:
       operationId: notificationSettingsGet
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           content:
@@ -4912,6 +4919,13 @@ paths:
       - Notifications
     put:
       operationId: notificationSettingsUpdate
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         content:
           application/json:
@@ -4971,10 +4985,278 @@ paths:
       summary: Update notification delivery preferences
       tags:
       - Notifications
+  /api/v1/notification-settings/telegram:
+    delete:
+      operationId: notificationTelegramUnlink
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Unlinked
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Unlink Telegram notification bot
+      tags:
+      - Notifications
+  /api/v1/notification-settings/telegram/link:
+    post:
+      operationId: notificationTelegramLinkStart
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramLinkStartResponse"
+          description: Deep link to bot
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Start Telegram notification-bot account linking
+      tags:
+      - Notifications
+  /api/v1/notification-settings/web-push:
+    delete:
+      operationId: notificationWebPushUnsubscribe
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: endpoint
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Unsubscribed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Remove a Web Push subscription
+      tags:
+      - Notifications
+    post:
+      operationId: notificationWebPushSubscribe
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebPushSubscribeRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+          description: Subscribed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Subscribe browser to Web Push
+      tags:
+      - Notifications
   /api/v1/notifications:
     get:
       operationId: notificationsList
       parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
       - in: query
         name: unreadOnly
         required: false
@@ -5058,6 +5340,13 @@ paths:
   /api/v1/notifications/read:
     put:
       operationId: notificationsMarkRead
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         content:
           application/json:
@@ -5115,6 +5404,124 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Mark notifications as read
+      tags:
+      - Notifications
+  /api/v1/notifications/unsubscribe:
+    get:
+      operationId: notificationUnsubscribe
+      parameters:
+      - in: query
+        name: token
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnsubscribeResponse"
+          description: Unsubscribed
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: One-click email unsubscribe by token
+      tags:
+      - Notifications
+  /api/v1/notifications/vapid-public-key:
+    get:
+      operationId: notificationVapidPublicKey
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapidPublicKeyResponse"
+          description: VAPID public key
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get VAPID public key for Web Push
       tags:
       - Notifications
   /api/v1/ord/dictionaries/kktu:
@@ -8826,6 +9233,33 @@ paths:
       summary: Max Bot webhook
       tags:
       - Social hooks
+  /hooks/telegram-notify:
+    post:
+      operationId: hooksTelegramNotify
+      parameters:
+      - in: header
+        name: X-Telegram-Bot-Api-Secret-Token
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonNode"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+          description: OK
+      summary: Telegram notification-bot webhook (account linking via /start CODE)
+      tags:
+      - Social hooks
   /hooks/tg/{botId}:
     post:
       operationId: hooksTg
@@ -9392,6 +9826,17 @@ components:
             $ref: "#/components/schemas/Channel"
         nextCursor:
           type: string
+    ChannelPreference:
+      type: object
+      properties:
+        email:
+          type: boolean
+        inApp:
+          type: boolean
+        telegram:
+          type: boolean
+        webPush:
+          type: boolean
     ChannelSet:
       type: object
       properties:
@@ -10313,11 +10758,11 @@ components:
       properties:
         ids:
           type: array
+          description: Notification ids to mark read; omit or empty to mark all in
+            workspace
           items:
             type: string
             format: uuid
-      required:
-      - ids
     MediaAsset:
       type: object
       properties:
@@ -10551,6 +10996,9 @@ components:
         type:
           type: string
           example: publication.failed
+        workspaceId:
+          type: string
+          format: uuid
     NotificationPage:
       type: object
       properties:
@@ -10567,8 +11015,10 @@ components:
       properties:
         emailEnabled:
           type: boolean
+          description: Global email master switch (OpenAPI compat)
         inAppEnabled:
           type: boolean
+          description: Global in-app master switch (OpenAPI compat)
         mutedTypes:
           type: array
           description: Mute categories
@@ -10576,10 +11026,26 @@ components:
           - billing.reminder
           items:
             type: string
+        preferences:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ChannelPreference"
+          description: Per-event-type channel preferences
+        quietHours:
+          $ref: "#/components/schemas/QuietHours"
+        telegram:
+          $ref: "#/components/schemas/TelegramLinkStatus"
         telegramBotEnabled:
           type: boolean
+          description: Global Telegram bot master switch (OpenAPI compat)
+        vapidPublicKey:
+          type: string
         webPushEnabled:
           type: boolean
+          description: Global Web Push master switch (OpenAPI compat)
+        webPushSubscriptionCount:
+          type: integer
+          format: int32
     OAuthLinkRequest:
       type: object
       properties:
@@ -11359,6 +11825,22 @@ components:
             $ref: "#/components/schemas/Publication"
         nextCursor:
           type: string
+    QuietHours:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        end:
+          type: string
+          description: HH:mm local end
+          example: 08:00
+        start:
+          type: string
+          description: HH:mm local start
+          example: 22:00
+        timezone:
+          type: string
+          example: Europe/Moscow
     RateLimits:
       type: object
       properties:
@@ -11636,6 +12118,31 @@ components:
         workspaceId:
           type: string
           format: uuid
+    TelegramLinkStartResponse:
+      type: object
+      properties:
+        botUsername:
+          type: string
+          example: posts_notify_bot
+        codeExpiresAt:
+          type: string
+          format: date-time
+        deepLink:
+          type: string
+    TelegramLinkStatus:
+      type: object
+      properties:
+        botUsername:
+          type: string
+        deepLink:
+          type: string
+        linked:
+          type: boolean
+        linkedAt:
+          type: string
+          format: date-time
+        username:
+          type: string
     TextLimits:
       type: object
       properties:
@@ -11702,6 +12209,12 @@ components:
         secret:
           type: string
           description: Base32 secret for manual entry
+    UnsubscribeResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: unsubscribed
     UpdateChannelRequest:
       type: object
       properties:
@@ -11771,6 +12284,12 @@ components:
           type: array
           items:
             type: string
+        preferences:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ChannelPreference"
+        quietHours:
+          $ref: "#/components/schemas/QuietHours"
         telegramBotEnabled:
           type: boolean
         webPushEnabled:
@@ -11942,6 +12461,34 @@ components:
         severity:
           type: string
           example: error
+    VapidPublicKeyResponse:
+      type: object
+      properties:
+        vapidPublicKey:
+          type: string
+    WebPushSubscribeRequest:
+      type: object
+      properties:
+        auth:
+          type: string
+          maxLength: 512
+          minLength: 0
+        endpoint:
+          type: string
+          maxLength: 2048
+          minLength: 0
+        p256dh:
+          type: string
+          maxLength: 512
+          minLength: 0
+        userAgent:
+          type: string
+          maxLength: 512
+          minLength: 0
+      required:
+      - auth
+      - endpoint
+      - p256dh
     Workspace:
       type: object
       properties:

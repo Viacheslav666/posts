@@ -1,0 +1,25 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+posts:
+  notifications:
+    prefetch: 20
+    max-attempts: 8
+    retry-poll-interval-ms: 60000
+    mail:
+      from: noreply@posts.test
+      from-name: Posts Test
+    rate-limits:
+      telegram-min-interval: 1ms
+
+logging:
+  level:
+    ru.posts.notifications: INFO
