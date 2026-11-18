@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -127,6 +128,9 @@ class OrdReportingIT {
 
     @Autowired
     OrdCreativeLifecycleService lifecycleService;
+
+    @Autowired
+    EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -415,6 +419,9 @@ class OrdReportingIT {
             creativeRepository.saveAll(batch);
         }
         creativeRepository.flush();
+        // Drop 10k managed entities so the report transaction + parallel Gradle
+        // workers on CI do not contend for the same heap.
+        entityManager.clear();
 
         long t0 = System.nanoTime();
         mockMvc.perform(post("/api/v1/ord/reports/run")

@@ -333,8 +333,9 @@ public class OrdReportRunner {
                 }
             }
             if (!statsToPersist.isEmpty()) {
-                // Single batched persist after ORD submit (draft→submitted) — avoids double 10k write.
-                statisticsRepository.saveAll(statsToPersist);
+                // Single persist after ORD submit (draft→submitted) — avoids double 10k write.
+                // Chunked to keep JDBC/Hibernate peak memory bounded on large workspaces.
+                saveStatisticsInChunks(statsToPersist);
             }
 
             run.setStatus("succeeded");
@@ -423,6 +424,14 @@ public class OrdReportRunner {
         stats.setViewsSource(viewsSource);
         stats.setUpdatedAt(now);
         return stats;
+    }
+
+    private void saveStatisticsInChunks(List<OrdStatisticsEntity> rows) {
+        final int chunkSize = 500;
+        for (int i = 0; i < rows.size(); i += chunkSize) {
+            int end = Math.min(i + chunkSize, rows.size());
+            statisticsRepository.saveAll(rows.subList(i, end));
+        }
     }
 
     private static Map<String, OrdStatisticsEntity> indexStatistics(List<OrdStatisticsEntity> rows) {
