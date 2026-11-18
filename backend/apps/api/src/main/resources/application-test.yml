@@ -21,3 +21,7 @@ posts:
   auth:
     hibp-enabled: false
     refresh-cookie-secure: false
+  grabber:
+    inline-runs: true
+    vk:
+      access-token: test-token

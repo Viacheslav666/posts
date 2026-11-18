@@ -126,6 +126,23 @@ ACTION: dict[str, str | None] = {
     "postsOrdRegister": "ord.view",
     "postsOrdStatus": "ord.view",
     "ordReportsRun": "ord.reports.run",
+    "ingestRulesList": "automations.view",
+    "ingestRulesCreate": "automations.manage",
+    "ingestRulesGet": "automations.view",
+    "ingestRulesPatch": "automations.manage",
+    "ingestRulesActivate": "automations.manage",
+    "ingestRulesPause": "automations.manage",
+    "ingestRulesResume": "automations.manage",
+    "ingestRulesArchive": "automations.manage",
+    "ingestRulesRun": "automations.manage",
+    "ingestRunsList": "automations.view",
+    "ingestItemsList": "automations.view",
+    "ingestItemsGet": "automations.view",
+    "ingestItemsApprove": "automations.moderate",
+    "ingestItemsReject": "automations.moderate",
+    "ingestItemsEditAndApprove": "automations.moderate",
+    "ingestItemsBulk": "automations.moderate",
+    "ingestPreview": "automations.view",
 }
 
 IMPLEMENTED = {
@@ -226,6 +243,23 @@ IMPLEMENTED = {
     "postsOrdRegister",
     "postsOrdStatus",
     "ordReportsRun",
+    "ingestRulesList",
+    "ingestRulesCreate",
+    "ingestRulesGet",
+    "ingestRulesPatch",
+    "ingestRulesActivate",
+    "ingestRulesPause",
+    "ingestRulesResume",
+    "ingestRulesArchive",
+    "ingestRulesRun",
+    "ingestRunsList",
+    "ingestItemsList",
+    "ingestItemsGet",
+    "ingestItemsApprove",
+    "ingestItemsReject",
+    "ingestItemsEditAndApprove",
+    "ingestItemsBulk",
+    "ingestPreview",
 }
 
 DESTRUCTIVE = {
@@ -262,6 +296,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaImportUrl",
     "channelSetsCreate",
     "ordReportsRun",
+    "ingestPreview",
 }
 
 
@@ -306,6 +341,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{mediaId}": ("mediaId", "{mediaId}"),
         "{publicationId}": ("publicationId", "{publicationId}"),
         "{sessionId}": ("sessionId", "{sessionId}"),
+        "{ruleId}": ("ruleId", "{ruleId}"),
+        "{itemId}": ("itemId", "{itemId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),

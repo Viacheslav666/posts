@@ -35,6 +35,14 @@ info:
     - ord_erid_missing — creative registered without erid
     - ad_inn_invalid — advertiser INN must be 10 or 12 digits
     - network_option_unsupported — option not supported for selected network
+    - ingest_responsibility_required — grabber activate without legal checkbox
+    - ingest_attribution_required — grabber activate without attribution
+    - ingest_ssrf_blocked — RSS/website URL targets private network
+    - ingest_rate_limited — manual grabber run too frequent
+    - ingest_source_unreachable — source fetch failed
+    - ingest_auto_paused — rule auto-paused after errors
+    - ingest_validation_failed — item failed network capability checks
+    - ingest_dedup_conflict — duplicate content detected
 
     Auth: most operations require `Authorization: Bearer <access_jwt>` (scheme `bearer-jwt`).
     Public: `/api/v1/ping`, `/api/v1/auth/*` (except 2FA setup/confirm/disable, oauth link), invitation preview.
@@ -66,6 +74,8 @@ tags:
   name: Billing
 - description: Media library uploads via presigned S3 URLs
   name: Media
+- description: "Grabber / RSS automation rules, runs, moderation queue (BE-17)"
+  name: Ingest
 - description: "Posts, variants, schedule actions, preview, bulk"
   name: Posts
 - description: Projects (clients/brands) inside a workspace
@@ -2517,6 +2527,968 @@ paths:
       summary: Re-check channel token and permissions (US-3.5)
       tags:
       - Channels
+  /api/v1/ingest/items/bulk:
+    post:
+      operationId: ingestItemsBulk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberBulkModerationRequest"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Bulk approve/reject grabber items
+      tags:
+      - Ingest
+  /api/v1/ingest/items/{itemId}:
+    get:
+      operationId: ingestItemsGet
+      parameters:
+      - in: path
+        name: itemId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get grabber item details
+      tags:
+      - Ingest
+  /api/v1/ingest/items/{itemId}/approve:
+    post:
+      operationId: ingestItemsApprove
+      parameters:
+      - in: path
+        name: itemId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberItemApproveRequest"
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Approve grabber item → publish via pipeline
+      tags:
+      - Ingest
+  /api/v1/ingest/items/{itemId}/edit-and-approve:
+    post:
+      operationId: ingestItemsEditAndApprove
+      parameters:
+      - in: path
+        name: itemId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberItemEditApproveRequest"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Edit text and approve grabber item
+      tags:
+      - Ingest
+  /api/v1/ingest/items/{itemId}/reject:
+    post:
+      operationId: ingestItemsReject
+      parameters:
+      - in: path
+        name: itemId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberItemRejectRequest"
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Reject grabber item
+      tags:
+      - Ingest
+  /api/v1/ingest/preview:
+    post:
+      operationId: ingestPreview
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestPreviewRequest"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Preview source/RSS parse without saving
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}:
+    get:
+      operationId: ingestRulesGet
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get ingest rule
+      tags:
+      - Ingest
+    patch:
+      operationId: ingestRulesPatch
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberRulePatch"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update ingest rule config/name
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/activate:
+    post:
+      operationId: ingestRulesActivate
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Activate ingest rule
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/archive:
+    post:
+      operationId: ingestRulesArchive
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Archive ingest rule
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/items:
+    get:
+      operationId: ingestItemsList
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - discovered
+          - filtered_out
+          - suppressed_dedup
+          - pending_moderation
+          - rejected
+          - approved
+          - scheduled
+          - published
+          - publish_failed
+          - failed_validation
+          - failed_ingest
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List grabber items / moderation queue
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/pause:
+    post:
+      operationId: ingestRulesPause
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Pause ingest rule
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/resume:
+    post:
+      operationId: ingestRulesResume
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Resume ingest rule
+      tags:
+      - Ingest
+  /api/v1/ingest/rules/{ruleId}/runs:
+    get:
+      operationId: ingestRunsList
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List grabber runs for a rule
+      tags:
+      - Ingest
+    post:
+      operationId: ingestRulesRun
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRun"
+          description: Accepted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Manual grabber run (Check now)
+      tags:
+      - Ingest
   /api/v1/invitations/accept:
     post:
       operationId: invitationsAccept
@@ -7330,6 +8302,185 @@ paths:
       summary: Create a project
       tags:
       - Projects
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules:
+    get:
+      operationId: ingestRulesList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: type
+        required: false
+        schema:
+          type: string
+          enum:
+          - grabber
+          - rss
+          - website
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRulePage"
+          description: Rules page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List ingest rules in a project
+      tags:
+      - Ingest
+    post:
+      operationId: ingestRulesCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrabberRuleCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberRule"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create an ingest rule
+      tags:
+      - Ingest
   /hooks/max/{botId}:
     post:
       operationId: hooksMax
@@ -8226,6 +9377,266 @@ components:
         lon:
           type: number
           format: double
+    GrabberBulkModerationRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - approve
+          - reject
+        itemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 1
+        reason:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+      - action
+      - itemIds
+    GrabberConfig:
+      type: object
+      properties:
+        aiRewriteEnabled:
+          type: boolean
+        attribution:
+          type: object
+          additionalProperties:
+            type: object
+        filters:
+          type: object
+          additionalProperties:
+            type: object
+        limits:
+          type: object
+          additionalProperties:
+            type: object
+        publishDelayMinutes:
+          type: integer
+          format: int32
+        publishMode:
+          type: string
+          enum:
+          - moderate
+          - auto
+          - draft
+        reliability:
+          type: object
+          additionalProperties:
+            type: object
+        rssMaxItemsPerRun:
+          type: integer
+          format: int32
+        rssUrl:
+          type: string
+        scanIntervalMinutes:
+          type: integer
+          format: int32
+        scheduleMode:
+          type: string
+        sourceIds:
+          type: array
+          items:
+            type: string
+        transform:
+          type: object
+          additionalProperties:
+            type: object
+    GrabberItemApproveRequest:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+    GrabberItemEditApproveRequest:
+      type: object
+      properties:
+        contentText:
+          type: string
+          maxLength: 20000
+          minLength: 0
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+      - contentText
+    GrabberItemRejectRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
+    GrabberRule:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/GrabberConfig"
+        configVersion:
+          type: integer
+          format: int32
+        consecutiveFailures:
+          type: integer
+          format: int32
+        copiedTotal:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        lastRunAt:
+          type: string
+          format: date-time
+        name:
+          type: string
+        nextRunAt:
+          type: string
+          format: date-time
+        projectId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - paused
+          - auto_paused
+          - archived
+        targetChannelId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - grabber
+          - rss
+          - website
+        updatedAt:
+          type: string
+          format: date-time
+        userResponsibilityAcceptedAt:
+          type: string
+          format: date-time
+        userResponsibilityAcceptedBy:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int32
+        workspaceId:
+          type: string
+          format: uuid
+    GrabberRuleCreate:
+      type: object
+      properties:
+        activate:
+          type: boolean
+        config:
+          $ref: "#/components/schemas/GrabberConfig"
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+        targetChannelId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - grabber
+          - rss
+          - website
+        userResponsibilityAccepted:
+          type: boolean
+      required:
+      - name
+      - targetChannelId
+      - type
+      - userResponsibilityAccepted
+    GrabberRulePage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrabberRule"
+        nextCursor:
+          type: string
+    GrabberRulePatch:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/GrabberConfig"
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+        targetChannelId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int32
+      required:
+      - version
+    GrabberRun:
+      type: object
+      properties:
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        finishedAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        itemsDeduped:
+          type: integer
+          format: int32
+        itemsFound:
+          type: integer
+          format: int32
+        itemsNew:
+          type: integer
+          format: int32
+        itemsPublished:
+          type: integer
+          format: int32
+        ruleId:
+          type: string
+          format: uuid
+        sourcesScanned:
+          type: integer
+          format: int32
+        startedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        traceId:
+          type: string
+        trigger:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
     ImportUrlRequest:
       type: object
       properties:
@@ -8254,6 +9665,26 @@ components:
           - processing
           - ready
           - failed
+    IngestPreviewRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+          format: int32
+        rssUrl:
+          type: string
+        sourceIds:
+          type: array
+          items:
+            type: string
+        type:
+          type: string
+          enum:
+          - grabber
+          - rss
+          - website
+      required:
+      - type
     InlineButton:
       type: object
       properties:

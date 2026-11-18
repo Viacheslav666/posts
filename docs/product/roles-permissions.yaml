@@ -142,6 +142,16 @@ actions:
   - id: notifications.manage_self
     resource: notifications
     description: Настройка собственных уведомлений
+  - id: automations.view
+    resource: automations
+    description: Просмотр правил граббера/RSS и очереди items
+  - id: automations.manage
+    resource: automations
+    description: Создание и управление правилами Ingest, ручной run
+  - id: automations.moderate
+    resource: automations
+    description: Модерация очереди граббера (approve/reject)
+
   - id: ord.connection.manage
     resource: ord
     description: Настройка ORD-подключений (API-ключ, publisher)
@@ -460,6 +470,33 @@ matrix:
     viewer: allow
     scope: workspace
 
+
+  # --- automations / ingest (BE-17) ---
+  - action: automations.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: automations.manage
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+  - action: automations.moderate
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
+
   # --- ORD / ad marking (BE-15) ---
   - action: ord.connection.manage
     owner: allow
@@ -527,3 +564,7 @@ invariants:
     actions: [posts.ad.schedule, ord.connection.manage, ord.contractors.manage, ord.reports.run]
     denied_roles: [author, viewer]
     notes: Author additionally denied posts.ad.schedule; Viewer denied all ORD configure actions
+  - id: INV-RBAC-007
+    description: Author/Viewer не управляют граббером и не модерируют очередь
+    actions: [automations.manage, automations.moderate]
+    denied_roles: [author, viewer]

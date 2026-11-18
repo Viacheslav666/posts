@@ -23,6 +23,7 @@ include(
     "libs:security",
     "libs:ratelimit",
     "libs:content",
+    "libs:grabber",
     "libs:social-api",
     "libs:social-vk",
     "libs:social-telegram",

@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.PublicationDispatcherJdbc;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
@@ -52,5 +53,11 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(OutboxJdbc.class)
     OutboxJdbc outboxJdbc(DataSource dataSource) {
         return new OutboxJdbc(JdbcClient.create(dataSource));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AutomationRuleClaimJdbc.class)
+    AutomationRuleClaimJdbc automationRuleClaimJdbc(DataSource dataSource) {
+        return new AutomationRuleClaimJdbc(JdbcClient.create(dataSource));
     }
 }

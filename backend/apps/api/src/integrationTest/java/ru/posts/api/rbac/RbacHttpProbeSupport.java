@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -24,16 +25,22 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
+import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -63,6 +70,8 @@ final class RbacHttpProbeSupport {
     private final PostRepository postRepository;
     private final PostVariantRepository postVariantRepository;
     private final PublicationRepository publicationRepository;
+    private final AutomationRuleRepository automationRuleRepository;
+    private final GrabberItemRepository grabberItemRepository;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -75,7 +84,9 @@ final class RbacHttpProbeSupport {
             MediaAssetRepository mediaAssetRepository,
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
-            PublicationRepository publicationRepository) {
+            PublicationRepository publicationRepository,
+            AutomationRuleRepository automationRuleRepository,
+            GrabberItemRepository grabberItemRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -87,6 +98,8 @@ final class RbacHttpProbeSupport {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
+        this.automationRuleRepository = automationRuleRepository;
+        this.grabberItemRepository = grabberItemRepository;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -232,6 +245,7 @@ final class RbacHttpProbeSupport {
             case "GET" -> get(path);
             case "POST" -> post(path);
             case "PUT" -> put(path);
+            case "PATCH" -> patch(path);
             case "DELETE" -> delete(path);
             default -> throw new IllegalArgumentException("Unsupported method " + method);
         };
@@ -265,6 +279,8 @@ final class RbacHttpProbeSupport {
         path = path.replace("{sessionId}", values.get("{sessionId}"));
         path = path.replace("{contractorId}", randomUuid());
         path = path.replace("{contractId}", randomUuid());
+        path = path.replace("{ruleId}", values.get("{ruleId}"));
+        path = path.replace("{itemId}", values.get("{itemId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
         if ("channelsConnectConfirm".equals(endpoint.operationId())) {
             path = path.replace("{network}", "tg");
@@ -292,6 +308,9 @@ final class RbacHttpProbeSupport {
             out.putIfAbsent("to", "2026-12-31T00:00:00Z");
             out.putIfAbsent("timezone", "Europe/Moscow");
         }
+        if ("ingestPreview".equals(endpoint.operationId())) {
+            out.putIfAbsent("workspaceId", values.get("{workspaceId}"));
+        }
         return out;
     }
 
@@ -310,6 +329,8 @@ final class RbacHttpProbeSupport {
                     ids.foreignMediaId() == null
                             ? randomUuid()
                             : ids.foreignMediaId().toString());
+            values.put("{ruleId}", randomUuid());
+            values.put("{itemId}", randomUuid());
         } else {
             values.put("{workspaceId}", ids.workspaceId().toString());
             values.put("{projectId}", ids.projectAlpha().toString());
@@ -342,6 +363,12 @@ final class RbacHttpProbeSupport {
                     ids.publicationId() == null
                             ? randomUuid()
                             : ids.publicationId().toString());
+            values.put(
+                    "{ruleId}",
+                    ids.ruleId() == null ? randomUuid() : ids.ruleId().toString());
+            values.put(
+                    "{itemId}",
+                    ids.itemId() == null ? randomUuid() : ids.itemId().toString());
         }
         values.put("{botId}", randomUuid());
         if (scope == Scope.FOREIGN) {
@@ -518,6 +545,48 @@ final class RbacHttpProbeSupport {
                 node.put("month", 10);
                 yield node.toString();
             }
+            case "ingestRulesCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("type", "grabber");
+                node.put("name", "RBAC Grabber " + UUID.randomUUID());
+                node.put("targetChannelId", channelId.toString());
+                node.put("userResponsibilityAccepted", true);
+                var config = node.putObject("config");
+                config.putArray("sourceIds").add("-123");
+                config.put("scanIntervalMinutes", 60);
+                yield node.toString();
+            }
+            case "ingestRulesPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Grabber Patched");
+                node.put("version", ids.ruleVersion());
+                yield node.toString();
+            }
+            case "ingestItemsApprove", "ingestItemsReject" -> "{}";
+            case "ingestItemsEditAndApprove" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("contentText", "RBAC edited grabber text");
+                yield node.toString();
+            }
+            case "ingestItemsBulk" -> {
+                var node = objectMapper.createObjectNode();
+                node.putArray("itemIds")
+                        .add(
+                                ids.itemId() == null
+                                        ? UUID.randomUUID().toString()
+                                        : ids.itemId().toString());
+                node.put("action", "reject");
+                node.put("reason", "rbac-probe");
+                yield node.toString();
+            }
+            case "ingestPreview" -> {
+                // RSS + loopback URL: SSRF guard returns 422 after authz without network I/O.
+                var node = objectMapper.createObjectNode();
+                node.put("type", "rss");
+                node.put("rssUrl", "http://127.0.0.1/rbac-probe-feed.xml");
+                node.put("limit", 1);
+                yield node.toString();
+            }
             default -> "{}";
         };
     }
@@ -572,6 +641,7 @@ final class RbacHttpProbeSupport {
         UUID mediaId = insertMedia(workspaceId, ownerUserId);
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
+        SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
 
         return new EndpointIds(
                 workspaceId,
@@ -588,12 +658,57 @@ final class RbacHttpProbeSupport {
                 seededPost.postId(),
                 seededPost.publicationId(),
                 seededPost.version(),
+                seededGrabber.ruleId(),
+                seededGrabber.itemId(),
+                seededGrabber.ruleVersion(),
                 ownerToken,
                 adminToken,
                 editorToken,
                 authorToken,
                 viewerToken,
                 foreignToken);
+    }
+
+    private SeededGrabber insertGrabber(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
+        Instant now = Instant.now();
+        AutomationRuleEntity rule = new AutomationRuleEntity();
+        rule.setId(UuidV7.generate());
+        rule.setWorkspaceId(workspaceId);
+        rule.setProjectId(projectId);
+        rule.setType("grabber");
+        rule.setName("RBAC fixture grabber");
+        rule.setTargetChannelId(channelId);
+        rule.setStatus("active");
+        rule.setConfig(GrabberConfigSupport.withDefaults(
+                Map.of("source_ids", List.of("-123"), "scan_interval_minutes", 60, "publish_mode", "moderate")));
+        rule.setUserResponsibilityAcceptedAt(now);
+        rule.setUserResponsibilityAcceptedBy(ownerId);
+        rule.setCreatedBy(ownerId);
+        rule.setCreatedAt(now);
+        rule.setUpdatedAt(now);
+        rule.setNextRunAt(now.plusSeconds(3600));
+        automationRuleRepository.save(rule);
+
+        GrabberItemEntity item = new GrabberItemEntity();
+        item.setId(UuidV7.generate());
+        item.setRuleId(rule.getId());
+        item.setWorkspaceId(workspaceId);
+        item.setTargetChannelId(channelId);
+        item.setSourceNetwork("vk");
+        item.setSourceId("-123");
+        item.setRemotePostId("rbac-" + UUID.randomUUID());
+        item.setSourcePermalink("https://vk.com/wall-123_1");
+        item.setSourceName("RBAC source");
+        item.setContentText("RBAC pending item");
+        item.setContentHash(
+                ContentHasher.hash(item.getContentText(), List.of(), List.of("vk:-123:" + item.getRemotePostId())));
+        item.setStatus("pending_moderation");
+        item.setDetectedAt(now);
+        item.setCreatedAt(now);
+        item.setUpdatedAt(now);
+        grabberItemRepository.save(item);
+
+        return new SeededGrabber(rule.getId(), item.getId(), rule.getVersion());
     }
 
     private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
@@ -826,6 +941,8 @@ final class RbacHttpProbeSupport {
 
     record SeededPost(UUID postId, UUID publicationId, int version) {}
 
+    record SeededGrabber(UUID ruleId, UUID itemId, int ruleVersion) {}
+
     record EndpointIds(
             UUID workspaceId,
             UUID projectAlpha,
@@ -841,6 +958,9 @@ final class RbacHttpProbeSupport {
             UUID postId,
             UUID publicationId,
             int postVersion,
+            UUID ruleId,
+            UUID itemId,
+            int ruleVersion,
             String ownerToken,
             String adminToken,
             String editorToken,

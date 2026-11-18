@@ -1,11 +1,13 @@
 package ru.posts.ingest;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class IngestApplicationTests {
 
     @Test
-    void contextLoads() {}
+    void applicationEntryPointIsPresent() {
+        assertThat(IngestApplication.class.getName()).contains("IngestApplication");
+    }
 }

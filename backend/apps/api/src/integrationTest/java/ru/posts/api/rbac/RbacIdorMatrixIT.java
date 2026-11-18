@@ -23,8 +23,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.api.rbac.RbacHttpProbeSupport.EndpointIds;
 import ru.posts.api.rbac.RbacHttpProbeSupport.Scope;
+import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -84,6 +86,12 @@ class RbacIdorMatrixIT {
     @Autowired
     private PublicationRepository publicationRepository;
 
+    @Autowired
+    private AutomationRuleRepository automationRuleRepository;
+
+    @Autowired
+    private GrabberItemRepository grabberItemRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -101,7 +109,9 @@ class RbacIdorMatrixIT {
                     mediaAssetRepository,
                     postRepository,
                     postVariantRepository,
-                    publicationRepository);
+                    publicationRepository,
+                    automationRuleRepository,
+                    grabberItemRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
@@ -125,7 +135,9 @@ class RbacIdorMatrixIT {
                 || endpoint.path().contains("{mediaId}")
                 || endpoint.path().contains("{publicationId}")
                 || endpoint.path().contains("{setId}")
-                || endpoint.path().contains("{invitationId}");
+                || endpoint.path().contains("{invitationId}")
+                || endpoint.path().contains("{ruleId}")
+                || endpoint.path().contains("{itemId}");
     }
 
     @ParameterizedTest(name = "TC-IDOR {0}")
