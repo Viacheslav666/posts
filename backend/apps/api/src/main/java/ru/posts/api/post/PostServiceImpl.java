@@ -464,7 +464,7 @@ public class PostServiceImpl implements PostService {
         cancelPendingPublications(postId);
         post.setStatus("paused");
         post.setUpdatedAt(Instant.now());
-        postRepository.save(post);
+        postRepository.saveAndFlush(post);
         writeOutbox(post, "post.paused");
         return toDto(post, postVariantRepository.findByPostId(postId));
     }
@@ -487,7 +487,7 @@ public class PostServiceImpl implements PostService {
         post.setStatus("scheduled");
         post.setUpdatedAt(now);
         materializePublications(post, variants, now);
-        postRepository.save(post);
+        postRepository.saveAndFlush(post);
         writeOutbox(post, "post.resumed");
         return toDto(post, variants);
     }

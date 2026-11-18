@@ -241,7 +241,15 @@ class StoriesQa11IntegrationTest {
         assertThat(afterPause.stream().anyMatch(p -> "succeeded".equals(p.getState())))
                 .isTrue();
 
+        // Prefer version from pause response; fall back to GET if serializer lagged @Version.
         int resumeVersion = paused.path("version").asInt();
+        if (resumeVersion <= version) {
+            JsonNode current = readJson(mockMvc.perform(get("/api/v1/posts/" + postId)
+                            .header("Authorization", bearer(token)))
+                    .andExpect(status().isOk())
+                    .andReturn());
+            resumeVersion = current.path("version").asInt();
+        }
         MvcResult resumeResult = mockMvc.perform(post("/api/v1/posts/" + postId + "/resume")
                         .with(csrf())
                         .header("Authorization", bearer(token))
