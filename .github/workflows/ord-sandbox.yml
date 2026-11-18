@@ -1,0 +1,57 @@
+name: ORD sandbox
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *" # nightly ~05:00 MSK
+
+concurrency:
+  group: ord-sandbox-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vk-ord-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend
+      - name: VK ORD sandbox IT
+        working-directory: backend
+        env:
+          VK_ORD_SANDBOX_API_KEY: ${{ secrets.VK_ORD_SANDBOX_API_KEY }}
+        run: |
+          if [ -z "${VK_ORD_SANDBOX_API_KEY}" ]; then
+            echo "VK_ORD_SANDBOX_API_KEY secret missing — skipping"
+            exit 0
+          fi
+          ./gradlew :apps:api:integrationTest -PincludeOrdSandbox=true \
+            --tests 'ru.posts.api.ord.OrdVkSandboxIT'
+
+  yandex-ord-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend
+      - name: Yandex ORD prestable IT
+        working-directory: backend
+        env:
+          YANDEX_ORD_SANDBOX_TOKEN: ${{ secrets.YANDEX_ORD_SANDBOX_TOKEN }}
+        run: |
+          if [ -z "${YANDEX_ORD_SANDBOX_TOKEN}" ]; then
+            echo "YANDEX_ORD_SANDBOX_TOKEN secret missing — skipping"
+            exit 0
+          fi
+          ./gradlew :apps:api:integrationTest -PincludeOrdSandbox=true \
+            --tests 'ru.posts.api.ord.OrdYandexSandboxIT'

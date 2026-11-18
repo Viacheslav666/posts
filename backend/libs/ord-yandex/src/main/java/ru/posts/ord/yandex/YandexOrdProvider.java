@@ -16,6 +16,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import ru.posts.ord.api.CreativeRegistrationResult;
+import ru.posts.ord.api.EridCheckResult;
 import ru.posts.ord.api.OrdApiException;
 import ru.posts.ord.api.OrdContractRequest;
 import ru.posts.ord.api.OrdCreativeRequest;
@@ -23,6 +24,7 @@ import ru.posts.ord.api.OrdCredentials;
 import ru.posts.ord.api.OrdErrorClass;
 import ru.posts.ord.api.OrdInvoiceRequest;
 import ru.posts.ord.api.OrdPersonRequest;
+import ru.posts.ord.api.OrdPlatformRequest;
 import ru.posts.ord.api.OrdProvider;
 import ru.posts.ord.api.OrdProviderId;
 import ru.posts.ord.api.OrdStatisticsItem;
@@ -202,6 +204,17 @@ public class YandexOrdProvider implements OrdProvider {
     }
 
     @Override
+    public void upsertPlatform(OrdCredentials credentials, OrdPlatformRequest platform) {
+        ObjectNode body = objectMapper.createObjectNode();
+        putText(body, "id", platform.externalId());
+        putText(body, "name", platform.name());
+        putText(body, "url", platform.url());
+        putText(body, "platformType", platform.network() == null ? "other" : platform.network());
+        body.put("isOwner", platform.isOwner());
+        postJson(credentials, "/api/v8/platforms", body);
+    }
+
+    @Override
     public void submitInvoice(OrdCredentials credentials, OrdInvoiceRequest invoice) {
         ObjectNode body = objectMapper.createObjectNode();
         putText(body, "id", invoice.externalId());
@@ -259,6 +272,45 @@ public class YandexOrdProvider implements OrdProvider {
             }
         }
         postJson(credentials, "/api/v8/statistics", body);
+    }
+
+    @Override
+    public void deleteInvoice(OrdCredentials credentials, String invoiceExternalId) {
+        ObjectNode body = objectMapper.createObjectNode();
+        putText(body, "id", invoiceExternalId);
+        body.put("deleted", true);
+        postJson(credentials, "/api/v8/invoice", body);
+    }
+
+    @Override
+    public EridCheckResult checkErid(OrdCredentials credentials, String erid) {
+        try {
+            JsonNode response = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v8/creative")
+                            .queryParam("token", erid)
+                            .build())
+                    .header(HttpHeaders.AUTHORIZATION, bearer(credentials))
+                    .retrieve()
+                    .body(JsonNode.class);
+            String status = textOrNull(response, "status");
+            if (status == null) {
+                status = "unknown";
+            }
+            String creativeExternalId = textOrNull(response, "id");
+            return new EridCheckResult(erid, status, creativeExternalId, status, true);
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 404) {
+                return new EridCheckResult(erid, "not_found", null, "not_found", false);
+            }
+            throw mapHttpError(ex);
+        } catch (ResourceAccessException ex) {
+            throw new OrdApiException(OrdErrorClass.RETRYABLE, "Yandex ORD timeout: " + ex.getMessage(), null, ex);
+        } catch (RestClientException ex) {
+            throw new OrdApiException(
+                    OrdErrorClass.RETRYABLE, "Yandex ORD transport error: " + ex.getMessage(), null, ex);
+        }
     }
 
     @Override

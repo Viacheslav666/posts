@@ -60,4 +60,17 @@ public interface SocialAdapter {
     default Optional<TokenSet> refreshToken(TokenRefreshRequest request) {
         return Optional.empty();
     }
+
+    /**
+     * BE-26: fetch impression / view count for a published post. Default returns empty — networks
+     * without a stats API skip ORD views_source=unavailable.
+     */
+    default Optional<Long> fetchImpressions(ChannelContext ctx, String remotePostId) {
+        return Optional.empty();
+    }
+
+    /** BE-26: story view count when the network exposes it. */
+    default Optional<Long> fetchStoryImpressions(ChannelContext ctx, String remoteStoryId) {
+        return fetchImpressions(ctx, remoteStoryId);
+    }
 }

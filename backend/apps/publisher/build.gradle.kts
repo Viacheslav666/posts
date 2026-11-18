@@ -13,7 +13,12 @@ dependencies {
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
     implementation(project(":libs:ord-api"))
+    implementation(project(":libs:ord-reporting"))
+    implementation(project(":libs:ord-vk"))
+    implementation(project(":libs:ord-yandex"))
+    implementation(project(":libs:security"))
     implementation(libs.aws.s3)
+    implementation("io.micrometer:micrometer-core")
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)

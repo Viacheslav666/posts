@@ -9,8 +9,10 @@
 | TC-AD-02 | P0 | `OrdAdMarkingIT#recurrenceMaterializesPublications` · FE `recurrence.test.ts` · e2e | CI | авто |
 | TC-AD-03 | P0 | `OrdAdMarkingIT#scheduleAdWithoutOrdBlocked` · FE `post-editor.test.tsx` · e2e | CI | авто |
 | TC-AD-04 | P0 | `OrdAdMarkingIT#registerCreativeIdempotent`, `#scheduleAdRegistersErid`, `#yandexRegisterCreative` · `OrdAdPipelineIT#tcAdScheduledPublishWithMarker` · e2e | CI | авто |
-| TC-AD-05 | P0 | `OrdAdMarkingIT#reportRunIdempotent` | CI | авто |
-| TC-AD-06 | P0 | `OrdAdPipelineIT#tcAd06AutoDeleteAfterPeriod` | CI | авто |
+| TC-AD-05 | P0 | `OrdAdMarkingIT#reportRunIdempotent` · `OrdReportingIT#fullCycleVkSubmittedAndIdempotent` | CI | авто |
+| TC-AD-06 | P0 | `OrdAdPipelineIT#tcAd06AutoDeleteAfterPeriod` · `OrdReportingIT#multiMonthAndTakedownFinalStats` | CI | авто |
+| TC-AD-05b (BE-26) | P0 | `OrdReportingIT#eridCheckAndDeleteInvoice` · `#yandexReportCycle` · `#tenThousandCreativesBudget` | CI | авто |
+| TC-AD-sandbox | P1 | `OrdVkSandboxIT` / `OrdYandexSandboxIT` (`@Tag("ord-sandbox")`, workflow `ord-sandbox.yml`) | nightly/manual | авто (skip без secret) |
 | TC-AD-07 | P0 | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` (регресс TC-PUB на ads) | CI | авто |
 | TC-AD-08 | P0 | `OrdAdMarkingIT#repostWithAdMarking` | CI | авто |
 | TC-AD-09 | P0 | `OrdAdMarkingIT#rbacAuthorAndViewerDenied` (+ RBAC matrix unit) | CI | авто |

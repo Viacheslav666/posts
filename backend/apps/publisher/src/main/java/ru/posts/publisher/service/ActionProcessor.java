@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import ru.posts.ord.reporting.OrdCreativeLifecycleService;
 import ru.posts.persistence.jdbc.ScheduledActionClaim;
 import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
 import ru.posts.publisher.config.PublisherProperties;
@@ -36,6 +37,7 @@ public class ActionProcessor {
     private final PublisherProperties properties;
     private final PublicationMetrics metrics;
     private final ObjectMapper objectMapper;
+    private final OrdCreativeLifecycleService creativeLifecycleService;
 
     public ActionProcessor(
             ScheduledActionLifecycleJdbc lifecycleJdbc,
@@ -44,7 +46,8 @@ public class ActionProcessor {
             TransactionTemplate transactionTemplate,
             PublisherProperties properties,
             PublicationMetrics metrics,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            OrdCreativeLifecycleService creativeLifecycleService) {
         this.lifecycleJdbc = lifecycleJdbc;
         this.socialAdapter = socialAdapter;
         this.rateLimiter = rateLimiter;
@@ -52,6 +55,7 @@ public class ActionProcessor {
         this.properties = properties;
         this.metrics = metrics;
         this.objectMapper = objectMapper;
+        this.creativeLifecycleService = creativeLifecycleService;
     }
 
     public boolean process(UUID actionId) {
@@ -89,7 +93,14 @@ public class ActionProcessor {
         String remotePostId = remoteId(claim);
         try {
             execute(claim, ctx, remotePostId);
-            transactionTemplate.executeWithoutResult(status -> lifecycleJdbc.markSucceeded(claim.id(), claim.runAt()));
+            transactionTemplate.executeWithoutResult(status -> {
+                lifecycleJdbc.markSucceeded(claim.id(), claim.runAt());
+                if ("delete".equals(claim.kind()) || "delete_story".equals(claim.kind())) {
+                    if (claim.postId() != null) {
+                        creativeLifecycleService.markDisplayEnded(claim.postId(), Instant.now());
+                    }
+                }
+            });
             metrics.recordAction(claim.network(), claim.kind(), "success");
             return true;
         } catch (Exception ex) {

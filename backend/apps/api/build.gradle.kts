@@ -17,8 +17,10 @@ dependencies {
     implementation(project(":libs:ord-api"))
     implementation(project(":libs:ord-vk"))
     implementation(project(":libs:ord-yandex"))
+    implementation(project(":libs:ord-reporting"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:social-vk"))
+    implementation(project(":libs:social-ok"))
     implementation(project(":libs:yookassa"))
 
     implementation(libs.spring.boot.starter.web)
@@ -62,9 +64,13 @@ dependencies {
 tasks.named<Test>("integrationTest") {
     systemProperty("posts.repo.root", rootProject.projectDir.parentFile.absolutePath)
     // QA-12: heavy pipeline linkage (@Tag("nightly")) via -PincludeNightly=true.
+    // BE-26 sandbox: @Tag("ord-sandbox") via -PincludeOrdSandbox=true (separate workflow).
     useJUnitPlatform {
         if (!project.hasProperty("includeNightly")) {
             excludeTags("nightly")
+        }
+        if (!project.hasProperty("includeOrdSandbox")) {
+            excludeTags("ord-sandbox")
         }
     }
 }

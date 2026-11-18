@@ -363,6 +363,46 @@ public class OkSocialAdapter implements SocialAdapter {
     }
 
     @Override
+    public Optional<Long> fetchImpressions(ChannelContext ctx, String remotePostId) {
+        if (remotePostId == null || remotePostId.isBlank()) {
+            return Optional.empty();
+        }
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("method", "mediatopic.getInfo");
+        form.add("topic_ids", remotePostId);
+        form.add("fields", "media_topic.*");
+        applySignedForm(form, token(ctx));
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/ok/fb.do")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            JsonNode mediaTopics = body.path("media_topics");
+            if (!mediaTopics.isArray() || mediaTopics.isEmpty()) {
+                JsonNode single = body.path("media_topic");
+                if (!single.isMissingNode() && !single.isNull()) {
+                    long views = single.path("views_count").asLong(-1);
+                    if (views < 0) {
+                        views = single.path("views").asLong(-1);
+                    }
+                    return views >= 0 ? Optional.of(views) : Optional.empty();
+                }
+                return Optional.empty();
+            }
+            long views = mediaTopics.get(0).path("views_count").asLong(-1);
+            if (views < 0) {
+                views = mediaTopics.get(0).path("views").asLong(-1);
+            }
+            return views >= 0 ? Optional.of(views) : Optional.empty();
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public void pin(ChannelContext ctx, String remotePostId, boolean pinned) {
         // capability pin=false — treat as no-op success for scheduled_actions idempotency
     }

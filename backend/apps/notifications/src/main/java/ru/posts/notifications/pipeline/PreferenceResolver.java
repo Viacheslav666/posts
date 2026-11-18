@@ -128,6 +128,8 @@ public final class PreferenceResolver {
         map.put("ord.error", all);
         map.put("ord.erid_failed", all);
         map.put("ord.problem", all);
+        map.put("ord.expiry_warning", all);
+        map.put("ord.display_ended", all);
         map.put("invitation.created", invitation);
         map.put("team.approval_requested", all);
         return map;

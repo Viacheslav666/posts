@@ -8119,6 +8119,79 @@ paths:
       summary: Get VAPID public key for Web Push
       tags:
       - Notifications
+  /api/v1/ord/creatives:
+    get:
+      operationId: ordCreativesList
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: provider
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdCreativePage"
+          description: Creatives page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List ORD creatives with statuses
+      tags:
+      - ORD
   /api/v1/ord/dictionaries/kktu:
     get:
       operationId: ordDictionariesKktu
@@ -8245,6 +8318,127 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Search OKSM dictionary
+      tags:
+      - ORD
+  /api/v1/ord/erid/check:
+    post:
+      operationId: ordEridCheck
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrdEridCheckRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdEridCheckResponse"
+          description: ERID check result
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Check ERID status in ORD provider
+      tags:
+      - ORD
+  /api/v1/ord/invoices/{invoiceId}:
+    delete:
+      operationId: ordInvoicesDelete
+      parameters:
+      - in: path
+        name: invoiceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Soft-delete ORD invoice/act with provider sync + audit
       tags:
       - ORD
   /api/v1/ord/reports/run:
@@ -11520,6 +11714,191 @@ paths:
       summary: Create ORD contract
       tags:
       - ORD
+  /api/v1/workspaces/{workspaceId}/ord/reports:
+    get:
+      operationId: ordReportsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - in: query
+        name: month
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - in: query
+        name: provider
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: erid
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdReportRowPage"
+          description: Report rows page
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: ORD reporting table rows for a workspace
+      tags:
+      - ORD
+  /api/v1/workspaces/{workspaceId}/ord/reports/export:
+    get:
+      operationId: ordReportsExport
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: year
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - in: query
+        name: month
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - in: query
+        name: provider
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: format
+        required: false
+        schema:
+          type: string
+          default: csv
+          enum:
+          - csv
+          - xlsx
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+                format: byte
+          description: Binary export
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Export ORD reporting table as CSV or XLSX
+      tags:
+      - ORD
   /api/v1/workspaces/{workspaceId}/projects:
     get:
       operationId: projectsList
@@ -14764,6 +15143,51 @@ components:
             $ref: "#/components/schemas/OrdContractor"
         nextCursor:
           type: string
+    OrdCreativeListItem:
+      type: object
+      properties:
+        displayEndedAt:
+          type: string
+          format: date-time
+        displayStartedAt:
+          type: string
+          format: date-time
+        erid:
+          type: string
+        externalId:
+          type: string
+        finalStatsPending:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        lastError:
+          type: string
+        postId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        registeredAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+    OrdCreativePage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrdCreativeListItem"
+        nextCursor:
+          type: string
     OrdCreativeStatus:
       type: object
       properties:
@@ -14788,6 +15212,37 @@ components:
         registeredAt:
           type: string
           format: date-time
+        status:
+          type: string
+    OrdEridCheckRequest:
+      type: object
+      properties:
+        erid:
+          type: string
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        workspaceId:
+          type: string
+          format: uuid
+      required:
+      - erid
+      - workspaceId
+    OrdEridCheckResponse:
+      type: object
+      properties:
+        creativeExternalId:
+          type: string
+        erid:
+          type: string
+        found:
+          type: boolean
+        localCreativeId:
+          type: string
+          format: uuid
         status:
           type: string
     OrdRegisterCreativeResponse:
@@ -14815,6 +15270,60 @@ components:
           type: string
           format: date-time
         status:
+          type: string
+    OrdReportRow:
+      type: object
+      properties:
+        amount:
+          type: number
+        creativeExternalId:
+          type: string
+        creativeId:
+          type: string
+          format: uuid
+        erid:
+          type: string
+        error:
+          type: string
+        impressions:
+          type: integer
+          format: int64
+        invoiceId:
+          type: string
+          format: uuid
+        periodMonth:
+          type: integer
+          format: int32
+        periodYear:
+          type: integer
+          format: int32
+        platformExternalId:
+          type: string
+        platformName:
+          type: string
+        provider:
+          type: string
+          description: ORD provider identifier
+          enum:
+          - vk_ord
+          - yandex_ord
+        statisticsId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        viewsSource:
+          type: string
+    OrdReportRowPage:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrdReportRow"
+        nextCursor:
           type: string
     OrdReportRunRequest:
       type: object

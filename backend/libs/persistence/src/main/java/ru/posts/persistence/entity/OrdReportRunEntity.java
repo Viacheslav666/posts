@@ -34,6 +34,12 @@ public class OrdReportRunEntity extends BaseUuidEntity {
     @Column(name = "last_error")
     private String lastError;
 
+    @Column(nullable = false)
+    private int attempts;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
+
     @Column(name = "started_at", nullable = false)
     private Instant startedAt = Instant.now();
 
@@ -102,6 +108,22 @@ public class OrdReportRunEntity extends BaseUuidEntity {
 
     public void setLastError(String lastError) {
         this.lastError = lastError;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
+    }
+
+    public Instant getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    public void setNextRetryAt(Instant nextRetryAt) {
+        this.nextRetryAt = nextRetryAt;
     }
 
     public Instant getStartedAt() {

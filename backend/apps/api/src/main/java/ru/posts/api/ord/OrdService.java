@@ -53,4 +53,22 @@ public interface OrdService {
     OrdDtos.OrdCreativeStatus creativeStatus(UUID userId, UUID postId);
 
     OrdDtos.OrdReportRunResponse runReport(UUID userId, OrdDtos.OrdReportRunRequest request, ClientRequestContext ctx);
+
+    CursorPage.OrdReportRowPage listReports(
+            UUID userId, UUID workspaceId, Integer year, Integer month, String provider, String status, String erid);
+
+    CursorPage.OrdCreativePage listCreatives(UUID userId, UUID workspaceId, String provider, String status);
+
+    OrdDtos.OrdEridCheckResponse checkErid(UUID userId, OrdDtos.OrdEridCheckRequest request, ClientRequestContext ctx);
+
+    void deleteInvoice(UUID userId, UUID invoiceId, ClientRequestContext ctx);
+
+    OrdDtos.OrdReportsExport exportReports(
+            UUID userId,
+            UUID workspaceId,
+            Integer year,
+            Integer month,
+            String provider,
+            String status,
+            OrdDtos.OrdExportFormat format);
 }

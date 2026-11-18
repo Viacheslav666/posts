@@ -14,8 +14,8 @@
 | 2 | Recurrence enum | TC-AD-02 | авто | `OrdAdMarkingIT` + FE + e2e |
 | 3 | isAd без ORD → блок | TC-AD-03 | авто | `OrdAdMarkingIT` + FE + e2e |
 | 4 | erid sandbox | TC-AD-04 | авто (WireMock ORD) | `OrdAdMarkingIT` + `OrdAdPipelineIT` + e2e |
-| 5 | Акт/статистика | TC-AD-05 | авто | `OrdAdMarkingIT#reportRunIdempotent` |
-| 6 | Автоудаление рекламы | TC-AD-06 | авто | `OrdAdPipelineIT#tcAd06AutoDeleteAfterPeriod` |
+| 5 | Акт/статистика | TC-AD-05 | авто | `OrdAdMarkingIT#reportRunIdempotent`, `OrdReportingIT#fullCycleVkSubmittedAndIdempotent` |
+| 6 | Автоудаление рекламы | TC-AD-06 | авто | `OrdAdPipelineIT#tcAd06AutoDeleteAfterPeriod`, `OrdReportingIT#multiMonthAndTakedownFinalStats` |
 | 7 | 0 дублей рекламного поста | TC-AD-07 | авто | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` |
 | 8 | Репост+маркировка VK/OK | TC-AD-08 | авто | `OrdAdMarkingIT#repostWithAdMarking` |
 | 9 | RBAC ORD | TC-AD-09 | авто | `OrdAdMarkingIT#rbacAuthorAndViewerDenied` |
@@ -89,6 +89,7 @@
 
 ### Ожидание
 Job или `POST /ord/reports/run` создаёт акт+statistics за период; повторный вызов идемпотентен.
+BE-26: полный цикл WireMock VK/Yandex (показы → submitted); таблица отчётов; ERID check; DELETE invoice; 10k креативов ≤ 60s; sandbox IT по secret.
 
 ---
 
@@ -101,6 +102,7 @@ Job или `POST /ord/reports/run` создаёт акт+statistics за пер�
 
 ### Ожидание
 `scheduled_actions` kind=delete выполняется; повтор — success.
+BE-26: после снятия фиксируется `display_ended_at`, финальная статистика в ближайшем отчёте; erid сохраняется.
 
 ---
 

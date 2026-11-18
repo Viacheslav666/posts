@@ -24,6 +24,7 @@ import ru.posts.api.workspace.AuditRecorder;
 import ru.posts.api.workspace.WorkspaceAccessService;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.ord.api.CreativeRegistrationResult;
+import ru.posts.ord.api.EridCheckResult;
 import ru.posts.ord.api.OrdApiException;
 import ru.posts.ord.api.OrdContractRequest;
 import ru.posts.ord.api.OrdCreativeRequest;
@@ -31,24 +32,33 @@ import ru.posts.ord.api.OrdCredentials;
 import ru.posts.ord.api.OrdErrorClass;
 import ru.posts.ord.api.OrdPersonRequest;
 import ru.posts.ord.api.OrdProvider;
+import ru.posts.ord.reporting.OrdPlatformService;
+import ru.posts.ord.reporting.OrdReportResult;
+import ru.posts.ord.reporting.OrdReportRunner;
+import ru.posts.ord.reporting.export.OrdReportsExporter;
 import ru.posts.persistence.entity.OrdConnectionEntity;
 import ru.posts.persistence.entity.OrdContractEntity;
 import ru.posts.persistence.entity.OrdContractorEntity;
 import ru.posts.persistence.entity.OrdCreativeEntity;
 import ru.posts.persistence.entity.OrdDictionaryKktuEntity;
 import ru.posts.persistence.entity.OrdDictionaryOksmEntity;
-import ru.posts.persistence.entity.OrdReportRunEntity;
+import ru.posts.persistence.entity.OrdInvoiceEntity;
+import ru.posts.persistence.entity.OrdPlatformEntity;
 import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.PostEntity;
+import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.repository.OrdConnectionRepository;
 import ru.posts.persistence.repository.OrdContractRepository;
 import ru.posts.persistence.repository.OrdContractorRepository;
 import ru.posts.persistence.repository.OrdCreativeRepository;
 import ru.posts.persistence.repository.OrdDictionaryKktuRepository;
 import ru.posts.persistence.repository.OrdDictionaryOksmRepository;
-import ru.posts.persistence.repository.OrdReportRunRepository;
+import ru.posts.persistence.repository.OrdInvoiceRepository;
+import ru.posts.persistence.repository.OrdPlatformRepository;
+import ru.posts.persistence.repository.OrdStatisticsRepository;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
+import ru.posts.persistence.repository.PostVariantRepository;
 
 @Service
 @Profile("!openapi")
@@ -65,10 +75,15 @@ public class OrdServiceImpl implements OrdService {
     private final OrdCreativeRepository creativeRepository;
     private final OrdDictionaryKktuRepository kktuRepository;
     private final OrdDictionaryOksmRepository oksmRepository;
-    private final OrdReportRunRepository reportRunRepository;
+    private final OrdInvoiceRepository invoiceRepository;
+    private final OrdStatisticsRepository statisticsRepository;
+    private final OrdPlatformRepository platformRepository;
     private final PostRepository postRepository;
+    private final PostVariantRepository postVariantRepository;
     private final ObjectMapper objectMapper;
     private final OutboxRepository outboxRepository;
+    private final OrdReportRunner reportRunner;
+    private final OrdPlatformService platformService;
 
     public OrdServiceImpl(
             WorkspaceAccessService access,
@@ -81,10 +96,15 @@ public class OrdServiceImpl implements OrdService {
             OrdCreativeRepository creativeRepository,
             OrdDictionaryKktuRepository kktuRepository,
             OrdDictionaryOksmRepository oksmRepository,
-            OrdReportRunRepository reportRunRepository,
+            OrdInvoiceRepository invoiceRepository,
+            OrdStatisticsRepository statisticsRepository,
+            OrdPlatformRepository platformRepository,
             PostRepository postRepository,
+            PostVariantRepository postVariantRepository,
             ObjectMapper objectMapper,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            OrdReportRunner reportRunner,
+            OrdPlatformService platformService) {
         this.access = access;
         this.tokenVault = tokenVault;
         this.auditRecorder = auditRecorder;
@@ -95,10 +115,15 @@ public class OrdServiceImpl implements OrdService {
         this.creativeRepository = creativeRepository;
         this.kktuRepository = kktuRepository;
         this.oksmRepository = oksmRepository;
-        this.reportRunRepository = reportRunRepository;
+        this.invoiceRepository = invoiceRepository;
+        this.statisticsRepository = statisticsRepository;
+        this.platformRepository = platformRepository;
         this.postRepository = postRepository;
+        this.postVariantRepository = postVariantRepository;
         this.objectMapper = objectMapper;
         this.outboxRepository = outboxRepository;
+        this.reportRunner = reportRunner;
+        this.platformService = platformService;
     }
 
     @Override
@@ -640,6 +665,9 @@ public class OrdServiceImpl implements OrdService {
             creative.setErid(result.erid());
             creative.setStatus("registered");
             creative.setRegisteredAt(now);
+            if (creative.getDisplayStartedAt() == null) {
+                creative.setDisplayStartedAt(now);
+            }
             creative.setUpdatedAt(now);
             creativeRepository.save(creative);
 
@@ -650,6 +678,13 @@ public class OrdServiceImpl implements OrdService {
             post.setOrdCreativeId(creative.getId());
             post.setUpdatedAt(now);
             postRepository.save(post);
+
+            // Idempotent ORD pad/platform registration for each target channel of the ad post.
+            for (PostVariantEntity variant : postVariantRepository.findByPostId(post.getId())) {
+                if (variant.getChannelId() != null) {
+                    platformService.ensurePlatform(connection, provider, variant.getChannelId());
+                }
+            }
 
             auditRecorder.record(
                     post.getWorkspaceId(),
@@ -758,65 +793,217 @@ public class OrdServiceImpl implements OrdService {
     public OrdDtos.OrdReportRunResponse runReport(
             UUID userId, OrdDtos.OrdReportRunRequest request, ClientRequestContext ctx) {
         access.requirePermission(request.workspaceId(), userId, "ord.reports.run");
-        List<OrdConnectionEntity> connections =
-                connectionRepository.findByWorkspaceIdOrderByUpdatedAtDesc(request.workspaceId()).stream()
-                        .filter(c -> "active".equals(c.getStatus()))
-                        .filter(c -> request.provider() == null
-                                || request.provider().name().equals(c.getProvider()))
-                        .toList();
-        if (connections.isEmpty()) {
-            throw new ApiException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    ProblemCodes.ORD_NOT_CONFIGURED,
-                    "No active ORD connection for report");
-        }
-
-        OrdConnectionEntity connection = connections.get(0);
-        Optional<OrdReportRunEntity> existing =
-                reportRunRepository.findByWorkspaceIdAndProviderAndPeriodYearAndPeriodMonth(
-                        request.workspaceId(), connection.getProvider(), request.year(), request.month());
-        if (existing.isPresent() && "succeeded".equals(existing.get().getStatus())) {
-            OrdReportRunEntity run = existing.get();
+        String providerCode =
+                request.provider() == null ? null : request.provider().name();
+        try {
+            OrdReportResult result =
+                    reportRunner.run(request.workspaceId(), providerCode, request.year(), request.month());
+            auditRecorder.record(
+                    request.workspaceId(),
+                    userId,
+                    "ord.report.submitted",
+                    "ord_report_run",
+                    result.runId(),
+                    Map.of("year", request.year(), "month", request.month(), "status", result.status()),
+                    ctx == null ? null : ctx.ip());
             return new OrdDtos.OrdReportRunResponse(
-                    run.getId(),
-                    run.getStatus(),
-                    run.getInvoicesCount(),
-                    run.getStatisticsCount(),
-                    run.getPeriodYear(),
-                    run.getPeriodMonth());
+                    result.runId(),
+                    result.status(),
+                    result.invoicesCount(),
+                    result.statisticsCount(),
+                    result.periodYear(),
+                    result.periodMonth());
+        } catch (IllegalStateException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, ex.getMessage());
+        } catch (OrdApiException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
         }
+    }
 
-        OrdReportRunEntity run = existing.orElseGet(OrdReportRunEntity::new);
-        if (run.getId() == null) {
-            run.setId(UuidV7.generate());
-            run.setWorkspaceId(request.workspaceId());
-            run.setProvider(connection.getProvider());
-            run.setPeriodYear(request.year());
-            run.setPeriodMonth(request.month());
-            run.setStartedAt(Instant.now());
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage.OrdReportRowPage listReports(
+            UUID userId, UUID workspaceId, Integer year, Integer month, String provider, String status, String erid) {
+        access.requirePermission(workspaceId, userId, "ord.view");
+        Map<UUID, OrdCreativeEntity> creatives = new LinkedHashMap<>();
+        for (OrdCreativeEntity c : creativeRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId)) {
+            creatives.put(c.getId(), c);
         }
-        run.setStatus("succeeded");
-        run.setInvoicesCount(0);
-        run.setStatisticsCount(0);
-        run.setFinishedAt(Instant.now());
-        run.setLastError(null);
-        reportRunRepository.save(run);
+        Map<UUID, OrdPlatformEntity> platforms = new LinkedHashMap<>();
+        for (OrdPlatformEntity p : platformRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId)) {
+            platforms.put(p.getId(), p);
+        }
+        Map<UUID, OrdInvoiceEntity> invoicesByContractPeriod = new LinkedHashMap<>();
+        for (OrdInvoiceEntity invoice : invoiceRepository.searchActive(workspaceId, year, month, provider, null)) {
+            if (invoice.getContractId() != null) {
+                invoicesByContractPeriod.put(invoice.getContractId(), invoice);
+            }
+        }
+        List<OrdDtos.OrdReportRow> items =
+                statisticsRepository.search(workspaceId, year, month, provider, status, null).stream()
+                        .map(stats -> {
+                            OrdCreativeEntity creative = creatives.get(stats.getCreativeId());
+                            if (erid != null
+                                    && !erid.isBlank()
+                                    && (creative == null
+                                            || creative.getErid() == null
+                                            || !erid.equalsIgnoreCase(creative.getErid()))) {
+                                return null;
+                            }
+                            OrdPlatformEntity platform =
+                                    stats.getPlatformId() == null ? null : platforms.get(stats.getPlatformId());
+                            OrdInvoiceEntity invoice = creative == null || creative.getContractId() == null
+                                    ? null
+                                    : invoicesByContractPeriod.get(creative.getContractId());
+                            return new OrdDtos.OrdReportRow(
+                                    stats.getId(),
+                                    stats.getCreativeId(),
+                                    invoice == null ? null : invoice.getId(),
+                                    stats.getPeriodYear(),
+                                    stats.getPeriodMonth(),
+                                    creative == null ? null : creative.getErid(),
+                                    creative == null ? null : creative.getExternalId(),
+                                    platform == null ? null : platform.getName(),
+                                    platform == null ? null : platform.getExternalId(),
+                                    stats.getImpsFact(),
+                                    stats.getViewsSource(),
+                                    stats.getAmount() == null
+                                            ? (invoice == null ? null : invoice.getAmount())
+                                            : stats.getAmount(),
+                                    stats.getStatus(),
+                                    invoice == null ? null : invoice.getLastError(),
+                                    OrdDtos.OrdProviderCode.valueOf(stats.getProvider()));
+                        })
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+        return new CursorPage.OrdReportRowPage(items, null, false);
+    }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage.OrdCreativePage listCreatives(UUID userId, UUID workspaceId, String provider, String status) {
+        access.requirePermission(workspaceId, userId, "ord.view");
+        List<OrdCreativeEntity> all = creativeRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId);
+        List<OrdDtos.OrdCreativeListItem> items = all.stream()
+                .filter(c -> provider == null || provider.equals(c.getProvider()))
+                .filter(c -> status == null || status.equals(c.getStatus()))
+                .map(c -> new OrdDtos.OrdCreativeListItem(
+                        c.getId(),
+                        c.getPostId(),
+                        c.getExternalId(),
+                        c.getErid(),
+                        OrdDtos.OrdProviderCode.valueOf(c.getProvider()),
+                        c.getStatus(),
+                        c.getLastError(),
+                        c.getRegisteredAt(),
+                        c.getDisplayStartedAt(),
+                        c.getDisplayEndedAt(),
+                        c.isFinalStatsPending()))
+                .toList();
+        return new CursorPage.OrdCreativePage(items, null, false);
+    }
+
+    @Override
+    public OrdDtos.OrdEridCheckResponse checkErid(
+            UUID userId, OrdDtos.OrdEridCheckRequest request, ClientRequestContext ctx) {
+        access.requirePermission(request.workspaceId(), userId, "ord.view");
+        OrdConnectionEntity connection = findActiveConnection(request.workspaceId(), request.provider())
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "No active ORD connection"));
+        String apiKey = tokenVault.unseal(request.workspaceId(), connection.getApiKeyEnc());
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "ORD API key missing");
+        }
+        OrdProvider provider = providerRegistry.require(connection.getProvider());
+        try {
+            EridCheckResult result = provider.checkErid(new OrdCredentials(apiKey), request.erid());
+            UUID localId = creativeRepository
+                    .findByWorkspaceIdAndErid(request.workspaceId(), request.erid())
+                    .map(OrdCreativeEntity::getId)
+                    .orElse(null);
+            auditRecorder.record(
+                    request.workspaceId(),
+                    userId,
+                    "ord.erid.checked",
+                    "ord_creative",
+                    localId,
+                    Map.of("eridPresent", true, "found", result.found(), "status", result.status()),
+                    ctx == null ? null : ctx.ip());
+            return new OrdDtos.OrdEridCheckResponse(
+                    result.erid(), result.status(), result.creativeExternalId(), result.found(), localId);
+        } catch (OrdApiException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
+        }
+    }
+
+    @Override
+    public void deleteInvoice(UUID userId, UUID invoiceId, ClientRequestContext ctx) {
+        OrdInvoiceEntity invoice = invoiceRepository.findById(invoiceId).orElseThrow(WorkspaceAccessService::notFound);
+        if (invoice.getDeletedAt() != null) {
+            throw WorkspaceAccessService.notFound();
+        }
+        access.requirePermission(invoice.getWorkspaceId(), userId, "ord.reports.run");
+        OrdConnectionEntity connection = connectionRepository
+                .findByWorkspaceIdAndProvider(invoice.getWorkspaceId(), invoice.getProvider())
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "No ORD connection"));
+        String apiKey = tokenVault.unseal(invoice.getWorkspaceId(), connection.getApiKeyEnc());
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "ORD API key missing");
+        }
+        OrdProvider provider = providerRegistry.require(invoice.getProvider());
+        try {
+            provider.deleteInvoice(new OrdCredentials(apiKey), invoice.getExternalId());
+        } catch (OrdApiException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
+        }
+        invoice.setDeletedAt(Instant.now());
+        invoice.setUpdatedAt(Instant.now());
+        invoiceRepository.save(invoice);
         auditRecorder.record(
-                request.workspaceId(),
+                invoice.getWorkspaceId(),
                 userId,
-                "ord.report.submitted",
-                "ord_report_run",
-                run.getId(),
-                Map.of("year", request.year(), "month", request.month()),
+                "ord.invoice.deleted",
+                "ord_invoice",
+                invoice.getId(),
+                Map.of("externalId", invoice.getExternalId()),
                 ctx == null ? null : ctx.ip());
-        return new OrdDtos.OrdReportRunResponse(
-                run.getId(),
-                run.getStatus(),
-                run.getInvoicesCount(),
-                run.getStatisticsCount(),
-                run.getPeriodYear(),
-                run.getPeriodMonth());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrdDtos.OrdReportsExport exportReports(
+            UUID userId,
+            UUID workspaceId,
+            Integer year,
+            Integer month,
+            String provider,
+            String status,
+            OrdDtos.OrdExportFormat format) {
+        CursorPage.OrdReportRowPage page = listReports(userId, workspaceId, year, month, provider, status, null);
+        List<OrdReportsExporter.Row> rows = page.items().stream()
+                .map(r -> new OrdReportsExporter.Row(
+                        r.periodYear(),
+                        r.periodMonth(),
+                        r.erid(),
+                        r.creativeExternalId(),
+                        r.platformName(),
+                        r.impressions(),
+                        r.amount() == null ? "" : r.amount().toPlainString(),
+                        r.status(),
+                        r.error()))
+                .toList();
+        OrdDtos.OrdExportFormat fmt = format == null ? OrdDtos.OrdExportFormat.csv : format;
+        if (fmt == OrdDtos.OrdExportFormat.xlsx) {
+            return new OrdDtos.OrdReportsExport(
+                    "ord-reports.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    OrdReportsExporter.toXlsx(rows));
+        }
+        return new OrdDtos.OrdReportsExport(
+                "ord-reports.csv", "text/csv; charset=utf-8", OrdReportsExporter.toCsv(rows));
     }
 
     /** Active default connection, else first active — for schedule guards. */

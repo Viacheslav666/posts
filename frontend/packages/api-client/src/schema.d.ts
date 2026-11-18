@@ -1692,6 +1692,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ord/creatives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List ORD creatives with statuses */
+        get: operations["ordCreativesList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ord/dictionaries/kktu": {
         parameters: {
             query?: never;
@@ -1721,6 +1738,40 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ord/erid/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check ERID status in ORD provider */
+        post: operations["ordEridCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ord/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Soft-delete ORD invoice/act with provider sync + audit */
+        delete: operations["ordInvoicesDelete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2309,6 +2360,40 @@ export interface paths {
         put?: never;
         /** Create ORD contract */
         post: operations["ordContractsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/ord/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ORD reporting table rows for a workspace */
+        get: operations["ordReportsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/ord/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export ORD reporting table as CSV or XLSX */
+        get: operations["ordReportsExport"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3933,6 +4018,33 @@ export interface components {
             items?: components["schemas"]["OrdContractor"][];
             nextCursor?: string;
         };
+        OrdCreativeListItem: {
+            /** Format: date-time */
+            displayEndedAt?: string;
+            /** Format: date-time */
+            displayStartedAt?: string;
+            erid?: string;
+            externalId?: string;
+            finalStatsPending?: boolean;
+            /** Format: uuid */
+            id?: string;
+            lastError?: string;
+            /** Format: uuid */
+            postId?: string;
+            /**
+             * @description ORD provider identifier
+             * @enum {string}
+             */
+            provider?: "vk_ord" | "yandex_ord";
+            /** Format: date-time */
+            registeredAt?: string;
+            status?: string;
+        };
+        OrdCreativePage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["OrdCreativeListItem"][];
+            nextCursor?: string;
+        };
         OrdCreativeStatus: {
             erid?: string;
             externalId?: string;
@@ -3948,6 +4060,24 @@ export interface components {
             provider?: "vk_ord" | "yandex_ord";
             /** Format: date-time */
             registeredAt?: string;
+            status?: string;
+        };
+        OrdEridCheckRequest: {
+            erid: string;
+            /**
+             * @description ORD provider identifier
+             * @enum {string}
+             */
+            provider?: "vk_ord" | "yandex_ord";
+            /** Format: uuid */
+            workspaceId: string;
+        };
+        OrdEridCheckResponse: {
+            creativeExternalId?: string;
+            erid?: string;
+            found?: boolean;
+            /** Format: uuid */
+            localCreativeId?: string;
             status?: string;
         };
         OrdRegisterCreativeResponse: {
@@ -3966,6 +4096,38 @@ export interface components {
             /** Format: date-time */
             registeredAt?: string;
             status?: string;
+        };
+        OrdReportRow: {
+            amount?: number;
+            creativeExternalId?: string;
+            /** Format: uuid */
+            creativeId?: string;
+            erid?: string;
+            error?: string;
+            /** Format: int64 */
+            impressions?: number;
+            /** Format: uuid */
+            invoiceId?: string;
+            /** Format: int32 */
+            periodMonth?: number;
+            /** Format: int32 */
+            periodYear?: number;
+            platformExternalId?: string;
+            platformName?: string;
+            /**
+             * @description ORD provider identifier
+             * @enum {string}
+             */
+            provider?: "vk_ord" | "yandex_ord";
+            /** Format: uuid */
+            statisticsId?: string;
+            status?: string;
+            viewsSource?: string;
+        };
+        OrdReportRowPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["OrdReportRow"][];
+            nextCursor?: string;
         };
         OrdReportRunRequest: {
             /** Format: int32 */
@@ -15019,6 +15181,93 @@ export interface operations {
             };
         };
     };
+    ordCreativesList: {
+        parameters: {
+            query: {
+                workspaceId: string;
+                provider?: string;
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Creatives page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrdCreativePage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     ordDictionariesKktu: {
         parameters: {
             query?: {
@@ -15123,6 +15372,176 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DictionaryOksmItem"][];
                 };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ordEridCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrdEridCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description ERID check result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrdEridCheckResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ordInvoicesDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation failed (`validation_failed`) */
             400: {
@@ -19139,6 +19558,188 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrdContract"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ordReportsList: {
+        parameters: {
+            query?: {
+                year?: number;
+                month?: number;
+                provider?: string;
+                status?: string;
+                erid?: string;
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report rows page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrdReportRowPage"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ordReportsExport: {
+        parameters: {
+            query?: {
+                year?: number;
+                month?: number;
+                provider?: string;
+                status?: string;
+                format?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Binary export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
             /** @description Validation failed (`validation_failed`) */

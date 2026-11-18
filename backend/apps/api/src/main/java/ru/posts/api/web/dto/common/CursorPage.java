@@ -91,6 +91,12 @@ public final class CursorPage {
     @Schema(name = "OrdContractPage")
     public record OrdContractPage(List<OrdDtos.OrdContract> items, String nextCursor, boolean hasMore) {}
 
+    @Schema(name = "OrdReportRowPage")
+    public record OrdReportRowPage(List<OrdDtos.OrdReportRow> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "OrdCreativePage")
+    public record OrdCreativePage(List<OrdDtos.OrdCreativeListItem> items, String nextCursor, boolean hasMore) {}
+
     @Schema(name = "GrabberRulePage")
     public record GrabberRulePage(List<IngestDtos.GrabberRule> items, String nextCursor, boolean hasMore) {}
 

@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import ru.posts.ord.api.CreativeRegistrationResult;
+import ru.posts.ord.api.EridCheckResult;
 import ru.posts.ord.api.OrdApiException;
 import ru.posts.ord.api.OrdContractRequest;
 import ru.posts.ord.api.OrdCreativeRequest;
@@ -22,6 +23,7 @@ import ru.posts.ord.api.OrdCredentials;
 import ru.posts.ord.api.OrdErrorClass;
 import ru.posts.ord.api.OrdInvoiceRequest;
 import ru.posts.ord.api.OrdPersonRequest;
+import ru.posts.ord.api.OrdPlatformRequest;
 import ru.posts.ord.api.OrdProvider;
 import ru.posts.ord.api.OrdProviderId;
 import ru.posts.ord.api.OrdStatisticsItem;
@@ -39,8 +41,10 @@ import ru.posts.ord.api.OrdStatisticsRequest;
  *   <li>Person: {@code PUT/GET /v1/person/{external_id}}
  *   <li>Contract: {@code PUT/GET /v1/contract/{external_id}}
  *   <li>Creative v3: {@code PUT /v3/creative/{external_id}} → {@code {erid, marker}}
- *   <li>Invoice: {@code PUT /v1/invoice/{external_id}}
+ *   <li>Pad/platform: {@code PUT /v1/pad/{external_id}}
+ *   <li>Invoice: {@code PUT /v1/invoice/{external_id}} / {@code DELETE /v1/invoice/{external_id}}
  *   <li>Statistics: {@code POST /v1/statistics}
+ *   <li>ERID check: {@code GET /v1/erid/{erid}}
  *   <li>Health: {@code GET /v1/person/my}
  * </ul>
  */
@@ -202,6 +206,16 @@ public class VkOrdProvider implements OrdProvider {
     }
 
     @Override
+    public void upsertPlatform(OrdCredentials credentials, OrdPlatformRequest platform) {
+        ObjectNode body = objectMapper.createObjectNode();
+        putText(body, "name", platform.name());
+        putText(body, "url", platform.url());
+        putText(body, "type", platform.network() == null ? "other" : platform.network());
+        body.put("is_owner", platform.isOwner());
+        putJson(credentials, "/v1/pad/" + platform.externalId(), body);
+    }
+
+    @Override
     public void submitInvoice(OrdCredentials credentials, OrdInvoiceRequest invoice) {
         ObjectNode body = objectMapper.createObjectNode();
         putText(body, "contract_external_id", invoice.contractExternalId());
@@ -263,6 +277,57 @@ public class VkOrdProvider implements OrdProvider {
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (ResourceAccessException ex) {
+            throw new OrdApiException(OrdErrorClass.RETRYABLE, "VK ORD timeout: " + ex.getMessage(), null, ex);
+        } catch (RestClientException ex) {
+            throw new OrdApiException(OrdErrorClass.RETRYABLE, "VK ORD transport error: " + ex.getMessage(), null, ex);
+        }
+    }
+
+    @Override
+    public void deleteInvoice(OrdCredentials credentials, String invoiceExternalId) {
+        try {
+            restClient
+                    .delete()
+                    .uri("/v1/invoice/{externalId}", invoiceExternalId)
+                    .header(HttpHeaders.AUTHORIZATION, bearer(credentials))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (ResourceAccessException ex) {
+            throw new OrdApiException(OrdErrorClass.RETRYABLE, "VK ORD timeout: " + ex.getMessage(), null, ex);
+        } catch (RestClientException ex) {
+            throw new OrdApiException(OrdErrorClass.RETRYABLE, "VK ORD transport error: " + ex.getMessage(), null, ex);
+        }
+    }
+
+    @Override
+    public EridCheckResult checkErid(OrdCredentials credentials, String erid) {
+        try {
+            JsonNode response = restClient
+                    .get()
+                    .uri("/v1/erid/{erid}", erid)
+                    .header(HttpHeaders.AUTHORIZATION, bearer(credentials))
+                    .retrieve()
+                    .body(JsonNode.class);
+            String status = textOrNull(response, "status");
+            if (status == null) {
+                status = textOrNull(response, "state");
+            }
+            if (status == null) {
+                status = "unknown";
+            }
+            String creativeExternalId = textOrNull(response, "creative_external_id");
+            if (creativeExternalId == null) {
+                creativeExternalId = textOrNull(response, "external_id");
+            }
+            return new EridCheckResult(erid, status, creativeExternalId, status, true);
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 404) {
+                return new EridCheckResult(erid, "not_found", null, "not_found", false);
+            }
             throw mapHttpError(ex);
         } catch (ResourceAccessException ex) {
             throw new OrdApiException(OrdErrorClass.RETRYABLE, "VK ORD timeout: " + ex.getMessage(), null, ex);

@@ -192,6 +192,76 @@ public final class OrdDtos {
     public record OrdReportRunResponse(
             UUID id, String status, int invoicesCount, int statisticsCount, int periodYear, int periodMonth) {}
 
+    @Schema(name = "OrdReportRow")
+    public record OrdReportRow(
+            UUID statisticsId,
+            UUID creativeId,
+            UUID invoiceId,
+            int periodYear,
+            int periodMonth,
+            String erid,
+            String creativeExternalId,
+            String platformName,
+            String platformExternalId,
+            long impressions,
+            String viewsSource,
+            BigDecimal amount,
+            String status,
+            String error,
+            OrdProviderCode provider) {}
+
+    @Schema(name = "OrdCreativeListItem")
+    public record OrdCreativeListItem(
+            UUID id,
+            UUID postId,
+            String externalId,
+            String erid,
+            OrdProviderCode provider,
+            String status,
+            String lastError,
+            Instant registeredAt,
+            Instant displayStartedAt,
+            Instant displayEndedAt,
+            boolean finalStatsPending) {}
+
+    @Schema(name = "OrdEridCheckRequest")
+    public record OrdEridCheckRequest(@NotNull UUID workspaceId, @NotBlank String erid, OrdProviderCode provider) {}
+
+    @Schema(name = "OrdEridCheckResponse")
+    public record OrdEridCheckResponse(
+            String erid, String status, String creativeExternalId, boolean found, UUID localCreativeId) {}
+
+    @Schema(name = "OrdExportFormat")
+    public enum OrdExportFormat {
+        csv,
+        xlsx
+    }
+
+    /** Binary export payload (not part of OpenAPI JSON schemas). */
+    public static final class OrdReportsExport {
+        private final String filename;
+        private final String contentType;
+        private final byte[] body;
+
+        public OrdReportsExport(String filename, String contentType, byte[] body) {
+            this.filename = filename;
+            this.contentType = contentType;
+            this.body = body;
+        }
+
+        public String filename() {
+            return filename;
+        }
+
+        public String contentType() {
+            return contentType;
+        }
+
+        public byte[] body() {
+            return body;
+        }
+    }
+
     @Schema(
             name = "AdMarking",
             description =
