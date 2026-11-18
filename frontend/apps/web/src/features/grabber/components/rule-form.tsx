@@ -18,12 +18,14 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { FormField } from '@/features/auth/components/form-field';
+import { PlanLimitPaywall } from '@/features/billing/components/plan-limit-paywall';
 import { queryKeys } from '@/shared/api-client';
 import {
   getErrorMessage,
   isIngestAttributionRequired,
   isIngestResponsibilityRequired,
   isIngestSsrfBlocked,
+  isPlanLimitExceeded,
 } from '@/shared/lib/errors';
 
 import {
@@ -47,10 +49,12 @@ type RuleFormProps = {
 export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps) {
   const t = useTranslations('grabber.form');
   const tProblems = useTranslations('grabber.problems');
+  const tCommonProblems = useTranslations('problems');
   const router = useRouter();
   const queryClient = useQueryClient();
   const websiteEnabled = isWebsiteSourceEnabled();
   const [previewLines, setPreviewLines] = useState<string[]>([]);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const {
     register,
@@ -105,6 +109,10 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
       }
       if (isIngestAttributionRequired(error)) {
         description = tProblems('ingest_attribution_required');
+      }
+      if (isPlanLimitExceeded(error)) {
+        description = tCommonProblems('plan_limit_exceeded');
+        setShowPaywall(true);
       }
       toast({
         variant: 'destructive',
@@ -166,6 +174,9 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       noValidate
     >
+      {showPaywall ? (
+        <PlanLimitPaywall workspaceId={workspaceId} variant="hard" limitKey="grabber_rules" />
+      ) : null}
       <FormField
         label={t('name')}
         error={fieldError('name')}

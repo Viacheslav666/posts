@@ -360,6 +360,39 @@ export function updateWorkspace(id: string, name: string): Workspace | undefined
   return workspace;
 }
 
+/** Update billing fields after checkout / trial / freeze (MSW billing-store). */
+export function setWorkspaceBilling(
+  id: string,
+  patch: {
+    planCode?: string;
+    billingStatus?: Workspace['billingStatus'];
+    trialEndsAt?: string | undefined;
+    currentPeriodEnd?: string | undefined;
+  },
+): Workspace | undefined {
+  const workspace = getWorkspace(id);
+  if (!workspace) {
+    return undefined;
+  }
+  if (patch.planCode !== undefined) {
+    workspace.planCode = patch.planCode;
+  }
+  if (patch.billingStatus !== undefined) {
+    workspace.billingStatus = patch.billingStatus;
+  }
+  if ('trialEndsAt' in patch) {
+    workspace.trialEndsAt = patch.trialEndsAt;
+  }
+  if ('currentPeriodEnd' in patch) {
+    workspace.currentPeriodEnd = patch.currentPeriodEnd;
+  }
+  const membership = state.memberships.find((m) => m.workspaceId === id);
+  if (membership && patch.billingStatus !== undefined) {
+    membership.billingStatus = patch.billingStatus;
+  }
+  return workspace;
+}
+
 export function deleteWorkspace(id: string): boolean {
   if (id === PERSONAL_WORKSPACE_ID) {
     return false;

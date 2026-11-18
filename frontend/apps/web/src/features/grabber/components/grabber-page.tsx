@@ -16,6 +16,9 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { PlanLimitPaywall } from '@/features/billing/components/plan-limit-paywall';
+import { useBillingUsage } from '@/features/billing/hooks/use-billing-queries';
+import { isAtLimit } from '@/features/billing/model/limits';
 import { listChannels } from '@/features/channels/api/channels-api';
 import { listProjects } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
@@ -34,6 +37,12 @@ export function GrabberPage({ workspaceId }: GrabberPageProps) {
   const canView = useCan('automations.view', workspaceId);
   const canManage = useCan('automations.manage', workspaceId);
   const canModerate = useCan('automations.moderate', workspaceId);
+  const canBilling = useCan('billing.view', workspaceId);
+  const usage = useBillingUsage(workspaceId, canBilling);
+  const grabberMetric = usage.metrics.find((metric) => metric.key === 'grabber_rules');
+  const atGrabberLimit = grabberMetric
+    ? isAtLimit(grabberMetric.used, grabberMetric.limit)
+    : false;
   const [tab, setTab] = useState('queue');
 
   const projectsQuery = useQuery({
@@ -91,12 +100,21 @@ export function GrabberPage({ workspaceId }: GrabberPageProps) {
           <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t('description')}</p>
         </div>
-        {canManage ? (
+        {canManage && !atGrabberLimit ? (
           <Button asChild data-testid="grabber-create-rule">
             <Link href={`/app/${workspaceId}/automations/grabber/new`}>{t('createRule')}</Link>
           </Button>
         ) : null}
       </header>
+
+      {atGrabberLimit ? (
+        <PlanLimitPaywall
+          workspaceId={workspaceId}
+          limitKey="grabber_rules"
+          used={grabberMetric?.used}
+          limit={grabberMetric?.limit ?? undefined}
+        />
+      ) : null}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label={t('tabsLabel')}>
