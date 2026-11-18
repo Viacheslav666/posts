@@ -42,6 +42,7 @@ describe('PostEditor', () => {
   beforeEach(async () => {
     setAccessToken('msw.access.token');
     await clearDraft(PERSONAL_WORKSPACE_ID, 'test-draft');
+    await clearDraft(PERSONAL_WORKSPACE_ID, 'test-draft-ad');
   });
 
   it('loads channel picker from /channels, variants and preview', async () => {
@@ -100,5 +101,21 @@ describe('PostEditor', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Опубликовать сейчас' })).toBeDisabled();
+  });
+
+  it('shows post options and ad block; blocks schedule without erid (TC-AD-03)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <PostEditor workspaceId={PERSONAL_WORKSPACE_ID} draftId="test-draft-ad" />,
+    );
+
+    expect(await screen.findByTestId('post-options-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-marking-form')).toBeInTheDocument();
+    expect(screen.getByTestId('option-donut')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('ad-is-ad-toggle'));
+    expect(await screen.findByTestId('ad-schedule-block')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-schedule')).toBeDisabled();
+    expect(screen.getByTestId('ad-marking-slot')).toBeInTheDocument();
   });
 });

@@ -5,6 +5,8 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { resetChannelStore } from '@/mocks/channel-store';
 import { resetMediaStoreForTests } from '@/mocks/media-store';
+import { resetOrdStore } from '@/mocks/ord-store';
+import { resetPostStore } from '@/mocks/post-store';
 import { server } from '@/mocks/server';
 import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
@@ -55,6 +57,8 @@ afterEach(() => {
   resetWorkspaceStore();
   resetChannelStore();
   resetMediaStoreForTests();
+  resetPostStore();
+  resetOrdStore();
   resetApiClient();
   clearAccessToken();
   clearPendingLogin();

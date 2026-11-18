@@ -1,5 +1,6 @@
 'use client';
 
+import type { CreatePostRequest, OrdProvider } from '@posts/api-client';
 import {
   hasBlockingValidationErrors,
   stripTags,
@@ -8,7 +9,7 @@ import {
   type NetworkId,
   type TiptapNode,
 } from '@posts/domain';
-import { Button } from '@posts/ui';
+import { Button, toast } from '@posts/ui';
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -16,15 +17,22 @@ import {
   useWorkspaceChannels,
   type EditorChannelOption,
 } from '@/features/channels/hooks/use-workspace-channels';
+import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
+import { EditorMediaBlock } from '@/features/media/components/editor-media-block';
+import { isValidInn } from '@/shared/lib/inn';
+import { useCan } from '@/shared/hooks/use-can';
 
+import { createPost, registerPostOrd } from '../api/posts-api';
 import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network-capabilities';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
+import { createDefaultPostOptions } from '../model/defaults';
 import { loadDraft } from '../model/draft-db';
 import { EMPTY_DOC, type EditorDraft, type EditorVariant } from '../model/types';
-import { EditorMediaBlock } from '@/features/media/components/editor-media-block';
 
+import { AdMarkingForm } from './ad-marking-form';
 import { AutosaveIndicator } from './autosave-indicator';
 import { ChannelPicker } from './channel-picker';
+import { PostOptionsPanel } from './post-options-panel';
 import { PreviewPanel } from './preview-panel';
 import { TipTapEditor } from './tip-tap-editor';
 import { ValidationPanel } from './validation-panel';
@@ -47,6 +55,27 @@ function createDraft(workspaceId: string, draftId: string): EditorDraft {
     previewNetwork: 'tg',
     activeVariant: 'base',
     media: [],
+    options: createDefaultPostOptions(),
+  };
+}
+
+function normalizeDraft(draft: EditorDraft, workspaceId: string, draftId: string): EditorDraft {
+  return {
+    ...createDraft(workspaceId, draftId),
+    ...draft,
+    media: draft.media ?? [],
+    options: {
+      ...createDefaultPostOptions(),
+      ...(draft.options ?? {}),
+      variant: {
+        ...createDefaultPostOptions().variant,
+        ...(draft.options?.variant ?? {}),
+      },
+      ad: {
+        ...createDefaultPostOptions().ad,
+        ...(draft.options?.ad ?? {}),
+      },
+    },
   };
 }
 
@@ -64,13 +93,71 @@ function networksFromSelection(
   return [...set];
 }
 
+function buildCreateRequest(
+  draft: EditorDraft,
+  channels: EditorChannelOption[],
+  mode: 'draft' | 'schedule' | 'now',
+): CreatePostRequest {
+  const scheduledAt =
+    mode === 'draft'
+      ? undefined
+      : mode === 'now'
+        ? new Date().toISOString()
+        : draft.options.scheduledAt;
+
+  const variants = draft.selectedChannelIds
+    .map((channelId) => {
+      const channel = channels.find((item) => item.id === channelId);
+      if (!channel || channel.network === 'rutube') {
+        return null;
+      }
+      const overridden = draft.variants.find(
+        (item) => item.network === channel.network && item.overridden,
+      );
+      return {
+        channelId,
+        network: channel.network,
+        content: {
+          text: overridden?.html ?? draft.baseHtml,
+          mediaIds: draft.media.map((item) => item.id),
+        },
+        options: draft.options.variant,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null);
+
+  return {
+    workspaceId: draft.workspaceId,
+    title: draft.options.title || stripTags(draft.baseHtml).slice(0, 80),
+    baseContent: {
+      text: draft.baseHtml,
+      mediaIds: draft.media.map((item) => item.id),
+    },
+    scheduledAt,
+    timezone: draft.options.timezone,
+    recurrence: draft.options.recurrence,
+    stopAt: draft.options.stopAt ?? undefined,
+    removeAfterPublish: draft.options.removeAfterPublish,
+    repost: draft.options.repost ?? undefined,
+    contentKind: 'post',
+    ad: draft.options.isAd,
+    adMarking: draft.options.isAd ? draft.options.ad : undefined,
+    variants,
+  };
+}
+
 export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const t = useTranslations('editor');
   const [draft, setDraft] = useState<EditorDraft | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [, startTransition] = useTransition();
   const capabilitiesQuery = useNetworkCapabilities();
   const { channels, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
+  const ordConnections = useOrdConnections(workspaceId, true);
+  const canSchedule = useCan('posts.schedule', workspaceId);
+  const canScheduleAd = useCan('posts.ad.schedule', workspaceId);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,8 +166,10 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       if (cancelled) {
         return;
       }
-      const draftValue = stored ?? createDraft(workspaceId, draftId);
-      setDraft({ ...draftValue, media: draftValue.media ?? [] });
+      const draftValue = stored
+        ? normalizeDraft(stored, workspaceId, draftId)
+        : createDraft(workspaceId, draftId);
+      setDraft(draftValue);
       setHydrated(true);
     })();
     return () => {
@@ -88,7 +177,6 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     };
   }, [workspaceId, draftId]);
 
-  // Default selection once channels arrive (new drafts start empty).
   useEffect(() => {
     if (!draft || channels.length === 0) {
       return;
@@ -137,6 +225,33 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
 
   const charCount = unicodeLength(stripTags(activeHtml));
   const blocked = hasBlockingValidationErrors(issues);
+
+  const hasOrdConnection = Boolean(
+    ordConnections.data?.items?.some(
+      (item) => item.hasApiKey && (item.status === 'active' || item.status === 'ok'),
+    ),
+  );
+
+  const erid = draft?.options.ad.erid;
+  const eridStatus: 'idle' | 'missing' | 'ready' | 'error' = !draft?.options.isAd
+    ? 'idle'
+    : erid
+      ? 'ready'
+      : 'missing';
+
+  const scheduleBlockedReason = useMemo(() => {
+    if (!draft) return null;
+    if (blocked) return t('actions.blockedValidation');
+    if (draft.selectedChannelIds.length === 0) return t('actions.blockedChannels');
+    if (draft.options.isAd) {
+      if (!canScheduleAd) return t('ad.noPermission');
+      if (!hasOrdConnection) return t('ad.ordNotConfigured');
+      if (!isValidInn(draft.options.ad.inn ?? '')) return t('ad.innInvalid');
+      if (!(draft.options.ad.kktuCodes?.length)) return t('ad.kktuRequired');
+      if (!erid) return t('ad.eridMissingBlock');
+    }
+    return null;
+  }, [blocked, canScheduleAd, draft, erid, hasOrdConnection, t]);
 
   const previewChannelName = useMemo(() => {
     if (!draft) {
@@ -202,6 +317,84 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     [],
   );
 
+  const submit = async (mode: 'draft' | 'schedule' | 'now') => {
+    if (!draft) return;
+    if (mode !== 'draft' && scheduleBlockedReason) {
+      toast({
+        title: t('actions.blockedTitle'),
+        description: scheduleBlockedReason,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (mode !== 'draft' && !canSchedule) {
+      toast({
+        title: t('actions.blockedTitle'),
+        description: t('actions.noSchedulePermission'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const body = buildCreateRequest(draft, channels, mode);
+      const post = await createPost(body);
+      toast({
+        title: mode === 'draft' ? t('actions.draftSaved') : t('actions.scheduled'),
+        description: post.title ?? post.id,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('actions.error');
+      toast({
+        title: t('actions.errorTitle'),
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const registerErid = async () => {
+    if (!draft) return;
+    setRegistering(true);
+    try {
+      // Persist draft post with ad payload first so ORD register can read it.
+      const created = await createPost({
+        ...buildCreateRequest(draft, channels, 'draft'),
+        ad: true,
+        adMarking: draft.options.ad,
+      });
+      const result = await registerPostOrd(created.id ?? '');
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              options: {
+                ...current.options,
+                ad: { ...current.options.ad, erid: result.erid },
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : current,
+      );
+      toast({
+        title: t('ad.registerOk'),
+        description: result.erid ? `erid: ${result.erid}` : undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('ad.eridError');
+      toast({
+        title: t('ad.eridError'),
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   if (!draft || !hydrated) {
     return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
   }
@@ -211,27 +404,57 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       ? draft.variants.find((item) => item.network === draft.activeVariant)
       : undefined;
 
+  const scheduleDisabled = Boolean(scheduleBlockedReason) || submitting || !canSchedule;
+
   return (
-    <div className="flex h-full min-h-[70vh] flex-col gap-4">
+    <div className="flex h-full min-h-[70vh] flex-col gap-4" data-testid="post-editor">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
           <AutosaveIndicator status={status} lastSavedAt={lastSavedAt} />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={blocked}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={blocked || submitting}
+            onClick={() => void submit('draft')}
+          >
             {t('actions.saveDraft')}
           </Button>
-          <Button type="button" variant="secondary" disabled={blocked}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={scheduleDisabled}
+            title={scheduleBlockedReason ?? undefined}
+            data-testid="editor-schedule"
+            onClick={() => void submit('schedule')}
+          >
             {t('actions.schedule')}
           </Button>
-          <Button type="button" disabled={blocked}>
+          <Button
+            type="button"
+            disabled={scheduleDisabled}
+            title={scheduleBlockedReason ?? undefined}
+            data-testid="editor-publish"
+            onClick={() => void submit('now')}
+          >
             {t('actions.publish')}
           </Button>
         </div>
       </header>
 
-      <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+      {scheduleBlockedReason && draft.options.isAd ? (
+        <p
+          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+          role="status"
+          data-testid="ad-schedule-block"
+        >
+          {scheduleBlockedReason}
+        </p>
+      ) : null}
+
+      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         <div className="flex min-w-0 flex-col gap-4">
           <ChannelPicker
             channels={channels}
@@ -340,6 +563,63 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             }
           />
 
+          <PostOptionsPanel
+            options={draft.options}
+            networks={selectedNetworks}
+            onChange={(options) =>
+              setDraft((current) =>
+                current
+                  ? { ...current, options, updatedAt: new Date().toISOString() }
+                  : current,
+              )
+            }
+          />
+
+          <AdMarkingForm
+            workspaceId={workspaceId}
+            enabled={draft.options.isAd}
+            ad={draft.options.ad}
+            provider={draft.options.ordProvider}
+            hasOrdConnection={hasOrdConnection}
+            eridStatus={eridStatus}
+            erid={erid}
+            registering={registering}
+            onEnabledChange={(isAd) =>
+              setDraft((current) =>
+                current
+                  ? {
+                      ...current,
+                      options: { ...current.options, isAd },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : current,
+              )
+            }
+            onAdChange={(ad) =>
+              setDraft((current) =>
+                current
+                  ? {
+                      ...current,
+                      options: { ...current.options, ad },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : current,
+              )
+            }
+            onProviderChange={(ordProvider: OrdProvider) =>
+              setDraft((current) =>
+                current
+                  ? {
+                      ...current,
+                      options: { ...current.options, ordProvider },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : current,
+              )
+            }
+            onRegister={() => void registerErid()}
+          />
+
           <ValidationPanel issues={issues} charCount={charCount} />
         </div>
 
@@ -348,6 +628,9 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
           network={draft.previewNetwork}
           channelName={previewChannelName}
           media={draft.media}
+          adEnabled={draft.options.isAd}
+          erid={erid}
+          advertiserName={draft.options.ad.advertiserName}
           onNetworkChange={(network) =>
             setDraft((current) =>
               current

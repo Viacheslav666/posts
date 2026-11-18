@@ -6,7 +6,7 @@ import {
   unicodeLength,
   stripTags,
 } from '@posts/domain';
-import { Button, PostPreview, type PostPreviewNetwork } from '@posts/ui';
+import { AdMarkingSlot, Button, PostPreview, type PostPreviewNetwork } from '@posts/ui';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -20,6 +20,9 @@ type PreviewPanelProps = {
   onNetworkChange: (network: 'vk' | 'tg' | 'ok' | 'max') => void;
   channelName?: string;
   media?: EditorMediaItem[];
+  adEnabled?: boolean;
+  erid?: string;
+  advertiserName?: string;
 };
 
 const PREVIEW_NETWORKS: Array<'vk' | 'tg' | 'ok' | 'max'> = ['vk', 'tg', 'ok', 'max'];
@@ -37,6 +40,9 @@ export function PreviewPanel({
   onNetworkChange,
   channelName,
   media = [],
+  adEnabled = false,
+  erid,
+  advertiserName,
 }: PreviewPanelProps) {
   const t = useTranslations('editor.preview');
   const deferredHtml = useDeferredValue(html);
@@ -92,10 +98,24 @@ export function PreviewPanel({
           ))}
         </div>
       </div>
+      <AdMarkingSlot
+        enabled={adEnabled}
+        erid={erid}
+        advertiserName={advertiserName}
+        className="mb-1"
+      />
       <PostPreview
         network={toPreviewNetwork[previewNetwork]}
-        contentHtml={content.html}
-        contentText={content.text}
+        contentHtml={
+          adEnabled && content.html
+            ? `<p><strong>Реклама</strong>${erid ? ` erid: ${erid}` : ''}</p>${content.html}`
+            : content.html
+        }
+        contentText={
+          adEnabled
+            ? [`Реклама${erid ? ` erid: ${erid}` : ''}`, content.text].filter(Boolean).join('\n')
+            : content.text
+        }
         channelName={channelName}
         mode="mobile"
         className="w-full max-w-none"

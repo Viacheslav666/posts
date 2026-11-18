@@ -2,8 +2,8 @@
 
 import { cn } from '@posts/ui';
 import {
+  BadgeCheck,
   BarChart3,
-  Bell,
   CalendarDays,
   CreditCard,
   FolderKanban,
@@ -19,6 +19,9 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useMemo } from 'react';
+
+import { useCan } from '@/shared/hooks/use-can';
 
 import { WorkspaceSwitcher } from './workspace-switcher';
 
@@ -36,17 +39,32 @@ const NAV_ITEMS = [
   { key: 'analytics', href: '/analytics', icon: BarChart3 },
   { key: 'inbox', href: '/inbox', icon: Inbox },
   { key: 'automations', href: '/automations', icon: Workflow },
-  { key: 'ord', href: '/ord', icon: Bell },
+  { key: 'ord', href: '/ord', icon: BadgeCheck, permission: 'ord.view' as const },
   { key: 'projects', href: '/projects', icon: FolderKanban },
   { key: 'team', href: '/team', icon: Users },
   { key: 'settings', href: '/settings', icon: Settings },
-  { key: 'billing', href: '/billing', icon: CreditCard },
+  { key: 'billing', href: '/billing', icon: CreditCard, permission: 'billing.view' as const },
 ] as const;
 
 export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const base = `/app/${workspaceId}`;
+  const canViewOrd = useCan('ord.view', workspaceId);
+  const canViewBilling = useCan('billing.view', workspaceId);
+
+  const items = useMemo(
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (!('permission' in item) || !item.permission) {
+          return true;
+        }
+        if (item.permission === 'ord.view') return canViewOrd;
+        if (item.permission === 'billing.view') return canViewBilling;
+        return true;
+      }),
+    [canViewBilling, canViewOrd],
+  );
 
   return (
     <aside
@@ -60,7 +78,7 @@ export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
         <WorkspaceSwitcher currentWorkspaceId={workspaceId} />
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Main">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const href = `${base}${item.href}`;
           const isActive =
             item.href === ''

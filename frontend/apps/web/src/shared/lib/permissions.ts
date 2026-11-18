@@ -1,6 +1,6 @@
 /**
- * Workspace RBAC matrix (mirrors docs/product/roles-permissions.md).
- * FE-5 team + FE-6 channels + FE-7 media + FE-8 posts/calendar actions.
+ * Workspace RBAC matrix (mirrors docs/product/roles-permissions.yaml).
+ * FE-5…FE-8 + FE-12 ORD / ad marking actions.
  */
 
 export const ROLES = ['owner', 'admin', 'editor', 'author', 'viewer'] as const;
@@ -34,8 +34,13 @@ export const PERMISSION_ACTIONS = [
   'posts.schedule',
   'posts.bulk',
   'posts.retry_publish',
+  'posts.ad.schedule',
   'calendar.view',
   'calendar.move',
+  'ord.view',
+  'ord.connection.manage',
+  'ord.contractors.manage',
+  'ord.reports.run',
 ] as const;
 
 /** @deprecated Prefer PERMISSION_ACTIONS — kept for existing FE-5 imports. */
@@ -54,6 +59,7 @@ const ALL_VIEW: PermissionAction[] = [
   'media.view',
   'posts.view',
   'calendar.view',
+  'ord.view',
 ];
 
 const ADMIN_TEAM: PermissionAction[] = [
@@ -74,7 +80,11 @@ const ADMIN_TEAM: PermissionAction[] = [
   'posts.schedule',
   'posts.bulk',
   'posts.retry_publish',
+  'posts.ad.schedule',
   'calendar.move',
+  'ord.connection.manage',
+  'ord.contractors.manage',
+  'ord.reports.run',
 ];
 
 const OWNER_ONLY: PermissionAction[] = [
@@ -92,7 +102,9 @@ const EDITOR_EXTRA: PermissionAction[] = [
   'posts.schedule',
   'posts.bulk',
   'posts.retry_publish',
+  'posts.ad.schedule',
   'calendar.move',
+  'ord.contractors.manage',
 ];
 
 const AUTHOR_EXTRA: PermissionAction[] = [

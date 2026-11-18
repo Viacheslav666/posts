@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createDefaultPostOptions } from '../model/defaults';
 import type { EditorDraft } from '../model/types';
 import { EMPTY_DOC } from '../model/types';
 import { useDraftAutosave } from './use-draft-autosave';
@@ -23,6 +24,7 @@ function sampleDraft(overrides?: Partial<EditorDraft>): EditorDraft {
     previewNetwork: 'tg',
     activeVariant: 'base',
     media: [],
+    options: createDefaultPostOptions(),
     ...overrides,
   };
 }
