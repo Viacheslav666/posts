@@ -811,6 +811,11 @@ endpoints:
   path: /api/v1/ord/dictionaries/oksm
   implementedHint: true
   rbac: none
+- operationId: ordVatCalculate
+  method: POST
+  path: /api/v1/ord/vat/calculate
+  implementedHint: true
+  rbac: none
 - operationId: ordReportsRun
   method: POST
   path: /api/v1/ord/reports/run
@@ -888,7 +893,7 @@ endpoints:
   path: /api/v1/posts/{postId}/ord/register
   implementedHint: true
   rbac: matrix
-  action: ord.view
+  action: ord.register
   pathParams:
     postId: '{postId}'
 - operationId: postsOrdStatus

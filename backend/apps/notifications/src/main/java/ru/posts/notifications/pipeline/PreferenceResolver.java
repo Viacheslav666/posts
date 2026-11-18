@@ -127,6 +127,7 @@ public final class PreferenceResolver {
         map.put("grabber.moderation_queued", grabber);
         map.put("ord.error", all);
         map.put("ord.erid_failed", all);
+        map.put("ord.problem", all);
         map.put("invitation.created", invitation);
         map.put("team.approval_requested", all);
         return map;

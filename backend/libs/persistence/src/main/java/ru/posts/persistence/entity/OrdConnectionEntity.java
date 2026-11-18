@@ -33,6 +33,17 @@ public class OrdConnectionEntity extends BaseUuidEntity {
 
     private String phone;
 
+    private String address;
+
+    @Column(name = "vat_rate", nullable = false)
+    private String vatRate = "without_vat";
+
+    @Column(name = "is_foreign", nullable = false)
+    private boolean foreign;
+
+    @Column(name = "notify_problems", nullable = false)
+    private boolean notifyProblems = true;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private List<String> roles = List.of();
@@ -106,6 +117,38 @@ public class OrdConnectionEntity extends BaseUuidEntity {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getVatRate() {
+        return vatRate;
+    }
+
+    public void setVatRate(String vatRate) {
+        this.vatRate = vatRate == null || vatRate.isBlank() ? "without_vat" : vatRate;
+    }
+
+    public boolean isForeign() {
+        return foreign;
+    }
+
+    public void setForeign(boolean foreign) {
+        this.foreign = foreign;
+    }
+
+    public boolean isNotifyProblems() {
+        return notifyProblems;
+    }
+
+    public void setNotifyProblems(boolean notifyProblems) {
+        this.notifyProblems = notifyProblems;
     }
 
     public List<String> getRoles() {

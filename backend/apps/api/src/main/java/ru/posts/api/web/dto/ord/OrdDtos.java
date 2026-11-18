@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** ORD / ad-marking API DTOs (BE-15). */
+/** ORD / ad-marking API DTOs (BE-15 / BE-25). */
 public final class OrdDtos {
 
     private OrdDtos() {}
@@ -22,6 +22,19 @@ public final class OrdDtos {
     public enum OrdProviderCode {
         vk_ord,
         yandex_ord
+    }
+
+    @Schema(
+            name = "MarkingPlacement",
+            description =
+                    "Ad marker placement. vk_menu falls back to text_end: VK wall.post has no native advertiser+erid menu (only mark_as_ads=1).")
+    public enum MarkingPlacement {
+        vk_menu,
+        text_start,
+        text_end,
+        vk_menu_and_text_end,
+        click_link_start,
+        click_link_end
     }
 
     @Schema(name = "OrdConnection", description = "ORD connection without plaintext API key")
@@ -33,6 +46,13 @@ public final class OrdDtos {
             String publisherName,
             String orgType,
             String phone,
+            String address,
+            @Schema(
+                            description = "VAT rate",
+                            allowableValues = {"without_vat", "0", "5", "7", "10", "20", "22"})
+                    String vatRate,
+            Boolean isForeign,
+            Boolean notifyProblems,
             List<String> roles,
             String status,
             boolean isDefault,
@@ -47,7 +67,16 @@ public final class OrdDtos {
             String publisherName,
             String orgType,
             String phone,
-            List<String> roles,
+            @Schema(description = "Publisher address; required when activating connection") String address,
+            @Schema(
+                            description = "VAT rate",
+                            allowableValues = {"without_vat", "0", "5", "7", "10", "20", "22"},
+                            example = "without_vat")
+                    String vatRate,
+            Boolean isForeign,
+            @Schema(description = "Notify workspace about ORD / marking problems; omit to keep existing / default true")
+                    Boolean notifyProblems,
+            @Schema(description = "Roles: advertiser, publisher (multi)") List<String> roles,
             Boolean isDefault,
             @NotNull Boolean responsibilityAccepted) {}
 
@@ -139,6 +168,19 @@ public final class OrdDtos {
     @Schema(name = "DictionaryOksmItem")
     public record DictionaryOksmItem(String code, String name, String alpha2, boolean active) {}
 
+    @Schema(name = "VatBreakdown")
+    public record VatBreakdown(
+            BigDecimal amountWithVat, BigDecimal amountWithoutVat, BigDecimal vatAmount, String vatRate) {}
+
+    @Schema(name = "OrdVatCalculateRequest")
+    public record OrdVatCalculateRequest(
+            @NotNull @DecimalMin("0") BigDecimal amountWithVat,
+            @NotBlank
+                    @Schema(
+                            allowableValues = {"without_vat", "0", "5", "7", "10", "20", "22"},
+                            example = "20")
+                    String vatRate) {}
+
     @Schema(name = "OrdReportRunRequest")
     public record OrdReportRunRequest(
             @NotNull UUID workspaceId,
@@ -152,10 +194,11 @@ public final class OrdDtos {
 
     @Schema(
             name = "AdMarking",
-            description = "Full advertiser / ORD marking block (feature spec §3.4). Stored as posts.ad_payload jsonb.")
+            description =
+                    "Full advertiser / ORD marking block (feature spec §3.4, BE-25). Stored as posts.ad_payload jsonb.")
     public record AdMarking(
             @Schema(description = "Advertiser name / FIO") String advertiserName,
-            @Schema(description = "INN — 10 or 12 digits") String inn,
+            @Schema(description = "INN — 10 or 12 digits with checksum; foreign ids when isForeign") String inn,
             @Schema(description = "KPP; required for juridical") String kpp,
             @Schema(
                             description = "physical | ip | juridical | foreign_physical | foreign_juridical",
@@ -168,7 +211,11 @@ public final class OrdDtos {
             String contractSerial,
             @Size(min = 1) List<String> kktuCodes,
             @Schema(description = "OKSM country code", example = "643") String oksmCountry,
-            @Schema(description = "VAT rate", example = "without_vat") String vatRate,
+            @Schema(
+                            description = "VAT rate",
+                            allowableValues = {"without_vat", "0", "5", "7", "10", "20", "22"},
+                            example = "without_vat")
+                    String vatRate,
             List<String> roles,
             Boolean isForeign,
             String foreignInn,
@@ -177,10 +224,35 @@ public final class OrdDtos {
             String phone,
             String address,
             @Size(max = 1000) String description,
-            @Schema(description = "Marking mode / type_marking", example = "0") String markingType,
+            @Schema(
+                            description =
+                                    "Legacy vposter type_marking 0..5; mapped to placement when placement omitted",
+                            example = "0",
+                            deprecated = true)
+                    String markingType,
+            @Schema(description = "Preferred placement mode (BE-25)") MarkingPlacement placement,
             Boolean selfPromo,
+            @Schema(description = "Social advertising flag") Boolean socialAd,
+            @Schema(description = "Social advertising under quota") Boolean socialAdQuota,
+            @Schema(description = "Executor: self (default) or contractor UUID") String executor,
+            @Schema(
+                            description = "Customer role",
+                            allowableValues = {"advertiser", "agency", "publisher", "ors"},
+                            example = "advertiser")
+                    String customerRole,
+            @Schema(description = "ORD provider override; null = workspace default connection")
+                    OrdProviderCode provider,
             @Min(1) @Max(365) Integer displayPeriodDays,
             Boolean autoDeleteAfterPeriod,
             UUID contractorId,
-            @Schema(description = "Erid after registration; read-only on responses", nullable = true) String erid) {}
+            @Schema(description = "Erid after registration; read-only on responses", nullable = true) String erid,
+            @Schema(description = "Server-computed VAT split for amount (response/preview)", nullable = true)
+                    VatBreakdown amountVat,
+            @Schema(description = "Server-computed VAT split for contractAmount", nullable = true)
+                    VatBreakdown contractAmountVat,
+            @Schema(
+                            description =
+                                    "Warnings such as vk_menu_unsupported fallback; filled on preview/register responses",
+                            nullable = true)
+                    List<String> warnings) {}
 }

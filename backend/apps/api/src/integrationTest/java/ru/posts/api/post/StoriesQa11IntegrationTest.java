@@ -878,27 +878,26 @@ class StoriesQa11IntegrationTest {
     }
 
     private void upsertConnection(String token, UUID workspaceId, String provider, String apiKey) throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("apiKey", apiKey);
+        body.put("publisherInn", "7707083893");
+        body.put("publisherName", "ООО Паблишер");
+        body.put("orgType", "juridical");
+        body.put("address", "Москва, ул. Тверская, 1");
+        body.put("vatRate", "20");
+        body.put("isForeign", false);
+        body.put("notifyProblems", true);
+        body.put("roles", List.of("publisher"));
+        body.put("isDefault", true);
+        body.put("responsibilityAccepted", true);
         mockMvc.perform(put("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider)
                         .with(csrf())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "apiKey",
-                                apiKey,
-                                "publisherInn",
-                                "7707083893",
-                                "publisherName",
-                                "ООО Паблишер",
-                                "orgType",
-                                "juridical",
-                                "roles",
-                                List.of("publisher"),
-                                "isDefault",
-                                true,
-                                "responsibilityAccepted",
-                                true))))
+                        .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasApiKey").value(true))
+                .andExpect(jsonPath("$.address").value("Москва, ул. Тверская, 1"))
                 .andExpect(jsonPath("$.apiKey").doesNotExist());
 
         mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider + "/test")

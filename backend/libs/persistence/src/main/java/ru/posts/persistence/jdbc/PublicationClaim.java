@@ -45,4 +45,9 @@ public record PublicationClaim(
          * JSON array of media asset UUID strings from variant/base content ({@code mediaIds}).
          * BE-23: publisher resolves these into {@code MediaAssetRef} for upload.
          */
-        String mediaIdsJson) {}
+        String mediaIdsJson,
+        /**
+         * BE-25 placement mode from ad_payload.placement or legacy markingType (0..5 / enum name).
+         * Null → AdMarker defaults to text_start.
+         */
+        String markingPlacement) {}

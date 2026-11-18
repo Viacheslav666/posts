@@ -610,9 +610,19 @@ final class RbacHttpProbeSupport {
                 node.put("publisherInn", "7707083893");
                 node.put("publisherName", "RBAC Probe Publisher");
                 node.put("orgType", "juridical");
-                node.putArray("roles").add("publisher");
+                node.put("address", "Москва, тестовый адрес, 1");
+                node.put("vatRate", "without_vat");
+                node.put("isForeign", false);
+                node.put("notifyProblems", true);
+                node.putArray("roles").add("advertiser").add("publisher");
                 node.put("isDefault", true);
                 node.put("responsibilityAccepted", true);
+                yield node.toString();
+            }
+            case "ordVatCalculate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("amountWithVat", 120);
+                node.put("vatRate", "20");
                 yield node.toString();
             }
             case "ordContractorsCreate" -> {

@@ -31,6 +31,18 @@ class InnValidatorTest {
     }
 
     @Test
+    void rejectsInvalidChecksum() {
+        assertThat(InnValidator.isValid("7707083890")).isFalse();
+        assertThat(InnValidator.isValid("500100732258")).isFalse();
+    }
+
+    @Test
+    void foreignAcceptsNonRuTaxId() {
+        assertThat(InnValidator.isValid("DE123456789", true)).isTrue();
+        assertThat(InnValidator.isValid("", true)).isFalse();
+    }
+
+    @Test
     void requireValidThrows() {
         assertThatThrownBy(() -> InnValidator.requireValid("abc")).isInstanceOf(IllegalArgumentException.class);
     }

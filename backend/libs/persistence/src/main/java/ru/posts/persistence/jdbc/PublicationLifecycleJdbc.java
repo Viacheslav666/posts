@@ -55,7 +55,8 @@ public class PublicationLifecycleJdbc {
                      pv.content -> 'mediaIds',
                      p.base_content -> 'mediaIds',
                      '[]'::jsonb
-                   )::text AS media_ids_json
+                   )::text AS media_ids_json,
+                   coalesce(p.ad_payload ->> 'placement', p.ad_payload ->> 'markingType') AS marking_placement
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -104,7 +105,8 @@ public class PublicationLifecycleJdbc {
                         null,
                         null,
                         "photo",
-                        "[]"))
+                        "[]",
+                        null))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -147,7 +149,8 @@ public class PublicationLifecycleJdbc {
                             rs.getString("story_link_text"),
                             rs.getString("story_link_url"),
                             rs.getString("media_kind"),
-                            rs.getString("media_ids_json"));
+                            rs.getString("media_ids_json"),
+                            rs.getString("marking_placement"));
                 })
                 .optional()
                 .orElse(base);
