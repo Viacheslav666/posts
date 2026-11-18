@@ -15,24 +15,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
 import ru.posts.common.uuid.UuidV7;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3Configuration;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /**
- * QA-13: story publish uses a real JPEG from S3 (not the 4-byte MediaPublishSupport stub). Emulator
- * contentSha256 must match the uploaded file.
+ * QA-13: story publish uses a real JPEG from shared s3mock (not the 4-byte MediaPublishSupport stub).
+ * Uses the same VK Spring context as {@link StoryVkPipelineIT} — no extra {@code @DynamicPropertySource}.
  */
 @Tag("ci")
 class Qa13StoryRealMediaIT extends AbstractVkPipelineIT {
@@ -65,44 +52,15 @@ class Qa13StoryRealMediaIT extends AbstractVkPipelineIT {
 
     private static final String STUB_SHA = "32461d5bd1773012acef0ba15636752949bd7c2ce50f9172159d9f56cf0dd9af";
 
-    /** Started eagerly (same pattern as SharedPipelineInfra) so DynamicPropertySource sees ports. */
-    static final GenericContainer<?> S3MOCK = new GenericContainer<>(DockerImageName.parse("adobe/s3mock:3.12.0"))
-            .withEnv("COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS", "posts-media")
-            .withExposedPorts(9090)
-            .waitingFor(Wait.forHttp("/").forPort(9090).forStatusCode(200));
-
-    static {
-        S3MOCK.start();
-    }
-
-    @DynamicPropertySource
-    static void s3Props(DynamicPropertyRegistry registry) {
-        registry.add("posts.s3.enabled", () -> "true");
-        registry.add("posts.s3.endpoint", () -> "http://" + S3MOCK.getHost() + ":" + S3MOCK.getMappedPort(9090));
-        registry.add("posts.s3.bucket", () -> "posts-media");
-        registry.add("posts.s3.access-key", () -> "posts");
-        registry.add("posts.s3.secret-key", () -> "postsposts");
-        registry.add("posts.s3.path-style-access", () -> "true");
-        registry.add("posts.s3.region", () -> "us-east-1");
-    }
-
     @Autowired
     private ObjectMapper objectMapper;
 
     private String realSha;
 
     @BeforeEach
-    void putRealJpeg() throws Exception {
+    void computeSha() throws Exception {
         realSha = sha256Hex(REAL_JPEG);
         assertThat(realSha).isNotEqualTo(STUB_SHA);
-        try (S3Client client = s3Client()) {
-            try {
-                client.createBucket(
-                        CreateBucketRequest.builder().bucket("posts-media").build());
-            } catch (Exception ignored) {
-                // bucket may already exist
-            }
-        }
     }
 
     @Test
@@ -115,15 +73,7 @@ class Qa13StoryRealMediaIT extends AbstractVkPipelineIT {
         UUID mediaId = UuidV7.generate();
         String s3Key = "workspaces/" + workspaceId + "/media/" + mediaId + "/story-real.jpg";
 
-        try (S3Client client = s3Client()) {
-            client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket("posts-media")
-                            .key(s3Key)
-                            .contentType("image/jpeg")
-                            .build(),
-                    RequestBody.fromBytes(REAL_JPEG));
-        }
+        SharedPipelineInfra.putS3Object(s3Key, REAL_JPEG, "image/jpeg");
 
         jdbcTemplate.update(
                 """
@@ -192,17 +142,6 @@ class Qa13StoryRealMediaIT extends AbstractVkPipelineIT {
                 .isEqualTo(realSha)
                 .isNotEqualTo(STUB_SHA);
         assertThat(posts.get(0).path("metadata").path("contentSize").asInt()).isEqualTo(REAL_JPEG.length);
-    }
-
-    private static S3Client s3Client() {
-        return S3Client.builder()
-                .endpointOverride(java.net.URI.create("http://" + S3MOCK.getHost() + ":" + S3MOCK.getMappedPort(9090)))
-                .region(Region.US_EAST_1)
-                .credentialsProvider(
-                        StaticCredentialsProvider.create(AwsBasicCredentials.create("posts", "postsposts")))
-                .serviceConfiguration(
-                        S3Configuration.builder().pathStyleAccessEnabled(true).build())
-                .build();
     }
 
     private static String sha256Hex(byte[] bytes) throws Exception {

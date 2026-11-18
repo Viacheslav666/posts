@@ -66,5 +66,13 @@ abstract class AbstractVkPipelineIT {
         registry.add("spring.rabbitmq.publisher-confirm-type", () -> "correlated");
         registry.add("spring.rabbitmq.publisher-returns", () -> "true");
         registry.add("server.port", () -> "0");
+        // Shared s3mock — required for QA-13 real-file stories; keeps one VK Spring context.
+        registry.add("posts.s3.enabled", () -> "true");
+        registry.add("posts.s3.endpoint", SharedPipelineInfra::s3Endpoint);
+        registry.add("posts.s3.bucket", () -> SharedPipelineInfra.S3_BUCKET);
+        registry.add("posts.s3.access-key", () -> SharedPipelineInfra.S3_ACCESS_KEY);
+        registry.add("posts.s3.secret-key", () -> SharedPipelineInfra.S3_SECRET_KEY);
+        registry.add("posts.s3.path-style-access", () -> "true");
+        registry.add("posts.s3.region", () -> "us-east-1");
     }
 }
