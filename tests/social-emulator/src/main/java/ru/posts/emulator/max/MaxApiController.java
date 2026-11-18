@@ -37,7 +37,9 @@ public class MaxApiController {
         this.subscriptionStore = subscriptionStore;
     }
 
-    @PostMapping(path = {"/subscriptions", "/max/subscriptions"}, consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(
+            path = {"/subscriptions", "/max/subscriptions"},
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createSubscription(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody Map<String, Object> body) {
@@ -45,9 +47,8 @@ public class MaxApiController {
         String url = body.get("url") == null ? null : String.valueOf(body.get("url"));
         String secret = body.get("secret") == null ? null : String.valueOf(body.get("secret"));
         @SuppressWarnings("unchecked")
-        List<String> types = body.get("update_types") instanceof List<?> list
-                ? (List<String>) (List<?>) list
-                : List.of();
+        List<String> types =
+                body.get("update_types") instanceof List<?> list ? (List<String>) (List<?>) list : List.of();
         subscriptionStore.put(token, url, secret, types);
         return ResponseEntity.ok(Map.of("success", true));
     }
@@ -68,8 +69,7 @@ public class MaxApiController {
 
     @DeleteMapping(path = {"/subscriptions", "/max/subscriptions"})
     public ResponseEntity<?> deleteSubscription(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestParam String url) {
+            @RequestHeader(value = "Authorization", required = false) String authorization, @RequestParam String url) {
         subscriptionStore.delete(bearer(authorization), url);
         return ResponseEntity.ok(Map.of("success", true));
     }

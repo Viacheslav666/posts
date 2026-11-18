@@ -42,7 +42,10 @@ public class VkCallbackServerStore {
     }
 
     public synchronized Server findByUrl(String groupId, String url) {
-        return list(groupId).stream().filter(s -> s.url().equals(url)).findFirst().orElse(null);
+        return list(groupId).stream()
+                .filter(s -> s.url().equals(url))
+                .findFirst()
+                .orElse(null);
     }
 
     public synchronized void reset() {

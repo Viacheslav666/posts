@@ -24,14 +24,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -61,7 +58,6 @@ import ru.posts.testsupport.emulator.SocialEmulatorProcess;
 @Testcontainers
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import(SocialInboundIT.InboundTestConfig.class)
 class SocialInboundIT {
 
     private static final Pattern TOKEN_IN_BODY = Pattern.compile("token=([A-Za-z0-9_-]+)");
@@ -151,6 +147,9 @@ class SocialInboundIT {
     @Autowired
     TelegramAlbumAggregator albumAggregator;
 
+    @Autowired
+    RabbitTemplate rabbitTemplate;
+
     @BeforeAll
     void ensureEmulator() throws Exception {
         if (emulator == null) {
@@ -172,6 +171,9 @@ class SocialInboundIT {
         mailSender.clear();
         recordingHandler.clear();
         emulator.reset();
+        drainQueue("ingest.vk");
+        drainQueue("ingest.tg");
+        drainQueue("ingest.max");
     }
 
     @Test
@@ -191,7 +193,6 @@ class SocialInboundIT {
         channel.setUpdatedAt(Instant.now());
         channelRepository.save(channel);
 
-        // public URL must match what emulator will call — for ensure we only register URL string
         subscriptionService.ensure(channel.getId(), "suggest", List.of("wall_post_new", "wall_reply_new"));
 
         var sub = subscriptionService.getRequired(channel.getId());
@@ -228,11 +229,12 @@ class SocialInboundIT {
                     .andExpect(content().string("ok"));
         }
 
-        await().atMost(Duration.ofSeconds(20))
-                .untilAsserted(() -> assertThat(recordingHandler.size()).isEqualTo(1));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            drainAndProcess("ingest.vk");
+            assertThat(recordingHandler.size()).isEqualTo(1);
+        });
         assertThat(recordingHandler.snapshot().get(0).kind().name()).isEqualTo("POST_SUGGESTED");
 
-        // bad secret
         event.put("secret", "wrong");
         mockMvc.perform(post("/hooks/vk/" + channel.getId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -276,9 +278,11 @@ class SocialInboundIT {
                     .andExpect(status().isOk());
         }
 
-        await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> assertThat(albumAggregator.pendingCount()).isGreaterThan(0));
-        // Force window expiry
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+            drainAndProcess("ingest.tg");
+            assertThat(albumAggregator.pendingCount()).isGreaterThan(0);
+        });
+        // Force window expiry then flush
         Thread.sleep(3200);
         processor.flushReadyAlbums();
 
@@ -305,7 +309,7 @@ class SocialInboundIT {
         channel.setUpdatedAt(Instant.now());
         channelRepository.save(channel);
 
-        subscriptionService.ensure(channel.getId(), "antispam", List.of("comment_created"));
+        subscriptionService.ensure(channel.getId(), "suggest", List.of("comment_created"));
         var sub = subscriptionService.getRequired(channel.getId());
         String secret = tokenVault.unseal(fx.workspaceId(), sub.getSecretEnc());
 
@@ -324,8 +328,10 @@ class SocialInboundIT {
                         .content(objectMapper.writeValueAsBytes(body)))
                 .andExpect(status().isOk());
 
-        await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> assertThat(recordingHandler.size()).isEqualTo(1));
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+            drainAndProcess("ingest.max");
+            assertThat(recordingHandler.size()).isEqualTo(1);
+        });
         assertThat(recordingHandler.snapshot().get(0).kind().name()).isEqualTo("COMMENT_NEW");
 
         mockMvc.perform(post("/hooks/max/" + channel.getId())
@@ -348,6 +354,25 @@ class SocialInboundIT {
         mockMvc.perform(get("/api/v1/channels/" + channel.getId() + "/event-subscription")
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isNotFound());
+    }
+
+    private void drainAndProcess(String queue) {
+        Object message;
+        while ((message = rabbitTemplate.receiveAndConvert(queue)) != null) {
+            if (message instanceof SocialInboundCommand command) {
+                processor.process(command);
+            } else if (message instanceof Map<?, ?> map) {
+                // Jackson may deliver LinkedHashMap when type info is absent
+                SocialInboundCommand command = objectMapper.convertValue(map, SocialInboundCommand.class);
+                processor.process(command);
+            }
+        }
+    }
+
+    private void drainQueue(String queue) {
+        while (rabbitTemplate.receiveAndConvert(queue) != null) {
+            // discard
+        }
     }
 
     private ChannelEntity tgChannel(UUID workspaceId, UUID botId, String externalId) {
@@ -417,35 +442,4 @@ class SocialInboundIT {
     }
 
     private record Fixture(String email, String password, UUID workspaceId, String accessToken) {}
-
-    @TestConfiguration
-    static class InboundTestConfig {
-        @Bean
-        InboundTestListener inboundTestListener(SocialInboundProcessor processor) {
-            return new InboundTestListener(processor);
-        }
-    }
-
-    static class InboundTestListener {
-        private final SocialInboundProcessor processor;
-
-        InboundTestListener(SocialInboundProcessor processor) {
-            this.processor = processor;
-        }
-
-        @RabbitListener(queues = "ingest.vk")
-        public void onVk(SocialInboundCommand command) {
-            processor.process(command);
-        }
-
-        @RabbitListener(queues = "ingest.tg")
-        public void onTg(SocialInboundCommand command) {
-            processor.process(command);
-        }
-
-        @RabbitListener(queues = "ingest.max")
-        public void onMax(SocialInboundCommand command) {
-            processor.process(command);
-        }
-    }
 }

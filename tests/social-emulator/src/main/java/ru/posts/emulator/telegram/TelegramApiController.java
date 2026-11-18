@@ -49,9 +49,8 @@ public class TelegramApiController {
         String url = body.get("url") == null ? null : String.valueOf(body.get("url"));
         String secret = body.get("secret_token") == null ? null : String.valueOf(body.get("secret_token"));
         @SuppressWarnings("unchecked")
-        List<String> allowed = body.get("allowed_updates") instanceof List<?> list
-                ? (List<String>) (List<?>) list
-                : List.of();
+        List<String> allowed =
+                body.get("allowed_updates") instanceof List<?> list ? (List<String>) (List<?>) list : List.of();
         webhookStore.set(token, url, secret, allowed);
         return Map.of("ok", true, "result", true, "description", "Webhook was set");
     }

@@ -152,7 +152,8 @@ public class VkApiController {
 
     private Map<String, Object> callbackConfirmation(MultiValueMap<String, String> params) {
         String groupId = first(params, "group_id");
-        return Map.of("response", Map.of("code", callbackServerStore.confirmationCode(groupId == null ? "0" : groupId)));
+        return Map.of(
+                "response", Map.of("code", callbackServerStore.confirmationCode(groupId == null ? "0" : groupId)));
     }
 
     private Map<String, Object> callbackServers(MultiValueMap<String, String> params) {
@@ -174,8 +175,7 @@ public class VkApiController {
         String url = first(params, "url");
         String title = first(params, "title");
         String secret = first(params, "secret_key");
-        VkCallbackServerStore.Server existing =
-                callbackServerStore.findByUrl(groupId == null ? "0" : groupId, url);
+        VkCallbackServerStore.Server existing = callbackServerStore.findByUrl(groupId == null ? "0" : groupId, url);
         if (existing != null) {
             return Map.of("response", Map.of("server_id", Long.parseLong(existing.id())));
         }

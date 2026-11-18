@@ -109,9 +109,8 @@ public class InboundInjectController {
             return Map.of("ok", false, "error", "webhook_not_registered");
         }
         @SuppressWarnings("unchecked")
-        Map<String, Object> update = body.get("update") instanceof Map<?, ?> m
-                ? (Map<String, Object>) m
-                : defaultTgUpdate(body);
+        Map<String, Object> update =
+                body.get("update") instanceof Map<?, ?> m ? (Map<String, Object>) m : defaultTgUpdate(body);
         try {
             ResponseEntity<String> response = http.post()
                     .uri(wh.url())
@@ -135,8 +134,7 @@ public class InboundInjectController {
     @PostMapping(path = "/max/update", consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> injectMax(@RequestBody Map<String, Object> body) {
         String url = body.get("url") == null ? null : String.valueOf(body.get("url"));
-        MaxSubscriptionStore.Subscription sub =
-                url == null ? null : subscriptionStore.findByUrl(url);
+        MaxSubscriptionStore.Subscription sub = url == null ? null : subscriptionStore.findByUrl(url);
         if (sub == null && url == null) {
             // pick first
             sub = subscriptionStore.list(String.valueOf(body.getOrDefault("token", ""))).stream()
@@ -150,9 +148,8 @@ public class InboundInjectController {
             return Map.of("ok", false, "error", "subscription_not_found");
         }
         @SuppressWarnings("unchecked")
-        Map<String, Object> update = body.get("update") instanceof Map<?, ?> m
-                ? (Map<String, Object>) m
-                : defaultMaxUpdate(body);
+        Map<String, Object> update =
+                body.get("update") instanceof Map<?, ?> m ? (Map<String, Object>) m : defaultMaxUpdate(body);
         try {
             ResponseEntity<String> response = http.post()
                     .uri(url)

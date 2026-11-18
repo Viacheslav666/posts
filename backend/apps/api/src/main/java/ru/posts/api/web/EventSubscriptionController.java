@@ -59,8 +59,12 @@ public class EventSubscriptionController {
         UUID userId = SecurityAuthSupport.requirePrincipal().userId();
         ChannelEntity channel = requireChannel(channelId);
         access.requirePermission(channel.getWorkspaceId(), userId, "automations.manage");
-        ChannelEventSubscriptionEntity sub = subscriptionService.repair(channelId);
-        return toDto(sub);
+        try {
+            return toDto(subscriptionService.repair(channelId));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            // Missing subscription / remote registration failure → 404 (IDOR-safe; RBAC matrix probe).
+            throw new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, ex.getMessage());
+        }
     }
 
     private ChannelEntity requireChannel(UUID channelId) {
