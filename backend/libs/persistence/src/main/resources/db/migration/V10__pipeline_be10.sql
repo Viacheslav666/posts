@@ -2,13 +2,14 @@
 -- * scheduled_actions kinds for stories (BE-16 hook) and pin (immediate/scheduled)
 -- * extra partitions so long-running envs stay ahead of run_at horizon
 
--- Expand kind check (squawk-safe: drop/re-add NOT VALID then VALIDATE)
-ALTER TABLE scheduled_actions DROP CONSTRAINT IF EXISTS scheduled_actions_kind_check;
+-- Expand kind check (same expand-safe pattern as V9): wider check first, then drop V2.
 ALTER TABLE scheduled_actions
-    ADD CONSTRAINT scheduled_actions_kind_check
+    ADD CONSTRAINT scheduled_actions_kind_check_v10
     CHECK (kind IN ('delete', 'unpin', 'first_comment', 'edit', 'pin', 'delete_story'))
     NOT VALID;
-ALTER TABLE scheduled_actions VALIDATE CONSTRAINT scheduled_actions_kind_check;
+ALTER TABLE scheduled_actions VALIDATE CONSTRAINT scheduled_actions_kind_check_v10;
+-- squawk-ignore ban-drop-constraint
+ALTER TABLE scheduled_actions DROP CONSTRAINT scheduled_actions_kind_check;
 
 -- Forward partitions for publications / scheduled_actions (Apr–Sep 2027)
 CREATE TABLE IF NOT EXISTS publications_2027_04 PARTITION OF publications
