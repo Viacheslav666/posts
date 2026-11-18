@@ -6,6 +6,8 @@ import type {
   ChannelConnectStartResponse,
   ChannelSet,
   CreateChannelSetRequest,
+  StartStoryConnectionRequest,
+  StoryConnection,
   UpdateChannelRequest,
   UpdateChannelSetRequest,
 } from '@posts/api-client';
@@ -77,6 +79,8 @@ function createInitialState(): ChannelStoreState {
         status: 'active',
         timezone: 'Europe/Moscow',
         createdAt: now,
+        storyConnectionStatus: 'ready',
+        storyConnectedAt: now,
       },
       {
         id: CHANNEL_IDS.tgNews,
@@ -123,6 +127,7 @@ function createInitialState(): ChannelStoreState {
         statusReason: 'Missing admin rights on the community',
         timezone: 'Europe/Moscow',
         createdAt: now,
+        storyConnectionStatus: 'missing',
       },
       {
         id: CHANNEL_IDS.tgReauth,
@@ -146,6 +151,20 @@ function createInitialState(): ChannelStoreState {
         status: 'active',
         timezone: 'Europe/Moscow',
         createdAt: now,
+        storyConnectionStatus: 'missing',
+      },
+      {
+        id: '019a0000-chan-7000-8000-000000000008',
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        projectId: DEFAULT_PROJECT_ID,
+        network: 'vk',
+        type: 'group',
+        title: 'VK без stories',
+        username: 'posts_no_stories',
+        status: 'active',
+        timezone: 'Europe/Moscow',
+        createdAt: now,
+        storyConnectionStatus: 'missing',
       },
     ],
   };
@@ -444,4 +463,67 @@ export function deleteChannelSet(setId: string): boolean {
   const before = state.sets.length;
   state.sets = state.sets.filter((set) => set.id !== setId);
   return state.sets.length < before;
+}
+
+export function getStoryConnection(channelId: string): StoryConnection | undefined {
+  const channel = getChannel(channelId);
+  if (!channel?.network) return undefined;
+  if (channel.network === 'ok') {
+    return {
+      channelId,
+      network: 'ok',
+      status: 'ready',
+      connectedAt: channel.createdAt,
+    };
+  }
+  return {
+    channelId,
+    network: channel.network,
+    status: channel.storyConnectionStatus ?? 'missing',
+    connectedAt: channel.storyConnectedAt,
+    error: channel.storyConnectionError,
+  };
+}
+
+export function startStoryConnection(
+  channelId: string,
+  body: StartStoryConnectionRequest = {},
+): StoryConnection | { error: 'not_found' | 'unsupported' } {
+  const channel = getChannel(channelId);
+  if (!channel?.network) return { error: 'not_found' };
+  if (channel.network === 'ok') {
+    return {
+      channelId,
+      network: 'ok',
+      status: 'ready',
+      connectedAt: channel.createdAt,
+    };
+  }
+  if (channel.network !== 'vk') {
+    return { error: 'unsupported' };
+  }
+
+  const now = new Date().toISOString();
+  const ready = body.confirmReady !== false;
+  const status = ready ? 'ready' : 'pending';
+  state.channels = state.channels.map((item) =>
+    item.id === channelId
+      ? {
+          ...item,
+          storyConnectionStatus: status,
+          storyConnectedAt: ready ? now : item.storyConnectedAt,
+          storyConnectionError: undefined,
+        }
+      : item,
+  );
+
+  return {
+    channelId,
+    network: 'vk',
+    status,
+    connectedAt: ready ? now : undefined,
+    authorizationUrl: ready
+      ? undefined
+      : `/app/${channel.workspaceId}/channels?storyConnect=${channelId}`,
+  };
 }

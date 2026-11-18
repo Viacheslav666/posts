@@ -20,6 +20,7 @@ export type ListPostsParams = {
   projectId?: string;
   network?: string;
   authorId?: string;
+  contentKind?: 'post' | 'story';
   q?: string;
   cursor?: string;
   limit?: number;
@@ -52,6 +53,7 @@ export async function listPosts(params: ListPostsParams): Promise<PostPage> {
           projectId: params.projectId,
           network: params.network as 'vk' | 'tg' | 'ok' | 'max' | 'rutube' | undefined,
           authorId: params.authorId,
+          contentKind: params.contentKind,
           q: params.q,
           cursor: params.cursor,
           limit: params.limit,

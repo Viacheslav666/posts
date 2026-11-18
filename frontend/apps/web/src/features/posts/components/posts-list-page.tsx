@@ -236,6 +236,24 @@ export function PostsListPage({ workspaceId }: PostsListPageProps) {
         />
 
         <FilterSelect
+          label={t('filters.contentKind')}
+          value={filters.contentKind ?? 'all'}
+          onChange={(value) => {
+            setCursorStack([undefined]);
+            setFilters((f) => ({
+              ...f,
+              contentKind: value === 'all' ? undefined : (value as 'post' | 'story'),
+            }));
+          }}
+          options={[
+            { value: 'all', label: t('filters.allKinds') },
+            { value: 'post', label: t('filters.posts') },
+            { value: 'story', label: t('filters.stories') },
+          ]}
+          testId="posts-filter-content-kind"
+        />
+
+        <FilterSelect
           label={t('filters.channel')}
           value={filters.channelId ?? 'all'}
           onChange={(value) => {

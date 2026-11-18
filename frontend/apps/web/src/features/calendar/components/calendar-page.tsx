@@ -107,6 +107,7 @@ export function CalendarPage({ workspaceId }: CalendarPageProps) {
     authorId: filters.authorId,
     network: filters.network,
     status: filters.status,
+    contentKind: filters.contentKind,
     enabled: canView,
   });
 
@@ -284,6 +285,30 @@ export function CalendarPage({ workspaceId }: CalendarPageProps) {
                   {t(`networks.${network}`)}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.contentKind ?? 'all'}
+            onValueChange={(value: string) =>
+              setFilters((current) => ({
+                ...current,
+                contentKind:
+                  value === 'all' ? undefined : (value as 'post' | 'story'),
+              }))
+            }
+          >
+            <SelectTrigger
+              className="w-[150px]"
+              aria-label={t('filters.contentKind')}
+              data-testid="calendar-filter-content-kind"
+            >
+              <SelectValue placeholder={t('filters.contentKind')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('filters.allKinds')}</SelectItem>
+              <SelectItem value="post">{t('filters.posts')}</SelectItem>
+              <SelectItem value="story">{t('filters.stories')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

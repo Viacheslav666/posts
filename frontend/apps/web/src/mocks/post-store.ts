@@ -1,6 +1,8 @@
 import type {
   AdMarking,
   AdMarkingSummary,
+  BatchStoriesRequest,
+  BatchStoriesResponse,
   BulkPostsRequest,
   BulkPostsResponse,
   CalendarItem,
@@ -9,6 +11,7 @@ import type {
   Post,
   Publication,
   PublicationAttempt,
+  StoryOptions,
   UpdatePostRequest,
 } from '@posts/api-client';
 
@@ -27,6 +30,7 @@ export const POST_IDS = {
   published: '019a0000-post-7000-8000-000000000004',
   draft: '019a0000-post-7000-8000-000000000005',
   weekAhead: '019a0000-post-7000-8000-000000000006',
+  storyVk: '019a0000-post-7000-8000-000000000007',
 } as const;
 
 export const PUBLICATION_IDS = {
@@ -172,6 +176,24 @@ function createInitialState(): PostStoreState {
       baseContent: { text: 'Анонс серии постов.' },
       ad: false,
     },
+    {
+      id: POST_IDS.storyVk,
+      workspaceId: PERSONAL_WORKSPACE_ID,
+      projectId: DEFAULT_PROJECT_ID,
+      authorId: DEMO_USER_ID,
+      title: 'Вечерняя история VK',
+      status: 'scheduled',
+      scheduledAt: hoursFromNow(8),
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+      channelIds: [CHANNEL_IDS.vkNews],
+      networks: ['vk'],
+      contentKind: 'story',
+      story: { ttl: 'ttl_24h', mediaKind: 'photo' },
+      baseContent: { text: '', mediaIds: ['019a0000-00m0-7000-8000-000000000002'] },
+      ad: false,
+    },
   ];
 
   const publications: Publication[] = [
@@ -302,6 +324,7 @@ const CHANNEL_NETWORK: Record<string, Network> = {
   [CHANNEL_IDS.tgReauth]: 'tg',
   [CHANNEL_IDS.okBrand]: 'ok',
   [CHANNEL_IDS.maxBrand]: 'max',
+  '019a0000-chan-7000-8000-000000000008': 'vk',
 };
 
 function networksForChannels(channelIds: string[]): Network[] {
@@ -347,6 +370,7 @@ export function createPost(body: CreatePostRequest): StoredPost {
     removeAfterPublish: body.removeAfterPublish ?? false,
     repost: body.repost,
     contentKind: body.contentKind ?? 'post',
+    story: body.story,
     version: 1,
     createdAt: now,
     updatedAt: now,
@@ -448,6 +472,7 @@ export type ListPostsFilters = {
   projectId?: string;
   network?: string;
   authorId?: string;
+  contentKind?: 'post' | 'story';
   q?: string;
   cursor?: string;
   limit?: number;
@@ -461,6 +486,7 @@ function matchesFilters(post: StoredPost, filters: ListPostsFilters): boolean {
   if (filters.channelId && !post.channelIds.includes(filters.channelId)) return false;
   if (filters.network && !post.networks.includes(filters.network as Network)) return false;
   if (filters.authorId && post.authorId !== filters.authorId) return false;
+  if (filters.contentKind && (post.contentKind ?? 'post') !== filters.contentKind) return false;
   if (filters.from && post.scheduledAt && post.scheduledAt < filters.from) return false;
   if (filters.to && post.scheduledAt && post.scheduledAt > filters.to) return false;
   if (filters.q) {
@@ -521,6 +547,7 @@ export type CalendarFilters = {
   authorId?: string;
   network?: string;
   status?: string;
+  contentKind?: 'post' | 'story';
 };
 
 export function listCalendar(filters: CalendarFilters): CalendarItem[] {
@@ -534,6 +561,7 @@ export function listCalendar(filters: CalendarFilters): CalendarItem[] {
       if (filters.authorId && post.authorId !== filters.authorId) return false;
       if (filters.network && !post.networks.includes(filters.network as Network)) return false;
       if (filters.status && post.status !== filters.status) return false;
+      if (filters.contentKind && (post.contentKind ?? 'post') !== filters.contentKind) return false;
       return post.status !== 'draft' && post.status !== 'archived';
     })
     .map((post) => ({
@@ -772,6 +800,70 @@ export function toApiPost(post: StoredPost): Post {
   return {
     ...rest,
     contentKind: post.contentKind ?? 'post',
+    story: post.story,
     ...(post.adMarking ? { adMarking: post.adMarking } : {}),
+  };
+}
+
+const BATCH_MAX = 50;
+
+export function batchCreateStories(body: BatchStoriesRequest): BatchStoriesResponse {
+  const mediaIds = body.mediaIds ?? [];
+  const channelIds = body.channelIds ?? [];
+  const failures: NonNullable<BatchStoriesResponse['failures']> = [];
+  const postIds: string[] = [];
+
+  if (mediaIds.length > BATCH_MAX) {
+    return {
+      created: 0,
+      postIds: [],
+      failures: mediaIds.map((mediaId) => ({
+        mediaId,
+        code: 'story_batch_limit',
+        message: `Batch exceeds ${BATCH_MAX}`,
+      })),
+    };
+  }
+
+  const stepMs = Math.max(0, (body.stepMinutes ?? 0) * 60_000);
+  const start = new Date(body.scheduledAt).getTime();
+
+  mediaIds.forEach((mediaId, index) => {
+    try {
+      const story: StoryOptions = {
+        ...(body.story ?? {}),
+        ttl: body.story?.ttl ?? 'ttl_24h',
+      };
+      const created = createPost({
+        workspaceId: body.workspaceId,
+        projectId: body.projectId,
+        title: `История ${index + 1}`,
+        contentKind: 'story',
+        scheduledAt: new Date(start + stepMs * index).toISOString(),
+        timezone: body.timezone ?? 'Europe/Moscow',
+        story,
+        ad: body.ad,
+        adMarking: body.adMarking,
+        baseContent: { text: '', mediaIds: [mediaId] },
+        variants: channelIds.map((channelId) => ({
+          channelId,
+          network: CHANNEL_NETWORK[channelId] ?? 'vk',
+          content: { text: '', mediaIds: [mediaId] },
+        })),
+      });
+      postIds.push(created.id!);
+    } catch (error) {
+      failures.push({
+        mediaId,
+        code: 'story_media_invalid',
+        message: error instanceof Error ? error.message : 'Failed to create story',
+      });
+    }
+  });
+
+  return {
+    created: postIds.length,
+    postIds,
+    failures,
   };
 }

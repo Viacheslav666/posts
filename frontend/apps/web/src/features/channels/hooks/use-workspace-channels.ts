@@ -13,6 +13,9 @@ export type EditorChannelOption = {
   name: string;
   network: 'vk' | 'tg' | 'ok' | 'max' | 'rutube';
   projectName: string;
+  /** VK stories connect status (BE-16); OK does not require a separate connect. */
+  storyConnectionStatus?: Channel['storyConnectionStatus'];
+  status?: Channel['status'];
 };
 
 function toEditorOption(
@@ -32,6 +35,8 @@ function toEditorOption(
     projectName: channel.projectId
       ? (projectNames.get(channel.projectId) ?? '—')
       : '—',
+    storyConnectionStatus: channel.storyConnectionStatus,
+    status: channel.status,
   };
 }
 

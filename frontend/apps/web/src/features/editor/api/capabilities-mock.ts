@@ -106,7 +106,7 @@ export const MOCK_NETWORK_CAPABILITIES = {
       name: 'Одноклассники',
       phase: 'mvp',
       channelTypes: ['group'],
-      contentTypes: ['post', 'repost'],
+      contentTypes: ['post', 'repost', 'story'],
       text: { maxChars: undefined, captionMaxChars: undefined },
       formatting: { mode: 'plain', features: [], htmlTags: [] },
       media: {

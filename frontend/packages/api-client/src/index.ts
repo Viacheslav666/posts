@@ -78,6 +78,15 @@ export type RepostTarget = components['schemas']['RepostTarget'];
 export type GeoPoint = components['schemas']['GeoPoint'];
 export type InlineButton = components['schemas']['InlineButton'];
 
+export type StoryOptions = components['schemas']['StoryOptions'];
+export type StoryConnection = components['schemas']['StoryConnection'];
+export type StartStoryConnectionRequest = components['schemas']['StartStoryConnectionRequest'];
+export type BatchStoriesRequest = components['schemas']['BatchStoriesRequest'];
+export type BatchStoriesResponse = components['schemas']['BatchStoriesResponse'];
+export type BatchStoryFailure = components['schemas']['BatchStoryFailure'];
+export type StoryTtl = NonNullable<StoryOptions['ttl']>;
+export type StoryConnectionStatus = NonNullable<StoryConnection['status']>;
+
 export type OrdConnection = components['schemas']['OrdConnection'];
 export type OrdConnectionPage = components['schemas']['OrdConnectionPage'];
 export type OrdConnectionTestResponse = components['schemas']['OrdConnectionTestResponse'];

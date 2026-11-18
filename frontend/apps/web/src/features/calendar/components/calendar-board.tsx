@@ -115,6 +115,7 @@ function DraggableEvent({
       title={item.title ?? '—'}
       networks={item.networks}
       status={item.status}
+      contentKind={item.contentKind === 'story' ? 'story' : 'post'}
       selected={selected}
       onClick={onClick}
       {...(canDrag ? { ...listeners, ...attributes } : {})}
@@ -464,6 +465,7 @@ export function CalendarBoard({
             title={activeItem.title ?? '—'}
             networks={activeItem.networks}
             status={activeItem.status}
+            contentKind={activeItem.contentKind === 'story' ? 'story' : 'post'}
             className="shadow-lg"
           />
         ) : null}
