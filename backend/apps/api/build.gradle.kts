@@ -9,6 +9,7 @@ plugins {
 dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:domain"))
+    implementation(project(":libs:content"))
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
     implementation(project(":libs:security"))

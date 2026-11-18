@@ -48,6 +48,50 @@ public class PostEntity extends BaseUuidEntity {
     @Column(name = "ord_creative_id")
     private UUID ordCreativeId;
 
+    /** post | story — BE-16 uses story; default post for BE-9. */
+    @Column(name = "content_kind", nullable = false)
+    private String contentKind = "post";
+
+    /** manual | grabber | rss | import | api — BE-17 source attribution. */
+    @Column(name = "source_type", nullable = false)
+    private String sourceType = "manual";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "source_ref", columnDefinition = "jsonb")
+    private Map<String, Object> sourceRef;
+
+    /** Snapshot of ads_items for BE-15 ORD (nullable until marking configured). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ad_payload", columnDefinition = "jsonb")
+    private Map<String, Object> adPayload;
+
+    @Column(name = "stop_at")
+    private Instant stopAt;
+
+    @Column(name = "remove_after_publish", nullable = false)
+    private boolean removeAfterPublish;
+
+    @Column(name = "story_ttl")
+    private String storyTtl;
+
+    @Column(name = "story_link_text")
+    private String storyLinkText;
+
+    @Column(name = "story_link_url")
+    private String storyLinkUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "story_options", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> storyOptions = Map.of();
+
+    /** Grabber moderation queue status (BE-17); null for manual posts. */
+    @Column(name = "moderation_status")
+    private String moderationStatus;
+
+    /** IANA TZ used for recurrence materialization / calendar day boundaries. */
+    @Column(nullable = false)
+    private String timezone = "Europe/Moscow";
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -147,6 +191,102 @@ public class PostEntity extends BaseUuidEntity {
 
     public void setOrdCreativeId(UUID ordCreativeId) {
         this.ordCreativeId = ordCreativeId;
+    }
+
+    public String getContentKind() {
+        return contentKind;
+    }
+
+    public void setContentKind(String contentKind) {
+        this.contentKind = contentKind;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public Map<String, Object> getSourceRef() {
+        return sourceRef;
+    }
+
+    public void setSourceRef(Map<String, Object> sourceRef) {
+        this.sourceRef = sourceRef;
+    }
+
+    public Map<String, Object> getAdPayload() {
+        return adPayload;
+    }
+
+    public void setAdPayload(Map<String, Object> adPayload) {
+        this.adPayload = adPayload;
+    }
+
+    public Instant getStopAt() {
+        return stopAt;
+    }
+
+    public void setStopAt(Instant stopAt) {
+        this.stopAt = stopAt;
+    }
+
+    public boolean isRemoveAfterPublish() {
+        return removeAfterPublish;
+    }
+
+    public void setRemoveAfterPublish(boolean removeAfterPublish) {
+        this.removeAfterPublish = removeAfterPublish;
+    }
+
+    public String getStoryTtl() {
+        return storyTtl;
+    }
+
+    public void setStoryTtl(String storyTtl) {
+        this.storyTtl = storyTtl;
+    }
+
+    public String getStoryLinkText() {
+        return storyLinkText;
+    }
+
+    public void setStoryLinkText(String storyLinkText) {
+        this.storyLinkText = storyLinkText;
+    }
+
+    public String getStoryLinkUrl() {
+        return storyLinkUrl;
+    }
+
+    public void setStoryLinkUrl(String storyLinkUrl) {
+        this.storyLinkUrl = storyLinkUrl;
+    }
+
+    public Map<String, Object> getStoryOptions() {
+        return storyOptions;
+    }
+
+    public void setStoryOptions(Map<String, Object> storyOptions) {
+        this.storyOptions = storyOptions == null ? Map.of() : storyOptions;
+    }
+
+    public String getModerationStatus() {
+        return moderationStatus;
+    }
+
+    public void setModerationStatus(String moderationStatus) {
+        this.moderationStatus = moderationStatus;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 
     public int getVersion() {

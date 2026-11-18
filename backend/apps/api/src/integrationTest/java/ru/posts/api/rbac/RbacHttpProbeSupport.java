@@ -28,11 +28,17 @@ import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
 import ru.posts.persistence.entity.PlanEntity;
+import ru.posts.persistence.entity.PostEntity;
+import ru.posts.persistence.entity.PostVariantEntity;
+import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
+import ru.posts.persistence.repository.PostRepository;
+import ru.posts.persistence.repository.PostVariantRepository;
+import ru.posts.persistence.repository.PublicationRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 import ru.posts.security.rbac.RbacEffect;
 import ru.posts.security.rbac.RbacMatrix;
@@ -54,6 +60,9 @@ final class RbacHttpProbeSupport {
     private final ChannelRepository channelRepository;
     private final ChannelSetRepository channelSetRepository;
     private final MediaAssetRepository mediaAssetRepository;
+    private final PostRepository postRepository;
+    private final PostVariantRepository postVariantRepository;
+    private final PublicationRepository publicationRepository;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -63,7 +72,10 @@ final class RbacHttpProbeSupport {
             WorkspaceRepository workspaceRepository,
             ChannelRepository channelRepository,
             ChannelSetRepository channelSetRepository,
-            MediaAssetRepository mediaAssetRepository) {
+            MediaAssetRepository mediaAssetRepository,
+            PostRepository postRepository,
+            PostVariantRepository postVariantRepository,
+            PublicationRepository publicationRepository) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -72,6 +84,9 @@ final class RbacHttpProbeSupport {
         this.channelRepository = channelRepository;
         this.channelSetRepository = channelSetRepository;
         this.mediaAssetRepository = mediaAssetRepository;
+        this.postRepository = postRepository;
+        this.postVariantRepository = postVariantRepository;
+        this.publicationRepository = publicationRepository;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -179,6 +194,14 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "postsDelete" -> {
+                UUID disposable = insertPost(
+                                ids.workspaceId(), ids.projectAlpha(), ids.channelId(), userIdFromMe(accessToken))
+                        .postId();
+                yield statusOf(delete("/api/v1/posts/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             default -> performRaw(accessToken, withoutDestructive(endpoint), ids, Scope.OWN);
         };
     }
@@ -257,6 +280,11 @@ final class RbacHttpProbeSupport {
             String template = e.getValue();
             out.put(e.getKey(), values.getOrDefault(template, template));
         }
+        if ("calendarList".equals(endpoint.operationId())) {
+            out.putIfAbsent("from", "2026-12-01T00:00:00Z");
+            out.putIfAbsent("to", "2026-12-31T00:00:00Z");
+            out.putIfAbsent("timezone", "Europe/Moscow");
+        }
         return out;
     }
 
@@ -299,10 +327,20 @@ final class RbacHttpProbeSupport {
             values.put(
                     "{mediaId}",
                     ids.mediaId() == null ? randomUuid() : ids.mediaId().toString());
+            values.put(
+                    "{postId}",
+                    ids.postId() == null ? randomUuid() : ids.postId().toString());
+            values.put(
+                    "{publicationId}",
+                    ids.publicationId() == null
+                            ? randomUuid()
+                            : ids.publicationId().toString());
         }
         values.put("{botId}", randomUuid());
-        values.put("{postId}", randomUuid());
-        values.put("{publicationId}", randomUuid());
+        if (scope == Scope.FOREIGN) {
+            values.put("{postId}", randomUuid());
+            values.put("{publicationId}", randomUuid());
+        }
         values.put("{sessionId}", randomUuid());
         return values;
     }
@@ -379,17 +417,61 @@ final class RbacHttpProbeSupport {
                 yield node.toString();
             }
             case "mediaCompleteUpload" -> "{}";
-            case "postsCreate",
-                    "postsUpdate",
-                    "postsBulk",
-                    "postsPreview",
-                    "postsSchedule",
-                    "postsPause",
-                    "postsResume",
-                    "calendarMove",
-                    "channelsConnectStart",
-                    "notificationSettingsUpdate",
-                    "notificationsMarkRead" -> "{}";
+            case "postsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("projectId", projectId.toString());
+                node.put("title", "RBAC probe post");
+                node.put("ad", false);
+                var content = node.putObject("baseContent");
+                content.put("text", "RBAC probe");
+                content.putArray("mediaIds");
+                var variants = node.putArray("variants");
+                var variant = variants.addObject();
+                variant.put("channelId", channelId.toString());
+                variant.put("network", "vk");
+                var vContent = variant.putObject("content");
+                vContent.put("text", "RBAC probe");
+                vContent.putArray("mediaIds");
+                yield node.toString();
+            }
+            case "postsUpdate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("title", "RBAC probe update");
+                node.put("version", ids.postVersion());
+                yield node.toString();
+            }
+            case "postsBulk" -> {
+                var node = objectMapper.createObjectNode();
+                var postIds = node.putArray("postIds");
+                postIds.add(
+                        ids.postId() == null
+                                ? UUID.randomUUID().toString()
+                                : ids.postId().toString());
+                node.put("action", "pause");
+                yield node.toString();
+            }
+            case "postsPreview" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("network", "tg");
+                var content = node.putObject("content");
+                content.put("text", "preview");
+                content.putArray("mediaIds");
+                yield node.toString();
+            }
+            case "postsSchedule", "calendarMove" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("scheduledAt", "2026-12-15T12:00:00Z");
+                node.put("version", ids.postVersion());
+                node.put("timezone", "Europe/Moscow");
+                yield node.toString();
+            }
+            case "postsPause", "postsResume" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("version", ids.postVersion());
+                yield node.toString();
+            }
+            case "channelsConnectStart", "notificationSettingsUpdate", "notificationsMarkRead" -> "{}";
             default -> "{}";
         };
     }
@@ -443,6 +525,7 @@ final class RbacHttpProbeSupport {
         UUID foreignOwnerId = userIdFromMe(foreignToken);
         UUID mediaId = insertMedia(workspaceId, ownerUserId);
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
+        SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
 
         return new EndpointIds(
                 workspaceId,
@@ -456,12 +539,61 @@ final class RbacHttpProbeSupport {
                 viewerUserId,
                 mediaId,
                 foreignMediaId,
+                seededPost.postId(),
+                seededPost.publicationId(),
+                seededPost.version(),
                 ownerToken,
                 adminToken,
                 editorToken,
                 authorToken,
                 viewerToken,
                 foreignToken);
+    }
+
+    private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
+        Instant now = Instant.now();
+        Instant scheduledAt = Instant.parse("2026-12-10T12:00:00Z");
+        PostEntity post = new PostEntity();
+        post.setId(UuidV7.generate());
+        post.setWorkspaceId(workspaceId);
+        post.setProjectId(projectId);
+        post.setAuthorId(authorId);
+        post.setTitle("RBAC fixture post");
+        post.setBaseContent(Map.of("text", "rbac", "mediaIds", List.of()));
+        post.setStatus("scheduled");
+        post.setScheduledAt(scheduledAt);
+        post.setContentKind("post");
+        post.setSourceType("manual");
+        post.setTimezone("Europe/Moscow");
+        post.setCreatedAt(now);
+        post.setUpdatedAt(now);
+        postRepository.save(post);
+
+        PostVariantEntity variant = new PostVariantEntity();
+        variant.setId(UuidV7.generate());
+        variant.setPostId(post.getId());
+        variant.setChannelId(channelId);
+        variant.setNetwork("vk");
+        variant.setContent(Map.of("text", "rbac"));
+        variant.setOptions(Map.of());
+        variant.setCreatedAt(now);
+        variant.setUpdatedAt(now);
+        postVariantRepository.save(variant);
+
+        PublicationEntity pub = new PublicationEntity();
+        pub.setId(UuidV7.generate());
+        pub.setWorkspaceId(workspaceId);
+        pub.setPostId(post.getId());
+        pub.setVariantId(variant.getId());
+        pub.setChannelId(channelId);
+        pub.setNetwork("vk");
+        pub.setRunAt(scheduledAt);
+        pub.setIdempotencyKey("rbac-" + post.getId());
+        pub.setState("pending");
+        pub.setCreatedAt(now);
+        publicationRepository.save(pub);
+
+        return new SeededPost(post.getId(), pub.getId(), post.getVersion());
     }
 
     private UUID insertMedia(UUID workspaceId, UUID uploaderId) {
@@ -646,6 +778,8 @@ final class RbacHttpProbeSupport {
         FOREIGN
     }
 
+    record SeededPost(UUID postId, UUID publicationId, int version) {}
+
     record EndpointIds(
             UUID workspaceId,
             UUID projectAlpha,
@@ -658,6 +792,9 @@ final class RbacHttpProbeSupport {
             UUID viewerUserId,
             UUID mediaId,
             UUID foreignMediaId,
+            UUID postId,
+            UUID publicationId,
+            int postVersion,
             String ownerToken,
             String adminToken,
             String editorToken,

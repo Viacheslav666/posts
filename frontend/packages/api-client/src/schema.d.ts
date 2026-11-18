@@ -365,7 +365,7 @@ export interface paths {
         };
         /**
          * List calendar items in a time range
-         * @description Returns lightweight DTOs for month/week/list views (US-4.6).
+         * @description Returns lightweight DTOs for month/week/list views (US-4.6). `from`/`to` are UTC instants; optional `timezone` (IANA) documents the client calendar day boundary used to compute the range.
          */
         get: operations["calendarList"];
         put?: never;
@@ -873,7 +873,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk pause/resume/delete/reschedule (US-4.7) */
+        /** Bulk pause/resume/delete/reschedule/duplicate (US-4.7, FE-8) */
         post: operations["postsBulk"];
         delete?: never;
         options?: never;
@@ -1064,6 +1064,26 @@ export interface paths {
         };
         /** Get a publication by id */
         get: operations["publicationsGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/publications/{publicationId}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List publication attempt timeline (FE-8)
+         * @description Chronology of publish attempts for UI history.
+         */
+        get: operations["publicationsListAttempts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1278,6 +1298,12 @@ export interface components {
         AcceptInvitationRequest: {
             token: string;
         };
+        /** @description Lightweight ad marking card fields for list/calendar (full ORD in BE-15). */
+        AdMarkingSummary: {
+            advertiserName?: string;
+            enabled?: boolean;
+            erid?: string;
+        };
         ApplyPromoRequest: {
             code: string;
             /** Format: uuid */
@@ -1320,8 +1346,11 @@ export interface components {
             nextCursor?: string;
         };
         BulkPostsRequest: {
-            /** @enum {string} */
-            action: "pause" | "resume" | "delete" | "reschedule";
+            /**
+             * @description duplicate accepted per FE-8 contract proposal
+             * @enum {string}
+             */
+            action: "pause" | "resume" | "delete" | "reschedule" | "duplicate";
             postIds: string[];
             /** Format: date-time */
             scheduledAt?: string;
@@ -1333,7 +1362,13 @@ export interface components {
         };
         /** @description Lightweight calendar cell DTO */
         CalendarItem: {
+            ad?: boolean;
+            adMarking?: components["schemas"]["AdMarkingSummary"];
+            /** Format: uuid */
+            authorId?: string;
             channelIds?: string[];
+            /** @enum {string} */
+            contentKind?: "post" | "story";
             /** Format: uuid */
             id?: string;
             networks?: ("vk" | "tg" | "ok" | "max" | "rutube")[];
@@ -1492,13 +1527,23 @@ export interface components {
         };
         CreatePostRequest: {
             ad?: boolean;
+            adPayload?: {
+                [key: string]: Record<string, never>;
+            };
             baseContent: components["schemas"]["PostContent"];
+            /** @enum {string} */
+            contentKind?: "post" | "story";
             /** Format: uuid */
             projectId?: string;
             recurrence?: components["schemas"]["Recurrence"];
+            removeAfterPublish?: boolean;
             repost?: components["schemas"]["RepostTarget"];
             /** Format: date-time */
             scheduledAt?: string;
+            /** Format: date-time */
+            stopAt?: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
             title?: string;
             variants?: components["schemas"]["PostVariantUpsert"][];
             /** Format: uuid */
@@ -1745,6 +1790,8 @@ export interface components {
         MoveCalendarItemRequest: {
             /** Format: date-time */
             scheduledAt: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
             /** Format: int32 */
             version: number;
         };
@@ -1847,9 +1894,13 @@ export interface components {
         };
         Post: {
             ad?: boolean;
+            /** @description Lightweight ad card; null when ad=false */
+            adMarking?: components["schemas"]["AdMarkingSummary"];
             /** Format: uuid */
             authorId?: string;
             baseContent?: components["schemas"]["PostContent"];
+            /** @enum {string} */
+            contentKind?: "post" | "story";
             /** Format: date-time */
             createdAt?: string;
             /** Format: uuid */
@@ -1857,15 +1908,29 @@ export interface components {
             /** Format: uuid */
             projectId?: string;
             recurrence?: components["schemas"]["Recurrence"];
+            removeAfterPublish?: boolean;
             /** @description Repost mode payload; null for regular posts */
             repost?: components["schemas"]["RepostTarget"];
             /** Format: date-time */
             scheduledAt?: string;
+            sourceRef?: {
+                [key: string]: Record<string, never>;
+            };
+            /**
+             * @description manual|grabber|rss|import|api — grabber/rss set by BE-17
+             * @example manual
+             * @enum {string}
+             */
+            sourceType?: "manual" | "grabber" | "rss" | "import" | "api";
             /**
              * @description Aggregate post status. `deleted_from_network` = removed from social networks via auto-delete/manual delete; soft-deleted drafts use `archived`.
              * @enum {string}
              */
             status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
+            /** Format: date-time */
+            stopAt?: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
             title?: string;
             /** Format: date-time */
             updatedAt?: string;
@@ -2042,6 +2107,25 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        /** @description Single publish attempt timeline entry (FE-8) */
+        PublicationAttempt: {
+            /** Format: int32 */
+            attemptNo?: number;
+            errorCode?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int32 */
+            httpStatus?: number;
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            publicationId?: string;
+            responseExcerpt?: {
+                [key: string]: Record<string, never>;
+            };
+            /** Format: date-time */
+            startedAt?: string;
+        };
         PublicationPage: {
             hasMore?: boolean;
             items?: components["schemas"]["Publication"][];
@@ -2107,6 +2191,8 @@ export interface components {
             recurrence?: components["schemas"]["Recurrence"];
             /** Format: date-time */
             scheduledAt: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
             /**
              * Format: int32
              * @description Optimistic lock version
@@ -2241,13 +2327,21 @@ export interface components {
         };
         UpdatePostRequest: {
             ad?: boolean;
+            adPayload?: {
+                [key: string]: Record<string, never>;
+            };
             baseContent?: components["schemas"]["PostContent"];
             /** Format: uuid */
             projectId?: string;
             recurrence?: components["schemas"]["Recurrence"];
+            removeAfterPublish?: boolean;
             repost?: components["schemas"]["RepostTarget"];
             /** Format: date-time */
             scheduledAt?: string;
+            /** Format: date-time */
+            stopAt?: string;
+            /** @example Europe/Moscow */
+            timezone?: string;
             title?: string;
             variants?: components["schemas"]["PostVariantUpsert"][];
             /**
@@ -4040,6 +4134,8 @@ export interface operations {
                 authorId?: string;
                 network?: "vk" | "tg" | "ok" | "max" | "rutube";
                 status?: "draft" | "pending_approval" | "approved" | "scheduled" | "publishing" | "published" | "partially_published" | "failed" | "paused" | "archived" | "deleted_from_network";
+                /** @example Europe/Moscow */
+                timezone?: string;
             };
             header?: never;
             path?: never;
@@ -7226,7 +7322,9 @@ export interface operations {
                 channelId?: string;
                 projectId?: string;
                 network?: "vk" | "tg" | "ok" | "max" | "rutube";
+                authorId?: string;
                 q?: string;
+                sort?: "scheduledAt_asc" | "scheduledAt_desc" | "title_asc" | "updatedAt_desc";
                 /**
                  * @description Opaque cursor from a previous response `nextCursor`
                  * @example eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
@@ -8753,6 +8851,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Publication"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    publicationsListAttempts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attempts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationAttempt"][];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

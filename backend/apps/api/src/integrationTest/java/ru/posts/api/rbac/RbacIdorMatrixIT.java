@@ -27,6 +27,9 @@ import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
+import ru.posts.persistence.repository.PostRepository;
+import ru.posts.persistence.repository.PostVariantRepository;
+import ru.posts.persistence.repository.PublicationRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 
 /**
@@ -72,6 +75,15 @@ class RbacIdorMatrixIT {
     @Autowired
     private MediaAssetRepository mediaAssetRepository;
 
+    @Autowired
+    private PostRepository postRepository;
+
+    @Autowired
+    private PostVariantRepository postVariantRepository;
+
+    @Autowired
+    private PublicationRepository publicationRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -86,7 +98,10 @@ class RbacIdorMatrixIT {
                     workspaceRepository,
                     channelRepository,
                     channelSetRepository,
-                    mediaAssetRepository);
+                    mediaAssetRepository,
+                    postRepository,
+                    postVariantRepository,
+                    publicationRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
