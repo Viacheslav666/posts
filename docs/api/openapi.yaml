@@ -74,12 +74,12 @@ tags:
   name: Billing
 - description: Media library uploads via presigned S3 URLs
   name: Media
-- description: "Grabber / RSS automation rules, runs, moderation queue (BE-17)"
-  name: Ingest
 - description: "Posts, variants, schedule actions, preview, bulk"
   name: Posts
 - description: Projects (clients/brands) inside a workspace
   name: Projects
+- description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b)"
+  name: Ingest
 - description: Workspace invitations by email (US-2.3)
   name: Invitations
 - description: Workspaces and members
