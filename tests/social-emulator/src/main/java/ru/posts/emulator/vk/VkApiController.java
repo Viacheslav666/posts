@@ -393,7 +393,8 @@ public class VkApiController {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(bytes));
         } catch (Exception ex) {
-            return HexFormat.of().formatHex(Integer.toHexString(bytes.length).getBytes(StandardCharsets.UTF_8));
+            // SHA-256 is always available on the JDK; keep a deterministic non-truncating fallback.
+            return "sha256-unavailable-" + bytes.length;
         }
     }
 }

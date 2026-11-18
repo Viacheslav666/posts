@@ -287,7 +287,8 @@ public class OkApiController {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(bytes));
         } catch (Exception ex) {
-            return HexFormat.of().formatHex(new byte[] {(byte) bytes.length});
+            // SHA-256 is always available on the JDK; keep a deterministic non-truncating fallback.
+            return "sha256-unavailable-" + bytes.length;
         }
     }
 
