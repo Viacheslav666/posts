@@ -31,6 +31,7 @@ class MeControllerTest {
     @Test
     void meDelegatesToAuthService() {
         UUID userId = UUID.fromString("019a0000-0002-7000-8000-000000000001");
+        PostsPrincipal principal = new PostsPrincipal(userId, null);
         UserDtos.UserProfile expected = new UserDtos.UserProfile(
                 userId,
                 "user@example.com",
@@ -45,11 +46,15 @@ class MeControllerTest {
                         UUID.fromString("019a0000-0002-7000-8000-000000000002"),
                         "Личное пространство",
                         ApiEnums.MemberRole.owner,
-                        ApiEnums.BillingStatus.trial)));
-        when(authService.me(userId)).thenReturn(expected);
+                        ApiEnums.BillingStatus.trial)),
+                false,
+                java.util.Map.of(),
+                null,
+                List.of());
+        when(authService.me(principal)).thenReturn(expected);
 
         try (MockedStatic<SecurityAuthSupport> mocked = Mockito.mockStatic(SecurityAuthSupport.class)) {
-            mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(new PostsPrincipal(userId, null));
+            mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(principal);
             UserDtos.UserProfile profile = controller.me();
             assertThat(profile.email()).isEqualTo("user@example.com");
             assertThat(profile.memberships()).hasSize(1);

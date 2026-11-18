@@ -17,6 +17,9 @@ public class JwtProperties {
 
     private Duration accessTokenTtl = Duration.ofMinutes(15);
 
+    /** Short-lived access token TTL for platform-admin impersonation ("login as"). */
+    private Duration impersonationTokenTtl = Duration.ofMinutes(30);
+
     private Duration refreshTokenTtl = Duration.ofDays(30);
 
     private String issuer = "https://posts.ru";
@@ -53,6 +56,14 @@ public class JwtProperties {
 
     public void setAccessTokenTtl(Duration accessTokenTtl) {
         this.accessTokenTtl = accessTokenTtl;
+    }
+
+    public Duration getImpersonationTokenTtl() {
+        return impersonationTokenTtl;
+    }
+
+    public void setImpersonationTokenTtl(Duration impersonationTokenTtl) {
+        this.impersonationTokenTtl = impersonationTokenTtl;
     }
 
     public Duration getRefreshTokenTtl() {

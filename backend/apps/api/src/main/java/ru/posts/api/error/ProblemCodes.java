@@ -46,6 +46,9 @@ public final class ProblemCodes {
     public static final String STORY_TTL_UNSUPPORTED = "story_ttl_unsupported";
     public static final String STORY_BATCH_LIMIT = "story_batch_limit";
 
+    public static final String PLATFORM_ADMIN_REQUIRED = "platform_admin_required";
+    public static final String IMPERSONATION_FORBIDDEN = "impersonation_forbidden";
+
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
             """
@@ -82,6 +85,8 @@ public final class ProblemCodes {
             - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
             - story_ttl_unsupported — invalid stories_time / TTL enum
             - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
+            - platform_admin_required — /admin endpoints require users.platform_admin
+            - impersonation_forbidden — dangerous action blocked while impersonating
             - ingest_responsibility_required — grabber activate without legal checkbox
             - ingest_attribution_required — grabber activate without attribution
             - ingest_ssrf_blocked — RSS/website URL targets private network
