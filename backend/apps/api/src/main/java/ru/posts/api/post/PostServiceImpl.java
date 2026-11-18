@@ -746,24 +746,23 @@ public class PostServiceImpl implements PostService {
                     continue;
                 }
                 String key = publicationIdempotencyKey(variant.getId(), runAt, post.getContentKind());
-                PublicationEntity active = existing.stream()
-                        .filter(p -> key.equals(p.getIdempotencyKey()) && !"cancelled".equals(p.getState()))
+                // Match by idempotency key OR (variantId + run_at): Instant nanos may drift after
+                // timestamptz round-trip, so key-only matching misses cancelled/succeeded slots and
+                // UNIQUE(idempotency_key, run_at) can still fire when run_at truncates equally.
+                PublicationEntity matched = existing.stream()
+                        .filter(p -> variant.getId().equals(p.getVariantId()))
+                        .filter(p -> key.equals(p.getIdempotencyKey()) || sameRunAt(p.getRunAt(), runAt))
                         .findFirst()
                         .orElse(null);
-                if (active != null) {
-                    // Already succeeded / pending / in flight — do not re-insert (UNIQUE idempotency_key,run_at).
-                    continue;
-                }
-                PublicationEntity cancelled = existing.stream()
-                        .filter(p -> key.equals(p.getIdempotencyKey()) && "cancelled".equals(p.getState()))
-                        .findFirst()
-                        .orElse(null);
-                if (cancelled != null) {
-                    cancelled.setState("pending");
-                    cancelled.setErrorCode(null);
-                    cancelled.setErrorMessage(null);
-                    cancelled.setNextAttemptAt(null);
-                    publicationRepository.save(cancelled);
+                if (matched != null) {
+                    if ("cancelled".equals(matched.getState())) {
+                        matched.setState("pending");
+                        matched.setErrorCode(null);
+                        matched.setErrorMessage(null);
+                        matched.setNextAttemptAt(null);
+                        publicationRepository.save(matched);
+                    }
+                    // succeeded / pending / queued / in-flight — leave as-is (no re-insert).
                     continue;
                 }
                 ensurePublicationPartition(runAt);
@@ -781,6 +780,16 @@ public class PostServiceImpl implements PostService {
                 publicationRepository.save(pub);
             }
         }
+    }
+
+    /** Compare run_at at microsecond precision (PostgreSQL timestamptz). */
+    private static boolean sameRunAt(Instant left, Instant right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        long leftMicros = left.getEpochSecond() * 1_000_000L + left.getNano() / 1_000;
+        long rightMicros = right.getEpochSecond() * 1_000_000L + right.getNano() / 1_000;
+        return leftMicros == rightMicros;
     }
 
     private void ensurePublicationPartition(Instant runAt) {

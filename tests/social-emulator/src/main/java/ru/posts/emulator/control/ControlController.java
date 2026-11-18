@@ -16,6 +16,7 @@ import ru.posts.emulator.store.EmulatedPost;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.vk.StoryTokenStore;
+import ru.posts.emulator.vk.VkUploadSessionStore;
 import ru.posts.emulator.vk.WallSourceStore;
 
 @RestController
@@ -26,16 +27,19 @@ public class ControlController {
     private final PostStore postStore;
     private final WallSourceStore wallSourceStore;
     private final StoryTokenStore storyTokenStore;
+    private final VkUploadSessionStore uploadSessionStore;
 
     public ControlController(
             ScenarioService scenarioService,
             PostStore postStore,
             WallSourceStore wallSourceStore,
-            StoryTokenStore storyTokenStore) {
+            StoryTokenStore storyTokenStore,
+            VkUploadSessionStore uploadSessionStore) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
         this.wallSourceStore = wallSourceStore;
         this.storyTokenStore = storyTokenStore;
+        this.uploadSessionStore = uploadSessionStore;
     }
 
     @GetMapping("/health")
@@ -58,6 +62,7 @@ public class ControlController {
         postStore.reset();
         wallSourceStore.reset();
         storyTokenStore.reset();
+        uploadSessionStore.reset();
         if (resetScenario) {
             scenarioService.reset();
         }

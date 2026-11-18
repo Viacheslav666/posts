@@ -36,11 +36,15 @@ class VkStoriesFaultTest {
     @Autowired
     private StoryTokenStore storyTokenStore;
 
+    @Autowired
+    private VkUploadSessionStore uploadSessionStore;
+
     @BeforeEach
     void reset() {
         postStore.reset();
         scenarioService.reset();
         storyTokenStore.reset();
+        uploadSessionStore.reset();
     }
 
     @Test

@@ -180,7 +180,7 @@ class StoriesQa11IntegrationTest {
         ChannelEntity channel = seedChannel(workspaceId, "vk", "ready");
         UUID mediaId = seedMedia(workspaceId);
 
-        Instant scheduledAt = Instant.now().plus(1, ChronoUnit.HOURS);
+        Instant scheduledAt = Instant.now().plus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
         JsonNode created = readJson(mockMvc.perform(post("/api/v1/posts")
                         .with(csrf())
                         .header("Authorization", bearer(token))
@@ -224,7 +224,7 @@ class StoriesQa11IntegrationTest {
 
         PublicationEntity published = beforePause.getFirst();
         published.setState("succeeded");
-        publicationRepository.save(published);
+        publicationRepository.saveAndFlush(published);
 
         JsonNode paused = readJson(mockMvc.perform(post("/api/v1/posts/" + postId + "/pause")
                         .with(csrf())
@@ -241,14 +241,21 @@ class StoriesQa11IntegrationTest {
         assertThat(afterPause.stream().anyMatch(p -> "succeeded".equals(p.getState())))
                 .isTrue();
 
-        mockMvc.perform(post("/api/v1/posts/" + postId + "/resume")
+        int resumeVersion = paused.path("version").asInt();
+        MvcResult resumeResult = mockMvc.perform(post("/api/v1/posts/" + postId + "/resume")
                         .with(csrf())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                Map.of("version", paused.path("version").asInt()))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("scheduled"));
+                        .content(objectMapper.writeValueAsString(Map.of("version", resumeVersion))))
+                .andReturn();
+        assertThat(resumeResult.getResponse().getStatus())
+                .as("resume status; body=%s", resumeResult.getResponse().getContentAsString())
+                .isEqualTo(200);
+        assertThat(objectMapper
+                        .readTree(resumeResult.getResponse().getContentAsString())
+                        .path("status")
+                        .asText())
+                .isEqualTo("scheduled");
 
         List<PublicationEntity> afterResume = publicationRepository.findByPostId(postId);
         assertThat(afterResume.stream().anyMatch(p -> "succeeded".equals(p.getState())))

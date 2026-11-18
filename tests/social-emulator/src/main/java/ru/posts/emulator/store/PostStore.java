@@ -36,14 +36,14 @@ public class PostStore {
 
     public CreateResult createOrGet(
             Network network, String channelId, String idempotencyKey, String text, Map<String, Object> metadata) {
-        String key = indexKey(network, channelId, idempotencyKey);
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            String existingId = idempotencyIndex.get(key);
+            String existingId = lookupIdempotency(network, channelId, idempotencyKey);
             if (existingId != null) {
                 duplicateAttemptCounters.get(network).incrementAndGet();
                 return new CreateResult(postsById.get(existingId), false);
             }
         }
+        String key = indexKey(network, channelId, idempotencyKey);
 
         long remoteSeq = remoteIdSequences.get(network).incrementAndGet();
         String remotePostId =
@@ -89,19 +89,45 @@ public class PostStore {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             return Optional.empty();
         }
-        String id = idempotencyIndex.get(indexKey(network, channelId, idempotencyKey));
+        String id = lookupIdempotency(network, channelId, idempotencyKey);
         if (id == null) {
             return Optional.empty();
         }
         return Optional.ofNullable(postsById.get(id));
     }
 
+    private String lookupIdempotency(Network network, String channelId, String idempotencyKey) {
+        String id = idempotencyIndex.get(indexKey(network, channelId, idempotencyKey));
+        if (id != null || channelId == null || channelId.isBlank()) {
+            return id;
+        }
+        String alt = channelId.startsWith("-") ? channelId.substring(1) : "-" + channelId;
+        return idempotencyIndex.get(indexKey(network, alt, idempotencyKey));
+    }
+
     public List<EmulatedPost> list(Network network, String channelId) {
         return postsById.values().stream()
                 .filter(post -> network == null || post.network() == network)
-                .filter(post -> channelId == null || channelId.isBlank() || channelId.equals(post.channelId()))
+                .filter(post -> channelId == null
+                        || channelId.isBlank()
+                        || channelIdsEqual(channelId, post.channelId()))
                 .sorted(Comparator.comparing(EmulatedPost::createdAt))
                 .toList();
+    }
+
+    /** VK owner_id may be stored with or without a leading '-'. */
+    static boolean channelIdsEqual(String left, String right) {
+        if (left == null || right == null) {
+            return left == right;
+        }
+        if (left.equals(right)) {
+            return true;
+        }
+        return stripLeadingMinus(left).equals(stripLeadingMinus(right));
+    }
+
+    private static String stripLeadingMinus(String value) {
+        return value.startsWith("-") ? value.substring(1) : value;
     }
 
     public Map<String, Long> counts() {
