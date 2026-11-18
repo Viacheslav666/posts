@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
@@ -652,7 +653,8 @@ final class RbacHttpProbeSupport {
         item.setSourcePermalink("https://vk.com/wall-123_1");
         item.setSourceName("RBAC source");
         item.setContentText("RBAC pending item");
-        item.setContentHash("rbac-hash-" + UUID.randomUUID());
+        item.setContentHash(
+                ContentHasher.hash(item.getContentText(), List.of(), List.of("vk:-123:" + item.getRemotePostId())));
         item.setStatus("pending_moderation");
         item.setDetectedAt(now);
         item.setCreatedAt(now);

@@ -96,6 +96,8 @@ class GrabberIngestIntegrationTest {
     void setUp() {
         mailSender.clear();
         wireMock.resetAll();
+        publicationRepository.deleteAll();
+        itemRepository.deleteAll();
         stubVkWall(
                 """
                 {"response":{"count":1,"items":[
@@ -381,11 +383,13 @@ class GrabberIngestIntegrationTest {
                         .header("Authorization", bearer(fx.token)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.itemsNew").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
-        mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+        JsonNode pending = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
                         .header("Authorization", bearer(fx.token))
                         .param("status", "pending_moderation"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].remotePostId").value("rss-1"));
+                .andExpect(jsonPath("$.items[0].remotePostId").value("rss-1"))
+                .andReturn());
+        assertThat(pending.get("items").get(0).get("postId").isNull()).isTrue();
         assertThat(publicationRepository.findAll()).isEmpty();
     }
 
