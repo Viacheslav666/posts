@@ -95,6 +95,9 @@ export type { NetworkIconProps, SocialNetwork } from './components/network-icon'
 export { Skeleton } from './components/skeleton';
 export type { SkeletonProps } from './components/skeleton';
 
+export { Progress } from './components/progress';
+export type { ProgressProps } from './components/progress';
+
 export { EmptyState } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
 

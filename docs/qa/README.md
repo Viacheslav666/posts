@@ -21,6 +21,7 @@
 | [traceability-tc-pub.md](traceability-tc-pub.md) | Трассировка TC-PUB → автотест | QA-5 |
 | [traceability-tc-ad.md](traceability-tc-ad.md) | Трассировка TC-AD → автотест (ОРД / маркировка) | QA-10 |
 | [traceability-tc-grab.md](traceability-tc-grab.md) | Трассировка TC-GRAB → автотест | QA-12 |
+| [traceability-tc-story.md](traceability-tc-story.md) | Трассировка TC-STORY → автотест | QA-11 |
 | `release-report-vX.md` | Релизная готовность | перед релизом |
 
 Связанные артефакты вне `docs/qa/`:

@@ -11,7 +11,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.transform.ContentTransformer;
+import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
@@ -67,10 +69,13 @@ public class GrabberPostFactory {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
         }
 
+        MacroExpander.Context macroCtx =
+                MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId());
         String baseText = overrideText != null ? overrideText : item.getContentText();
-        baseText = ContentTransformer.transform(baseText, rule.getConfig());
+        ContentTransformer.TransformResult transformed =
+                ContentTransformer.transform(baseText, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
         String finalText = ContentTransformer.withAttribution(
-                baseText, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+                transformed.text(), rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
 
         // Network text limit (VK ~4096) — fail validation without wall.post
         int maxLen = 4096;
@@ -115,13 +120,31 @@ public class GrabberPostFactory {
         post.setUpdatedAt(now);
         postRepository.save(post);
 
+        Map<String, Object> options = new LinkedHashMap<>();
+        Object mode = GrabberConfigSupport.transform(rule.getConfig()).get("attachments_mode");
+        if (mode != null && !mode.toString().isBlank()) {
+            options.put("primaryAttachmentsMode", mode.toString());
+        }
+        // BE-23 stub: do NOT set "firstComment" (that would schedule VK comment via adapters).
+        // Keep draft under grabberFirstComment* until BE-23 wires comment adapters.
+        String firstComment = ContentTransformer.firstCommentDraft(rule.getConfig(), macroCtx);
+        if (firstComment != null && !firstComment.isBlank()) {
+            options.put("grabberFirstComment", firstComment);
+            options.put("grabberFirstCommentPendingBe23", true);
+            Map<String, Object> fc = GrabberConfigSupport.firstComment(rule.getConfig());
+            Object atts = fc.get("attachments");
+            if (atts != null) {
+                options.put("grabberFirstCommentAttachments", atts);
+            }
+        }
+
         PostVariantEntity variant = new PostVariantEntity();
         variant.setId(UuidV7.generate());
         variant.setPostId(post.getId());
         variant.setChannelId(channel.getId());
         variant.setNetwork(channel.getNetwork());
         variant.setContent(Map.of("text", finalText == null ? "" : finalText, "mediaIds", List.of()));
-        variant.setOptions(Map.of());
+        variant.setOptions(options);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
         postVariantRepository.save(variant);

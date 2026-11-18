@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.posts.emulator.config.EmulatorProperties;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -26,11 +27,13 @@ public class OkApiController {
 
     private final PostStore postStore;
     private final PublishSupport publishSupport;
+    private final EmulatorProperties emulatorProperties;
     private final ConcurrentMap<String, String> momentUploads = new ConcurrentHashMap<>();
 
-    public OkApiController(PostStore postStore, PublishSupport publishSupport) {
+    public OkApiController(PostStore postStore, PublishSupport publishSupport, EmulatorProperties emulatorProperties) {
         this.postStore = postStore;
         this.publishSupport = publishSupport;
+        this.emulatorProperties = emulatorProperties;
     }
 
     /** OK form API: {@code POST /ok/fb.do?method=mediatopic.post}. */
@@ -107,7 +110,7 @@ public class OkApiController {
 
     private Map<String, Object> momentsGetUploadUrl(MultiValueMap<String, String> form, Map<String, Object> json) {
         String uploadId = UUID.randomUUID().toString();
-        String uploadUrl = "http://localhost:8090/ok/upload/" + uploadId;
+        String uploadUrl = emulatorProperties.absolute("/ok/upload/" + uploadId);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("upload_url", uploadUrl);
         body.put("upload_urls", java.util.List.of(uploadUrl));
@@ -132,6 +135,8 @@ public class OkApiController {
         metadata.put("ttl_ms", first(form, json, "ttl_ms"));
         metadata.put("link_url", first(form, json, "link_url"));
         metadata.put("link_text", first(form, json, "link_text"));
+        String type = first(form, json, "type");
+        metadata.put("mediaKind", type != null && type.toUpperCase().contains("VIDEO") ? "video" : "photo");
 
         return publishSupport.execute(Network.OK, rawResponse, () -> {
             PostStore.CreateResult result = postStore.createOrGet(Network.OK, finalGid, requestedKey, text, metadata);

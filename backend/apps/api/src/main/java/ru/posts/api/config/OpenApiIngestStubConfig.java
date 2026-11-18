@@ -125,6 +125,18 @@ public class OpenApiIngestStubConfig {
                     UUID userId, UUID workspaceId, IngestDtos.IngestPreviewRequest request) {
                 throw new NotImplementedException("openapi");
             }
+
+            @Override
+            public IngestDtos.GrabberRule cloneConfig(
+                    UUID userId, UUID ruleId, IngestDtos.GrabberCloneConfigRequest request, ClientRequestContext ctx) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
+            public IngestDtos.GrabberItemsExport exportItems(
+                    UUID userId, UUID ruleId, IngestDtos.ItemStatus status, IngestDtos.ExportFormat format) {
+                throw new NotImplementedException("openapi");
+            }
         };
     }
 }

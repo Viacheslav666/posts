@@ -24,7 +24,7 @@
 
 Отдельная роль «Аналитик» в MVP **не вводится** (аналитику смотрят Editor+; Author — свои посты; Viewer — свои проекты). При необходимости — Фаза 2.
 
-Системная роль **platform_admin** (внутренняя админ-панель E7) — вне матрицы workspace; доступ по отдельному флагу аккаунта.
+Системная роль **platform_admin** (внутренняя админ-панель E7 / экран A13) — вне матрицы workspace; доступ по флагу аккаунта `users.platform_admin` (BE-13). Эндпоинты `/api/v1/admin/*` помечены `rbac: none` в `docs/qa/rbac-endpoint-map.yaml` и проверяются отдельно (не матрицей owner/admin/…). Имперсонация: JWT claim `imp=true` + `act` (актор); обязательный append-only `admin_audit_log`; запрещены смена пароля и checkout/платежи в режиме «вошёл как». Машиночитаемый каталог platform-действий — секция `platform` в `roles-permissions.yaml`.
 
 ---
 

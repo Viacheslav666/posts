@@ -5,6 +5,7 @@ import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.user.UserDtos;
+import ru.posts.security.auth.PostsPrincipal;
 
 public interface AuthService {
 
@@ -34,7 +35,7 @@ public interface AuthService {
 
     AuthDtos.MessageResponse passwordReset(AuthDtos.PasswordResetRequest request);
 
-    UserDtos.UserProfile me(UUID userId);
+    UserDtos.UserProfile me(PostsPrincipal principal);
 
     UserDtos.UserProfile updateMe(UUID userId, UserDtos.UpdateMeRequest request);
 

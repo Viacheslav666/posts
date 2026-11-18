@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import ru.posts.api.admin.ImpersonationGuard;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
 import ru.posts.api.idempotency.IdempotencyService;
@@ -84,6 +85,7 @@ public class BillingServiceImpl implements BillingService {
     private final YooKassaClient yooKassaClient;
     private final YooKassaProperties yooKassaProperties;
     private final TransactionTemplate writeTx;
+    private final ImpersonationGuard impersonationGuard;
 
     public BillingServiceImpl(
             WorkspaceAccessService access,
@@ -105,7 +107,8 @@ public class BillingServiceImpl implements BillingService {
             InvoicePdfRenderer invoicePdfRenderer,
             YooKassaClient yooKassaClient,
             YooKassaProperties yooKassaProperties,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ImpersonationGuard impersonationGuard) {
         this.access = access;
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
@@ -126,6 +129,7 @@ public class BillingServiceImpl implements BillingService {
         this.yooKassaClient = yooKassaClient;
         this.yooKassaProperties = yooKassaProperties;
         this.writeTx = new TransactionTemplate(transactionManager);
+        this.impersonationGuard = impersonationGuard;
     }
 
     @Override
@@ -194,6 +198,7 @@ public class BillingServiceImpl implements BillingService {
 
     private BillingDtos.CheckoutResponse checkoutOnce(
             UUID userId, BillingDtos.CheckoutRequest request, String idempotencyKey) {
+        impersonationGuard.forbidIfImpersonating("billing_checkout");
         access.requirePermission(request.workspaceId(), userId, "billing.manage");
         WorkspaceEntity workspace = access.requireWorkspace(request.workspaceId());
         if (request.amountKopecks() != null && request.amountKopecks() > 0) {

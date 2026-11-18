@@ -6,6 +6,7 @@
     "test": "playwright test",
     "test:smoke": "playwright test smoke.spec.ts",
     "test:ad-marking": "playwright test ad-marking.spec.ts",
+    "test:stories": "playwright test scheduled-stories.spec.ts",
     "test:registration": "playwright test registration.spec.ts",
     "test:invitation": "playwright test invitation.spec.ts",
     "test:channels": "playwright test channels-tg-connect.spec.ts",
@@ -13,6 +14,7 @@
     "test:grabber": "playwright test grabber-moderation.spec.ts",
     "test:grabber-fullstack": "playwright test grabber-fullstack.spec.ts",
     "test:notifications": "playwright test notifications-dashboard.spec.ts",
+    "test:billing": "playwright test billing.spec.ts",
     "test:p0": "playwright test smoke.spec.ts grabber-moderation.spec.ts notifications-dashboard.spec.ts",
     "test:report": "playwright show-report playwright-report"
   },

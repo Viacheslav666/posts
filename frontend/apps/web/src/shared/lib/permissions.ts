@@ -21,6 +21,7 @@ export const PERMISSION_ACTIONS = [
   'audit.export',
   'billing.view',
   'billing.manage',
+  'billing.apply_promo',
   'channels.view',
   'channels.manage',
   'channel_sets.view',
@@ -99,6 +100,7 @@ const OWNER_ONLY: PermissionAction[] = [
   'workspace.delete',
   'billing.view',
   'billing.manage',
+  'billing.apply_promo',
 ];
 
 const EDITOR_EXTRA: PermissionAction[] = [

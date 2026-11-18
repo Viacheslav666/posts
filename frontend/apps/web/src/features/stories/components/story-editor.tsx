@@ -6,10 +6,12 @@ import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { PlanLimitPaywall } from '@/features/billing/components/plan-limit-paywall';
 import { registerPostOrd } from '@/features/editor/api/posts-api';
 import { AdMarkingForm } from '@/features/editor/components/ad-marking-form';
 import { useWorkspaceChannels } from '@/features/channels/hooks/use-workspace-channels';
 import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
+import { isBillingFrozen, isPlanLimitExceeded } from '@/shared/lib/errors';
 import { isValidInn } from '@/shared/lib/inn';
 import { useCan } from '@/shared/hooks/use-can';
 
@@ -92,6 +94,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
   const [draft, setDraft] = useState<StoryDraft>(() => createStoryDraft(workspaceId));
   const [submitting, setSubmitting] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const { channels, isLoading: channelsLoading, refetch } = useWorkspaceChannels(workspaceId);
   const ordConnections = useOrdConnections(workspaceId, true);
@@ -188,6 +191,9 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
         description: post.title ?? post.id,
       });
     } catch (error) {
+      if (isPlanLimitExceeded(error) || isBillingFrozen(error)) {
+        setShowPaywall(true);
+      }
       const message = error instanceof Error ? error.message : t('actions.error');
       toast({
         title: t('actions.errorTitle'),
@@ -230,6 +236,9 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
 
   return (
     <div className="flex h-full min-h-[70vh] flex-col gap-4" data-testid="story-editor">
+      {showPaywall ? (
+        <PlanLimitPaywall workspaceId={workspaceId} variant="hard" limitKey="stories_month" />
+      ) : null}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('editorTitle')}</h1>

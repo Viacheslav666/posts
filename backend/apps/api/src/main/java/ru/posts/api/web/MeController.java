@@ -47,7 +47,7 @@ public class MeController {
             description = "Current user",
             content = @Content(schema = @Schema(implementation = UserDtos.UserProfile.class)))
     public UserDtos.UserProfile me() {
-        return authService.me(SecurityAuthSupport.requirePrincipal().userId());
+        return authService.me(SecurityAuthSupport.requirePrincipal());
     }
 
     @PatchMapping("/me")

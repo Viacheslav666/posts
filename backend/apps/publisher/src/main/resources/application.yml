@@ -69,6 +69,13 @@ posts:
     telegram:
       base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
       read-timeout: 15s
+    vk:
+      base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
+      token-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}/oauth2/auth
+      read-timeout: 15s
+    ok:
+      base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
+      read-timeout: 15s
   ratelimit:
     redis-uri: redis://${POSTS_REDIS_HOST:localhost}:${POSTS_REDIS_PORT:6379}
     networks:

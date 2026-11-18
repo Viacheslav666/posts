@@ -549,6 +549,9 @@ public class VkSocialAdapter implements SocialAdapter {
         if (url == null || url.isBlank()) {
             return fallback;
         }
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+        if (url.endsWith("/")) {
+            return url.substring(0, url.length() - 1);
+        }
+        return url;
     }
 }

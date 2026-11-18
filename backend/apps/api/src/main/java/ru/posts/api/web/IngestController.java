@@ -9,8 +9,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,7 +33,9 @@ import ru.posts.security.auth.SecurityAuthSupport;
 @RestController
 @Validated
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Ingest", description = "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b)")
+@Tag(
+        name = "Ingest",
+        description = "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b/BE-27)")
 @OpenApiResponses
 public class IngestController {
 
@@ -189,6 +193,40 @@ public class IngestController {
             @RequestParam(required = false) IngestDtos.ItemStatus status,
             @Valid @ParameterObject CursorPage.Params page) {
         return ingestService.listItems(SecurityAuthSupport.requirePrincipal().userId(), ruleId, status, page);
+    }
+
+    @GetMapping("/api/v1/ingest/rules/{ruleId}/items/export")
+    @Operation(operationId = "ingestItemsExport", summary = "Export grabber item history as CSV or XLSX")
+    @ApiResponse(responseCode = "200", description = "Export file")
+    public ResponseEntity<byte[]> exportItems(
+            @PathVariable UUID ruleId,
+            @RequestParam(required = false) IngestDtos.ItemStatus status,
+            @RequestParam(defaultValue = "csv") IngestDtos.ExportFormat format) {
+        IngestDtos.GrabberItemsExport export =
+                ingestService.exportItems(SecurityAuthSupport.requirePrincipal().userId(), ruleId, status, format);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + export.filename() + "\"")
+                .contentType(MediaType.parseMediaType(export.contentType()))
+                .body(export.body());
+    }
+
+    @PostMapping("/api/v1/ingest/rules/{ruleId}/clone-config")
+    @Operation(
+            operationId = "ingestRulesCloneConfig",
+            summary = "Import settings (filters/transform/schedule/limits/first_comment) from another grabber rule")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Updated rule",
+            content = @Content(schema = @Schema(implementation = IngestDtos.GrabberRule.class)))
+    public IngestDtos.GrabberRule cloneConfig(
+            @PathVariable UUID ruleId,
+            @Valid @RequestBody IngestDtos.GrabberCloneConfigRequest request,
+            HttpServletRequest httpRequest) {
+        return ingestService.cloneConfig(
+                SecurityAuthSupport.requirePrincipal().userId(),
+                ruleId,
+                request,
+                ClientRequestContexts.from(httpRequest));
     }
 
     @GetMapping("/api/v1/ingest/items/{itemId}")
