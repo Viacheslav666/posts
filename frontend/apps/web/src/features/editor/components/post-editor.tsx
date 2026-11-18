@@ -31,6 +31,8 @@ import { useCan } from '@/shared/hooks/use-can';
 import { createPost, registerPostOrd } from '../api/posts-api';
 import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network-capabilities';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
+import { validateRecurrenceTimes } from '../lib/recurrence-times';
+import { invalidVkStringAttachments } from '../lib/vk-string-attachments';
 import { createDefaultPostOptions } from '../model/defaults';
 import { loadDraft } from '../model/draft-db';
 import { EMPTY_DOC, type EditorDraft, type EditorVariant } from '../model/types';
@@ -43,6 +45,7 @@ import { PreviewPanel } from './preview-panel';
 import { TipTapEditor } from './tip-tap-editor';
 import { ValidationPanel } from './validation-panel';
 import { VariantTabs } from './variant-tabs';
+import { VkStringAttachmentsField } from './vk-string-attachments-field';
 
 type PostEditorProps = {
   workspaceId: string;
@@ -61,6 +64,8 @@ function createDraft(workspaceId: string, draftId: string): EditorDraft {
     previewNetwork: 'tg',
     activeVariant: 'base',
     media: [],
+    stringAttachments: [],
+    publicationKind: 'post',
     options: createDefaultPostOptions(),
   };
 }
@@ -70,6 +75,8 @@ function normalizeDraft(draft: EditorDraft, workspaceId: string, draftId: string
     ...createDraft(workspaceId, draftId),
     ...draft,
     media: draft.media ?? [],
+    stringAttachments: draft.stringAttachments ?? [],
+    publicationKind: draft.publicationKind ?? 'post',
     options: {
       ...createDefaultPostOptions(),
       ...(draft.options ?? {}),
@@ -80,6 +87,10 @@ function normalizeDraft(draft: EditorDraft, workspaceId: string, draftId: string
       ad: {
         ...createDefaultPostOptions().ad,
         ...(draft.options?.ad ?? {}),
+      },
+      recurrence: {
+        ...createDefaultPostOptions().recurrence,
+        ...(draft.options?.recurrence ?? {}),
       },
     },
   };
@@ -120,24 +131,38 @@ function buildCreateRequest(
       const overridden = draft.variants.find(
         (item) => item.network === channel.network && item.overridden,
       );
+      const mediaIds = draft.media.map((item) => item.mediaId);
+      const stringAttachments =
+        channel.network === 'vk' && draft.stringAttachments.length
+          ? draft.stringAttachments
+          : undefined;
       return {
         channelId,
         network: channel.network,
         content: {
           text: overridden?.html ?? draft.baseHtml,
-          mediaIds: draft.media.map((item) => item.id),
+          mediaIds,
+          stringAttachments,
         },
         options: draft.options.variant,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null);
 
+  const baseMediaIds = draft.media.map((item) => item.mediaId);
+  const vkSelected = draft.selectedChannelIds.some((id) => {
+    const channel = channels.find((item) => item.id === id);
+    return channel?.network === 'vk';
+  });
+
   return {
     workspaceId: draft.workspaceId,
     title: draft.options.title || stripTags(draft.baseHtml).slice(0, 80),
     baseContent: {
       text: draft.baseHtml,
-      mediaIds: draft.media.map((item) => item.id),
+      mediaIds: baseMediaIds,
+      stringAttachments:
+        vkSelected && draft.stringAttachments.length ? draft.stringAttachments : undefined,
     },
     scheduledAt,
     timezone: draft.options.timezone,
@@ -261,18 +286,19 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     return null;
   }, [blocked, canScheduleAd, draft, erid, hasOrdConnection, t]);
 
-  const previewChannelName = useMemo(() => {
+  const previewChannel = useMemo(() => {
     if (!draft) {
       return undefined;
     }
-    const match = channels.find(
+    return channels.find(
       (channel) =>
         draft.selectedChannelIds.includes(channel.id) &&
         (channel.network === draft.previewNetwork ||
           (draft.previewNetwork === 'tg' && channel.network === 'tg')),
     );
-    return match?.name;
   }, [draft, channels]);
+
+  const hasVkChannel = selectedNetworks.includes('vk');
 
   const overriddenMap = useMemo(() => {
     const map: Partial<Record<NetworkId, boolean>> = {};
@@ -342,6 +368,28 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
         variant: 'destructive',
       });
       return;
+    }
+    const timesCheck = validateRecurrenceTimes(draft.options.recurrence.times);
+    if (!timesCheck.ok) {
+      toast({
+        title: t('actions.blockedTitle'),
+        description: t('options.times.invalidError', {
+          times: [...timesCheck.invalid, ...timesCheck.duplicates].join(', ') || '—',
+        }),
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (selectedNetworks.includes('vk')) {
+      const bad = invalidVkStringAttachments(draft.stringAttachments);
+      if (bad.length) {
+        toast({
+          title: t('actions.blockedTitle'),
+          description: t('stringAttachments.invalid', { tokens: bad.join(', ') }),
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -566,14 +614,72 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             </div>
           )}
 
+          {hasVkChannel ? (
+            <label
+              className="flex flex-col gap-1 text-sm"
+              data-testid="publication-kind"
+            >
+              <span className="font-medium">{t('publicationKind.label')}</span>
+              <select
+                className="h-10 max-w-xs rounded-md border border-input bg-background px-3 text-sm"
+                value={draft.publicationKind}
+                aria-label={t('publicationKind.label')}
+                aria-describedby="publication-kind-hint"
+                onChange={(event) => {
+                  const publicationKind = event.target.value as 'post' | 'clip';
+                  setDraft((current) => {
+                    if (!current) return current;
+                    const media =
+                      publicationKind === 'clip'
+                        ? current.media.map((item) =>
+                            item.kind === 'video' || item.kind === 'clip'
+                              ? { ...item, kind: 'clip' as const }
+                              : item,
+                          )
+                        : current.media.map((item) =>
+                            item.kind === 'clip' ? { ...item, kind: 'video' as const } : item,
+                          );
+                    return {
+                      ...current,
+                      publicationKind,
+                      media,
+                      updatedAt: new Date().toISOString(),
+                    };
+                  });
+                }}
+              >
+                <option value="post">{t('publicationKind.post')}</option>
+                <option value="clip">{t('publicationKind.clip')}</option>
+              </select>
+              <span id="publication-kind-hint" className="text-xs text-muted-foreground">
+                {draft.publicationKind === 'clip'
+                  ? t('publicationKind.clipHint')
+                  : t('publicationKind.postHint')}
+              </span>
+            </label>
+          ) : null}
+
           <EditorMediaBlock
             workspaceId={workspaceId}
             items={draft.media}
             selectedNetworks={selectedNetworks}
+            publicationKind={draft.publicationKind}
             onChange={(media) =>
               setDraft((current) =>
                 current
                   ? { ...current, media, updatedAt: new Date().toISOString() }
+                  : current,
+              )
+            }
+          />
+
+          <VkStringAttachmentsField
+            visible={hasVkChannel}
+            value={draft.stringAttachments}
+            onChange={(stringAttachments) =>
+              setDraft((current) =>
+                current
+                  ? { ...current, stringAttachments, updatedAt: new Date().toISOString() }
                   : current,
               )
             }
@@ -645,11 +751,14 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
         <PreviewPanel
           html={activeHtml}
           network={draft.previewNetwork}
-          channelName={previewChannelName}
+          channelName={previewChannel?.name}
+          channelExternalId={previewChannel?.externalId}
           media={draft.media}
           adEnabled={draft.options.isAd}
           erid={erid}
           advertiserName={draft.options.ad.advertiserName}
+          timezone={draft.options.timezone}
+          scheduledAt={draft.options.scheduledAt}
           onNetworkChange={(network) =>
             setDraft((current) =>
               current

@@ -12,8 +12,8 @@ import {
   recurrenceFromPreset,
   type RecurrencePresetId,
 } from '../model/recurrence';
-
 import { OptionField } from './option-field';
+import { RecurrenceTimesField } from './recurrence-times-field';
 
 type PostOptionsPanelProps = {
   options: EditorPostOptions;
@@ -122,6 +122,7 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
                   next,
                   next === 'every_n_days' ? options.recurrence.interval ?? 2 : undefined,
                   options.recurrence.until,
+                  options.recurrence.times,
                 ),
               });
             }}
@@ -150,12 +151,30 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
                     'every_n_days',
                     Number(event.target.value) || 2,
                     options.recurrence.until,
+                    options.recurrence.times,
                   ),
                 })
               }
             />
           </label>
         ) : null}
+
+        <RecurrenceTimesField
+          times={
+            options.recurrence.times?.length
+              ? options.recurrence.times
+              : []
+          }
+          onChange={(times) => {
+            onChange({
+              ...options,
+              recurrence: {
+                ...options.recurrence,
+                times: times.length ? times : undefined,
+              },
+            });
+          }}
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2" data-testid="post-options-flags">
@@ -393,6 +412,97 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
         </label>
       </OptionField>
 
+      <OptionField supported={isOptionSupported('geo', networks)} unsupportedHint={unsupported}>
+        <div className="grid gap-2 sm:grid-cols-2" data-testid="option-geo">
+          <label className="flex flex-col gap-1 text-sm">
+            <span>{t('geoLat')}</span>
+            <Input
+              type="number"
+              step="any"
+              value={options.variant.geo?.lat ?? ''}
+              aria-label={t('geoLat')}
+              placeholder="55.751244"
+              onChange={(event) => {
+                const lat = event.target.value === '' ? undefined : Number(event.target.value);
+                const lon = options.variant.geo?.lon;
+                if (lat == null && lon == null) {
+                  patchVariant({ geo: undefined });
+                  return;
+                }
+                patchVariant({ geo: { lat, lon } });
+              }}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span>{t('geoLon')}</span>
+            <Input
+              type="number"
+              step="any"
+              value={options.variant.geo?.lon ?? ''}
+              aria-label={t('geoLon')}
+              placeholder="37.618423"
+              onChange={(event) => {
+                const lon = event.target.value === '' ? undefined : Number(event.target.value);
+                const lat = options.variant.geo?.lat;
+                if (lat == null && lon == null) {
+                  patchVariant({ geo: undefined });
+                  return;
+                }
+                patchVariant({ geo: { lat, lon } });
+              }}
+            />
+          </label>
+        </div>
+      </OptionField>
+
+      <OptionField
+        supported={isOptionSupported('actionButton', networks)}
+        unsupportedHint={unsupported}
+      >
+        <div className="grid gap-2 sm:grid-cols-2" data-testid="option-action-button">
+          <label className="flex flex-col gap-1 text-sm">
+            <span>{t('actionButtonTitle')}</span>
+            <Input
+              value={actionButtonField(options.variant.actionButton, 'title')}
+              aria-label={t('actionButtonTitle')}
+              placeholder={t('actionButtonTitlePlaceholder')}
+              onChange={(event) => {
+                const title = event.target.value.trim();
+                const url = actionButtonField(options.variant.actionButton, 'url');
+                if (!title && !url) {
+                  patchVariant({ actionButton: undefined });
+                  return;
+                }
+                patchVariant({
+                  actionButton: toActionButton(title, url),
+                });
+              }}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span>{t('actionButtonUrl')}</span>
+            <Input
+              type="url"
+              value={actionButtonField(options.variant.actionButton, 'url')}
+              aria-label={t('actionButtonUrl')}
+              placeholder="https://example.com"
+              onChange={(event) => {
+                const url = event.target.value.trim();
+                const title = actionButtonField(options.variant.actionButton, 'title');
+                if (!title && !url) {
+                  patchVariant({ actionButton: undefined });
+                  return;
+                }
+                patchVariant({
+                  actionButton: toActionButton(title, url),
+                });
+              }}
+            />
+          </label>
+          <p className="text-xs text-muted-foreground sm:col-span-2">{t('actionButtonHint')}</p>
+        </div>
+      </OptionField>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <OptionField
           supported={isOptionSupported('deleteAfter', networks)}
@@ -451,6 +561,19 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
       </div>
     </section>
   );
+}
+
+function actionButtonField(
+  button: PostVariantOptions['actionButton'] | undefined,
+  key: 'title' | 'url',
+): string {
+  if (!button || typeof button !== 'object') return '';
+  const value = (button as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function toActionButton(title: string, url: string): PostVariantOptions['actionButton'] {
+  return { type: 'open_url', title, url } as unknown as PostVariantOptions['actionButton'];
 }
 
 function PollEditor({

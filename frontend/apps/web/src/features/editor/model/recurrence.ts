@@ -72,6 +72,7 @@ export function recurrenceFromPreset(
   preset: RecurrencePresetId,
   interval?: number,
   until?: string | null,
+  times?: string[] | null,
 ): Recurrence {
   const base = { ...PRESET_TO_RECURRENCE[preset] };
   if (preset === 'every_n_days' && interval != null) {
@@ -79,6 +80,9 @@ export function recurrenceFromPreset(
   }
   if (until) {
     base.until = until;
+  }
+  if (times?.length) {
+    base.times = [...times];
   }
   return base;
 }

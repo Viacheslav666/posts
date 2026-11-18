@@ -66,6 +66,7 @@ export function createDefaultPostOptions(from = new Date()): EditorPostOptions {
       buttons: [],
       poll: undefined,
       geo: undefined,
+      actionButton: undefined,
       copyrightUrl: '',
     },
     isAd: false,

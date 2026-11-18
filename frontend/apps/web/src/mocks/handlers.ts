@@ -1,5 +1,6 @@
 import type {
   BulkPostsRequest,
+  BatchPostsRequest,
   BatchStoriesRequest,
   ChannelConnectCallbackRequest,
   ChannelConnectConfirmRequest,
@@ -29,6 +30,7 @@ import type {
   PasswordForgotRequest,
   PasswordResetRequest,
   PostActionRequest,
+  PreviewRequest,
   ProblemDetail,
   ProjectMembersRequest,
   RegisterRequest,
@@ -195,6 +197,7 @@ import {
 } from './notification-store';
 import {
   attachEridToPost,
+  batchCreatePosts,
   batchCreateStories,
   bulkPosts,
   createPost,
@@ -214,6 +217,8 @@ import {
   updatePost,
   type ListPostsFilters,
 } from './post-store';
+import { renderEditorVariables } from '@/features/editor/lib/variables';
+import { invalidVkStringAttachments } from '@/features/editor/lib/vk-string-attachments';
 import {
   acceptInvitation,
   cancelInvitation,
@@ -1755,6 +1760,69 @@ export const handlers = [
       hasMore: page.hasMore,
       nextCursor: page.nextCursor,
     });
+  }),
+
+  http.post('/api/v1/posts/preview', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const body = (await request.json()) as PreviewRequest;
+    if (!body.content || !body.network) {
+      return problem(400, 'validation_failed', 'content and network are required', 'Validation failed');
+    }
+    const text = body.content.text ?? '';
+    const invalid = invalidVkStringAttachments(body.content.stringAttachments);
+    if (invalid.length) {
+      return problem(
+        400,
+        'validation_failed',
+        `Invalid VK string attachments: ${invalid.join(', ')}`,
+        'Validation failed',
+      );
+    }
+    const expandedText = renderEditorVariables(text.replace(/<[^>]+>/g, ''), {
+      at: body.at,
+      timezone: body.timezone,
+      groupId: body.groupId,
+      groupName: body.groupName,
+      birthdays: body.birthdays,
+      json: body.json as Record<string, unknown> | undefined,
+      htmlNetwork: body.network === 'tg' || body.network === 'max',
+      spintaxSeed: body.spintaxSeed ?? 'msw-preview',
+    });
+    return HttpResponse.json({
+      network: body.network,
+      expandedText,
+      plainText: expandedText,
+      html: `<p>${expandedText}</p>`,
+      valid: true,
+      issues: [],
+      warnings: [],
+    });
+  }),
+
+  http.post('/api/v1/posts/batch', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const deniedBulk = requirePermission(request, 'posts.bulk');
+    if (deniedBulk) return deniedBulk;
+    const deniedSchedule = requirePermission(request, 'posts.schedule');
+    if (deniedSchedule) return deniedSchedule;
+    const body = (await request.json()) as BatchPostsRequest;
+    if (!body.workspaceId || !body.channelIds?.length || !body.mediaIds?.length || !body.scheduledAt) {
+      return problem(
+        400,
+        'validation_failed',
+        'workspaceId, channelIds, mediaIds and scheduledAt are required',
+        'Validation failed',
+      );
+    }
+    const deniedWs = requireWorkspaceAccess(request, body.workspaceId);
+    if (deniedWs) return deniedWs;
+    if (body.mediaIds.length > 50) {
+      return problem(422, 'post_batch_limit', 'Batch exceeds 50 posts', 'Batch limit');
+    }
+    const result = batchCreatePosts(body);
+    return HttpResponse.json(result, { status: 201 });
   }),
 
   http.post('/api/v1/stories/batch', async ({ request }) => {

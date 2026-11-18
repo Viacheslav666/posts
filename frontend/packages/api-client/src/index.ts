@@ -84,6 +84,11 @@ export type StartStoryConnectionRequest = components['schemas']['StartStoryConne
 export type BatchStoriesRequest = components['schemas']['BatchStoriesRequest'];
 export type BatchStoriesResponse = components['schemas']['BatchStoriesResponse'];
 export type BatchStoryFailure = components['schemas']['BatchStoryFailure'];
+export type BatchPostsRequest = components['schemas']['BatchPostsRequest'];
+export type BatchPostsResponse = components['schemas']['BatchPostsResponse'];
+export type BatchPostFailure = components['schemas']['BatchPostFailure'];
+export type PreviewRequest = components['schemas']['PreviewRequest'];
+export type PreviewResponse = components['schemas']['PreviewResponse'];
 export type StoryTtl = NonNullable<StoryOptions['ttl']>;
 export type StoryConnectionStatus = NonNullable<StoryConnection['status']>;
 

@@ -1,6 +1,8 @@
 import type {
   AdMarking,
   AdMarkingSummary,
+  BatchPostsRequest,
+  BatchPostsResponse,
   BatchStoriesRequest,
   BatchStoriesResponse,
   BulkPostsRequest,
@@ -857,6 +859,73 @@ export function batchCreateStories(body: BatchStoriesRequest): BatchStoriesRespo
         mediaId,
         code: 'story_media_invalid',
         message: error instanceof Error ? error.message : 'Failed to create story',
+      });
+    }
+  });
+
+  return {
+    created: postIds.length,
+    postIds,
+    failures,
+  };
+}
+
+export function batchCreatePosts(body: BatchPostsRequest): BatchPostsResponse {
+  const mediaIds = body.mediaIds ?? [];
+  const channelIds = body.channelIds ?? [];
+  const failures: NonNullable<BatchPostsResponse['failures']> = [];
+  const postIds: string[] = [];
+
+  if (mediaIds.length > BATCH_MAX) {
+    return {
+      created: 0,
+      postIds: [],
+      failures: mediaIds.map((mediaId) => ({
+        mediaId,
+        code: 'post_batch_limit',
+        message: `Batch exceeds ${BATCH_MAX}`,
+      })),
+    };
+  }
+
+  const stepMs = Math.max(0, (body.stepMinutes ?? 0) * 60_000);
+  const start = new Date(body.scheduledAt).getTime();
+  const sharedText = body.text ?? '';
+
+  mediaIds.forEach((mediaId, index) => {
+    try {
+      const created = createPost({
+        workspaceId: body.workspaceId,
+        projectId: body.projectId,
+        title: `Пост ${index + 1}`,
+        contentKind: 'post',
+        scheduledAt: new Date(start + stepMs * index).toISOString(),
+        timezone: body.timezone ?? 'Europe/Moscow',
+        recurrence: body.recurrence,
+        ad: body.ad,
+        adMarking: body.adMarking,
+        baseContent: {
+          text: sharedText,
+          mediaIds: [mediaId],
+          stringAttachments: body.stringAttachments,
+        },
+        variants: channelIds.map((channelId) => ({
+          channelId,
+          network: CHANNEL_NETWORK[channelId] ?? 'vk',
+          content: {
+            text: sharedText,
+            mediaIds: [mediaId],
+            stringAttachments: body.stringAttachments,
+          },
+          options: body.options,
+        })),
+      });
+      postIds.push(created.id!);
+    } catch (error) {
+      failures.push({
+        mediaId,
+        code: 'validation_failed',
+        message: error instanceof Error ? error.message : 'Failed to create post',
       });
     }
   });
