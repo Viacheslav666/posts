@@ -25,6 +25,7 @@ import type {
   OAuthStartResponse,
   OrdProvider,
   OrdReportRunRequest,
+  OrdVatCalculateRequest,
   PasswordForgotRequest,
   PasswordResetRequest,
   PostActionRequest,
@@ -1454,6 +1455,32 @@ export const handlers = [
     return HttpResponse.json(toApiPost(updated));
   }),
 
+  http.post('/api/v1/ord/vat/calculate', async ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    const body = (await request.json()) as OrdVatCalculateRequest;
+    const amount = Number(body.amountWithVat ?? 0);
+    const rate = body.vatRate ?? 'without_vat';
+    const gross = Math.round(Math.max(0, amount) * 100) / 100;
+    if (rate === 'without_vat' || rate === '0') {
+      return HttpResponse.json({
+        amountWithVat: gross,
+        amountWithoutVat: gross,
+        vatAmount: 0,
+        vatRate: rate,
+      });
+    }
+    const percent = Number(rate);
+    const net = Math.round(((gross * 100) / (100 + percent)) * 100) / 100;
+    const vat = Math.round((gross - net) * 100) / 100;
+    return HttpResponse.json({
+      amountWithVat: gross,
+      amountWithoutVat: net,
+      vatAmount: vat,
+      vatRate: rate,
+    });
+  }),
+
   http.get('/api/v1/ord/dictionaries/kktu', ({ request }) => {
     const unauthorized = requireBearer(request);
     if (unauthorized) return unauthorized;
@@ -1523,6 +1550,20 @@ export const handlers = [
         'validation_failed',
         'responsibilityAccepted must be true',
         'Validation failed',
+      );
+    }
+    if (!body.address?.trim()) {
+      return HttpResponse.json(
+        {
+          type: 'https://posts.ru/problems/validation_failed',
+          title: 'Validation failed',
+          status: 400,
+          detail: 'address is required when activating connection',
+          code: 'validation_failed',
+          instance: '/api/v1',
+          errors: [{ field: 'address', message: 'address is required' }],
+        } satisfies ProblemDetail,
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
       );
     }
     const conn = upsertOrdConnection(workspaceId, provider, body);

@@ -3,6 +3,7 @@
 import type {
   CreateOrdContractorRequest,
   OrdProvider,
+  OrdVatCalculateRequest,
   UpdateOrdContractorRequest,
   UpsertOrdConnectionRequest,
 } from '@posts/api-client';
@@ -11,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api-client';
 
 import {
+  calculateOrdVat,
   createOrdContractor,
   listOrdConnections,
   listOrdContractors,
@@ -100,18 +102,24 @@ export function useOrdContracts(workspaceId: string, enabled = true) {
   });
 }
 
-export function useOrdKktu(enabled = true) {
+export function useOrdKktu(enabled = true, q = '') {
   return useQuery({
-    queryKey: queryKeys.ord.kktu(),
-    queryFn: () => listOrdKktu(),
+    queryKey: queryKeys.ord.kktu(q),
+    queryFn: () => listOrdKktu(q),
     enabled,
   });
 }
 
-export function useOrdOksm(enabled = true) {
+export function useOrdOksm(enabled = true, q = '') {
   return useQuery({
-    queryKey: queryKeys.ord.oksm(),
-    queryFn: () => listOrdOksm(),
+    queryKey: queryKeys.ord.oksm(q),
+    queryFn: () => listOrdOksm(q),
     enabled,
+  });
+}
+
+export function useCalculateOrdVat() {
+  return useMutation({
+    mutationFn: (body: OrdVatCalculateRequest) => calculateOrdVat(body),
   });
 }
