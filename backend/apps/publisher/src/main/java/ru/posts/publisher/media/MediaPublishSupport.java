@@ -171,7 +171,8 @@ public class MediaPublishSupport {
             return;
         }
         Instant expires = Instant.now().plus(7, ChronoUnit.DAYS);
-        for (Map.Entry<String, RemoteMediaRef> entry : result.uploadedMediaByAssetId().entrySet()) {
+        for (Map.Entry<String, RemoteMediaRef> entry :
+                result.uploadedMediaByAssetId().entrySet()) {
             if (entry.getKey() == null
                     || entry.getValue() == null
                     || entry.getValue().attachmentId() == null) {
