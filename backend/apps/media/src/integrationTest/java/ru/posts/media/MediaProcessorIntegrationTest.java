@@ -137,6 +137,7 @@ class MediaProcessorIntegrationTest {
         assertThat(ready.getHeight()).isPositive();
         assertThat(ready.getDerivatives()).containsKey("preview");
         assertThat(ready.getSha256()).isNotBlank();
+        assertThat(ready.getMeta()).containsKeys("width", "height", "sizeBytes");
     }
 
     @Test
@@ -173,6 +174,8 @@ class MediaProcessorIntegrationTest {
                     mediaAssetRepository.findById(asset.getId()).orElseThrow();
             assertThat(ready.getStatus()).isEqualTo("ready");
             assertThat(ready.getDerivatives()).containsKeys("mp4_16x9", "mp4_9x16", "thumbnail");
+            assertThat(ready.getMeta()).containsKeys("width", "height", "videoCodec", "sizeBytes");
+            assertThat(ready.getMeta().get("videoCodec").toString()).containsIgnoringCase("h264");
         } finally {
             Files.deleteIfExists(mp4);
         }
@@ -222,6 +225,7 @@ class MediaProcessorIntegrationTest {
         asset.setSizeBytes((long) bytes.length);
         asset.setStatus("processing");
         asset.setDerivatives(Map.of());
+        asset.setMeta(Map.of());
         asset.setTags(java.util.List.of());
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());

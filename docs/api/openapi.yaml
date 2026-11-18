@@ -43,6 +43,11 @@ info:
     - story_connection_required — VK channel lacks stories scope connection
     - story_unsupported_network — stories only supported for vk/ok (not tg/max/ig)
     - story_media_invalid — story requires exactly one valid photo/video media
+    - story_media_aspect — story media must be 9:16
+    - story_media_resolution — story media must be at least 720×1280
+    - story_media_duration — story video must be ≤ 60 seconds
+    - story_media_size — story video must be ≤ 50 MB
+    - story_media_codec — story video must be H.264/AAC
     - story_link_invalid — VK story CTA URL must be vk.com / vk.ru
     - story_ttl_unsupported — invalid stories_time / TTL enum
     - story_batch_limit — batch exceeds posts.stories.batch_max (default 50)
@@ -8309,6 +8314,68 @@ paths:
       summary: Run ORD invoices/statistics for a period
       tags:
       - ORD
+  /api/v1/ord/vat/calculate:
+    post:
+      operationId: ordVatCalculate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrdVatCalculateRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatBreakdown"
+          description: VAT breakdown
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Split amount with VAT into net + VAT (BE-25)
+      tags:
+      - ORD
   /api/v1/ping:
     get:
       description: Unauthenticated smoke endpoint used by Makefile/CI.
@@ -11953,8 +12020,8 @@ components:
       - token
     AdMarking:
       type: object
-      description: Full advertiser / ORD marking block (feature spec §3.4). Stored
-        as posts.ad_payload jsonb.
+      description: "Full advertiser / ORD marking block (feature spec §3.4, BE-25).\
+        \ Stored as posts.ad_payload jsonb."
       properties:
         address:
           type: string
@@ -11964,11 +12031,17 @@ components:
         amount:
           type: number
           minimum: 0
+        amountVat:
+          $ref: "#/components/schemas/VatBreakdown"
+          description: Server-computed VAT split for amount (response/preview)
         autoDeleteAfterPeriod:
           type: boolean
         contractAmount:
           type: number
           minimum: 0
+        contractAmountVat:
+          $ref: "#/components/schemas/VatBreakdown"
+          description: Server-computed VAT split for contractAmount
         contractDate:
           type: string
           format: date
@@ -11980,6 +12053,15 @@ components:
         contractorId:
           type: string
           format: uuid
+        customerRole:
+          type: string
+          description: Customer role
+          enum:
+          - advertiser
+          - agency
+          - publisher
+          - ors
+          example: advertiser
         description:
           type: string
           maxLength: 1000
@@ -11992,6 +12074,9 @@ components:
         erid:
           type: string
           description: Erid after registration; read-only on responses
+        executor:
+          type: string
+          description: "Executor: self (default) or contractor UUID"
         foreignEpayment:
           type: string
         foreignInn:
@@ -12000,7 +12085,7 @@ components:
           type: string
         inn:
           type: string
-          description: INN — 10 or 12 digits
+          description: INN — 10 or 12 digits with checksum; foreign ids when isForeign
         isForeign:
           type: boolean
         kktuCodes:
@@ -12014,7 +12099,9 @@ components:
           description: KPP; required for juridical
         markingType:
           type: string
-          description: Marking mode / type_marking
+          deprecated: true
+          description: Legacy vposter type_marking 0..5; mapped to placement when
+            placement omitted
           example: 0
         oksmCountry:
           type: string
@@ -12031,16 +12118,52 @@ components:
           - foreign_juridical
         phone:
           type: string
+        placement:
+          type: string
+          description: Preferred placement mode (BE-25)
+          enum:
+          - vk_menu
+          - text_start
+          - text_end
+          - vk_menu_and_text_end
+          - click_link_start
+          - click_link_end
+        provider:
+          type: string
+          description: ORD provider override; null = workspace default connection
+          enum:
+          - vk_ord
+          - yandex_ord
         roles:
           type: array
           items:
             type: string
         selfPromo:
           type: boolean
+        socialAd:
+          type: boolean
+          description: Social advertising flag
+        socialAdQuota:
+          type: boolean
+          description: Social advertising under quota
         vatRate:
           type: string
           description: VAT rate
+          enum:
+          - without_vat
+          - "0"
+          - "5"
+          - "7"
+          - "10"
+          - "20"
+          - "22"
           example: without_vat
+        warnings:
+          type: array
+          description: Warnings such as vk_menu_unsupported fallback; filled on preview/register
+            responses
+          items:
+            type: string
     AdMarkingSummary:
       type: object
       description: Lightweight ad marking card fields for list/calendar (full ORD
@@ -14480,6 +14603,8 @@ components:
       type: object
       description: ORD connection without plaintext API key
       properties:
+        address:
+          type: string
         createdAt:
           type: string
           format: date-time
@@ -14489,6 +14614,10 @@ components:
           type: string
           format: uuid
         isDefault:
+          type: boolean
+        isForeign:
+          type: boolean
+        notifyProblems:
           type: boolean
         orgType:
           type: string
@@ -14513,6 +14642,17 @@ components:
         updatedAt:
           type: string
           format: date-time
+        vatRate:
+          type: string
+          description: VAT rate
+          enum:
+          - without_vat
+          - "0"
+          - "5"
+          - "7"
+          - "10"
+          - "20"
+          - "22"
         workspaceId:
           type: string
           format: uuid
@@ -14727,6 +14867,26 @@ components:
           format: int32
         status:
           type: string
+    OrdVatCalculateRequest:
+      type: object
+      properties:
+        amountWithVat:
+          type: number
+          minimum: 0
+        vatRate:
+          type: string
+          enum:
+          - without_vat
+          - "0"
+          - "5"
+          - "7"
+          - "10"
+          - "20"
+          - "22"
+          example: 20
+      required:
+      - amountWithVat
+      - vatRate
     PasswordForgotRequest:
       type: object
       properties:
@@ -15540,8 +15700,11 @@ components:
           - error
     StoryOptions:
       type: object
-      description: Story-specific options (BE-16 / E11)
+      description: Story-specific options (BE-16 / E11 / BE-24)
       properties:
+        addToNews:
+          type: boolean
+          description: VK stories.add_to_news (default true)
         ads:
           $ref: "#/components/schemas/AdMarking"
         autoDeleteAfterMinutes:
@@ -15961,11 +16124,20 @@ components:
     UpsertOrdConnectionRequest:
       type: object
       properties:
+        address:
+          type: string
+          description: Publisher address; required when activating connection
         apiKey:
           type: string
           description: Plaintext API key; omit/blank on update to keep existing
         isDefault:
           type: boolean
+        isForeign:
+          type: boolean
+        notifyProblems:
+          type: boolean
+          description: Notify workspace about ORD / marking problems; omit to keep
+            existing / default true
         orgType:
           type: string
         phone:
@@ -15978,8 +16150,21 @@ components:
           type: boolean
         roles:
           type: array
+          description: "Roles: advertiser, publisher (multi)"
           items:
             type: string
+        vatRate:
+          type: string
+          description: VAT rate
+          enum:
+          - without_vat
+          - "0"
+          - "5"
+          - "7"
+          - "10"
+          - "20"
+          - "22"
+          example: without_vat
       required:
       - responsibilityAccepted
     UserProfile:
@@ -16047,6 +16232,17 @@ components:
       type: object
       properties:
         vapidPublicKey:
+          type: string
+    VatBreakdown:
+      type: object
+      properties:
+        amountWithVat:
+          type: number
+        amountWithoutVat:
+          type: number
+        vatAmount:
+          type: number
+        vatRate:
           type: string
     Wallet:
       type: object

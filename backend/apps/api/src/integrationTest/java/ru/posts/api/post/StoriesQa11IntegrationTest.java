@@ -67,7 +67,7 @@ import ru.posts.persistence.repository.WorkspaceRepository;
 class StoriesQa11IntegrationTest {
 
     private static final Pattern TOKEN_IN_BODY = Pattern.compile("token=([A-Za-z0-9_-]+)");
-    private static final long OVERSIZE_VIDEO_BYTES = 350L * 1024L * 1024L + 1L;
+    private static final long OVERSIZE_VIDEO_BYTES = 50L * 1024L * 1024L + 1L;
 
     @RegisterExtension
     static WireMockExtension vkOrd = WireMockExtension.newInstance()
@@ -696,7 +696,7 @@ class StoriesQa11IntegrationTest {
     }
 
     @Test
-    @DisplayName("TC-STORY-30: video media sizeBytes > 350MB → 422 story_media_invalid")
+    @DisplayName("TC-STORY-30: video media sizeBytes > 50MB → 422 story_media_size")
     void tcStory30OversizedVideoRejected() throws Exception {
         String token = registerVerifyLogin("story-30-" + UUID.randomUUID() + "@example.com", "Owner");
         UUID workspaceId = firstWorkspaceId(token);
@@ -729,7 +729,7 @@ class StoriesQa11IntegrationTest {
                                         "content",
                                         Map.of("mediaIds", List.of(mediaId.toString()))))))))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("story_media_invalid"));
+                .andExpect(jsonPath("$.code").value("story_media_size"));
     }
 
     @Test
@@ -872,33 +872,57 @@ class StoriesQa11IntegrationTest {
         asset.setStatus("ready");
         asset.setTags(List.of());
         asset.setDerivatives(Map.of());
+        boolean video = "video".equals(kind);
+        if (!"image/bmp".equals(mime) && !"application/octet-stream".equals(mime)) {
+            asset.setWidth(1080);
+            asset.setHeight(1920);
+            if (video) {
+                asset.setDurationMs(15_000);
+                asset.setMeta(Map.of(
+                        "width",
+                        1080,
+                        "height",
+                        1920,
+                        "durationMs",
+                        15_000,
+                        "videoCodec",
+                        "h264",
+                        "audioCodec",
+                        "aac",
+                        "sizeBytes",
+                        sizeBytes));
+            } else {
+                asset.setMeta(Map.of("width", 1080, "height", 1920, "sizeBytes", sizeBytes, "codec", "jpeg"));
+            }
+        } else {
+            asset.setMeta(Map.of());
+        }
         asset.setCreatedAt(Instant.now());
         asset.setUpdatedAt(Instant.now());
         return mediaAssetRepository.save(asset).getId();
     }
 
     private void upsertConnection(String token, UUID workspaceId, String provider, String apiKey) throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("apiKey", apiKey);
+        body.put("publisherInn", "7707083893");
+        body.put("publisherName", "ООО Паблишер");
+        body.put("orgType", "juridical");
+        body.put("address", "Москва, ул. Тверская, 1");
+        body.put("vatRate", "20");
+        body.put("isForeign", false);
+        body.put("notifyProblems", true);
+        body.put("roles", List.of("publisher"));
+        body.put("isDefault", true);
+        body.put("responsibilityAccepted", true);
         mockMvc.perform(put("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider)
                         .with(csrf())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "apiKey",
-                                apiKey,
-                                "publisherInn",
-                                "7707083893",
-                                "publisherName",
-                                "ООО Паблишер",
-                                "orgType",
-                                "juridical",
-                                "roles",
-                                List.of("publisher"),
-                                "isDefault",
-                                true,
-                                "responsibilityAccepted",
-                                true))))
+                        .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasApiKey").value(true))
+                .andExpect(jsonPath("$.address").value("Москва, ул. Тверская, 1"))
                 .andExpect(jsonPath("$.apiKey").doesNotExist());
 
         mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider + "/test")

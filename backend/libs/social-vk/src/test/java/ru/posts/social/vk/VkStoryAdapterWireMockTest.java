@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +20,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import ru.posts.social.api.ChannelContext;
+import ru.posts.social.api.MediaAssetRef;
 import ru.posts.social.api.Network;
 import ru.posts.social.api.PostVariantContent;
+import ru.posts.social.api.PostVariantMeta;
 import ru.posts.social.api.PublishResult;
 
 class VkStoryAdapterWireMockTest {
@@ -62,9 +65,21 @@ class VkStoryAdapterWireMockTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"response\":{\"items\":[{\"id\":77,\"owner_id\":-100}]}}")));
 
+        byte[] jpeg = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        MediaAssetRef asset = new MediaAssetRef("m1", "image", "image/jpeg", jpeg.length, "sha", null, jpeg);
         PublishResult result = adapter.publishStory(
                 ctx,
-                new PostVariantContent("story", "photo", "ttl_24h", "go_to", "https://vk.com/club1", Map.of()),
+                new PostVariantContent(
+                        "story",
+                        "photo",
+                        "ttl_24h",
+                        "go_to",
+                        "https://vk.com/club1",
+                        Map.of(
+                                PostVariantMeta.MEDIA,
+                                List.of(asset),
+                                PostVariantMeta.OPTIONS,
+                                Map.of("addToNews", true))),
                 "story-guid-1");
 
         assertThat(result.remotePostId()).isEqualTo("77");
@@ -72,7 +87,9 @@ class VkStoryAdapterWireMockTest {
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/stories.getPhotoUploadServer"))
                 .withRequestBody(containing("link_text=go_to"))
                 .withRequestBody(containing("link_url="))
+                .withRequestBody(containing("add_to_news=1"))
                 .withRequestBody(containing("guid=story-guid-1")));
+        wireMock.verify(postRequestedFor(urlPathEqualTo(uploadPath)).withRequestBody(containing("story.jpg")));
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/stories.save")));
     }
 

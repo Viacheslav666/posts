@@ -343,16 +343,20 @@ final class PipelineTestSupport {
                         + (erid == null || erid.isBlank() ? "" : ",\"erid\":\"" + escapeJson(erid) + "\"")
                         + "}"
                 : null;
+        UUID mediaId = seedStoryMedia(jdbc, workspaceId);
+        String baseContent =
+                "{\"text\":\"" + escapeJson(text) + "\",\"mediaIds\":[\"" + mediaId + "\"],\"mediaKind\":\"photo\"}";
         jdbc.update(
                 """
                 INSERT INTO posts (
                     id, workspace_id, title, base_content, status, content_kind, story_ttl, story_options,
                     is_ad, ad_payload, ord_creative_id)
-                VALUES (?, ?, 'story-pipeline', ?::jsonb, 'scheduled', 'story', ?, '{}'::jsonb, ?, ?::jsonb, ?)
+                VALUES (?, ?, 'story-pipeline', ?::jsonb, 'scheduled', 'story', ?,
+                    '{"mediaKind":"photo","addToNews":true}'::jsonb, ?, ?::jsonb, ?)
                 """,
                 postId,
                 workspaceId,
-                "{\"text\":\"" + escapeJson(text) + "\"}",
+                baseContent,
                 storyTtl,
                 ad,
                 adPayload,
@@ -361,7 +365,9 @@ final class PipelineTestSupport {
         if (network == null) {
             network = "vk";
         }
-        String optionsJson = deleteAfter == null ? "{}" : "{\"deleteAfter\":\"" + deleteAfter.toString() + "\"}";
+        String optionsJson = deleteAfter == null
+                ? "{\"addToNews\":true}"
+                : "{\"deleteAfter\":\"" + deleteAfter + "\",\"addToNews\":true}";
         jdbc.update(
                 """
                 INSERT INTO post_variants (id, post_id, channel_id, network, content, options)
@@ -371,8 +377,30 @@ final class PipelineTestSupport {
                 postId,
                 channelId,
                 network,
-                "{\"text\":\"" + escapeJson(text) + "\",\"mediaKind\":\"photo\"}",
+                "{\"text\":\"" + escapeJson(text) + "\",\"mediaKind\":\"photo\",\"mediaIds\":[\"" + mediaId + "\"]}",
                 optionsJson);
+    }
+
+    /** Ready JPEG story asset; without S3 publisher uses deterministic stub bytes (BE-24). */
+    static UUID seedStoryMedia(JdbcTemplate jdbc, UUID workspaceId) {
+        UUID mediaId = UuidV7.generate();
+        // SHA-256 of MediaPublishSupport photo stub FF D8 FF D9
+        String stubSha = "32461d5bd1773012acef0ba15636752949bd7c2ce50f9172159d9f56cf0dd9af";
+        jdbc.update(
+                """
+                INSERT INTO media_assets (
+                    id, workspace_id, kind, s3_key, mime, size_bytes, width, height, sha256, status,
+                    derivatives, meta, filename)
+                VALUES (?, ?, 'image', ?, 'image/jpeg', 4, 1080, 1920, ?, 'ready',
+                    '{}'::jsonb,
+                    '{"width":1080,"height":1920,"sizeBytes":4,"codec":"jpeg"}'::jsonb,
+                    'story.jpg')
+                """,
+                mediaId,
+                workspaceId,
+                "workspaces/" + workspaceId + "/media/" + mediaId + "/story.jpg",
+                stubSha);
+        return mediaId;
     }
 
     static void setStoryConnectionStatus(JdbcTemplate jdbc, UUID channelId, String status) {

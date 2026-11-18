@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -157,7 +158,28 @@ public class OrdServiceImpl implements OrdService {
         entity.setPublisherName(blankToNull(request.publisherName()));
         entity.setOrgType(blankToNull(request.orgType()));
         entity.setPhone(blankToNull(request.phone()));
-        entity.setRoles(request.roles() == null ? List.of() : List.copyOf(request.roles()));
+        if (request.address() != null) {
+            entity.setAddress(blankToNull(request.address()));
+        }
+        if (request.vatRate() != null && !request.vatRate().isBlank()) {
+            if (!ru.posts.ord.api.VatRate.isSupported(request.vatRate())) {
+                throw new ApiException(
+                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_VALIDATION_FAILED, "Unsupported vatRate");
+            }
+            entity.setVatRate(ru.posts.ord.api.VatRate.parse(request.vatRate()).wireValue());
+        }
+        if (request.isForeign() != null) {
+            entity.setForeign(Boolean.TRUE.equals(request.isForeign()));
+        }
+        if (request.notifyProblems() != null) {
+            entity.setNotifyProblems(Boolean.TRUE.equals(request.notifyProblems()));
+        } else if (created) {
+            entity.setNotifyProblems(true);
+        }
+        List<String> roles = request.roles() == null || request.roles().isEmpty()
+                ? List.of("advertiser", "publisher")
+                : List.copyOf(request.roles());
+        entity.setRoles(roles);
         if (Boolean.TRUE.equals(request.isDefault())) {
             clearDefault(workspaceId, provider.name());
             entity.setDefault(true);
@@ -188,6 +210,12 @@ public class OrdServiceImpl implements OrdService {
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         ProblemCodes.ORD_NOT_CONFIGURED,
                         "ORD connection not configured"));
+        if (entity.getAddress() == null || entity.getAddress().isBlank()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.ORD_VALIDATION_FAILED,
+                    "address is required to activate ORD connection");
+        }
         String apiKey = tokenVault.unseal(workspaceId, entity.getApiKeyEnc());
         if (apiKey == null || apiKey.isBlank()) {
             throw new ApiException(
@@ -408,18 +436,57 @@ public class OrdServiceImpl implements OrdService {
     }
 
     @Override
+    public OrdDtos.VatBreakdown calculateVat(OrdDtos.OrdVatCalculateRequest request) {
+        if (request == null || request.amountWithVat() == null || request.vatRate() == null) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.ORD_VALIDATION_FAILED,
+                    "amountWithVat and vatRate required");
+        }
+        if (!ru.posts.ord.api.VatRate.isSupported(request.vatRate())) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_VALIDATION_FAILED, "Unsupported vatRate");
+        }
+        var breakdown = ru.posts.ord.api.VatCalculator.fromAmountWithVat(request.amountWithVat(), request.vatRate());
+        return new OrdDtos.VatBreakdown(
+                breakdown.amountWithVat(), breakdown.amountWithoutVat(), breakdown.vatAmount(), breakdown.vatRate());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void validateAdMarking(boolean ad, OrdDtos.AdMarking marking) {
+        Set<String> kktu = kktuRepository.findAll().stream()
+                .filter(OrdDictionaryKktuEntity::isActive)
+                .map(OrdDictionaryKktuEntity::getCode)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> oksm = oksmRepository.findAll().stream()
+                .filter(OrdDictionaryOksmEntity::isActive)
+                .map(OrdDictionaryOksmEntity::getCode)
+                .collect(java.util.stream.Collectors.toSet());
+        AdMarkingValidator.requireValidWhenAd(ad, marking, kktu, oksm);
+    }
+
+    @Override
     public OrdDtos.OrdRegisterCreativeResponse registerCreative(UUID userId, UUID postId, ClientRequestContext ctx) {
         PostEntity post =
                 postRepository.findByIdAndDeletedAtIsNull(postId).orElseThrow(WorkspaceAccessService::notFound);
-        access.requirePermission(post.getWorkspaceId(), userId, "ord.view");
+        access.requirePermission(post.getWorkspaceId(), userId, "ord.register");
         if (!post.isAd()) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_VALIDATION_FAILED, "Post is not marked as ad");
         }
 
-        OrdConnectionEntity connection = requireActiveConnection(post.getWorkspaceId());
         OrdDtos.AdMarking marking = readMarking(post);
-        AdMarkingValidator.requireValidWhenAd(true, marking);
+        OrdConnectionEntity connection = requireActiveConnection(post.getWorkspaceId(), marking);
+        Set<String> kktu = kktuRepository.findAll().stream()
+                .filter(OrdDictionaryKktuEntity::isActive)
+                .map(OrdDictionaryKktuEntity::getCode)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> oksm = oksmRepository.findAll().stream()
+                .filter(OrdDictionaryOksmEntity::isActive)
+                .map(OrdDictionaryOksmEntity::getCode)
+                .collect(java.util.stream.Collectors.toSet());
+        AdMarkingValidator.requireValidWhenAd(true, marking, kktu, oksm);
 
         String providerCode = connection.getProvider();
         // Prefer already-linked registered creative (version bump on post must not mint a new erid).
@@ -556,9 +623,10 @@ public class OrdServiceImpl implements OrdService {
                 creative.setStatus("error");
                 creative.setLastError("erid missing");
                 creativeRepository.save(creative);
-                writeOrdOutbox(
+                writeOrdProblem(
+                        connection,
                         creative.getId(),
-                        "ord.erid_failed",
+                        "ord.problem",
                         Map.of(
                                 "workspaceId", post.getWorkspaceId().toString(),
                                 "postId", post.getId().toString(),
@@ -603,9 +671,10 @@ public class OrdServiceImpl implements OrdService {
                     post.getId(),
                     Map.of("errorClass", ex.errorClass().name()),
                     ctx == null ? null : ctx.ip());
-            writeOrdOutbox(
+            writeOrdProblem(
+                    connection,
                     post.getId(),
-                    "ord.error",
+                    "ord.problem",
                     Map.of(
                             "workspaceId", post.getWorkspaceId().toString(),
                             "postId", post.getId().toString(),
@@ -620,15 +689,28 @@ public class OrdServiceImpl implements OrdService {
                     post.getId(),
                     Map.of("error", "provider"),
                     ctx == null ? null : ctx.ip());
-            writeOrdOutbox(
+            writeOrdProblem(
+                    connection,
                     post.getId(),
-                    "ord.error",
+                    "ord.problem",
                     Map.of(
                             "workspaceId", post.getWorkspaceId().toString(),
                             "postId", post.getId().toString(),
                             "error", "provider"));
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_PROVIDER_UNAVAILABLE, "ORD provider unavailable");
+        }
+    }
+
+    private void writeOrdProblem(
+            OrdConnectionEntity connection, UUID aggregateId, String eventType, Map<String, Object> payload) {
+        if (connection != null && !connection.isNotifyProblems()) {
+            return;
+        }
+        writeOrdOutbox(aggregateId, eventType, payload);
+        // Keep legacy aliases for BE-11 notification templates.
+        if ("ord.problem".equals(eventType)) {
+            writeOrdOutbox(aggregateId, "ord.error", payload);
         }
     }
 
@@ -739,7 +821,17 @@ public class OrdServiceImpl implements OrdService {
 
     /** Active default connection, else first active — for schedule guards. */
     public Optional<OrdConnectionEntity> findActiveConnection(UUID workspaceId) {
+        return findActiveConnection(workspaceId, null);
+    }
+
+    public Optional<OrdConnectionEntity> findActiveConnection(UUID workspaceId, OrdDtos.OrdProviderCode provider) {
         List<OrdConnectionEntity> all = connectionRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId);
+        if (provider != null) {
+            return all.stream()
+                    .filter(c ->
+                            "active".equals(c.getStatus()) && provider.name().equals(c.getProvider()))
+                    .findFirst();
+        }
         Optional<OrdConnectionEntity> preferred = all.stream()
                 .filter(c -> "active".equals(c.getStatus()) && c.isDefault())
                 .findFirst();
@@ -749,8 +841,9 @@ public class OrdServiceImpl implements OrdService {
         return all.stream().filter(c -> "active".equals(c.getStatus())).findFirst();
     }
 
-    private OrdConnectionEntity requireActiveConnection(UUID workspaceId) {
-        return findActiveConnection(workspaceId)
+    private OrdConnectionEntity requireActiveConnection(UUID workspaceId, OrdDtos.AdMarking marking) {
+        OrdDtos.OrdProviderCode preferred = marking == null ? null : marking.provider();
+        return findActiveConnection(workspaceId, preferred)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "No active ORD connection"));
     }
@@ -843,6 +936,10 @@ public class OrdServiceImpl implements OrdService {
                 e.getPublisherName(),
                 e.getOrgType(),
                 e.getPhone(),
+                e.getAddress(),
+                e.getVatRate(),
+                e.isForeign(),
+                e.isNotifyProblems(),
                 e.getRoles() == null ? List.of() : e.getRoles(),
                 e.getStatus(),
                 e.isDefault(),

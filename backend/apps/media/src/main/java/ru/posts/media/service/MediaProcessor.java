@@ -120,11 +120,16 @@ public class MediaProcessor {
                 derivatives.putAll(asset.getDerivatives());
             }
 
+            Map<String, Object> meta = new HashMap<>();
+            if (asset.getMeta() != null) {
+                meta.putAll(asset.getMeta());
+            }
             switch (asset.getKind()) {
-                case "image" -> processImage(asset, original, tempDir, derivatives);
-                case "video" -> processVideo(asset, original, tempDir, derivatives);
+                case "image" -> processImage(asset, original, tempDir, derivatives, meta);
+                case "video" -> processVideo(asset, original, tempDir, derivatives, meta);
                 case "audio", "doc" -> {
                     // metadata-only for MVP
+                    meta.put("sizeBytes", size);
                 }
                 default -> {
                     return markFailed(asset, "Unsupported kind " + asset.getKind());
@@ -135,6 +140,17 @@ public class MediaProcessor {
             asset.setSizeBytes(size);
             asset.setSha256(sha256);
             asset.setDerivatives(derivatives);
+            meta.putIfAbsent("sizeBytes", size);
+            if (asset.getWidth() != null) {
+                meta.put("width", asset.getWidth());
+            }
+            if (asset.getHeight() != null) {
+                meta.put("height", asset.getHeight());
+            }
+            if (asset.getDurationMs() != null) {
+                meta.put("durationMs", asset.getDurationMs());
+            }
+            asset.setMeta(meta);
             asset.setStatus("ready");
             asset.setErrorMessage(null);
             asset.setUpdatedAt(Instant.now());
@@ -151,7 +167,12 @@ public class MediaProcessor {
         }
     }
 
-    private void processImage(MediaAssetEntity asset, Path original, Path tempDir, Map<String, Object> derivatives)
+    private void processImage(
+            MediaAssetEntity asset,
+            Path original,
+            Path tempDir,
+            Map<String, Object> derivatives,
+            Map<String, Object> meta)
             throws IOException {
         Path normalized = tempDir.resolve("normalized.jpg");
         Thumbnails.of(original.toFile()).scale(1.0).outputFormat("jpg").toFile(normalized.toFile());
@@ -177,14 +198,28 @@ public class MediaProcessor {
         // Replace original with EXIF-stripped bytes
         uploadFile(asset.getS3Key(), normalized, "image/jpeg");
         asset.setMime("image/jpeg");
+        meta.put("codec", "jpeg");
+        if (asset.getWidth() != null) {
+            meta.put("width", asset.getWidth());
+        }
+        if (asset.getHeight() != null) {
+            meta.put("height", asset.getHeight());
+        }
+        meta.put("sizeBytes", Files.size(normalized));
     }
 
-    private void processVideo(MediaAssetEntity asset, Path original, Path tempDir, Map<String, Object> derivatives)
+    private void processVideo(
+            MediaAssetEntity asset,
+            Path original,
+            Path tempDir,
+            Map<String, Object> derivatives,
+            Map<String, Object> meta)
             throws IOException, InterruptedException {
-        FfprobeMeta meta = ffprobe(original);
-        asset.setWidth(meta.width());
-        asset.setHeight(meta.height());
-        asset.setDurationMs(meta.durationMs());
+        FfprobeMeta probe = ffprobe(original);
+        asset.setWidth(probe.width());
+        asset.setHeight(probe.height());
+        asset.setDurationMs(probe.durationMs());
+        applyProbeMeta(meta, probe);
 
         Path landscape = tempDir.resolve("transcode-16x9.mp4");
         runFfmpeg(List.of(
@@ -254,6 +289,44 @@ public class MediaProcessor {
         derivatives.put("mp4_16x9", Map.of("s3Key", landscapeKey, "mime", "video/mp4"));
         derivatives.put("mp4_9x16", Map.of("s3Key", verticalKey, "mime", "video/mp4"));
         derivatives.put("thumbnail", Map.of("s3Key", thumbKey, "mime", "image/jpeg"));
+
+        // BE-24 optional: replace original with story-ready H.264/AAC 720×1280.
+        if (mediaProperties.getStories().isTranscode()) {
+            uploadFile(asset.getS3Key(), vertical, "video/mp4");
+            asset.setMime("video/mp4");
+            asset.setWidth(720);
+            asset.setHeight(1280);
+            asset.setSizeBytes(Files.size(vertical));
+            FfprobeMeta storyProbe = ffprobe(vertical);
+            asset.setDurationMs(storyProbe.durationMs() == null ? asset.getDurationMs() : storyProbe.durationMs());
+            applyProbeMeta(meta, storyProbe);
+            meta.put("storyTranscoded", true);
+            meta.put("width", 720);
+            meta.put("height", 1280);
+            meta.put("sizeBytes", asset.getSizeBytes());
+            derivatives.put("story_source", Map.of("s3Key", asset.getS3Key(), "mime", "video/mp4"));
+        }
+    }
+
+    private static void applyProbeMeta(Map<String, Object> meta, FfprobeMeta probe) {
+        if (probe.width() != null) {
+            meta.put("width", probe.width());
+        }
+        if (probe.height() != null) {
+            meta.put("height", probe.height());
+        }
+        if (probe.durationMs() != null) {
+            meta.put("durationMs", probe.durationMs());
+        }
+        if (probe.videoCodec() != null) {
+            meta.put("videoCodec", probe.videoCodec());
+        }
+        if (probe.audioCodec() != null) {
+            meta.put("audioCodec", probe.audioCodec());
+        }
+        if (probe.sizeBytes() != null) {
+            meta.put("sizeBytes", probe.sizeBytes());
+        }
     }
 
     private void downloadOriginal(MediaAssetEntity asset, Path target) throws IOException {
@@ -325,17 +398,22 @@ public class MediaProcessor {
         Integer width = null;
         Integer height = null;
         Integer durationMs = null;
+        String videoCodec = null;
+        String audioCodec = null;
         JsonNode streams = root.path("streams");
         if (streams.isArray()) {
             for (JsonNode stream : streams) {
-                if ("video".equals(stream.path("codec_type").asText())) {
+                String type = stream.path("codec_type").asText();
+                if ("video".equals(type) && videoCodec == null) {
                     width = stream.path("width").isMissingNode()
                             ? null
                             : stream.path("width").asInt();
                     height = stream.path("height").isMissingNode()
                             ? null
                             : stream.path("height").asInt();
-                    break;
+                    videoCodec = stream.path("codec_name").asText(null);
+                } else if ("audio".equals(type) && audioCodec == null) {
+                    audioCodec = stream.path("codec_name").asText(null);
                 }
             }
         }
@@ -347,7 +425,19 @@ public class MediaProcessor {
                 // leave null
             }
         }
-        return new FfprobeMeta(width, height, durationMs);
+        Long sizeBytes = null;
+        String size = root.path("format").path("size").asText(null);
+        if (size != null) {
+            try {
+                sizeBytes = Long.parseLong(size);
+            } catch (NumberFormatException ignored) {
+                // leave null
+            }
+        }
+        if (sizeBytes == null) {
+            sizeBytes = Files.size(file);
+        }
+        return new FfprobeMeta(width, height, durationMs, videoCodec, audioCodec, sizeBytes);
     }
 
     private static void runFfmpeg(List<String> command) throws IOException, InterruptedException {
@@ -388,5 +478,6 @@ public class MediaProcessor {
         }
     }
 
-    private record FfprobeMeta(Integer width, Integer height, Integer durationMs) {}
+    private record FfprobeMeta(
+            Integer width, Integer height, Integer durationMs, String videoCodec, String audioCodec, Long sizeBytes) {}
 }

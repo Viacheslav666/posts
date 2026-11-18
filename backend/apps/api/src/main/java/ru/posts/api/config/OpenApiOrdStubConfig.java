@@ -91,6 +91,16 @@ public class OpenApiOrdStubConfig {
             }
 
             @Override
+            public OrdDtos.VatBreakdown calculateVat(OrdDtos.OrdVatCalculateRequest request) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
+            public void validateAdMarking(boolean ad, OrdDtos.AdMarking marking) {
+                // no-op for openapi profile
+            }
+
+            @Override
             public OrdDtos.OrdRegisterCreativeResponse registerCreative(
                     UUID userId, UUID postId, ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
