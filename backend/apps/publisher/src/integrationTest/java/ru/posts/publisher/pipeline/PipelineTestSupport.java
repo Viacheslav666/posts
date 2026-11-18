@@ -381,11 +381,18 @@ final class PipelineTestSupport {
                 optionsJson);
     }
 
-    /** Ready JPEG story asset; without S3 publisher uses deterministic stub bytes (BE-24). */
+    /**
+     * Ready JPEG story asset. Bytes are the BE-24 stub ({@code FF D8 FF D9}); when the shared
+     * s3mock is up they are also stored under {@code s3_key} so VK ITs with {@code posts.s3.enabled}
+     * still publish the same deterministic contentSha256.
+     */
     static UUID seedStoryMedia(JdbcTemplate jdbc, UUID workspaceId) {
         UUID mediaId = UuidV7.generate();
         // SHA-256 of MediaPublishSupport photo stub FF D8 FF D9
         String stubSha = "32461d5bd1773012acef0ba15636752949bd7c2ce50f9172159d9f56cf0dd9af";
+        byte[] stubJpeg = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xD9};
+        String s3Key = "workspaces/" + workspaceId + "/media/" + mediaId + "/story.jpg";
+        SharedPipelineInfra.putS3Object(s3Key, stubJpeg, "image/jpeg");
         jdbc.update(
                 """
                 INSERT INTO media_assets (
@@ -398,7 +405,7 @@ final class PipelineTestSupport {
                 """,
                 mediaId,
                 workspaceId,
-                "workspaces/" + workspaceId + "/media/" + mediaId + "/story.jpg",
+                s3Key,
                 stubSha);
         return mediaId;
     }

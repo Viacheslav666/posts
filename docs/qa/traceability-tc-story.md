@@ -1,11 +1,11 @@
-# Матрица трассировки TC-STORY → автотест (QA-11 / E11)
+# Матрица трассировки TC-STORY → автотест (QA-11 / QA-13 / E11)
 
 Обновлено: 2026-11-18.  
-Инварианты: **0 дублей** remote story (emulator `/_control/posts?contentType=story` + `/_control/verify`); **fail-closed без erid** для ads; TG/Max/IG out of scope; VK story-connect обязателен.
+Инварианты: **0 дублей** remote story (emulator `/_control/posts?contentType=story` + `/_control/verify`); **fail-closed без erid** для ads; TG/Max/IG out of scope; VK story-connect обязателен; **реальный JPEG из S3** (QA-13).
 
 | TC | Приоритет | Автотест | Набор | Статус |
 |---|---|---|---|---|
-| TC-STORY-01 | P0 | `StoriesApiIntegrationTest#scheduleVkStory`; `StoryVkPipelineIT#tcStory01VkPhotoPublish`; e2e `scheduled-stories.spec.ts`; `VkStoryAdapterWireMockTest` | CI | авто |
+| TC-STORY-01 | P0 | `StoriesApiIntegrationTest#scheduleVkStory`; `StoryVkPipelineIT#tcStory01VkPhotoPublish`; `Qa13StoryRealMediaIT` (S3 JPEG ≠ stub); e2e `scheduled-stories.spec.ts`; `VkStoryAdapterWireMockTest` | CI | авто |
 | TC-STORY-02 | P0 | `StoryOkPipelineIT#tcStory02OkMomentPublish`; `OkStoryAdapterWireMockTest`; emulator `OkMomentsFaultTest` | CI | авто |
 | TC-STORY-03 | P0 | `StoriesApiIntegrationTest#scheduleVkStory` / `#okStoryNoSeparateConnect`; `StoryOkPipelineIT#tcStory03OkEffectiveTtl`; `StorySupportTest#okEffectiveTtl`; e2e | CI | авто |
 | TC-STORY-04 | P0 | `StoriesQa11IntegrationTest#tcStory04VkInternalLinkAccepted`; `VkStoryAdapterWireMockTest#publishStoryPhotoWithLink` | CI | авто |

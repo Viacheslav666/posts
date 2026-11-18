@@ -42,6 +42,7 @@ include(
     "libs:ord-vk",
     "libs:ord-yandex",
     "libs:ord-reporting",
+    "libs:analytics",
     "libs:yookassa",
     "libs:test-support",
     "apps:api",

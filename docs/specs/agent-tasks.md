@@ -234,6 +234,18 @@
 - **Сделать:** TC-GRAB-* (в т.ч. default `moderate`, опциональный `auto`); дедуп; SSRF; очередь модерации; связь с конвейером.
 - **Приёмка:** P0 TC-GRAB авто зелёные.
 
+### QA-13. Регрессия паритета на «боевых» контрактах
+- **Ветка:** `feat/qa-13-parity-prod-contracts` · **Зависит от:** BE-23, BE-24, BE-25, BE-26, BE-27 (уже в main).
+- **Сделать:**
+  1. Контрактные тесты адаптеров VK/OK на фикстурах официальных ответов API (`VkSocialAdapterQa13ContractTest`, `OkSocialAdapterQa13ContractTest`).
+  2. Prod-профиль без `/_control` (`application-prod.yml` + `ProdProfileNoControlPathTest` + ArchUnit).
+  3. Сквозной сценарий рекламный пост с медиа → erid → пометка нужного вида → акт и статистика (`Qa13ParityOrdE2EIT`, `Qa13AdPlacementPipelineIT`).
+  4. История с настоящим JPEG из S3 (`Qa13StoryRealMediaIT`).
+  5. Граббер: фильтры + похожие дубли SimHash (`GrabberQa13IntegrationTest`).
+  6. VK ОРД nightly только в `https://api-sandbox.ord.vk.com` (`OrdSandboxGuard`); Яндекс ОРД — skip без `YANDEX_ORD_SANDBOX_TOKEN`; PR-CI на WireMock.
+  7. Обновить `docs/qa/traceability-*.md` + отчёт `p0-parity-coverage-report.md` (=100%).
+- **Приёмка:** nightly зелёный; P0 AC паритета 100%; PR-CI зелёный. Не менять пин `aquasecurity/trivy-action@v0.36.0`.
+
 ---
 
 ## Сводный порядок запуска агентов

@@ -1,6 +1,8 @@
 package ru.posts.persistence.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -9,6 +11,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import ru.posts.persistence.jdbc.AnalyticsPostsAggJdbc;
 import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
 import ru.posts.persistence.jdbc.ChannelMediaCacheJdbc;
 import ru.posts.persistence.jdbc.DailyBillingJdbc;
@@ -98,6 +101,12 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(DailyBillingJdbc.class)
     DailyBillingJdbc dailyBillingJdbc(DataSource dataSource, WalletLedgerJdbc walletLedgerJdbc) {
         return new DailyBillingJdbc(JdbcClient.create(dataSource), walletLedgerJdbc);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AnalyticsPostsAggJdbc.class)
+    AnalyticsPostsAggJdbc analyticsPostsAggJdbc(DataSource dataSource, ObjectProvider<ObjectMapper> objectMapper) {
+        return new AnalyticsPostsAggJdbc(JdbcClient.create(dataSource), objectMapper.getIfAvailable(ObjectMapper::new));
     }
 
     @Bean
