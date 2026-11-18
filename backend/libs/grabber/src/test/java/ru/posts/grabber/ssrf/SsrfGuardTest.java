@@ -21,12 +21,26 @@ class SsrfGuardTest {
                 .isInstanceOf(SsrfBlockedException.class);
         assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("ftp://example.com/feed"))
                 .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("file:///etc/passwd"))
+                .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("gopher://example.com/1"))
+                .isInstanceOf(SsrfBlockedException.class);
         assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://[::1]/")).isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://[::ffff:127.0.0.1]/"))
+                .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://[fe80::1]/"))
+                .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://[fc00::1]/"))
+                .isInstanceOf(SsrfBlockedException.class);
         assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://10.0.0.5/x"))
+                .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://172.16.0.1/x"))
                 .isInstanceOf(SsrfBlockedException.class);
         assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://192.168.1.1/x"))
                 .isInstanceOf(SsrfBlockedException.class);
         assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://100.64.1.2/x"))
+                .isInstanceOf(SsrfBlockedException.class);
+        assertThatThrownBy(() -> SsrfGuard.validateHttpUrl("http://metadata.google.internal/"))
                 .isInstanceOf(SsrfBlockedException.class);
     }
 

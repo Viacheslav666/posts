@@ -182,10 +182,6 @@ public class IngestServiceImpl implements IngestService {
         }
         ruleRepository.save(rule);
 
-        if (Boolean.TRUE.equals(request.activate())) {
-            activateInternal(rule, userId, now);
-        }
-
         auditRecorder.record(
                 workspaceId,
                 userId,
@@ -198,6 +194,18 @@ public class IngestServiceImpl implements IngestService {
                         "targetChannelId",
                         channel.getId().toString()),
                 ctx == null ? null : ctx.ip());
+
+        if (Boolean.TRUE.equals(request.activate())) {
+            activateInternal(rule, userId, now);
+            auditRecorder.record(
+                    workspaceId,
+                    userId,
+                    "ingest.rule.activated",
+                    "ingest_rule",
+                    rule.getId(),
+                    Map.of("acceptedBy", userId.toString(), "via", "create"),
+                    ctx == null ? null : ctx.ip());
+        }
         return toRuleDto(rule);
     }
 

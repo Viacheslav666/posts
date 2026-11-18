@@ -10,6 +10,8 @@
     "test:channels": "playwright test channels-tg-connect.spec.ts",
     "test:posts": "playwright test scheduled-posts.spec.ts",
     "test:grabber": "playwright test grabber-moderation.spec.ts",
+    "test:grabber-fullstack": "playwright test grabber-fullstack.spec.ts",
+    "test:p0": "playwright test smoke.spec.ts grabber-moderation.spec.ts",
     "test:report": "playwright show-report playwright-report"
   },
   "devDependencies": {

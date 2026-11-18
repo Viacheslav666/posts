@@ -238,12 +238,12 @@ jobs:
       - name: Install frontend deps
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Playwright smoke
+      - name: Playwright smoke + grabber P0 (MSW)
         working-directory: tests/e2e
         run: |
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
-          pnpm test:smoke
+          pnpm test:p0
       - name: Schemathesis smoke
         run: |
           chmod +x tests/contract/run-smoke.sh

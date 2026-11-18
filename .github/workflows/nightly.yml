@@ -66,19 +66,19 @@ jobs:
             | sudo tar -xz --strip-components=1 -C /usr/local/bin
           k6 version
 
-      - name: Build images for smoke stack (api + web + social-emulator)
+      - name: Build images for smoke stack (api + web + social-emulator + publisher-vk)
         run: |
           set -euo pipefail
-          # api/emulator use distroless via Jib; compose expects ghcr.io/...:latest
-          (cd backend && IMAGE_TAGS=latest ./gradlew :apps:api:jibDockerBuild)
+          # api/emulator/publisher use distroless via Jib; compose expects ghcr.io/...:latest
+          (cd backend && IMAGE_TAGS=latest ./gradlew :apps:api:jibDockerBuild :apps:publisher:jibDockerBuild)
           (cd tests/social-emulator && IMAGE_TAGS=latest ./gradlew jibDockerBuild)
           docker build -f frontend/apps/web/Dockerfile -t posts-web:local frontend
 
-      - name: Start compose profile full (api + web + deps)
+      - name: Start compose profile full (api + web + publisher-vk + deps)
         run: |
           set -euo pipefail
           docker compose -f "${COMPOSE_FILE}" --profile full up -d \
-            postgres redis rabbitmq social-emulator api web
+            postgres redis rabbitmq social-emulator api web publisher-vk
 
       - name: Wait for API and web
         run: |
@@ -119,12 +119,19 @@ jobs:
           chmod +x tests/contract/run-nightly.sh
           ./tests/contract/run-nightly.sh
 
-      - name: E2E smoke (Playwright)
+      - name: E2E smoke + grabber P0 (Playwright)
         working-directory: tests/e2e
         run: |
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
-          pnpm test:smoke
+          pnpm test:p0
+
+      - name: E2E grabber full-stack (QA-12)
+        working-directory: tests/e2e
+        env:
+          E2E_GRABBER_FULLSTACK: "1"
+          EMULATOR_BASE_URL: http://127.0.0.1:8090
+        run: pnpm test:grabber-fullstack
 
       - name: k6 smoke
         run: |
@@ -137,6 +144,13 @@ jobs:
         run: |
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :apps:publisher:integrationTest -PincludeNightly=true
+
+      # QA-12: grabber IT including @Tag("nightly") pipeline linkage (TC-GRAB-14).
+      - name: Grabber ingest IT (include nightly)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.ingest.*'
 
       - name: Upload reports
         if: always()
