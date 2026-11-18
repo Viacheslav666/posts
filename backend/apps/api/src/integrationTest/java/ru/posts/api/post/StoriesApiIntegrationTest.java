@@ -395,7 +395,6 @@ class StoriesApiIntegrationTest {
         MediaAssetEntity asset = new MediaAssetEntity();
         asset.setId(UuidV7.generate());
         asset.setWorkspaceId(workspaceId);
-        asset.setUploaderId(UuidV7.generate());
         asset.setKind("image");
         asset.setMime("image/jpeg");
         asset.setSizeBytes(2048L);

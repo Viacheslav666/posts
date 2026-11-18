@@ -185,8 +185,7 @@ public class VkApiController {
                     ownerId = session.groupId.startsWith("-") ? session.groupId : "-" + session.groupId;
                 }
             }
-            PostStore.CreateResult result =
-                    postStore.createOrGet(Network.VK, ownerId, guid, "story", metadata);
+            PostStore.CreateResult result = postStore.createOrGet(Network.VK, ownerId, guid, "story", metadata);
             long storyId;
             try {
                 storyId = Long.parseLong(result.post().remotePostId());

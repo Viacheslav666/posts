@@ -134,8 +134,7 @@ public class OkApiController {
         metadata.put("link_text", first(form, json, "link_text"));
 
         return publishSupport.execute(Network.OK, rawResponse, () -> {
-            PostStore.CreateResult result =
-                    postStore.createOrGet(Network.OK, finalGid, requestedKey, text, metadata);
+            PostStore.CreateResult result = postStore.createOrGet(Network.OK, finalGid, requestedKey, text, metadata);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("moment_id", result.post().remotePostId());
             body.put("id", result.post().remotePostId());
