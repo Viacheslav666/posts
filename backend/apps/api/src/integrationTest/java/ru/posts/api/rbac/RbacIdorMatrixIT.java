@@ -95,6 +95,9 @@ class RbacIdorMatrixIT {
     @Autowired
     private ru.posts.persistence.repository.InvoiceRepository invoiceRepository;
 
+    @Autowired
+    private ru.posts.persistence.repository.OrdInvoiceRepository ordInvoiceRepository;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -115,7 +118,8 @@ class RbacIdorMatrixIT {
                     publicationRepository,
                     automationRuleRepository,
                     grabberItemRepository,
-                    invoiceRepository);
+                    invoiceRepository,
+                    ordInvoiceRepository);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();

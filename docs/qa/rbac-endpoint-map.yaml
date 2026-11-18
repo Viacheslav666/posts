@@ -856,6 +856,7 @@ endpoints:
   implementedHint: true
   rbac: matrix
   action: ord.reports.run
+  destructive: true
   pathParams:
     invoiceId: '{invoiceId}'
 - operationId: ping

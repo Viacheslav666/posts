@@ -168,6 +168,7 @@ public class OrdReportRunner {
             int statisticsCount = 0;
 
             for (OrdCreativeEntity creative : creatives) {
+                boolean creativeDirty = false;
                 List<PublicationEntity> publications = creative.getPostId() == null
                         ? List.of()
                         : publicationRepository.findByPostId(creative.getPostId()).stream()
@@ -184,6 +185,9 @@ public class OrdReportRunner {
                     if (creative.getDisplayStartedAt() == null && creative.getRegisteredAt() != null) {
                         creative.setDisplayStartedAt(creative.getRegisteredAt());
                     }
+                    if (creative.getDisplayStartedAt() != null) {
+                        creativeDirty = true;
+                    }
                 }
 
                 OrdPlatformEntity platform = null;
@@ -194,12 +198,17 @@ public class OrdReportRunner {
 
                 long imps = 0;
                 String viewsSource = "unavailable";
-                for (PublicationEntity pub : publications) {
-                    boolean story = isStory(pub);
-                    OrdImpressionsFetcher.Impression impression = impressionsFetcher.fetch(pub, story);
-                    imps += impression.count();
-                    if (!"unavailable".equals(impression.source())) {
-                        viewsSource = impression.source();
+                if (properties.getImpressionsOverride() != null && publications.isEmpty()) {
+                    imps = properties.getImpressionsOverride();
+                    viewsSource = "override";
+                } else {
+                    for (PublicationEntity pub : publications) {
+                        boolean story = isStory(pub);
+                        OrdImpressionsFetcher.Impression impression = impressionsFetcher.fetch(pub, story);
+                        imps += impression.count();
+                        if (!"unavailable".equals(impression.source())) {
+                            viewsSource = impression.source();
+                        }
                     }
                 }
 
@@ -251,9 +260,12 @@ public class OrdReportRunner {
                         && creative.getDisplayEndedAt() != null
                         && !creative.getDisplayEndedAt().isAfter(periodEnd)) {
                     creative.setFinalStatsPending(false);
+                    creativeDirty = true;
                 }
-                creative.setUpdatedAt(Instant.now());
-                creativeRepository.save(creative);
+                if (creativeDirty) {
+                    creative.setUpdatedAt(Instant.now());
+                    creativeRepository.save(creative);
+                }
             }
 
             int invoicesCount = 0;
@@ -274,14 +286,19 @@ public class OrdReportRunner {
 
             if (!statsItems.isEmpty()) {
                 ordProvider.submitStatistics(credentials, new OrdStatisticsRequest(statsItems));
+                Instant submittedAt = Instant.now();
+                List<OrdStatisticsEntity> toSubmit = new ArrayList<>();
                 for (OrdStatisticsEntity row :
                         statisticsRepository.findByWorkspaceIdAndPeriodYearAndPeriodMonth(workspaceId, year, month)) {
                     if (!"submitted".equals(row.getStatus())) {
                         row.setStatus("submitted");
-                        row.setSubmittedAt(Instant.now());
-                        row.setUpdatedAt(Instant.now());
-                        statisticsRepository.save(row);
+                        row.setSubmittedAt(submittedAt);
+                        row.setUpdatedAt(submittedAt);
+                        toSubmit.add(row);
                     }
+                }
+                if (!toSubmit.isEmpty()) {
+                    statisticsRepository.saveAll(toSubmit);
                 }
             }
 

@@ -363,6 +363,7 @@ DESTRUCTIVE = {
     "postsDelete",
     "meDelete",
     "mediaDelete",
+    "ordInvoicesDelete",
 }
 
 WORKSPACE_QUERY_OPS = {

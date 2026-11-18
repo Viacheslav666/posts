@@ -953,24 +953,25 @@ public class OrdServiceImpl implements OrdService {
     @Override
     public void deleteInvoice(UUID userId, UUID invoiceId, ClientRequestContext ctx) {
         OrdInvoiceEntity invoice = invoiceRepository.findById(invoiceId).orElseThrow(WorkspaceAccessService::notFound);
+        // Authz before soft-delete / provider sync so deny roles get 403 (not 404).
+        access.requirePermission(invoice.getWorkspaceId(), userId, "ord.reports.run");
         if (invoice.getDeletedAt() != null) {
             throw WorkspaceAccessService.notFound();
         }
-        access.requirePermission(invoice.getWorkspaceId(), userId, "ord.reports.run");
         OrdConnectionEntity connection = connectionRepository
                 .findByWorkspaceIdAndProvider(invoice.getWorkspaceId(), invoice.getProvider())
-                .orElseThrow(() -> new ApiException(
-                        HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "No ORD connection"));
-        String apiKey = tokenVault.unseal(invoice.getWorkspaceId(), connection.getApiKeyEnc());
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new ApiException(
-                    HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.ORD_NOT_CONFIGURED, "ORD API key missing");
-        }
-        OrdProvider provider = providerRegistry.require(invoice.getProvider());
-        try {
-            provider.deleteInvoice(new OrdCredentials(apiKey), invoice.getExternalId());
-        } catch (OrdApiException ex) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
+                .orElse(null);
+        if (connection != null) {
+            String apiKey = tokenVault.unseal(invoice.getWorkspaceId(), connection.getApiKeyEnc());
+            if (apiKey != null && !apiKey.isBlank()) {
+                OrdProvider provider = providerRegistry.require(invoice.getProvider());
+                try {
+                    provider.deleteInvoice(new OrdCredentials(apiKey), invoice.getExternalId());
+                } catch (OrdApiException ex) {
+                    throw new ApiException(
+                            HttpStatus.UNPROCESSABLE_ENTITY, mapOrdError(ex.errorClass()), safeMessage(ex));
+                }
+            }
         }
         invoice.setDeletedAt(Instant.now());
         invoice.setUpdatedAt(Instant.now());
