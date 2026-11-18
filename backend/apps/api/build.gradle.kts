@@ -14,6 +14,9 @@ dependencies {
     implementation(project(":libs:messaging"))
     implementation(project(":libs:security"))
     implementation(project(":libs:ratelimit"))
+    implementation(project(":libs:ord-api"))
+    implementation(project(":libs:ord-vk"))
+    implementation(project(":libs:ord-yandex"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
@@ -47,6 +50,7 @@ dependencies {
     "integrationTestImplementation"("org.testcontainers:rabbitmq")
     "integrationTestImplementation"("org.awaitility:awaitility:4.2.2")
     "integrationTestImplementation"(project(":libs:test-support"))
+    "integrationTestImplementation"(libs.wiremock)
     "integrationTestRuntimeOnly"(libs.postgresql)
 }
 

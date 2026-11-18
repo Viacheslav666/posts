@@ -29,10 +29,13 @@ import ru.posts.api.channel.PlanLimitService;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
 import ru.posts.api.idempotency.IdempotencyService;
+import ru.posts.api.ord.AdMarkingValidator;
+import ru.posts.api.ord.OrdService;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.network.NetworkDtos;
+import ru.posts.api.web.dto.ord.OrdDtos;
 import ru.posts.api.web.dto.post.PostDtos;
 import ru.posts.api.web.support.CursorPages;
 import ru.posts.api.workspace.AuditRecorder;
@@ -44,18 +47,22 @@ import ru.posts.content.ContentRenderResult;
 import ru.posts.content.ContentRenderer;
 import ru.posts.content.DefaultContentRenderer;
 import ru.posts.content.NetworkTextLimits;
+import ru.posts.ord.api.AdMarker;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
+import ru.posts.persistence.entity.OrdConnectionEntity;
 import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
+import ru.posts.persistence.repository.OrdConnectionRepository;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
 import ru.posts.persistence.repository.PublicationRepository;
+import ru.posts.security.rbac.RbacRole;
 
 @Service
 @Profile("!openapi")
@@ -75,6 +82,8 @@ public class PostServiceImpl implements PostService {
     private final IdempotencyService idempotencyService;
     private final PlanLimitService planLimitService;
     private final NetworkCapabilitiesService networkCapabilitiesService;
+    private final OrdConnectionRepository ordConnectionRepository;
+    private final OrdService ordService;
     private final ObjectMapper objectMapper;
     private final ContentRenderer contentRenderer;
     private final TransactionTemplate writeTx;
@@ -91,6 +100,8 @@ public class PostServiceImpl implements PostService {
             IdempotencyService idempotencyService,
             PlanLimitService planLimitService,
             NetworkCapabilitiesService networkCapabilitiesService,
+            OrdConnectionRepository ordConnectionRepository,
+            OrdService ordService,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
@@ -104,6 +115,8 @@ public class PostServiceImpl implements PostService {
         this.idempotencyService = idempotencyService;
         this.planLimitService = planLimitService;
         this.networkCapabilitiesService = networkCapabilitiesService;
+        this.ordConnectionRepository = ordConnectionRepository;
+        this.ordService = ordService;
         this.objectMapper = objectMapper;
         this.contentRenderer = new DefaultContentRenderer();
         this.writeTx = new TransactionTemplate(transactionManager);
@@ -184,8 +197,16 @@ public class PostServiceImpl implements PostService {
         validateMedia(request.workspaceId(), PostContentMapper.mediaIds(request.baseContent()));
         for (PostDtos.PostVariantUpsert v : variants) {
             validateMedia(request.workspaceId(), PostContentMapper.mediaIds(v.content()));
+            AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
         }
         validateContentAgainstNetworks(request.baseContent(), variants);
+        Map<String, Object> adPayload = resolveAdPayload(request.ad(), request.adMarking(), request.adPayload());
+        if (request.ad()) {
+            OrdDtos.AdMarking marking = request.adMarking() != null
+                    ? request.adMarking()
+                    : objectMapper.convertValue(adPayload, OrdDtos.AdMarking.class);
+            AdMarkingValidator.requireValidWhenAd(true, marking);
+        }
 
         Instant now = Instant.now();
         PostEntity post = new PostEntity();
@@ -206,7 +227,7 @@ public class PostServiceImpl implements PostService {
         post.setScheduledAt(request.scheduledAt());
         post.setRecurrence(PostContentMapper.recurrenceToMap(request.recurrence(), objectMapper));
         post.setAd(request.ad());
-        post.setAdPayload(request.adPayload());
+        post.setAdPayload(adPayload);
         post.setStopAt(request.stopAt());
         post.setRemoveAfterPublish(Boolean.TRUE.equals(request.removeAfterPublish()));
         post.setTimezone(resolveTimezone(request.timezone()));
@@ -230,11 +251,17 @@ public class PostServiceImpl implements PostService {
         if (scheduleNow) {
             access.requireAction(
                     membership, "posts.schedule", ru.posts.security.rbac.RbacEvaluationContext.workspaceOnly());
+            ensureCanScheduleAd(membership, post);
         }
         postRepository.save(post);
         List<PostVariantEntity> savedVariants = saveVariants(post.getId(), variants);
 
         if (scheduleNow) {
+            if (post.isAd()) {
+                ordService.registerCreative(userId, post.getId(), ctx);
+                post = requirePost(post.getId());
+                savedVariants = postVariantRepository.findByPostId(post.getId());
+            }
             materializePublications(post, savedVariants, now);
             writeOutbox(post, "post.scheduled");
             planLimitService.recordPostCreated(request.workspaceId());
@@ -288,8 +315,13 @@ public class PostServiceImpl implements PostService {
         if (request.ad() != null) {
             post.setAd(request.ad());
         }
-        if (request.adPayload() != null) {
-            post.setAdPayload(request.adPayload());
+        if (request.adMarking() != null || request.adPayload() != null) {
+            boolean adFlag = request.ad() != null ? request.ad() : post.isAd();
+            Map<String, Object> adPayload = resolveAdPayload(adFlag, request.adMarking(), request.adPayload());
+            if (adFlag && request.adMarking() != null) {
+                AdMarkingValidator.requireValidWhenAd(true, request.adMarking());
+            }
+            post.setAdPayload(adPayload);
         }
         if (request.stopAt() != null) {
             post.setStopAt(request.stopAt());
@@ -306,6 +338,7 @@ public class PostServiceImpl implements PostService {
             validateVariants(post.getWorkspaceId(), request.variants());
             for (PostDtos.PostVariantUpsert v : request.variants()) {
                 validateMedia(post.getWorkspaceId(), PostContentMapper.mediaIds(v.content()));
+                AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
             }
             deleteVariants(post.getId());
             variants = saveVariants(post.getId(), request.variants());
@@ -372,7 +405,14 @@ public class PostServiceImpl implements PostService {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, "Post has no channel variants");
         }
+        ensureCanScheduleAd(membership, post);
         planLimitService.ensureCanCreatePost(post.getWorkspaceId());
+        if (post.isAd()) {
+            // Fail-closed before queue: creative must yield erid (idempotent by external_id).
+            ordService.registerCreative(userId, postId, ctx);
+            post = requirePost(postId);
+            variants = postVariantRepository.findByPostId(postId);
+        }
 
         Instant now = Instant.now();
         cancelPendingPublications(postId);
@@ -553,20 +593,43 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public PostDtos.PreviewResponse preview(UUID userId, PostDtos.PreviewRequest request) {
         // Preview is workspace-agnostic content render; still requires auth.
+        AdMarkingValidator.validateNetworkOptions(request.network(), request.options());
         NetworkTextLimits limits = limitsFor(request.network());
         boolean hasMedia = !PostContentMapper.mediaIds(request.content()).isEmpty();
-        ContentRenderResult rendered = contentRenderer.render(new ContentRenderRequest(
-                request.network().name(), PostContentMapper.extractText(request.content()), hasMedia, limits));
+        String text = PostContentMapper.extractText(request.content());
+        if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
+            OrdDtos.AdMarking marking = request.adMarking();
+            String name = marking == null ? "" : nullToEmpty(marking.advertiserName());
+            String inn = marking == null ? "" : nullToEmpty(marking.inn());
+            String erid =
+                    request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
+            String marker = AdMarker.format(name, inn, erid);
+            text = AdMarker.prepend(text, marker);
+        }
+        ContentRenderResult rendered = contentRenderer.render(
+                new ContentRenderRequest(request.network().name(), text, hasMedia, limits));
         List<PostDtos.ValidationIssue> issues = rendered.issues().stream()
                 .map(i -> new PostDtos.ValidationIssue(i.code(), i.severity(), i.message(), i.field()))
                 .toList();
+        String plain = rendered.plainText();
+        String html = rendered.html();
+        if (request.ad() && (request.erid() != null || request.adMarking() != null)) {
+            // Ensure marker is visible even if renderer normalized whitespace.
+            OrdDtos.AdMarking marking = request.adMarking();
+            String name = marking == null ? "" : nullToEmpty(marking.advertiserName());
+            String inn = marking == null ? "" : nullToEmpty(marking.inn());
+            String erid =
+                    request.erid() != null ? request.erid() : (marking == null ? "" : nullToEmpty(marking.erid()));
+            String marker = AdMarker.format(name, inn, erid);
+            if (plain == null || !plain.contains("erid:")) {
+                plain = AdMarker.prepend(plain, marker);
+            }
+            if (html == null || !html.contains("erid:")) {
+                html = AdMarker.prepend(html, marker);
+            }
+        }
         return new PostDtos.PreviewResponse(
-                request.network(),
-                rendered.html(),
-                rendered.plainText(),
-                rendered.valid(),
-                rendered.warnings(),
-                issues);
+                request.network(), html, plain, rendered.valid(), rendered.warnings(), issues);
     }
 
     @Override
@@ -1013,5 +1076,55 @@ public class PostServiceImpl implements PostService {
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private void ensureCanScheduleAd(WorkspaceMembership membership, PostEntity post) {
+        if (!post.isAd()) {
+            return;
+        }
+        if (membership.role() == RbacRole.author || membership.role() == RbacRole.viewer) {
+            throw new ApiException(HttpStatus.FORBIDDEN, ProblemCodes.FORBIDDEN, "Authors cannot schedule ad posts");
+        }
+        access.requireAction(
+                membership, "posts.ad.schedule", ru.posts.security.rbac.RbacEvaluationContext.workspaceOnly());
+        if (findActiveOrdConnection(post.getWorkspaceId()).isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.ORD_NOT_CONFIGURED,
+                    "Active ORD connection required to schedule ad posts");
+        }
+        if (post.getAdPayload() != null && !post.getAdPayload().isEmpty()) {
+            OrdDtos.AdMarking marking = objectMapper.convertValue(post.getAdPayload(), OrdDtos.AdMarking.class);
+            AdMarkingValidator.requireValidWhenAd(true, marking);
+        } else {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.ORD_VALIDATION_FAILED,
+                    "Ad marking is required when ad=true");
+        }
+    }
+
+    private java.util.Optional<OrdConnectionEntity> findActiveOrdConnection(UUID workspaceId) {
+        List<OrdConnectionEntity> all = ordConnectionRepository.findByWorkspaceIdOrderByUpdatedAtDesc(workspaceId);
+        return all.stream()
+                .filter(c -> "active".equals(c.getStatus()) && c.isDefault())
+                .findFirst()
+                .or(() ->
+                        all.stream().filter(c -> "active".equals(c.getStatus())).findFirst());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveAdPayload(boolean ad, OrdDtos.AdMarking adMarking, Map<String, Object> raw) {
+        if (adMarking != null) {
+            return objectMapper.convertValue(adMarking, Map.class);
+        }
+        if (raw != null) {
+            return raw;
+        }
+        return ad ? Map.of() : null;
     }
 }

@@ -21,6 +21,13 @@ public final class ProblemCodes {
     public static final String OAUTH_LINK_REQUIRED = "oauth_link_required";
     public static final String INVALID_TOKEN = "invalid_token";
 
+    public static final String ORD_NOT_CONFIGURED = "ord_not_configured";
+    public static final String ORD_VALIDATION_FAILED = "ord_validation_failed";
+    public static final String ORD_PROVIDER_UNAVAILABLE = "ord_provider_unavailable";
+    public static final String ORD_ERID_MISSING = "ord_erid_missing";
+    public static final String AD_INN_INVALID = "ad_inn_invalid";
+    public static final String NETWORK_OPTION_UNSUPPORTED = "network_option_unsupported";
+
     /** Catalog for OpenAPI `info.description` / FE branching. */
     public static final String OPENAPI_CATALOG =
             """
@@ -42,6 +49,12 @@ public final class ProblemCodes {
             - totp_required — password ok, TOTP/backup code required (401)
             - oauth_link_required — OAuth email matches existing account; confirm link (409)
             - invalid_token — email verify / password reset / OAuth link token invalid
+            - ord_not_configured — workspace has no active ORD connection
+            - ord_validation_failed — ORD request rejected by validation
+            - ord_provider_unavailable — ORD provider unreachable / 5xx
+            - ord_erid_missing — creative registered without erid
+            - ad_inn_invalid — advertiser INN must be 10 or 12 digits
+            - network_option_unsupported — option not supported for selected network
             """;
 
     private ProblemCodes() {}

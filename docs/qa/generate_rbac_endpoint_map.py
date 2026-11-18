@@ -112,6 +112,20 @@ ACTION: dict[str, str | None] = {
     "notificationSettingsUpdate": "notifications.manage_self",
     "notificationsList": "notifications.manage_self",
     "notificationsMarkRead": "notifications.manage_self",
+    "ordConnectionsList": "ord.view",
+    "ordConnectionsUpsert": "ord.connection.manage",
+    "ordConnectionsTest": "ord.connection.manage",
+    "ordContractorsList": "ord.view",
+    "ordContractorsCreate": "ord.contractors.manage",
+    "ordContractorsGet": "ord.view",
+    "ordContractorsUpdate": "ord.contractors.manage",
+    "ordContractsList": "ord.view",
+    "ordContractsCreate": "ord.contractors.manage",
+    "ordDictionariesKktu": None,
+    "ordDictionariesOksm": None,
+    "postsOrdRegister": "ord.view",
+    "postsOrdStatus": "ord.view",
+    "ordReportsRun": "ord.reports.run",
 }
 
 IMPLEMENTED = {
@@ -198,6 +212,20 @@ IMPLEMENTED = {
     "publicationsGet",
     "publicationsRetry",
     "publicationsListAttempts",
+    "ordConnectionsList",
+    "ordConnectionsUpsert",
+    "ordConnectionsTest",
+    "ordContractorsList",
+    "ordContractorsCreate",
+    "ordContractorsGet",
+    "ordContractorsUpdate",
+    "ordContractsList",
+    "ordContractsCreate",
+    "ordDictionariesKktu",
+    "ordDictionariesOksm",
+    "postsOrdRegister",
+    "postsOrdStatus",
+    "ordReportsRun",
 }
 
 DESTRUCTIVE = {
@@ -233,6 +261,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaCreateUpload",
     "mediaImportUrl",
     "channelSetsCreate",
+    "ordReportsRun",
 }
 
 
@@ -278,7 +307,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{publicationId}": ("publicationId", "{publicationId}"),
         "{sessionId}": ("sessionId", "{sessionId}"),
         "{network}": ("network", "vk"),
-        "{provider}": ("provider", "vk"),
+        "{provider}": ("provider", "vk_ord"),
+        "{contractorId}": ("contractorId", "{contractorId}"),
     }
     for token, (key, value) in mapping.items():
         if token in path:

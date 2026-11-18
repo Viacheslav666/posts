@@ -24,4 +24,14 @@ public record PublicationClaim(
         /** posts.ad — BE-15 ORD fail-closed / marker insertion hook. */
         boolean ad,
         /** posts.source — BE-17 grabber attribution (manual|grabber|rss|…). */
-        String source) {}
+        String source,
+        /** ORD erid when creative is registered; null blocks ad publishes (fail-closed). */
+        String erid,
+        /** Advertiser display name from creative / ad_payload. */
+        String advertiserName,
+        /** Advertiser INN for the marker line. */
+        String advertiserInn,
+        /** Auto-delete after ORD display period (days); null if not applicable. */
+        Integer adDisplayPeriodDays,
+        /** Whether to schedule delete after display period (default true for ads). */
+        boolean adAutoDeleteAfterPeriod) {}

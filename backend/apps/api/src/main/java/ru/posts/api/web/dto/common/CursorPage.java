@@ -9,6 +9,7 @@ import ru.posts.api.web.dto.billing.BillingDtos;
 import ru.posts.api.web.dto.channel.ChannelDtos;
 import ru.posts.api.web.dto.media.MediaDtos;
 import ru.posts.api.web.dto.notification.NotificationDtos;
+import ru.posts.api.web.dto.ord.OrdDtos;
 import ru.posts.api.web.dto.post.PostDtos;
 import ru.posts.api.web.dto.project.ProjectDtos;
 import ru.posts.api.web.dto.workspace.WorkspaceDtos;
@@ -72,4 +73,13 @@ public final class CursorPage {
 
     @Schema(name = "AuditLogPage")
     public record AuditLogPage(List<WorkspaceDtos.AuditLogEntry> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "OrdConnectionPage")
+    public record OrdConnectionPage(List<OrdDtos.OrdConnection> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "OrdContractorPage")
+    public record OrdContractorPage(List<OrdDtos.OrdContractor> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "OrdContractPage")
+    public record OrdContractPage(List<OrdDtos.OrdContract> items, String nextCursor, boolean hasMore) {}
 }

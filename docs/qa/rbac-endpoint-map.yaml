@@ -395,6 +395,24 @@ endpoints:
   action: notifications.manage_self
   query:
     workspaceId: '{workspaceId}'
+- operationId: ordDictionariesKktu
+  method: GET
+  path: /api/v1/ord/dictionaries/kktu
+  implementedHint: true
+  rbac: none
+- operationId: ordDictionariesOksm
+  method: GET
+  path: /api/v1/ord/dictionaries/oksm
+  implementedHint: true
+  rbac: none
+- operationId: ordReportsRun
+  method: POST
+  path: /api/v1/ord/reports/run
+  implementedHint: true
+  rbac: matrix
+  action: ord.reports.run
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: ping
   method: GET
   path: /api/v1/ping
@@ -457,6 +475,22 @@ endpoints:
   implementedHint: true
   rbac: matrix
   action: posts.create
+  pathParams:
+    postId: '{postId}'
+- operationId: postsOrdRegister
+  method: POST
+  path: /api/v1/posts/{postId}/ord/register
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    postId: '{postId}'
+- operationId: postsOrdStatus
+  method: GET
+  path: /api/v1/posts/{postId}/ord/status
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
   pathParams:
     postId: '{postId}'
 - operationId: postsPause
@@ -642,6 +676,82 @@ endpoints:
   pathParams:
     workspaceId: '{workspaceId}'
     userId: '{memberUserId}'
+- operationId: ordConnectionsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/connections
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordConnectionsUpsert
+  method: PUT
+  path: /api/v1/workspaces/{workspaceId}/ord/connections/{provider}
+  implementedHint: true
+  rbac: matrix
+  action: ord.connection.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    provider: vk_ord
+- operationId: ordConnectionsTest
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/ord/connections/{provider}/test
+  implementedHint: true
+  rbac: matrix
+  action: ord.connection.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    provider: vk_ord
+- operationId: ordContractorsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/contractors
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordContractorsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/ord/contractors
+  implementedHint: true
+  rbac: matrix
+  action: ord.contractors.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordContractorsGet
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/contractors/{contractorId}
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+    contractorId: '{contractorId}'
+- operationId: ordContractorsUpdate
+  method: PUT
+  path: /api/v1/workspaces/{workspaceId}/ord/contractors/{contractorId}
+  implementedHint: true
+  rbac: matrix
+  action: ord.contractors.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    contractorId: '{contractorId}'
+- operationId: ordContractsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/ord/contracts
+  implementedHint: true
+  rbac: matrix
+  action: ord.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: ordContractsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/ord/contracts
+  implementedHint: true
+  rbac: matrix
+  action: ord.contractors.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
 - operationId: projectsList
   method: GET
   path: /api/v1/workspaces/{workspaceId}/projects

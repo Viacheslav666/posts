@@ -2,6 +2,8 @@ package ru.posts.api.web.dto.post;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import ru.posts.api.web.dto.common.ApiEnums;
+import ru.posts.api.web.dto.ord.OrdDtos;
 
 public final class PostDtos {
 
@@ -20,6 +23,12 @@ public final class PostDtos {
             @Schema(description = "Plain/HTML text or structured doc") String text,
             @Schema(description = "Rich entities / Tiptap JSON", nullable = true) Map<String, Object> doc,
             List<UUID> mediaIds) {}
+
+    @Schema(name = "PollOptions")
+    public record PollOptions(@Schema(example = "Ваш выбор?") String question, @Size(min = 2) List<String> answers) {}
+
+    @Schema(name = "GeoPoint")
+    public record GeoPoint(Double lat, Double lon) {}
 
     @Schema(name = "PostVariantOptions")
     public record PostVariantOptions(
@@ -32,6 +41,13 @@ public final class PostDtos {
             String firstComment,
             List<InlineButton> buttons,
             String carouselMode,
+            @Schema(description = "VK Donut visibility days 0–7") @Min(0) @Max(7) Integer donutDays,
+            @Schema(description = "VK co-owner community ids (≤4)") List<String> coOwnerIds,
+            @Schema(description = "grid | carousel", example = "grid") String primaryAttachmentsMode,
+            PollOptions poll,
+            GeoPoint geo,
+            String copyrightUrl,
+            @Schema(description = "VK action button payload") Map<String, Object> actionButton,
             Map<String, Object> extra) {}
 
     @Schema(name = "PostVariant")
@@ -120,7 +136,12 @@ public final class PostDtos {
             @Valid Recurrence recurrence,
             @Valid RepostTarget repost,
             boolean ad,
-            @Schema(nullable = true) Map<String, Object> adPayload,
+            @Schema(description = "Typed ad marking; preferred over adPayload") @Valid OrdDtos.AdMarking adMarking,
+            @Schema(
+                            description = "Deprecated: raw jsonb snapshot; prefer adMarking",
+                            deprecated = true,
+                            nullable = true)
+                    Map<String, Object> adPayload,
             Instant stopAt,
             Boolean removeAfterPublish,
             @Schema(example = "Europe/Moscow") String timezone,
@@ -136,7 +157,12 @@ public final class PostDtos {
             @Valid Recurrence recurrence,
             @Valid RepostTarget repost,
             Boolean ad,
-            @Schema(nullable = true) Map<String, Object> adPayload,
+            @Schema(description = "Typed ad marking; preferred over adPayload") @Valid OrdDtos.AdMarking adMarking,
+            @Schema(
+                            description = "Deprecated: raw jsonb snapshot; prefer adMarking",
+                            deprecated = true,
+                            nullable = true)
+                    Map<String, Object> adPayload,
             Instant stopAt,
             Boolean removeAfterPublish,
             @Schema(example = "Europe/Moscow") String timezone,
@@ -176,7 +202,12 @@ public final class PostDtos {
 
     @Schema(name = "PreviewRequest")
     public record PreviewRequest(
-            @NotNull ApiEnums.Network network, @NotNull @Valid PostContent content, PostVariantOptions options) {}
+            @NotNull ApiEnums.Network network,
+            @NotNull @Valid PostContent content,
+            PostVariantOptions options,
+            boolean ad,
+            @Valid OrdDtos.AdMarking adMarking,
+            @Schema(description = "Optional erid for preview marker") String erid) {}
 
     @Schema(name = "PreviewResponse")
     public record PreviewResponse(

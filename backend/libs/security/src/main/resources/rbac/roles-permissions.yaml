@@ -3,8 +3,8 @@
 # Человекочитаемое описание: roles-permissions.md
 # Версия матрицы меняется при любом изменении effect/scope/conditions.
 
-version: "1.0.0"
-updated: "2026-11-17"
+version: "1.1.0"
+updated: "2026-11-18"
 task: "AN-1"
 schema: "posts.rbac.v1"
 
@@ -142,6 +142,21 @@ actions:
   - id: notifications.manage_self
     resource: notifications
     description: Настройка собственных уведомлений
+  - id: ord.connection.manage
+    resource: ord
+    description: Настройка ORD-подключений (API-ключ, publisher)
+  - id: ord.contractors.manage
+    resource: ord
+    description: CRUD контрагентов и договоров ORD
+  - id: ord.view
+    resource: ord
+    description: Просмотр ORD-статусов, erid, справочников
+  - id: ord.reports.run
+    resource: ord
+    description: Ручной запуск актов/статистики ORD
+  - id: posts.ad.schedule
+    resource: posts
+    description: Планирование рекламного поста (isAd)
 
 # Эффекты: allow | deny
 # scope:
@@ -445,6 +460,47 @@ matrix:
     viewer: allow
     scope: workspace
 
+  # --- ORD / ad marking (BE-15) ---
+  - action: ord.connection.manage
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: ord.contractors.manage
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: ord.view
+    owner: allow
+    admin: allow
+    editor: allow
+    author: allow
+    viewer: allow
+    scope: assigned_projects
+
+  - action: ord.reports.run
+    owner: allow
+    admin: allow
+    editor: deny
+    author: deny
+    viewer: deny
+    scope: workspace
+
+  - action: posts.ad.schedule
+    owner: allow
+    admin: allow
+    editor: allow
+    author: deny
+    viewer: deny
+    scope: assigned_projects
+
 # Явные инварианты для smoke RBAC (дублируют матрицу — удобны генератору негативных кейсов)
 invariants:
   - id: INV-RBAC-001
@@ -466,3 +522,8 @@ invariants:
   - id: INV-RBAC-005
     description: Чужой workspace всегда 404
     rule: foreign_workspace_http_status_404
+  - id: INV-RBAC-006
+    description: Author не планирует рекламу; Viewer не настраивает ORD
+    actions: [posts.ad.schedule, ord.connection.manage, ord.contractors.manage, ord.reports.run]
+    denied_roles: [author, viewer]
+    notes: Author additionally denied posts.ad.schedule; Viewer denied all ORD configure actions

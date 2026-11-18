@@ -62,7 +62,9 @@ public final class PostContentMapper {
 
     public static PostDtos.PostVariantOptions mapToOptions(Map<String, Object> map, ObjectMapper mapper) {
         if (map == null || map.isEmpty()) {
-            return new PostDtos.PostVariantOptions(null, null, null, null, null, null, null, null, null, null);
+            return new PostDtos.PostVariantOptions(
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                    null);
         }
         return mapper.convertValue(map, PostDtos.PostVariantOptions.class);
     }

@@ -19,6 +19,8 @@ import java.util.List;
  *   <li>{@code apps/*} must not depend on each other
  *   <li>social adapters may depend only on {@code social-api}, {@code common}, {@code ratelimit}
  *       among Posts packages
+ *   <li>ORD adapters may depend only on {@code ord-api}, {@code common}, {@code ratelimit} among
+ *       Posts packages
  * </ul>
  */
 public final class PostsArchitectureRules {
@@ -34,6 +36,8 @@ public final class PostsArchitectureRules {
     private static final List<String> SOCIAL_ADAPTER_PACKAGES = List.of(
             "ru.posts.social.vk..", "ru.posts.social.telegram..", "ru.posts.social.ok..", "ru.posts.social.max..");
 
+    private static final List<String> ORD_ADAPTER_PACKAGES = List.of("ru.posts.ord.vk..", "ru.posts.ord.yandex..");
+
     private PostsArchitectureRules() {}
 
     public static List<String> appPackages() {
@@ -42,6 +46,10 @@ public final class PostsArchitectureRules {
 
     public static List<String> socialAdapterPackages() {
         return SOCIAL_ADAPTER_PACKAGES;
+    }
+
+    public static List<String> ordAdapterPackages() {
+        return ORD_ADAPTER_PACKAGES;
     }
 
     public static ArchRule domainMustNotDependOnFrameworkAdapters() {
@@ -110,6 +118,26 @@ public final class PostsArchitectureRules {
                 .toList();
     }
 
+    /** Per-adapter: only ord-api, common, ratelimit (+ own package) among Posts packages. */
+    public static List<ArchRule> ordAdapterIsolationRules() {
+        return ORD_ADAPTER_PACKAGES.stream()
+                .map(adapter -> {
+                    DescribedPredicate<JavaClass> allowed = resideInAnyPackage(
+                            adapter, "ru.posts.ord.api..", "ru.posts.common..", "ru.posts.ratelimit..");
+                    DescribedPredicate<JavaClass> forbidden =
+                            resideInAPackage("ru.posts..").and(DescribedPredicate.not(allowed));
+                    return noClasses()
+                            .that()
+                            .resideInAPackage(adapter)
+                            .should(dependOnClassesThat(forbidden))
+                            .because(adapter
+                                    + " may only depend on ord-api, common, ratelimit"
+                                    + " among Posts packages")
+                            .allowEmptyShould(true);
+                })
+                .toList();
+    }
+
     public static void checkAll(JavaClasses classes) {
         domainMustNotDependOnFrameworkAdapters().check(classes);
         domainMustNotDependOnApps().check(classes);
@@ -117,6 +145,9 @@ public final class PostsArchitectureRules {
             rule.check(classes);
         }
         for (ArchRule rule : socialAdapterIsolationRules()) {
+            rule.check(classes);
+        }
+        for (ArchRule rule : ordAdapterIsolationRules()) {
             rule.check(classes);
         }
     }
@@ -144,6 +175,13 @@ public final class PostsArchitectureRules {
                 String adapterRoot = adapter.replace("..", "");
                 if (pkg.equals(adapterRoot) || pkg.startsWith(adapterRoot + ".")) {
                     socialAdapterIsolationRules().get(i).check(classes);
+                }
+            }
+            for (int i = 0; i < ORD_ADAPTER_PACKAGES.size(); i++) {
+                String adapter = ORD_ADAPTER_PACKAGES.get(i);
+                String adapterRoot = adapter.replace("..", "");
+                if (pkg.equals(adapterRoot) || pkg.startsWith(adapterRoot + ".")) {
+                    ordAdapterIsolationRules().get(i).check(classes);
                 }
             }
         }
