@@ -93,8 +93,9 @@ public class VkApiController {
         return switch (normalized) {
             case "wall.post" -> wallPost(params, rawResponse);
             case "wall.pin", "wall.unpin" -> ResponseEntity.ok(Map.of("response", 1));
-            case "wall.createComment" -> ResponseEntity.ok(
-                    Map.of("response", Map.of("comment_id", photoSeq.incrementAndGet(), "parents_stack", java.util.List.of())));
+            case "wall.createComment" -> ResponseEntity.ok(Map.of(
+                    "response",
+                    Map.of("comment_id", photoSeq.incrementAndGet(), "parents_stack", java.util.List.of())));
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
             case "video.save" -> ResponseEntity.ok(videoSave(params));
