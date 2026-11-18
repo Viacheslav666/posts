@@ -2,6 +2,7 @@ package ru.posts.social.inbound.dedup;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -85,8 +86,8 @@ public class InboundEventStore {
                         event.entities() == null ? null : event.entities().toString())
                 .param("attachments", toJson(event.attachments() == null ? List.of() : event.attachments()))
                 .param("raw", truncateRaw(event.raw()))
-                .param("occurredAt", event.occurredAt())
-                .param("receivedAt", receivedAt)
+                .param("occurredAt", ts(event.occurredAt()))
+                .param("receivedAt", ts(receivedAt))
                 .update();
         return Optional.of(id);
     }
@@ -99,10 +100,15 @@ public class InboundEventStore {
                         SET processed_at = :processedAt
                         WHERE id = :id AND received_at = :receivedAt
                         """)
-                .param("processedAt", Instant.now())
+                .param("processedAt", ts(Instant.now()))
                 .param("id", id)
-                .param("receivedAt", receivedAt)
+                .param("receivedAt", ts(receivedAt))
                 .update();
+    }
+
+    /** JdbcClient binds raw Instant as VARCHAR; PostgreSQL timestamptz needs Timestamp. */
+    private static Timestamp ts(Instant instant) {
+        return instant == null ? null : Timestamp.from(instant);
     }
 
     public static String truncateRaw(String raw) {
