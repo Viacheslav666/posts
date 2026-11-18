@@ -300,6 +300,7 @@ final class RbacHttpProbeSupport {
         path = path.replace("{sessionId}", values.get("{sessionId}"));
         path = path.replace("{contractorId}", randomUuid());
         path = path.replace("{contractId}", randomUuid());
+        path = path.replace("{invoiceId}", values.get("{invoiceId}"));
         path = path.replace("{ruleId}", values.get("{ruleId}"));
         path = path.replace("{itemId}", values.get("{itemId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
@@ -651,6 +652,13 @@ final class RbacHttpProbeSupport {
                 node.put("workspaceId", workspaceId.toString());
                 node.put("year", 2026);
                 node.put("month", 10);
+                yield node.toString();
+            }
+            case "ordEridCheck" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId.toString());
+                node.put("erid", "test-erid-rbac-probe");
+                node.put("provider", "vk_ord");
                 yield node.toString();
             }
             case "ingestRulesCreate" -> {

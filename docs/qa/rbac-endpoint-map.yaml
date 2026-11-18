@@ -850,14 +850,14 @@ endpoints:
   implementedHint: true
   rbac: matrix
   action: ord.view
-  query:
-    workspaceId: '{workspaceId}'
 - operationId: ordInvoicesDelete
   method: DELETE
   path: /api/v1/ord/invoices/{invoiceId}
   implementedHint: true
   rbac: matrix
   action: ord.reports.run
+  pathParams:
+    invoiceId: '{invoiceId}'
 - operationId: ping
   method: GET
   path: /api/v1/ping

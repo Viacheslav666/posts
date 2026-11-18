@@ -137,6 +137,12 @@ ACTION: dict[str, str | None] = {
     "postsOrdRegister": "ord.view",
     "postsOrdStatus": "ord.view",
     "ordReportsRun": "ord.reports.run",
+    "ordReportsList": "ord.view",
+    "ordReportsExport": "ord.view",
+    "ordCreativesList": "ord.view",
+    "ordEridCheck": "ord.view",
+    "ordInvoicesDelete": "ord.reports.run",
+    "ordVatCalculate": None,
     "ingestRulesList": "automations.view",
     "ingestRulesCreate": "automations.manage",
     "ingestRulesGet": "automations.view",
@@ -299,6 +305,12 @@ IMPLEMENTED = {
     "postsOrdRegister",
     "postsOrdStatus",
     "ordReportsRun",
+    "ordReportsList",
+    "ordReportsExport",
+    "ordCreativesList",
+    "ordEridCheck",
+    "ordInvoicesDelete",
+    "ordVatCalculate",
     "ingestRulesList",
     "ingestRulesCreate",
     "ingestRulesGet",
@@ -380,6 +392,7 @@ WORKSPACE_QUERY_OPS = {
     "mediaImportUrl",
     "channelSetsCreate",
     "ordReportsRun",
+    "ordCreativesList",
     "ingestPreview",
     "storiesBatch",
 }
@@ -431,6 +444,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
+        "{invoiceId}": ("invoiceId", "{invoiceId}"),
+        "{contractId}": ("contractId", "{contractId}"),
     }
     for token, (key, value) in mapping.items():
         if token in path:

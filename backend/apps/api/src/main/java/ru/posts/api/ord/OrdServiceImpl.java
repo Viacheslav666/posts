@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,8 @@ import ru.posts.persistence.repository.PostVariantRepository;
 @Profile("!openapi")
 @Transactional
 public class OrdServiceImpl implements OrdService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrdServiceImpl.class);
 
     private final WorkspaceAccessService access;
     private final WorkspaceTokenVault tokenVault;
@@ -680,9 +684,18 @@ public class OrdServiceImpl implements OrdService {
             postRepository.save(post);
 
             // Idempotent ORD pad/platform registration for each target channel of the ad post.
+            // Failures must not roll back erid registration (reporting can retry pads later).
             for (PostVariantEntity variant : postVariantRepository.findByPostId(post.getId())) {
                 if (variant.getChannelId() != null) {
-                    platformService.ensurePlatform(connection, provider, variant.getChannelId());
+                    try {
+                        platformService.ensurePlatform(connection, provider, variant.getChannelId());
+                    } catch (RuntimeException ex) {
+                        log.warn(
+                                "ORD platform ensure failed postId={} channelId={}: {}",
+                                post.getId(),
+                                variant.getChannelId(),
+                                ex.toString());
+                    }
                 }
             }
 

@@ -461,6 +461,11 @@ class OrdReportingIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
+        // Activate connection (draft → active); register/runReport require active status.
+        mockMvc.perform(post("/api/v1/workspaces/" + workspaceId + "/ord/connections/" + provider + "/test")
+                        .with(csrf())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
     }
 
     private UUID createAdDraft(String token, UUID workspaceId, UUID channelId, Map<String, Object> adMarking)

@@ -141,7 +141,11 @@ class RbacIdorMatrixIT {
                 || endpoint.path().contains("{setId}")
                 || endpoint.path().contains("{invitationId}")
                 || endpoint.path().contains("{ruleId}")
-                || endpoint.path().contains("{itemId}");
+                || endpoint.path().contains("{itemId}")
+                || endpoint.path().contains("{invoiceId}")
+                // Tenant in JSON body (not path/query).
+                || "ordEridCheck".equals(endpoint.operationId())
+                || "ordReportsRun".equals(endpoint.operationId());
     }
 
     @ParameterizedTest(name = "TC-IDOR {0}")
