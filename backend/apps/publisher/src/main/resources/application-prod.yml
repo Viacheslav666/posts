@@ -1,0 +1,15 @@
+# QA-13 / BE-23 / ADR-0012: production publisher uses API reconciliation (never emulator control API).
+posts:
+  social:
+    vk:
+      base-url: ${POSTS_SOCIAL_VK_BASE_URL:https://api.vk.com}
+      reconciliation-mode: api
+    ok:
+      base-url: ${POSTS_SOCIAL_OK_BASE_URL:https://api.ok.ru}
+      reconciliation-mode: api
+    telegram:
+      base-url: ${POSTS_SOCIAL_TELEGRAM_BASE_URL:https://api.telegram.org}
+    max:
+      base-url: ${POSTS_SOCIAL_MAX_BASE_URL:https://platform-api.max.ru}
+  s3:
+    enabled: ${POSTS_S3_ENABLED:true}

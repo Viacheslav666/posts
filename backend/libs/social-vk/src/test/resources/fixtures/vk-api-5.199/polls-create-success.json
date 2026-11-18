@@ -1,0 +1,14 @@
+{
+  "response": {
+    "id": 123,
+    "owner_id": -100,
+    "created": 1730000000,
+    "question": "Любите ли вы Posts?",
+    "votes": 0,
+    "answers": [
+      { "id": 1, "text": "Да", "votes": 0, "rate": 0.0 },
+      { "id": 2, "text": "Нет", "votes": 0, "rate": 0.0 }
+    ],
+    "anonymous": false
+  }
+}

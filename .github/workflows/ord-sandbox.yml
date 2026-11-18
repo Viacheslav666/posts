@@ -1,5 +1,10 @@
 name: ORD sandbox
 
+# QA-13 / BE-26: live ORD nightlies.
+# VK ORD → ONLY https://api-sandbox.ord.vk.com (OrdSandboxGuard fails on api.ord.vk.com / ЕРИР).
+# Yandex ORD → optional prestable; skip without YANDEX_ORD_SANDBOX_TOKEN.
+# PR CI stays on WireMock emulators (ord-sandbox tag excluded unless -PincludeOrdSandbox).
+
 on:
   workflow_dispatch:
   schedule:
@@ -27,7 +32,7 @@ jobs:
           VK_ORD_SANDBOX_API_KEY: ${{ secrets.VK_ORD_SANDBOX_API_KEY }}
         run: |
           if [ -z "${VK_ORD_SANDBOX_API_KEY}" ]; then
-            echo "VK_ORD_SANDBOX_API_KEY secret missing — skipping"
+            echo "VK_ORD_SANDBOX_API_KEY secret missing — skipping (forks/PR)"
             exit 0
           fi
           ./gradlew :apps:api:integrationTest -PincludeOrdSandbox=true \
@@ -44,13 +49,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           build-root-directory: backend
-      - name: Yandex ORD prestable IT
+      - name: Yandex ORD prestable IT (optional; skip without secret)
         working-directory: backend
         env:
           YANDEX_ORD_SANDBOX_TOKEN: ${{ secrets.YANDEX_ORD_SANDBOX_TOKEN }}
         run: |
           if [ -z "${YANDEX_ORD_SANDBOX_TOKEN}" ]; then
-            echo "YANDEX_ORD_SANDBOX_TOKEN secret missing — skipping"
+            echo "YANDEX_ORD_SANDBOX_TOKEN secret missing — skipping (QA-13: VK ORD only required)"
             exit 0
           fi
           ./gradlew :apps:api:integrationTest -PincludeOrdSandbox=true \

@@ -1,7 +1,7 @@
-# Матрица трассировки TC-GRAB → автотест (QA-12 / E17)
+# Матрица трассировки TC-GRAB → автотест (QA-12 / QA-13 / E17)
 
 Обновлено: 2026-11-18.  
-Инварианты: **default `publish_mode=moderate`** (нет публикаций до approve); **0 дублей** remote/content_hash; SSRF fail-closed; публикация только через конвейер BE-10.
+Инварианты: **default `publish_mode=moderate`** (нет публикаций до approve); **0 дублей** remote/content_hash/**similarity**; SSRF fail-closed; публикация только через конвейер BE-10.
 
 | TC | Приоритет | Автотест | Набор | Статус |
 |---|---|---|---|---|
@@ -24,7 +24,8 @@
 | TC-GRAB-16 | P0 | `GrabberIngestIntegrationTest#idorForeignRule`; `RbacIdorMatrixIT` | CI | авто |
 | TC-GRAB-17 | P1 | `GrabberQa12IntegrationTest#auditTrail` | CI | авто |
 | TC-GRAB-18 | P1 | `GrabberQa12IntegrationTest#autoPauseOnErrors` | CI | авто |
-| TC-GRAB-19 | P1 | `GrabberFiltersTest`; `GrabberQa12IntegrationTest#filterAds` | CI | авто |
+| TC-GRAB-19 | P1 | `GrabberFiltersTest`; `GrabberQa12IntegrationTest#filterAds`; `GrabberQa13IntegrationTest#stopWordsFilter` | CI | авто |
+| TC-GRAB-similarity (BE-27 / QA-13) | P0 | `SimHasherTest`; `GrabberQa13IntegrationTest#similarityNearDuplicateSuppressed` / `#distantTextsNotSuppressedBySimilarity` | CI | авто |
 | TC-GRAB-20 | P1 | `GrabberQa12IntegrationTest#autoRateLimitQueues` | CI | авто |
 | TC-GRAB-21 | P1 | `GrabberIngestIntegrationTest#websiteExtractAndSsrf`; `WebsiteHtmlExtractorTest`; `GrabberQa12IntegrationTest#websiteXssAndExtraSsrf` | CI | авто |
 | TC-GRAB-22 | P0 | `GrabberIngestIntegrationTest#createRuleDefaultsModerate`; `SourceIdNormalizerTest` | CI | авто |
