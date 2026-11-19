@@ -163,11 +163,16 @@ class SuggestApiIT {
         String email = prefix + "-" + UUID.randomUUID() + "@example.com";
         String token = registerVerifyLogin(email, "Owner");
         UUID workspaceId = firstWorkspaceId(token);
+        UUID userId = UUID.fromString(readJson(mockMvc.perform(get("/api/v1/me").header("Authorization", bearer(token)))
+                        .andExpect(status().isOk())
+                        .andReturn())
+                .path("id")
+                .asText());
         UUID projectId = UUID.fromString(createProject(token, workspaceId, "Suggest " + prefix, "#112233")
                 .get("id")
                 .asText());
         UUID channelId = seedChannel(workspaceId, projectId, "VK " + prefix);
-        return new Fixture(token, workspaceId, projectId, channelId);
+        return new Fixture(token, userId, workspaceId, projectId, channelId);
     }
 
     private SuggestSettingsEntity seedSettings(Fixture fixture) {
@@ -181,7 +186,7 @@ class SuggestApiIT {
             entity.setMode("manual");
             entity.setConfig(Map.of());
             entity.setConfigVersion(1);
-            entity.setCreatedBy(UuidV7.generate());
+            entity.setCreatedBy(fixture.userId);
             Instant now = Instant.now();
             entity.setCreatedAt(now);
             entity.setUpdatedAt(now);
@@ -317,5 +322,5 @@ class SuggestApiIT {
         return "Bearer " + token;
     }
 
-    private record Fixture(String token, UUID workspaceId, UUID projectId, UUID channelId) {}
+    private record Fixture(String token, UUID userId, UUID workspaceId, UUID projectId, UUID channelId) {}
 }

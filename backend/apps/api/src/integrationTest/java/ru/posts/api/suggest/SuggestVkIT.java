@@ -49,10 +49,12 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.ingest.SocialInboundCommand;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ProjectEntity;
+import ru.posts.persistence.entity.SocialAccountEntity;
 import ru.posts.persistence.entity.SuggestItemEntity;
 import ru.posts.persistence.entity.SuggestSettingsEntity;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ProjectRepository;
+import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.repository.SuggestItemRepository;
 import ru.posts.persistence.repository.SuggestSettingsRepository;
 import ru.posts.social.inbound.SocialInboundProcessor;
@@ -141,6 +143,9 @@ class SuggestVkIT {
 
     @Autowired
     ChannelRepository channelRepository;
+
+    @Autowired
+    SocialAccountRepository socialAccountRepository;
 
     @Autowired
     ProjectRepository projectRepository;
@@ -277,7 +282,8 @@ class SuggestVkIT {
                 """,
                 String.class,
                 item.getRemoteActionId());
-        assertThat(payload).contains("\"signed\":true");
+        assertThat(payload).isNotBlank();
+        assertThat(payload.replace(" ", "")).contains("\"signed\":true");
         assertThat(settings.getId()).isNotNull();
     }
 
@@ -472,6 +478,7 @@ class SuggestVkIT {
     void syncRemovedExternally() throws Exception {
         Fixture fx = seedWorkspaceJdbc();
         ChannelEntity channel = vkChannelJdbc(fx, "-700106");
+        attachUserToken(channel, fx.workspaceId());
         SuggestSettingsEntity settings = activeSettingsJdbc(fx, channel, Map.of("reject_policy", "keep"));
 
         SuggestItemEntity item = new SuggestItemEntity();
@@ -493,8 +500,8 @@ class SuggestVkIT {
                 {"ownerId":"%s","items":[]}
                 """.formatted(channel.getExternalId()));
 
-        // Token resolver noop returns test-token; emulator accepts it for wall.get
-        syncService.syncChannel(settings.getId(), 100);
+        var result = syncService.syncChannel(settings.getId(), 100);
+        assertThat(result.status()).isNotEqualTo("missing_token");
 
         SuggestItemEntity updated = itemRepository.findById(item.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo("removed_externally");
@@ -635,6 +642,24 @@ class SuggestVkIT {
 
     private ChannelEntity vkChannelJdbc(Fixture fx, String externalId) {
         return vkChannel(fx, externalId);
+    }
+
+    private void attachUserToken(ChannelEntity channel, UUID workspaceId) {
+        SocialAccountEntity account = new SocialAccountEntity();
+        account.setId(UuidV7.generate());
+        account.setWorkspaceId(workspaceId);
+        account.setNetwork("vk");
+        account.setExternalUserId("vk-user-" + channel.getExternalId());
+        account.setDisplayName("Suggest admin");
+        account.setAccessTokenEnc(tokenVault.seal(workspaceId, "emulator-user-token"));
+        account.setScopes(new String[] {"wall", "groups"});
+        account.setStatus("active");
+        Instant now = Instant.now();
+        account.setCreatedAt(now);
+        account.setUpdatedAt(now);
+        socialAccountRepository.save(account);
+        channel.setSocialAccountId(account.getId());
+        channelRepository.save(channel);
     }
 
     private SuggestSettingsEntity activeSettings(

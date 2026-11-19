@@ -38,6 +38,9 @@ import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
+import ru.posts.persistence.entity.SuggestBulkJobEntity;
+import ru.posts.persistence.entity.SuggestItemEntity;
+import ru.posts.persistence.entity.SuggestSettingsEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
@@ -50,11 +53,15 @@ import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
 import ru.posts.persistence.repository.PublicationRepository;
+import ru.posts.persistence.repository.SuggestBulkJobRepository;
+import ru.posts.persistence.repository.SuggestItemRepository;
+import ru.posts.persistence.repository.SuggestSettingsRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 import ru.posts.security.rbac.RbacEffect;
 import ru.posts.security.rbac.RbacMatrix;
 import ru.posts.security.rbac.RbacMatrixLoader;
 import ru.posts.security.rbac.RbacRole;
+import ru.posts.suggest.config.SuggestConfigSupport;
 
 /** Shared HTTP probe helpers for QA-6 RBAC/IDOR matrix ITs. */
 final class RbacHttpProbeSupport {
@@ -76,8 +83,15 @@ final class RbacHttpProbeSupport {
     private final PublicationRepository publicationRepository;
     private final AutomationRuleRepository automationRuleRepository;
     private final GrabberItemRepository grabberItemRepository;
+    private final SuggestSettingsRepository suggestSettingsRepository;
+    private final SuggestItemRepository suggestItemRepository;
+    private final SuggestBulkJobRepository suggestBulkJobRepository;
     private final InvoiceRepository invoiceRepository;
     private final OrdInvoiceRepository ordInvoiceRepository;
+
+    private UUID suggestSettingsId;
+    private UUID suggestItemId;
+    private UUID suggestBulkJobId;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -93,6 +107,9 @@ final class RbacHttpProbeSupport {
             PublicationRepository publicationRepository,
             AutomationRuleRepository automationRuleRepository,
             GrabberItemRepository grabberItemRepository,
+            SuggestSettingsRepository suggestSettingsRepository,
+            SuggestItemRepository suggestItemRepository,
+            SuggestBulkJobRepository suggestBulkJobRepository,
             InvoiceRepository invoiceRepository,
             OrdInvoiceRepository ordInvoiceRepository) {
         this.mockMvc = mockMvc;
@@ -108,6 +125,9 @@ final class RbacHttpProbeSupport {
         this.publicationRepository = publicationRepository;
         this.automationRuleRepository = automationRuleRepository;
         this.grabberItemRepository = grabberItemRepository;
+        this.suggestSettingsRepository = suggestSettingsRepository;
+        this.suggestItemRepository = suggestItemRepository;
+        this.suggestBulkJobRepository = suggestBulkJobRepository;
         this.invoiceRepository = invoiceRepository;
         this.ordInvoiceRepository = ordInvoiceRepository;
     }
@@ -314,6 +334,8 @@ final class RbacHttpProbeSupport {
         path = path.replace("{invoiceId}", values.get("{invoiceId}"));
         path = path.replace("{ruleId}", values.get("{ruleId}"));
         path = path.replace("{itemId}", values.get("{itemId}"));
+        path = path.replace("{settingsId}", values.getOrDefault("{settingsId}", randomUuid()));
+        path = path.replace("{jobId}", values.getOrDefault("{jobId}", randomUuid()));
         // confirm is tg/max-only; use tg so authz is reached after body validation
         if ("channelsConnectConfirm".equals(endpoint.operationId())) {
             path = path.replace("{network}", "tg");
@@ -368,6 +390,8 @@ final class RbacHttpProbeSupport {
                             : ids.foreignMediaId().toString());
             values.put("{ruleId}", randomUuid());
             values.put("{itemId}", randomUuid());
+            values.put("{settingsId}", randomUuid());
+            values.put("{jobId}", randomUuid());
         } else {
             values.put("{workspaceId}", ids.workspaceId().toString());
             values.put("{projectId}", ids.projectAlpha().toString());
@@ -406,11 +430,27 @@ final class RbacHttpProbeSupport {
             values.put(
                     "{itemId}",
                     ids.itemId() == null ? randomUuid() : ids.itemId().toString());
+            values.put("{settingsId}", suggestSettingsId == null ? randomUuid() : suggestSettingsId.toString());
+            values.put("{jobId}", suggestBulkJobId == null ? randomUuid() : suggestBulkJobId.toString());
         }
         values.put("{botId}", randomUuid());
         if (scope == Scope.FOREIGN) {
             values.put("{postId}", randomUuid());
             values.put("{publicationId}", randomUuid());
+        }
+        // Suggest item IDs must not collide with grabber {itemId} fixtures.
+        if (endpoint != null
+                && endpoint.operationId() != null
+                && endpoint.operationId().startsWith("suggest")) {
+            if (scope == Scope.FOREIGN) {
+                values.put("{itemId}", randomUuid());
+                values.put("{settingsId}", randomUuid());
+                values.put("{jobId}", randomUuid());
+            } else {
+                values.put("{itemId}", suggestItemId == null ? randomUuid() : suggestItemId.toString());
+                values.put("{settingsId}", suggestSettingsId == null ? randomUuid() : suggestSettingsId.toString());
+                values.put("{jobId}", suggestBulkJobId == null ? randomUuid() : suggestBulkJobId.toString());
+            }
         }
         values.put("{sessionId}", randomUuid());
         boolean ordInvoice = endpoint != null
@@ -737,6 +777,30 @@ final class RbacHttpProbeSupport {
                 node.put("limit", 1);
                 yield node.toString();
             }
+            case "suggestSettingsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("channelId", channelId.toString());
+                node.put("mode", "manual");
+                yield node.toString();
+            }
+            case "suggestSettingsPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("mode", "manual");
+                yield node.toString();
+            }
+            case "suggestSettingsCopy" -> {
+                var node = objectMapper.createObjectNode();
+                node.putArray("channelIds").add(channelId.toString());
+                yield node.toString();
+            }
+            case "suggestItemsApprove", "suggestItemsReject" -> "{}";
+            case "suggestItemsBulk" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("action", "approve_ids");
+                var idsArr = node.putArray("ids");
+                idsArr.add(suggestItemId == null ? UUID.randomUUID().toString() : suggestItemId.toString());
+                yield node.toString();
+            }
             default -> "{}";
         };
     }
@@ -792,6 +856,10 @@ final class RbacHttpProbeSupport {
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
         SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
+        SeededSuggest seededSuggest = insertSuggest(workspaceId, projectAlpha, channelId, ownerUserId);
+        this.suggestSettingsId = seededSuggest.settingsId();
+        this.suggestItemId = seededSuggest.itemId();
+        this.suggestBulkJobId = seededSuggest.jobId();
         UUID invoiceId = insertInvoice(workspaceId);
         UUID ordInvoiceId = insertOrdInvoice(workspaceId);
 
@@ -898,6 +966,54 @@ final class RbacHttpProbeSupport {
         grabberItemRepository.save(item);
 
         return new SeededGrabber(rule.getId(), item.getId(), rule.getVersion());
+    }
+
+    private SeededSuggest insertSuggest(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
+        Instant now = Instant.now();
+        SuggestSettingsEntity settings = new SuggestSettingsEntity();
+        settings.setId(UuidV7.generate());
+        settings.setWorkspaceId(workspaceId);
+        settings.setProjectId(projectId);
+        settings.setChannelId(channelId);
+        settings.setStatus("active");
+        settings.setMode("manual");
+        settings.setConfig(SuggestConfigSupport.withDefaults(Map.of("reject_policy", "keep")));
+        settings.setConfigVersion(1);
+        settings.setCreatedBy(ownerId);
+        settings.setCreatedAt(now);
+        settings.setUpdatedAt(now);
+        settings.setNextSyncAt(now.plusSeconds(600));
+        suggestSettingsRepository.save(settings);
+
+        SuggestItemEntity item = new SuggestItemEntity();
+        item.setId(UuidV7.generate());
+        item.setWorkspaceId(workspaceId);
+        item.setChannelId(channelId);
+        item.setSettingsId(settings.getId());
+        item.setVkPostId("rbac-suggest-" + UUID.randomUUID());
+        item.setAuthorVkId("1001");
+        item.setText("RBAC suggest pending");
+        item.setStatus("pending_moderation");
+        item.setCreatedAt(now);
+        item.setUpdatedAt(now);
+        suggestItemRepository.save(item);
+
+        SuggestBulkJobEntity job = new SuggestBulkJobEntity();
+        job.setId(UuidV7.generate());
+        job.setWorkspaceId(workspaceId);
+        job.setSettingsId(settings.getId());
+        job.setChannelId(channelId);
+        job.setAction("approve_ids");
+        job.setStatus("pending");
+        job.setIdempotencyKey("rbac-suggest-bulk-" + UUID.randomUUID());
+        job.setItemIds(new UUID[] {item.getId()});
+        job.setTotal(1);
+        job.setCreatedBy(ownerId);
+        job.setCreatedAt(now);
+        job.setUpdatedAt(now);
+        suggestBulkJobRepository.save(job);
+
+        return new SeededSuggest(settings.getId(), item.getId(), job.getId());
     }
 
     private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
@@ -1131,6 +1247,8 @@ final class RbacHttpProbeSupport {
     record SeededPost(UUID postId, UUID publicationId, int version) {}
 
     record SeededGrabber(UUID ruleId, UUID itemId, int ruleVersion) {}
+
+    record SeededSuggest(UUID settingsId, UUID itemId, UUID jobId) {}
 
     record EndpointIds(
             UUID workspaceId,
