@@ -2,8 +2,8 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.3.0 |
-| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; кросспостинг **BE-36**) |
+| Версия | 1.3.1 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**; кросспостинг **BE-36**) |
 | Дата проверки | **2026-11-19** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
@@ -193,7 +193,7 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Действие | Метод(ы) | Ключ | Примечание |
 |---|---|---|---|
-| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества |
+| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества; **`post_id` принимает `message`/`attachments`** (правка текста при одобрении) — проверено по [wall.post](https://dev.vk.ru/ru/method/wall.post) **2026-11-19** (BE-34) |
 | `delete_post` | `wall.delete` | **user** | |
 | `delete_comment` / `restore_comment` | `wall` / `photos` / `video` / `market` / `board` `.deleteComment` + `.restoreComment` | **user** | board/discussion — `group_id` + `topic_id` |
 | `ban_user` / `unban_user` | `groups.ban` / `groups.unban` | **user** | права администратора группы |
@@ -276,6 +276,7 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.3.1 | 2026-11-19 | BE-34: предложка VK — `publish_suggested` / wall.post `post_id` (правка текста); merge с BE-36 |
 | 1.3.0 | 2026-11-19 | BE-36: кросспостинг — лимиты медиа TG/VK/Max, soft-cap Max 100 МБ, §11 |
 | 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |
 | 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |

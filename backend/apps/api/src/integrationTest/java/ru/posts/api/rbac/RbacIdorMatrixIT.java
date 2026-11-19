@@ -101,6 +101,15 @@ class RbacIdorMatrixIT {
     private CrosspostItemRepository crosspostItemRepository;
 
     @Autowired
+    private ru.posts.persistence.repository.SuggestSettingsRepository suggestSettingsRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestItemRepository suggestItemRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestBulkJobRepository suggestBulkJobRepository;
+
+    @Autowired
     private ru.posts.persistence.repository.InvoiceRepository invoiceRepository;
 
     @Autowired
@@ -128,6 +137,9 @@ class RbacIdorMatrixIT {
                     grabberItemRepository,
                     crosspostRuleRepository,
                     crosspostItemRepository,
+                    suggestSettingsRepository,
+                    suggestItemRepository,
+                    suggestBulkJobRepository,
                     invoiceRepository,
                     ordInvoiceRepository);
         }

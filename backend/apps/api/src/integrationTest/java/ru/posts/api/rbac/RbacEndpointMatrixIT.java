@@ -104,6 +104,15 @@ class RbacEndpointMatrixIT {
     private CrosspostItemRepository crosspostItemRepository;
 
     @Autowired
+    private ru.posts.persistence.repository.SuggestSettingsRepository suggestSettingsRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestItemRepository suggestItemRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestBulkJobRepository suggestBulkJobRepository;
+
+    @Autowired
     private ru.posts.persistence.repository.InvoiceRepository invoiceRepository;
 
     @Autowired
@@ -131,6 +140,9 @@ class RbacEndpointMatrixIT {
                     grabberItemRepository,
                     crosspostRuleRepository,
                     crosspostItemRepository,
+                    suggestSettingsRepository,
+                    suggestItemRepository,
+                    suggestBulkJobRepository,
                     invoiceRepository,
                     ordInvoiceRepository);
         }

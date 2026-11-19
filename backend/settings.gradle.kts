@@ -33,6 +33,7 @@ include(
     "libs:ratelimit",
     "libs:content",
     "libs:grabber",
+    "libs:automation-suggest",
     "libs:social-api",
     "libs:social-vk",
     "libs:social-telegram",

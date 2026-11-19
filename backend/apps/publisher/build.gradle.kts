@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":libs:ratelimit"))
     implementation(project(":libs:content"))
     implementation(project(":libs:social-api"))
+    implementation(project(":libs:automation-suggest"))
     implementation(project(":libs:social-telegram"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
