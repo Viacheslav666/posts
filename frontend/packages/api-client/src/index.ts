@@ -137,6 +137,21 @@ export type GrabberBulkModerationResponse = components['schemas']['GrabberBulkMo
 export type IngestPreviewRequest = components['schemas']['IngestPreviewRequest'];
 export type IngestPreviewResponse = components['schemas']['IngestPreviewResponse'];
 
+export type CrosspostRule = components['schemas']['CrosspostRule'];
+export type CrosspostRuleCreate = components['schemas']['CrosspostRuleCreate'];
+export type CrosspostRulePatch = components['schemas']['CrosspostRulePatch'];
+export type CrosspostRuleList = components['schemas']['CrosspostRuleList'];
+export type CrosspostTarget = components['schemas']['CrosspostTarget'];
+export type CrosspostTargetRequest = components['schemas']['CrosspostTargetRequest'];
+export type CrosspostWarning = components['schemas']['CrosspostWarning'];
+export type CrosspostItem = components['schemas']['CrosspostItem'];
+export type CrosspostItemPage = components['schemas']['CrosspostItemPage'];
+/** Status enum is inlined on CrosspostItem by springdoc (no separate schema). */
+export type CrosspostItemStatus = NonNullable<CrosspostItem['status']>;
+export type CrosspostPreviewRequest = components['schemas']['CrosspostPreviewRequest'];
+export type CrosspostPreviewResponse = components['schemas']['CrosspostPreviewResponse'];
+export type CrosspostPreviewTarget = components['schemas']['CrosspostPreviewTarget'];
+
 export type Notification = components['schemas']['Notification'];
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type NotificationSettings = components['schemas']['NotificationSettings'];

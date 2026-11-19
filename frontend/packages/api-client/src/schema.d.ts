@@ -4163,12 +4163,49 @@ export interface components {
             /** @example Новый клиентский workspace */
             name: string;
         };
+        CrosspostItem: {
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            postId?: string;
+            reasons?: string[];
+            /** Format: uuid */
+            ruleId?: string;
+            /** Format: uuid */
+            sourceChannelId?: string;
+            sourceNetwork?: string;
+            sourceRemoteId?: string;
+            /** @enum {string} */
+            status?: "received" | "filtered_out" | "skipped_own" | "skipped_loop" | "skipped_duplicate" | "skipped_unsupported_media" | "queued" | "published" | "partially_published" | "failed";
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        CrosspostItemPage: {
+            items?: components["schemas"]["CrosspostItem"][];
+            nextCursor?: string;
+        };
         CrosspostPreviewRequest: {
             candidate?: {
                 [key: string]: Record<string, never>;
             };
             sourcePostUrl?: string;
             sourceRemoteId?: string;
+        };
+        CrosspostPreviewResponse: {
+            filterReasons?: string[];
+            targets?: components["schemas"]["CrosspostPreviewTarget"][];
+        };
+        CrosspostPreviewTarget: {
+            network?: string;
+            reason?: string;
+            status?: string;
+            /** Format: uuid */
+            targetChannelId?: string;
+            variant?: {
+                [key: string]: Record<string, never>;
+            };
         };
         CrosspostRule: {
             config?: {
@@ -4206,6 +4243,9 @@ export interface components {
             /** Format: uuid */
             sourceChannelId: string;
             targets?: components["schemas"]["CrosspostTargetRequest"][];
+        };
+        CrosspostRuleList: {
+            items?: components["schemas"]["CrosspostRule"][];
         };
         CrosspostRulePatch: {
             config?: {
@@ -13416,6 +13456,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13492,6 +13541,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13572,6 +13630,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13648,6 +13715,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13728,6 +13804,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostItemPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13804,6 +13889,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -13884,6 +13978,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostPreviewResponse"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -24200,6 +24303,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRuleList"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -24268,7 +24380,9 @@ export interface operations {
     crosspostRulesCreate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 workspaceId: string;
                 projectId: string;

@@ -5904,6 +5904,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostItem"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -5961,6 +5967,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostRule"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -6023,6 +6035,12 @@ paths:
               $ref: "#/components/schemas/CrosspostRulePatch"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostRule"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -6080,6 +6098,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostRule"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -6154,6 +6178,12 @@ paths:
           format: int32
           default: 50
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostItemPage"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -6211,6 +6241,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostRule"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -6274,6 +6310,12 @@ paths:
               $ref: "#/components/schemas/CrosspostPreviewRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostPreviewResponse"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -14604,6 +14646,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrosspostRuleList"
+          description: OK
         "400":
           content:
             application/problem+json:
@@ -14665,6 +14713,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -17101,6 +17154,57 @@ components:
           minLength: 1
       required:
       - name
+    CrosspostItem:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        postId:
+          type: string
+          format: uuid
+        reasons:
+          type: array
+          items:
+            type: string
+        ruleId:
+          type: string
+          format: uuid
+        sourceChannelId:
+          type: string
+          format: uuid
+        sourceNetwork:
+          type: string
+        sourceRemoteId:
+          type: string
+        status:
+          type: string
+          enum:
+          - received
+          - filtered_out
+          - skipped_own
+          - skipped_loop
+          - skipped_duplicate
+          - skipped_unsupported_media
+          - queued
+          - published
+          - partially_published
+          - failed
+        updatedAt:
+          type: string
+          format: date-time
+    CrosspostItemPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostItem"
+        nextCursor:
+          type: string
     CrosspostPreviewRequest:
       type: object
       properties:
@@ -17112,6 +17216,33 @@ components:
           type: string
         sourceRemoteId:
           type: string
+    CrosspostPreviewResponse:
+      type: object
+      properties:
+        filterReasons:
+          type: array
+          items:
+            type: string
+        targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostPreviewTarget"
+    CrosspostPreviewTarget:
+      type: object
+      properties:
+        network:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        targetChannelId:
+          type: string
+          format: uuid
+        variant:
+          type: object
+          additionalProperties:
+            type: object
     CrosspostRule:
       type: object
       properties:
@@ -17183,6 +17314,13 @@ components:
       required:
       - name
       - sourceChannelId
+    CrosspostRuleList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostRule"
     CrosspostRulePatch:
       type: object
       properties:

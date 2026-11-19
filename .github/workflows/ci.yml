@@ -263,6 +263,10 @@ jobs:
       - name: Playwright automations shell (FE-21)
         working-directory: tests/e2e
         run: pnpm test:automations-shell
+      # FE-24: crosspost rules / wizard / preview / journal on MSW.
+      - name: Playwright automations crosspost (FE-24)
+        working-directory: tests/e2e
+        run: pnpm test:automations-crosspost
       # QA-11: TC-STORY P0 UI историй на MSW (IG absent; TG/Max disabled).
       - name: Playwright scheduled-stories (TC-STORY P0 UI)
         working-directory: tests/e2e
