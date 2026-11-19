@@ -78,12 +78,20 @@ public class SuggestController {
 
     @GetMapping("/api/v1/suggest/settings/{settingsId}")
     @Operation(operationId = "suggestSettingsGet", summary = "Get suggest settings")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Suggest settings",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettings.class)))
     public SuggestDtos.SuggestSettings getSettings(@PathVariable UUID settingsId) {
         return suggestService.getSettings(SecurityAuthSupport.requirePrincipal().userId(), settingsId);
     }
 
     @PatchMapping("/api/v1/suggest/settings/{settingsId}")
     @Operation(operationId = "suggestSettingsPatch", summary = "Patch suggest settings")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Updated settings",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettings.class)))
     public SuggestDtos.SuggestSettings patchSettings(
             @PathVariable UUID settingsId,
             @Valid @RequestBody SuggestDtos.SuggestSettingsPatch request,
@@ -97,6 +105,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/activate")
     @Operation(operationId = "suggestSettingsActivate", summary = "Activate suggest settings")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Activated settings",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettings.class)))
     public SuggestDtos.SuggestSettings activate(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.activate(
                 SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
@@ -104,6 +116,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/pause")
     @Operation(operationId = "suggestSettingsPause", summary = "Pause suggest settings")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Paused settings",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettings.class)))
     public SuggestDtos.SuggestSettings pause(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.pause(
                 SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
@@ -111,6 +127,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/resume")
     @Operation(operationId = "suggestSettingsResume", summary = "Resume suggest settings")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Resumed settings",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettings.class)))
     public SuggestDtos.SuggestSettings resume(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.resume(
                 SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
@@ -118,6 +138,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/copy")
     @Operation(operationId = "suggestSettingsCopy", summary = "Copy suggest settings to channels")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Copy report",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSettingsCopyResult.class)))
     public SuggestDtos.SuggestSettingsCopyResult copy(
             @PathVariable UUID settingsId,
             @Valid @RequestBody SuggestDtos.SuggestSettingsCopyRequest request,
@@ -131,6 +155,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/sync-last-100")
     @Operation(operationId = "suggestSettingsSync", summary = "Sync last 100 suggested posts from VK")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Sync result",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestSyncResult.class)))
     public SuggestDtos.SuggestSyncResult sync(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.syncLast100(
                 SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
@@ -155,12 +183,20 @@ public class SuggestController {
 
     @GetMapping("/api/v1/suggest/items/{itemId}")
     @Operation(operationId = "suggestItemsGet", summary = "Get suggest item")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Suggest item",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestItem.class)))
     public SuggestDtos.SuggestItem getItem(@PathVariable UUID itemId) {
         return suggestService.getItem(SecurityAuthSupport.requirePrincipal().userId(), itemId);
     }
 
     @PostMapping("/api/v1/suggest/items/{itemId}/approve")
     @Operation(operationId = "suggestItemsApprove", summary = "Approve suggest item")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Approved item",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestItem.class)))
     public SuggestDtos.SuggestItem approve(
             @PathVariable UUID itemId,
             @RequestBody(required = false) SuggestDtos.SuggestItemApproveRequest request,
@@ -176,6 +212,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/items/{itemId}/reject")
     @Operation(operationId = "suggestItemsReject", summary = "Reject suggest item")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Rejected item",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestItem.class)))
     public SuggestDtos.SuggestItem reject(
             @PathVariable UUID itemId,
             @RequestBody(required = false) SuggestDtos.SuggestItemRejectRequest request,
@@ -189,6 +229,10 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/items/bulk")
     @Operation(operationId = "suggestItemsBulk", summary = "Bulk approve/reject suggest items")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Bulk job",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestBulkJob.class)))
     public SuggestDtos.SuggestBulkJob bulk(
             @PathVariable UUID settingsId,
             @Valid @RequestBody SuggestDtos.SuggestBulkRequest request,
@@ -204,6 +248,10 @@ public class SuggestController {
 
     @GetMapping("/api/v1/suggest/bulk-jobs/{jobId}")
     @Operation(operationId = "suggestBulkJobGet", summary = "Get bulk moderation job progress")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Bulk job progress",
+            content = @Content(schema = @Schema(implementation = SuggestDtos.SuggestBulkJob.class)))
     public SuggestDtos.SuggestBulkJob getBulkJob(@PathVariable UUID jobId) {
         return suggestService.getBulkJob(SecurityAuthSupport.requirePrincipal().userId(), jobId);
     }

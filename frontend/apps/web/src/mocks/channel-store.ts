@@ -81,6 +81,9 @@ function createInitialState(): ChannelStoreState {
         createdAt: now,
         storyConnectionStatus: 'ready',
         storyConnectedAt: now,
+        // BE-34 / FE-22: user token with wall scope for publishSuggested
+        // OpenAPI types capabilities as Record maps; runtime uses boolean flags.
+        capabilities: { publishSuggested: true } as unknown as Channel['capabilities'],
       },
       {
         id: CHANNEL_IDS.tgNews,
