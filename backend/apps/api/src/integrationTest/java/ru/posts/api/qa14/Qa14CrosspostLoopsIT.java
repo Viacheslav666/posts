@@ -274,8 +274,7 @@ class Qa14CrosspostLoopsIT {
     }
 
     private int countPublicationsToChannel(UUID channelId) {
-        return jdbc.queryForObject(
-                "SELECT count(*) FROM publications WHERE channel_id = ?", Integer.class, channelId);
+        return jdbc.queryForObject("SELECT count(*) FROM publications WHERE channel_id = ?", Integer.class, channelId);
     }
 
     private void insertChannel(UUID id, String externalId, String title) {
