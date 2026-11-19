@@ -15,7 +15,7 @@ public class NetworkScenario {
     @DecimalMax("1.0")
     private double errorRate;
 
-    /** Forced fault: 6,9,10,15,100,5xx,429,403/permanent,drop,hang (null = none). */
+    /** Forced fault: 5,6,9,10,15,27,203,100,access.denied,5xx,429,403/permanent,drop,hang (null = none). */
     private String forcedError;
 
     @Min(0)

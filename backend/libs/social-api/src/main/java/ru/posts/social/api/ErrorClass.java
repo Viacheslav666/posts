@@ -10,6 +10,8 @@ public enum ErrorClass {
     AUTH,
     /** Permanent content / permission rejection — no retry. */
     PERMANENT,
+    /** Missing scopes / rights — permanent, no retry. */
+    PERMISSION,
     /** Call succeeded but response was lost — resolve via findExisting. */
     UNKNOWN_OUTCOME
 }

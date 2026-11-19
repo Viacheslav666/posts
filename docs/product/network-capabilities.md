@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.0.0 |
-| Статус | Готово к использованию бэком (задача **AN-2**) |
-| Дата проверки | **2026-11-17** |
+| Версия | 1.1.0 |
+| Статус | Готово к использованию бэком (задача **AN-2**; модерация **BE-33**) |
+| Дата проверки | **2026-11-18** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
 | Валидация | `python3 docs/api/fixtures/validate-network-capabilities.py` |
@@ -183,7 +183,51 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ---
 
-## 8. Открытые пункты (unknown → бэклог)
+## 8. Модерация и события (BE-33)
+
+Удалённые действия модерации / suggest идут через `SocialModerationPort` → очередь `social_remote_actions` → `actions.moderation.<network>`. Ниже — официальные методы и тип ключа доступа. **checked_at: 2026-11-18**.
+
+### VK (user vs community)
+
+| Действие | Метод(ы) | Ключ | Примечание |
+|---|---|---|---|
+| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества |
+| `delete_post` | `wall.delete` | **user** | |
+| `delete_comment` / `restore_comment` | `wall` / `photos` / `video` / `market` / `board` `.deleteComment` + `.restoreComment` | **user** | board/discussion — `group_id` + `topic_id` |
+| `ban_user` / `unban_user` | `groups.ban` / `groups.unban` | **user** | права администратора группы |
+| `reply_comment` | `wall.createComment` (`reply_to_comment`) | **user** (fallback community) | |
+| `notify_author` | `messages.isMessagesFromGroupAllowed` + `messages.send` | **community** | |
+| reconciliation `publish_suggested` | `wall.get` (`filter=suggests`) + `wall.getById` | **user** | до ретрая при `UNKNOWN_OUTCOME` |
+
+**Лимиты API:** user **3** rps, community **20** rps, `execute` ≤ **25** вызовов в одном коде ([api-requests](https://dev.vk.ru/ru/api/api-requests)).
+
+### Telegram (Bot API)
+
+| Действие | Метод | Поддержка |
+|---|---|---|
+| `delete_post` / `delete_comment` | `deleteMessage` / `deleteMessages` | окно **&lt; 48 ч** |
+| `ban_user` | `banChatMember` (`restrictChatMember` при restrict) | |
+| `restore_comment` | — | **false** (не поддерживается) |
+| `reply_comment` | `sendMessage` (`reply_to_message_id`) | |
+| `notify_author` | `sendMessage` (DM / chat) | |
+
+**Лимиты:** ~**1** msg/s на чат, **20**/мин на группу, ~**30**/s глобально ([FAQ](https://core.telegram.org/bots/faq)).
+
+### Max
+
+| Действие | Метод | Поддержка |
+|---|---|---|
+| `delete_post` | `DELETE /messages` | |
+| `delete_comment` | `DELETE …/comments` | **без restore** |
+| `reply_comment` | `POST …/comments` | |
+| `ban_user` | `DELETE /chats/{chatId}/members` | |
+| `restore_comment` / `unban_user` / `notify_author` / `publish_suggested` | — | не поддерживается |
+
+**Лимит:** **30** rps глобально ([prepare](https://dev.max.ru/docs/chatbots/bots-coding/prepare)).
+
+---
+
+## 9. Открытые пункты (unknown → бэклог)
 
 | Сеть | Что уточнить | Зачем |
 |---|---|---|
@@ -201,4 +245,5 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

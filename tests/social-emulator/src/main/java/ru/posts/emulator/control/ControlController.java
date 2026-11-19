@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.posts.emulator.store.EmulatedPost;
+import ru.posts.emulator.store.ModerationStore;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.vk.StoryTokenStore;
@@ -25,6 +26,7 @@ public class ControlController {
 
     private final ScenarioService scenarioService;
     private final PostStore postStore;
+    private final ModerationStore moderationStore;
     private final WallSourceStore wallSourceStore;
     private final StoryTokenStore storyTokenStore;
     private final VkUploadSessionStore uploadSessionStore;
@@ -32,11 +34,13 @@ public class ControlController {
     public ControlController(
             ScenarioService scenarioService,
             PostStore postStore,
+            ModerationStore moderationStore,
             WallSourceStore wallSourceStore,
             StoryTokenStore storyTokenStore,
             VkUploadSessionStore uploadSessionStore) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
+        this.moderationStore = moderationStore;
         this.wallSourceStore = wallSourceStore;
         this.storyTokenStore = storyTokenStore;
         this.uploadSessionStore = uploadSessionStore;
@@ -60,6 +64,7 @@ public class ControlController {
     @PostMapping("/reset")
     public Map<String, Object> reset(@RequestParam(name = "scenario", defaultValue = "true") boolean resetScenario) {
         postStore.reset();
+        moderationStore.reset();
         wallSourceStore.reset();
         storyTokenStore.reset();
         uploadSessionStore.reset();
@@ -67,6 +72,92 @@ public class ControlController {
             scenarioService.reset();
         }
         return Map.of("reset", true, "scenarioReset", resetScenario, "counts", postStore.counts());
+    }
+
+    /**
+     * BE-33: seed VK suggested posts. Body: {@code {"ownerId":"-1","items":[{"id":10,"text":"..."}]}}
+     * or {@code {"items":[{"owner_id":-1,"id":10,"text":"..."}]}}.
+     */
+    @PutMapping("/vk/suggests")
+    public Map<String, Object> putVkSuggests(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items =
+                body.get("items") instanceof List<?> list ? (List<Map<String, Object>>) (List<?>) list : List.of();
+        String ownerId = body.get("ownerId") != null
+                ? String.valueOf(body.get("ownerId"))
+                : body.get("owner_id") != null ? String.valueOf(body.get("owner_id")) : null;
+        if (ownerId != null) {
+            moderationStore.replaceSuggests(ownerId, items);
+        } else {
+            moderationStore.clearSuggests();
+            for (Map<String, Object> item : items) {
+                Object owner = item.get("owner_id") != null ? item.get("owner_id") : item.get("ownerId");
+                Long id = item.get("id") instanceof Number n ? n.longValue() : null;
+                moderationStore.putSuggest(owner == null ? "0" : String.valueOf(owner), id, item);
+            }
+        }
+        return Map.of("count", items.size(), "suggests", moderationStore.snapshotSuggests());
+    }
+
+    @GetMapping("/vk/suggests")
+    public Map<String, Object> listVkSuggests() {
+        return moderationStore.snapshotSuggests();
+    }
+
+    /**
+     * BE-33: seed comments. Body: {@code {"items":[{"network":"vk","ownerId":"-1","commentId":"5","type":"wall"}]}}.
+     */
+    @PutMapping("/comments")
+    public Map<String, Object> putComments(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items =
+                body.get("items") instanceof List<?> list ? (List<Map<String, Object>>) (List<?>) list : List.of();
+        moderationStore.replaceComments(items);
+        return moderationStore.snapshotComments();
+    }
+
+    @GetMapping("/comments")
+    public Map<String, Object> listComments() {
+        return moderationStore.snapshotComments();
+    }
+
+    @GetMapping("/bans")
+    public Map<String, Object> listBans() {
+        return moderationStore.snapshotBans();
+    }
+
+    /**
+     * Seed posts with optional createdAt (for Telegram 48h delete-window tests).
+     * Body: {@code {"items":[{"network":"telegram","channelId":"-100","remotePostId":"1","createdAt":"2020-01-01T00:00:00Z"}]}}.
+     */
+    @PutMapping("/posts")
+    public Map<String, Object> seedPosts(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items =
+                body.get("items") instanceof List<?> list ? (List<Map<String, Object>>) (List<?>) list : List.of();
+        List<EmulatedPost> seeded = new java.util.ArrayList<>();
+        for (Map<String, Object> item : items) {
+            Network network = Network.from(String.valueOf(item.getOrDefault("network", "telegram")));
+            String channelId = String.valueOf(item.getOrDefault("channelId", item.getOrDefault("channel_id", "0")));
+            String remotePostId = item.get("remotePostId") != null
+                    ? String.valueOf(item.get("remotePostId"))
+                    : item.get("remote_post_id") != null ? String.valueOf(item.get("remote_post_id")) : null;
+            String text = item.get("text") == null ? "" : String.valueOf(item.get("text"));
+            java.time.Instant createdAt = null;
+            if (item.get("createdAt") != null) {
+                Object raw = item.get("createdAt");
+                if (raw instanceof Number n) {
+                    long v = n.longValue();
+                    createdAt = v < 10_000_000_000L
+                            ? java.time.Instant.ofEpochSecond(v)
+                            : java.time.Instant.ofEpochMilli(v);
+                } else {
+                    createdAt = java.time.Instant.parse(String.valueOf(raw));
+                }
+            }
+            seeded.add(postStore.seed(network, channelId, remotePostId, text, createdAt, Map.of()));
+        }
+        return Map.of("count", seeded.size(), "posts", seeded);
     }
 
     /**

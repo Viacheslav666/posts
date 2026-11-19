@@ -61,14 +61,19 @@ public final class SocialEmulatorProcess implements AutoCloseable {
     }
 
     public void putScenario(String json) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + "/_control/scenario"))
+        put("/_control/scenario", json);
+    }
+
+    public void put(String path, String body) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + path))
                 .timeout(Duration.ofSeconds(5))
                 .header("Content-Type", "application/json")
-                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .PUT(HttpRequest.BodyPublishers.ofString(body == null ? "" : body))
                 .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() >= 300) {
-            throw new IllegalStateException("scenario update failed: " + response.statusCode() + " " + response.body());
+            throw new IllegalStateException(
+                    "PUT " + path + " failed: " + response.statusCode() + " " + response.body());
         }
     }
 

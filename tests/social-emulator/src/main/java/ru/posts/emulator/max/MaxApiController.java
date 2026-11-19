@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.posts.emulator.store.ModerationStore;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -26,11 +28,14 @@ import ru.posts.emulator.web.PublishSupport;
 public class MaxApiController {
 
     private final PostStore postStore;
+    private final ModerationStore moderationStore;
     private final PublishSupport publishSupport;
     private final ConcurrentHashMap<String, String> uploadTokens = new ConcurrentHashMap<>();
+    private final AtomicLong commentSeq = new AtomicLong();
 
-    public MaxApiController(PostStore postStore, PublishSupport publishSupport) {
+    public MaxApiController(PostStore postStore, ModerationStore moderationStore, PublishSupport publishSupport) {
         this.postStore = postStore;
+        this.moderationStore = moderationStore;
         this.publishSupport = publishSupport;
     }
 
@@ -86,12 +91,123 @@ public class MaxApiController {
         return send(access_token, authorization, form, Map.of(), rawResponse);
     }
 
+    /** BE-33: DELETE /messages?message_id=… */
+    @DeleteMapping(path = {"/max/messages", "/messages"})
+    public ResponseEntity<?> deleteMessageByQuery(
+            @RequestParam(name = "message_id", required = false) String messageId,
+            @RequestParam(required = false) String chat_id,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> {
+            if (messageId != null && !messageId.isBlank()) {
+                postStore.deleteByRemoteId(Network.MAX, chat_id, messageId);
+            }
+            return ResponseEntity.ok(Map.of("success", true));
+        });
+    }
+
     @DeleteMapping(path = {"/max/messages/{messageId}", "/messages/{messageId}"})
     public ResponseEntity<?> deleteMessage(
             @PathVariable String messageId,
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        // Emulator treats delete as success even when the message is already gone.
-        return ResponseEntity.ok(Map.of("success", true));
+            @RequestParam(required = false) String chat_id,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> {
+            postStore.deleteByRemoteId(Network.MAX, chat_id, messageId);
+            return ResponseEntity.ok(Map.of("success", true));
+        });
+    }
+
+    /** BE-33: delete channel comment — not restorable. */
+    @DeleteMapping(
+            path = {
+                "/max/messages/{messageId}/comments",
+                "/messages/{messageId}/comments",
+                "/max/messages/{messageId}/comments/{commentId}",
+                "/messages/{messageId}/comments/{commentId}"
+            })
+    public ResponseEntity<?> deleteComment(
+            @PathVariable String messageId,
+            @PathVariable(required = false) String commentId,
+            @RequestParam(name = "comment_id", required = false) String commentIdQuery,
+            @RequestParam(required = false) String chat_id,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> {
+            String id = commentId != null ? commentId : commentIdQuery;
+            if (id == null || id.isBlank()) {
+                id = "msg:" + messageId;
+            }
+            String owner = chat_id == null ? messageId : chat_id;
+            moderationStore.deleteComment(Network.MAX, owner, id, "channel_comment");
+            return ResponseEntity.ok(Map.of("success", true));
+        });
+    }
+
+    /** BE-33: reply to comment / create comment. */
+    @PostMapping(
+            path = {"/max/messages/{messageId}/comments", "/messages/{messageId}/comments"},
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> createComment(
+            @PathVariable String messageId,
+            @RequestParam(required = false) String chat_id,
+            @RequestBody(required = false) Map<String, Object> json,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> {
+            String text = json == null ? null : String.valueOf(json.getOrDefault("text", ""));
+            if (json != null && json.get("text") == null) {
+                text = "";
+            }
+            String owner = chat_id == null ? messageId : chat_id;
+            String commentId = String.valueOf(commentSeq.incrementAndGet());
+            ModerationStore.EmulatedComment comment =
+                    moderationStore.putComment(Network.MAX, owner, commentId, "channel_comment", text, null, false);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("message_id", messageId);
+            body.put("comment_id", comment.commentId());
+            body.put("text", text == null ? "" : text);
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    /**
+     * Restore is not supported on Max — always return an error if somehow called.
+     * Path kept for adapter tests that probe capability.
+     */
+    @PostMapping(
+            path = {
+                "/max/messages/{messageId}/comments/{commentId}/restore",
+                "/messages/{messageId}/comments/{commentId}/restore"
+            })
+    public ResponseEntity<?> restoreCommentNotSupported(
+            @PathVariable String messageId, @PathVariable String commentId, HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> ResponseEntity.badRequest()
+                .body(Map.of("code", "not.supported", "message", "Comment restore is not supported")));
+    }
+
+    /** BE-33: remove chat member. */
+    @DeleteMapping(path = {"/max/chats/{chatId}/members", "/chats/{chatId}/members"})
+    public ResponseEntity<?> deleteChatMember(
+            @PathVariable String chatId,
+            @RequestParam(name = "user_id", required = false) String userId,
+            @RequestBody(required = false) Map<String, Object> json,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.MAX, rawResponse, () -> {
+            String uid = userId;
+            if ((uid == null || uid.isBlank()) && json != null && json.get("user_id") != null) {
+                uid = String.valueOf(json.get("user_id"));
+            }
+            moderationStore.ban(Network.MAX, chatId, uid, Map.of("removed", true));
+            return ResponseEntity.ok(Map.of("success", true));
+        });
     }
 
     private ResponseEntity<?> send(
