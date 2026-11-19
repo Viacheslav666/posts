@@ -205,7 +205,7 @@ class AntispamProcessorIT {
                 "filters", Map.of("links", Map.of("all", true)),
                 "actions", Map.of("delete", true)));
         rule.setConfigVersion(rule.getConfigVersion() + 1);
-        ruleRepository.save(rule);
+        rule = ruleRepository.save(rule);
 
         SocialInboundEvent fwd = new SocialInboundEvent(
                 "tg",
@@ -251,6 +251,8 @@ class AntispamProcessorIT {
                 .isInstanceOf(ApiException.class);
 
         jdbc.update("UPDATE channels SET network = 'max', external_id = 'chat-1' WHERE id = ?", channelId);
+        // Reload: prior save merges a detached entity and the old reference keeps a stale @Version.
+        rule = ruleRepository.findById(ruleId).orElseThrow();
         rule.setSections(List.of("max_comment"));
         rule.setConfig(Map.of(
                 "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
