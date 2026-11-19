@@ -130,11 +130,24 @@ class Qa14SuggestBulkIdorIT {
     @DisplayName("reject_ids with foreign item id processes only owned pending item")
     void rejectIdsIgnoresForeignSuggestItems() {
         UUID ownId = insertItem(settingsId, workspaceId, "501", "pending_moderation");
+        UUID foreignChannelId = UuidV7.generate();
+        ChannelEntity foreignChannel = new ChannelEntity();
+        foreignChannel.setId(foreignChannelId);
+        foreignChannel.setWorkspaceId(workspaceId);
+        foreignChannel.setNetwork("vk");
+        foreignChannel.setExternalId("-1003702");
+        foreignChannel.setType("group");
+        foreignChannel.setTitle("VK foreign");
+        foreignChannel.setStatus("active");
+        foreignChannel.setCreatedAt(Instant.now());
+        foreignChannel.setUpdatedAt(Instant.now());
+        channelRepository.save(foreignChannel);
+
         UUID foreignSettings = UuidV7.generate();
         SuggestSettingsEntity foreignCfg = new SuggestSettingsEntity();
         foreignCfg.setId(foreignSettings);
         foreignCfg.setWorkspaceId(workspaceId);
-        foreignCfg.setChannelId(channelId);
+        foreignCfg.setChannelId(foreignChannelId);
         foreignCfg.setMode("auto");
         foreignCfg.setStatus("active");
         foreignCfg.setConfig(Map.of());

@@ -206,17 +206,17 @@ class Qa14CrosspostPairsIT {
     }
 
     @Test
-    @DisplayName("TC-XP-04: TG text >1024 with media keeps caption + overflow order")
+    @DisplayName("TC-XP-04: VK→TG text >1024 with media keeps caption + overflow order")
     void tgLongTextOrderPreserved() {
-        UUID tg = channel("tg", "-100920401", "channel", "TG long");
-        UUID vk = channel("vk", "-920402", "group", "VK dst");
-        UUID ruleId = rule(tg, "long", List.of(vk));
+        UUID vk = channel("vk", "-920401", "group", "VK long src");
+        UUID tg = channel("tg", "-100920402", "channel", "TG dst");
+        UUID ruleId = rule(vk, "long", List.of(tg));
         String prefix = "A".repeat(900);
         String suffix = "B".repeat(200);
         String full = prefix + suffix;
-        ingestTgPost(tg, "long-401", full, threePhotos());
+        ingestVkPost(vk, "long-401", full, threePhotos());
         process(ruleId, "long-401");
-        UUID pubId = jdbc.queryForObject("SELECT id FROM publications WHERE channel_id = ? LIMIT 1", UUID.class, vk);
+        UUID pubId = jdbc.queryForObject("SELECT id FROM publications WHERE channel_id = ? LIMIT 1", UUID.class, tg);
         String content = jdbc.queryForObject(
                 """
             SELECT pv.content::text FROM post_variants pv

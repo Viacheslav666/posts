@@ -90,7 +90,7 @@ public final class Qa14EmulatorPublicationDrain {
         jdbc.update(
                 """
                 UPDATE publications
-                SET state = 'succeeded', remote_post_id = ?, updated_at = now()
+                SET state = 'succeeded', remote_post_id = ?, published_at = now()
                 WHERE id = ?
                 """,
                 result.remotePostId(),
