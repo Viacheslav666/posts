@@ -176,4 +176,19 @@ export const queryKeys = {
     queue: (workspaceId: string, filters?: Record<string, unknown>) =>
       [...queryKeys.ingest.all(workspaceId), 'queue', filters ?? {}] as const,
   },
+
+  suggest: {
+    all: (workspaceId: string) =>
+      [...queryKeys.workspaces.detail(workspaceId), 'suggest'] as const,
+    settings: (workspaceId: string, projectId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.suggest.all(workspaceId), 'settings', projectId, filters ?? {}] as const,
+    setting: (workspaceId: string, settingsId: string) =>
+      [...queryKeys.suggest.all(workspaceId), 'setting', settingsId] as const,
+    items: (workspaceId: string, settingsId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.suggest.setting(workspaceId, settingsId), 'items', filters ?? {}] as const,
+    item: (workspaceId: string, itemId: string) =>
+      [...queryKeys.suggest.all(workspaceId), 'item', itemId] as const,
+    bulkJob: (workspaceId: string, jobId: string) =>
+      [...queryKeys.suggest.all(workspaceId), 'bulk-job', jobId] as const,
+  },
 } as const;

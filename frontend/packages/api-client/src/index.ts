@@ -137,6 +137,24 @@ export type GrabberBulkModerationResponse = components['schemas']['GrabberBulkMo
 export type IngestPreviewRequest = components['schemas']['IngestPreviewRequest'];
 export type IngestPreviewResponse = components['schemas']['IngestPreviewResponse'];
 
+/** VK Suggest automation (BE-34 / FE-22) */
+export type SuggestSettings = components['schemas']['SuggestSettings'];
+export type SuggestSettingsPage = components['schemas']['SuggestSettingsPage'];
+export type SuggestSettingsCreate = components['schemas']['SuggestSettingsCreate'];
+export type SuggestSettingsPatch = components['schemas']['SuggestSettingsPatch'];
+export type SuggestSettingsCopyRequest = components['schemas']['SuggestSettingsCopyRequest'];
+export type SuggestSettingsCopyResult = components['schemas']['SuggestSettingsCopyResult'];
+export type SuggestSettingsCopyItem = components['schemas']['SuggestSettingsCopyItem'];
+export type SuggestItem = components['schemas']['SuggestItem'];
+export type SuggestItemPage = components['schemas']['SuggestItemPage'];
+export type SuggestItemApproveRequest = components['schemas']['SuggestItemApproveRequest'];
+export type SuggestItemRejectRequest = components['schemas']['SuggestItemRejectRequest'];
+export type SuggestBulkRequest = components['schemas']['SuggestBulkRequest'];
+export type SuggestBulkJob = components['schemas']['SuggestBulkJob'];
+export type SuggestSyncResult = components['schemas']['SuggestSyncResult'];
+export type SuggestMode = NonNullable<SuggestSettings['mode']>;
+export type SuggestSettingsStatus = NonNullable<SuggestSettings['status']>;
+
 export type Notification = components['schemas']['Notification'];
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type NotificationSettings = components['schemas']['NotificationSettings'];

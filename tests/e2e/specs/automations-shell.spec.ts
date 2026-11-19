@@ -30,7 +30,7 @@ test.describe('Automations shell (FE-21)', () => {
     await expect(page.getByTestId('automations-card-crosspost')).toBeVisible();
 
     await page.getByTestId('automations-card-suggest').click();
-    await expect(page.getByTestId('automations-suggest-stub')).toBeVisible();
+    await expect(page.getByTestId('suggest-page')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Предложка' })).toBeVisible();
 
     await page.goto(`/app/${demoWorkspace}/automations`);

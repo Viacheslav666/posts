@@ -10916,6 +10916,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestBulkJob"
+          description: Bulk job progress
         "400":
           content:
             application/problem+json:
@@ -10973,6 +10979,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestItem"
+          description: Suggest item
         "400":
           content:
             application/problem+json:
@@ -11040,6 +11052,12 @@ paths:
             schema:
               $ref: "#/components/schemas/SuggestItemApproveRequest"
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestItem"
+          description: Approved item
         "400":
           content:
             application/problem+json:
@@ -11102,6 +11120,12 @@ paths:
             schema:
               $ref: "#/components/schemas/SuggestItemRejectRequest"
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestItem"
+          description: Rejected item
         "400":
           content:
             application/problem+json:
@@ -11159,6 +11183,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettings"
+          description: Suggest settings
         "400":
           content:
             application/problem+json:
@@ -11221,6 +11251,12 @@ paths:
               $ref: "#/components/schemas/SuggestSettingsPatch"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettings"
+          description: Updated settings
         "400":
           content:
             application/problem+json:
@@ -11278,6 +11314,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettings"
+          description: Activated settings
         "400":
           content:
             application/problem+json:
@@ -11341,6 +11383,12 @@ paths:
               $ref: "#/components/schemas/SuggestSettingsCopyRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettingsCopyResult"
+          description: Copy report
         "400":
           content:
             application/problem+json:
@@ -11516,6 +11564,12 @@ paths:
               $ref: "#/components/schemas/SuggestBulkRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestBulkJob"
+          description: Bulk job
         "400":
           content:
             application/problem+json:
@@ -11573,6 +11627,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettings"
+          description: Paused settings
         "400":
           content:
             application/problem+json:
@@ -11630,6 +11690,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSettings"
+          description: Resumed settings
         "400":
           content:
             application/problem+json:
@@ -11687,6 +11753,12 @@ paths:
           type: string
           format: uuid
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestSyncResult"
+          description: Sync result
         "400":
           content:
             application/problem+json:
@@ -18592,6 +18664,86 @@ components:
       properties:
         deleteRemote:
           type: boolean
+    SuggestBulkJob:
+      type: object
+      description: Async bulk moderation job progress (BE-34 SuggestDtos.SuggestBulkJob)
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        settingsId:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        status:
+          type: string
+        total:
+          type: integer
+          format: int32
+        processed:
+          type: integer
+          format: int32
+        succeeded:
+          type: integer
+          format: int32
+        failed:
+          type: integer
+          format: int32
+        progressPercent:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+    SuggestSyncResult:
+      type: object
+      description: Result of wall.get(filter=suggests) sync-last-100 (BE-34)
+      properties:
+        imported:
+          type: integer
+          format: int32
+        removedExternally:
+          type: integer
+          format: int32
+        markedPublished:
+          type: integer
+          format: int32
+        status:
+          type: string
+    SuggestSettingsCopyItem:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        ok:
+          type: boolean
+        error:
+          type: string
+        settingsId:
+          type: string
+          format: uuid
+    SuggestSettingsCopyResult:
+      type: object
+      description: Per-channel report for settings copy (BE-34)
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuggestSettingsCopyItem"
     SuggestSettings:
       type: object
       properties:
