@@ -2,6 +2,8 @@ package ru.posts.persistence.jdbc;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,10 +74,16 @@ public class RemotePostRegistryJdbc {
 
     @Transactional(readOnly = true)
     public boolean isOwn(UUID channelId, String remotePostId) {
-        Integer count = jdbcClient
+        return findOwn(channelId, remotePostId).isPresent();
+    }
+
+    /** L1 lookup including origin/hop for crosspost loop decisions. */
+    @Transactional(readOnly = true)
+    public Optional<RegistryEntry> findOwn(UUID channelId, String remotePostId) {
+        return jdbcClient
                 .sql(
                         """
-                        SELECT 1
+                        SELECT origin, hop, content_fingerprint, root_origin::text AS root_origin
                         FROM remote_post_registry
                         WHERE channel_id = :channelId
                           AND remote_post_id = :remotePostId
@@ -83,11 +91,36 @@ public class RemotePostRegistryJdbc {
                         """)
                 .param("channelId", channelId)
                 .param("remotePostId", remotePostId)
-                .query(Integer.class)
-                .optional()
-                .orElse(null);
-        return count != null;
+                .query((rs, rowNum) -> new RegistryEntry(
+                        rs.getString("origin"),
+                        rs.getShort("hop"),
+                        rs.getString("content_fingerprint"),
+                        rs.getString("root_origin")))
+                .optional();
     }
+
+    /** Recent fingerprints on a target channel (L4 content dedup, 24h window). */
+    @Transactional(readOnly = true)
+    public List<String> listRecentFingerprints(UUID channelId, Instant since, int limit) {
+        return jdbcClient
+                .sql(
+                        """
+                        SELECT content_fingerprint
+                        FROM remote_post_registry
+                        WHERE channel_id = :channelId
+                          AND content_fingerprint IS NOT NULL
+                          AND created_at >= :since
+                        ORDER BY created_at DESC
+                        LIMIT :limit
+                        """)
+                .param("channelId", channelId)
+                .param("since", Timestamp.from(since))
+                .param("limit", limit)
+                .query(String.class)
+                .list();
+    }
+
+    public record RegistryEntry(String origin, short hop, String contentFingerprint, String rootOriginJson) {}
 
     @Transactional(readOnly = true)
     public boolean isOwnByFingerprint(UUID channelId, String fingerprint, Instant since) {

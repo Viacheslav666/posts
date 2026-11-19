@@ -39,6 +39,7 @@ include(
     "libs:social-ok",
     "libs:social-max",
     "libs:social-inbound",
+    "libs:crosspost",
     "libs:ord-api",
     "libs:ord-vk",
     "libs:ord-yandex",

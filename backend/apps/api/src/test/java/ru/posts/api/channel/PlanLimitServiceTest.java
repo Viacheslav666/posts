@@ -54,6 +54,9 @@ class PlanLimitServiceTest {
     @Mock
     AutomationRuleRepository automationRuleRepository;
 
+    @Mock
+    ru.posts.persistence.repository.CrosspostRuleRepository crosspostRuleRepository;
+
     PlanLimitService service;
     UUID workspaceId;
     UUID planId;
@@ -68,7 +71,8 @@ class PlanLimitServiceTest {
                 usageCounterRepository,
                 workspaceMemberRepository,
                 invitationRepository,
-                automationRuleRepository);
+                automationRuleRepository,
+                crosspostRuleRepository);
         workspaceId = UuidV7.generate();
         planId = UuidV7.generate();
     }

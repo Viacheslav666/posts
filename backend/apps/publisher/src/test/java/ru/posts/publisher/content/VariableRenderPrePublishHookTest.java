@@ -68,6 +68,7 @@ class VariableRenderPrePublishHookTest {
                 "Europe/Moscow",
                 "Моя группа",
                 "[]",
-                null);
+                null,
+                "{}");
     }
 }
