@@ -2,7 +2,7 @@
 
 import type { Channel, SuggestSettings } from '@posts/api-client';
 import { Button, EmptyState, Skeleton, toast } from '@posts/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Radio, ShieldOff, Workflow } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -23,7 +23,7 @@ import { getErrorMessage } from '@/shared/lib/errors';
 import { createSuggestSettings, listSuggestItems, listSuggestSettings } from '../api/suggest-api';
 import { channelHasPublishSuggested } from '../model/capabilities';
 import { configAsApiBlob, withConfigDefaults } from '../model/config';
-import { SUGGEST_SOFT_CHANNEL_LIMIT } from '../model/types';
+import { SUGGEST_PAGE_SIZE, SUGGEST_SOFT_CHANNEL_LIMIT } from '../model/types';
 import { SettingsCard } from './settings-card';
 
 type SuggestPageProps = {
@@ -45,9 +45,17 @@ export function SuggestPage({ workspaceId }: SuggestPageProps) {
   });
   const projectId = projectsQuery.data?.items?.[0]?.id;
 
-  const settingsQuery = useQuery({
+  const settingsQuery = useInfiniteQuery({
     queryKey: queryKeys.suggest.settings(workspaceId, projectId ?? ''),
-    queryFn: () => listSuggestSettings({ workspaceId, projectId: projectId! }),
+    queryFn: ({ pageParam }) =>
+      listSuggestSettings({
+        workspaceId,
+        projectId: projectId!,
+        cursor: pageParam,
+        limit: SUGGEST_PAGE_SIZE,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
     enabled: canView && Boolean(projectId),
   });
 
@@ -58,8 +66,11 @@ export function SuggestPage({ workspaceId }: SuggestPageProps) {
   });
 
   const settings = useMemo(
-    () => settingsQuery.data?.items ?? [],
-    [settingsQuery.data?.items],
+    () =>
+      (settingsQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((item) => !item.workspaceId || item.workspaceId === workspaceId),
+    [settingsQuery.data?.pages, workspaceId],
   );
   const channels = useMemo(
     () => channelsQuery.data?.items ?? [],
@@ -80,18 +91,30 @@ export function SuggestPage({ workspaceId }: SuggestPageProps) {
   );
   const atSoftLimit = settings.length >= SUGGEST_SOFT_CHANNEL_LIMIT;
 
+  const settingsIds = settings
+    .map((item) => item.id)
+    .filter((id): id is string => Boolean(id))
+    .join(',');
+
   const pendingQuery = useQuery({
-    queryKey: queryKeys.suggest.all(workspaceId).concat(['pending-counts']),
+    queryKey: queryKeys.suggest.all(workspaceId).concat(['pending-counts', settingsIds]),
     queryFn: async () => {
-      const counts: Record<string, number> = {};
+      const counts: Record<string, { count: number; hasMore: boolean }> = {};
       await Promise.all(
         settings.map(async (item) => {
           if (!item.id) return;
           const page = await listSuggestItems({
             settingsId: item.id,
             status: 'pending_moderation',
+            limit: 100,
           });
-          counts[item.id] = page.items?.length ?? 0;
+          const visible = (page.items ?? []).filter(
+            (entry) => !entry.workspaceId || entry.workspaceId === workspaceId,
+          );
+          counts[item.id] = {
+            count: visible.length,
+            hasMore: Boolean(page.hasMore),
+          };
         }),
       );
       return counts;
@@ -133,6 +156,30 @@ export function SuggestPage({ workspaceId }: SuggestPageProps) {
         icon={<ShieldOff className="h-6 w-6" aria-hidden />}
         title={t('forbiddenTitle')}
         description={t('forbiddenBody')}
+      />
+    );
+  }
+
+  if (projectsQuery.isError || settingsQuery.isError || channelsQuery.isError) {
+    const error = projectsQuery.error ?? settingsQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void projectsQuery.refetch();
+              void settingsQuery.refetch();
+              void channelsQuery.refetch();
+            }}
+          >
+            {t('retry')}
+          </Button>
+        }
       />
     );
   }
@@ -239,10 +286,25 @@ export function SuggestPage({ workspaceId }: SuggestPageProps) {
                 settings={item}
                 workspaceId={workspaceId}
                 channel={item.channelId ? channelsById.get(item.channelId) : undefined}
-                pendingCount={pendingQuery.data?.[item.id!] ?? 0}
+                pendingCount={pendingQuery.data?.[item.id!]?.count ?? 0}
+                pendingHasMore={pendingQuery.data?.[item.id!]?.hasMore ?? false}
                 canManage={canManage}
               />
             ))}
+            {settingsQuery.hasNextPage ? (
+              <div className="pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={settingsQuery.isFetchingNextPage}
+                  onClick={() => settingsQuery.fetchNextPage()}
+                  data-testid="suggest-settings-load-more"
+                >
+                  {t('loadMore')}
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </section>

@@ -226,6 +226,7 @@ export function defaultFormValues(channelId?: string): SuggestSettingsFormValues
     publishEditMode: 'wall_post_edit',
     enrichmentHashtags: [],
     enrichmentAppendText: '',
+    keywordSignatures: [],
     adsPauseEnabled: true,
     adsDetectMarkedAsAds: true,
     adsDetectErid: true,
@@ -233,7 +234,10 @@ export function defaultFormValues(channelId?: string): SuggestSettingsFormValues
   };
 }
 
-export function buildSuggestConfig(values: SuggestSettingsFormValues): SuggestConfig {
+export function buildSuggestConfig(
+  values: SuggestSettingsFormValues,
+  preserved?: { mediaAssetIds?: string[] },
+): SuggestConfig {
   const windowValue: ScheduleWindowValue = {
     days: values.scheduleDays as ScheduleWindowValue['days'],
     intervals: values.scheduleIntervals,
@@ -288,8 +292,8 @@ export function buildSuggestConfig(values: SuggestSettingsFormValues): SuggestCo
     enrichment: {
       hashtags: values.enrichmentHashtags,
       append_text: values.enrichmentAppendText,
-      media_asset_ids: [],
-      keyword_signatures: [],
+      media_asset_ids: preserved?.mediaAssetIds ?? [],
+      keyword_signatures: values.keywordSignatures,
     },
     ads_pause: {
       enabled: values.adsPauseEnabled,
@@ -350,6 +354,7 @@ export function formValuesFromSettings(settings: SuggestSettings): SuggestSettin
     publishEditMode: config.publish_edit_mode,
     enrichmentHashtags: config.enrichment.hashtags,
     enrichmentAppendText: config.enrichment.append_text,
+    keywordSignatures: config.enrichment.keyword_signatures,
     adsPauseEnabled: config.ads_pause.enabled,
     adsDetectMarkedAsAds: config.ads_pause.detect_marked_as_ads,
     adsDetectErid: config.ads_pause.detect_erid,

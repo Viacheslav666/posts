@@ -10,6 +10,7 @@ import { listChannels } from '@/features/channels/api/channels-api';
 import { listProjects } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
+import { getErrorMessage } from '@/shared/lib/errors';
 
 import { SettingsForm } from './settings-form';
 
@@ -39,6 +40,29 @@ export function SettingsCreatePage({ workspaceId }: SettingsCreatePageProps) {
         icon={<ShieldOff className="h-6 w-6" aria-hidden />}
         title={t('forbiddenTitle')}
         description={t('forbiddenBody')}
+      />
+    );
+  }
+
+  if (projectsQuery.isError || channelsQuery.isError) {
+    const error = projectsQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void projectsQuery.refetch();
+              void channelsQuery.refetch();
+            }}
+          >
+            {t('retry')}
+          </Button>
+        }
       />
     );
   }

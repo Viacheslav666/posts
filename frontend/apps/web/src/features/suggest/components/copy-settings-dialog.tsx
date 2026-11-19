@@ -45,9 +45,10 @@ export function CopySettingsDialog({
           channel.network === 'vk' &&
           channel.status === 'active' &&
           channel.id &&
-          channel.id !== settings.channelId,
+          channel.id !== settings.channelId &&
+          (!channel.workspaceId || !settings.workspaceId || channel.workspaceId === settings.workspaceId),
       ),
-    [channels, settings.channelId],
+    [channels, settings.channelId, settings.workspaceId],
   );
 
   const copyMutation = useMutation({

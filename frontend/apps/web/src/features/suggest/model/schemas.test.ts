@@ -27,6 +27,19 @@ describe('suggest settings form schema', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('treats a cleared numeric limit as unlimited (0)', () => {
+    const parsed = suggestSettingsFormSchema.safeParse({
+      ...defaultFormValues('c1'),
+      perAuthorHour: Number.NaN,
+      dedupSimilarityThreshold: Number.NaN,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.perAuthorHour).toBe(0);
+      expect(parsed.data.dedupSimilarityThreshold).toBe(0.8);
+    }
+  });
+
   it('rejects negative limits', () => {
     const parsed = suggestSettingsFormSchema.safeParse({
       ...defaultFormValues('c1'),

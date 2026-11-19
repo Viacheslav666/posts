@@ -5,15 +5,12 @@ import type { Control, UseFormRegister, UseFormSetValue, UseFormWatch } from 're
 import { Controller } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 
-import {
-  KeywordListEditor,
-  LimitInput,
-  ScheduleWindowEditor,
-} from '@/features/automations-common';
+import { KeywordListEditor, ScheduleWindowEditor } from '@/features/automations-common';
 
 import type { SuggestSettingsFormValues } from '../model/schemas';
 import { FORBID_ATTACHMENT_TYPES } from '../model/types';
 import { CheckboxRow } from './checkbox-row';
+import { TokenField } from './token-field';
 
 type SettingsSectionsProps = {
   control: Control<SuggestSettingsFormValues>;
@@ -164,38 +161,20 @@ export function SettingsSections({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('authorBlacklist')}</span>
-            <Input
+            <TokenField
               disabled={disabled}
-              data-testid="suggest-author-blacklist"
-              value={watch('authorBlacklist').join(', ')}
-              onChange={(event) =>
-                setValue(
-                  'authorBlacklist',
-                  event.target.value
-                    .split(/[,;\s]+/)
-                    .map((part) => part.trim())
-                    .filter(Boolean),
-                  { shouldDirty: true },
-                )
-              }
+              testId="suggest-author-blacklist"
+              value={watch('authorBlacklist')}
+              onChange={(next) => setValue('authorBlacklist', next, { shouldDirty: true })}
             />
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('authorWhitelist')}</span>
-            <Input
+            <TokenField
               disabled={disabled}
-              data-testid="suggest-author-whitelist"
-              value={watch('authorWhitelist').join(', ')}
-              onChange={(event) =>
-                setValue(
-                  'authorWhitelist',
-                  event.target.value
-                    .split(/[,;\s]+/)
-                    .map((part) => part.trim())
-                    .filter(Boolean),
-                  { shouldDirty: true },
-                )
-              }
+              testId="suggest-author-whitelist"
+              value={watch('authorWhitelist')}
+              onChange={(next) => setValue('authorWhitelist', next, { shouldDirty: true })}
             />
           </label>
         </div>
@@ -205,23 +184,6 @@ export function SettingsSections({
         <h3 className="text-base font-semibold">{t('sections.limits')}</h3>
         <p className="text-sm text-muted-foreground">{t('limitsHint')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Controller
-            control={control}
-            name="perAuthorDay"
-            render={({ field }) => (
-              <LimitInput
-                id="suggest-per-author"
-                aria-label={t('perAuthor')}
-                value={{ amount: field.value || null, period: 'day' }}
-                disabled={disabled}
-                onChange={(next) => {
-                  field.onChange(next.amount ?? 0);
-                  if (next.period === 'hour') setValue('perAuthorHour', next.amount ?? 0);
-                  if (next.period === 'week') setValue('perAuthorWeek', next.amount ?? 0);
-                }}
-              />
-            )}
-          />
           <div className="grid grid-cols-3 gap-2">
             <label className="text-xs">
               {t('hour')}
@@ -322,7 +284,7 @@ export function SettingsSections({
           name="rejectPolicy"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
-              <SelectTrigger data-testid="suggest-reject-policy">
+              <SelectTrigger data-testid="suggest-reject-policy" aria-label={t('sections.reject')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -353,7 +315,7 @@ export function SettingsSections({
           name="publishEditMode"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
-              <SelectTrigger data-testid="suggest-publish-edit-mode">
+              <SelectTrigger data-testid="suggest-publish-edit-mode" aria-label={t('sections.publish')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -382,20 +344,20 @@ export function SettingsSections({
         </label>
         <label className="block text-sm">
           {t('enrichmentHashtags')}
-          <Input
+          <TokenField
             disabled={disabled}
-            data-testid="suggest-hashtags"
-            value={watch('enrichmentHashtags').join(' ')}
-            onChange={(event) =>
-              setValue(
-                'enrichmentHashtags',
-                event.target.value
-                  .split(/[\s,]+/)
-                  .map((part) => part.trim())
-                  .filter(Boolean),
-                { shouldDirty: true },
-              )
-            }
+            testId="suggest-hashtags"
+            value={watch('enrichmentHashtags')}
+            onChange={(next) => setValue('enrichmentHashtags', next, { shouldDirty: true })}
+          />
+        </label>
+        <label className="block text-sm">
+          {t('keywordSignatures')}
+          <TokenField
+            disabled={disabled}
+            testId="suggest-keyword-signatures"
+            value={watch('keywordSignatures')}
+            onChange={(next) => setValue('keywordSignatures', next, { shouldDirty: true })}
           />
         </label>
       </section>

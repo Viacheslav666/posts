@@ -92,6 +92,14 @@ describe('suggest config helpers', () => {
     expect(restored.adsPauseAfterMinutes).toBe(90);
   });
 
+  it('keeps media asset ids that the form does not edit', () => {
+    const values = defaultFormValues('ch');
+    values.keywordSignatures = ['новость: @editor'];
+    const config = buildSuggestConfig(values, { mediaAssetIds: ['asset-1'] });
+    expect(config.enrichment.media_asset_ids).toEqual(['asset-1']);
+    expect(config.enrichment.keyword_signatures).toEqual(['новость: @editor']);
+  });
+
   it('parseSuggestConfig is alias for withConfigDefaults', () => {
     expect(parseSuggestConfig({ reject_policy: 'keep' }).reject_policy).toBe('keep');
   });

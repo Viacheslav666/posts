@@ -96,16 +96,35 @@ export function SettingsDetailPage({ workspaceId, settingsId }: SettingsDetailPa
     );
   }
 
+  if (settingsQuery.isError || projectsQuery.isError || channelsQuery.isError) {
+    const error = settingsQuery.error ?? projectsQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button type="button" variant="outline" onClick={() => settingsQuery.refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
   if (settingsQuery.isLoading || projectsQuery.isLoading || channelsQuery.isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
 
   const settings = settingsQuery.data;
   const project = projectsQuery.data?.items?.[0];
-  const channels = channelsQuery.data?.items ?? [];
+  const channels = (channelsQuery.data?.items ?? []).filter(
+    (item) => !item.workspaceId || item.workspaceId === workspaceId,
+  );
   const channel = channels.find((item) => item.id === settings?.channelId);
+  const foreignWorkspace = Boolean(settings?.workspaceId && settings.workspaceId !== workspaceId);
 
-  if (!settings || !project) {
+  if (!settings || foreignWorkspace || !project) {
     return (
       <EmptyState title={t('notFoundTitle')} description={t('notFoundBody')} />
     );

@@ -65,7 +65,7 @@ describe('suggest-store MSW', () => {
     expect('code' in job).toBe(false);
     if (!('code' in job)) {
       expect(job.progressPercent).toBe(100);
-      expect(job.status).toBe('completed');
+      expect(job.status).toBe('succeeded');
       expect((job.succeeded ?? 0) + (job.failed ?? 0)).toBe(job.total);
       expect(getSuggestBulkJob(job.id!)?.id).toBe(job.id);
     }

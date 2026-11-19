@@ -15,6 +15,7 @@ type SettingsCardProps = {
   workspaceId: string;
   channel?: Channel;
   pendingCount: number;
+  pendingHasMore?: boolean;
   canManage: boolean;
 };
 
@@ -23,6 +24,7 @@ export function SettingsCard({
   workspaceId,
   channel,
   pendingCount,
+  pendingHasMore = false,
   canManage,
 }: SettingsCardProps) {
   const t = useTranslations('automations.suggest');
@@ -49,7 +51,9 @@ export function SettingsCard({
                 className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs text-amber-800 dark:text-amber-300"
                 data-testid={`suggest-pending-count-${id}`}
               >
-                {t('pendingCount', { count: pendingCount })}
+                {pendingHasMore
+                  ? t('pendingCountMore', { count: pendingCount })
+                  : t('pendingCount', { count: pendingCount })}
               </span>
             ) : null}
           </div>

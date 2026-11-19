@@ -70,6 +70,72 @@ describe('SettingsForm (FE-22)', () => {
     expect(filters?.stop_words?.some((word) => word.toLowerCase().includes('реклама'))).toBe(true);
   });
 
+  it('saves a second blacklist id typed after a separator', async () => {
+    const user = userEvent.setup();
+    const settings = getSuggestSettings(SETTINGS_IDS.vkNews)!;
+
+    renderWithProviders(
+      <SettingsForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Demo' }}
+        channels={[
+          {
+            id: CHANNEL_IDS.vkNews,
+            network: 'vk',
+            title: 'Posts — новости',
+            status: 'active',
+            capabilities: { publishSuggested: true } as never,
+          },
+        ]}
+        settings={settings}
+        canManage
+      />,
+    );
+
+    const blacklist = await screen.findByTestId('suggest-author-blacklist');
+    await user.type(blacklist, '111, 222');
+    await user.click(screen.getByTestId('suggest-settings-save'));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalled();
+    });
+
+    const updated = getSuggestSettings(SETTINGS_IDS.vkNews);
+    const filters = (updated?.config as { filters?: { author_blacklist?: string[] } } | undefined)
+      ?.filters;
+    expect(filters?.author_blacklist).toEqual(expect.arrayContaining(['111', '222']));
+  });
+
+  it('pauses active settings when activate-after-save is turned off', async () => {
+    const user = userEvent.setup();
+    const settings = getSuggestSettings(SETTINGS_IDS.vkNews)!;
+
+    renderWithProviders(
+      <SettingsForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Demo' }}
+        channels={[
+          {
+            id: CHANNEL_IDS.vkNews,
+            network: 'vk',
+            title: 'Posts — новости',
+            status: 'active',
+            capabilities: { publishSuggested: true } as never,
+          },
+        ]}
+        settings={settings}
+        canManage
+      />,
+    );
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Активировать после сохранения' }));
+    await user.click(screen.getByTestId('suggest-settings-save'));
+
+    await waitFor(() => {
+      expect(getSuggestSettings(SETTINGS_IDS.vkNews)?.status).toBe('paused');
+    });
+  });
+
   it('renders create form with channel picker', async () => {
     renderWithProviders(
       <SettingsForm

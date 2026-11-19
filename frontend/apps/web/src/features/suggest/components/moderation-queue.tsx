@@ -13,7 +13,7 @@ import {
   Skeleton,
   toast,
 } from '@posts/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Inbox, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -30,7 +30,8 @@ import {
   syncSuggestLast100,
 } from '../api/suggest-api';
 import { withConfigDefaults } from '../model/config';
-import { QUEUE_FILTERS, type ItemStatus } from '../model/types';
+import { isBulkJobSettled, suggestItemInScope, suggestJobInScope } from '../model/scope';
+import { QUEUE_FILTERS, SUGGEST_PAGE_SIZE, type ItemStatus } from '../model/types';
 import { ApproveEditDialog } from './approve-edit-dialog';
 import { ItemCard } from './item-card';
 
@@ -57,21 +58,36 @@ export function ModerationQueue({
   const [bulkJobId, setBulkJobId] = useState<string | null>(null);
 
   const publishEditMode = withConfigDefaults(settings.config).publish_edit_mode;
+  const authorQuery = authorVkId.trim();
+  const listFilters = {
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    authorVkId: authorQuery || undefined,
+  };
+  const channelId = settings.channelId;
 
-  const itemsQuery = useQuery({
-    queryKey: queryKeys.suggest.items(workspaceId, settingsId, {
-      status: statusFilter === 'all' ? undefined : statusFilter,
-      authorVkId: authorVkId || undefined,
-    }),
-    queryFn: () =>
+  const itemsQuery = useInfiniteQuery({
+    queryKey: queryKeys.suggest.items(workspaceId, settingsId, listFilters),
+    queryFn: ({ pageParam }) =>
       listSuggestItems({
         settingsId,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        authorVkId: authorVkId || undefined,
+        status: listFilters.status,
+        authorVkId: listFilters.authorVkId,
+        cursor: pageParam,
+        limit: SUGGEST_PAGE_SIZE,
       }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
   });
 
-  const items = useMemo(() => itemsQuery.data?.items ?? [], [itemsQuery.data?.items]);
+  const items = useMemo(
+    () =>
+      (itemsQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((item) =>
+          suggestItemInScope(item, { workspaceId, settingsId, channelId }),
+        ),
+    [itemsQuery.data?.pages, workspaceId, settingsId, channelId],
+  );
 
   const bulkJobQuery = useQuery({
     queryKey: queryKeys.suggest.bulkJob(workspaceId, bulkJobId ?? ''),
@@ -80,9 +96,8 @@ export function ModerationQueue({
     refetchInterval: (query) => {
       const job = query.state.data as SuggestBulkJob | undefined;
       if (!job) return 500;
-      if ((job.progressPercent ?? 0) >= 100 || job.status === 'completed' || job.finishedAt) {
-        return false;
-      }
+      if (!suggestJobInScope(job, { workspaceId, settingsId })) return false;
+      if (isBulkJobSettled(job)) return false;
       return 500;
     },
   });
@@ -91,19 +106,23 @@ export function ModerationQueue({
     await queryClient.invalidateQueries({ queryKey: queryKeys.suggest.all(workspaceId) });
   };
 
+  const itemsKey = queryKeys.suggest.items(workspaceId, settingsId, listFilters);
+
   const optimisticUpdate = (itemId: string, next: Partial<SuggestItem>) => {
-    const key = queryKeys.suggest.items(workspaceId, settingsId, {
-      status: statusFilter === 'all' ? undefined : statusFilter,
-      authorVkId: authorVkId || undefined,
-    });
-    const previous = queryClient.getQueryData(key);
-    queryClient.setQueryData(key, (old: { items?: SuggestItem[] } | undefined) => {
-      if (!old?.items) return old;
-      return {
-        ...old,
-        items: old.items.map((item) => (item.id === itemId ? { ...item, ...next } : item)),
-      };
-    });
+    const previous = queryClient.getQueryData(itemsKey);
+    queryClient.setQueryData(
+      itemsKey,
+      (old: { pages?: Array<{ items?: SuggestItem[] }> } | undefined) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            items: page.items?.map((item) => (item.id === itemId ? { ...item, ...next } : item)),
+          })),
+        };
+      },
+    );
     return previous;
   };
 
@@ -132,13 +151,7 @@ export function ModerationQueue({
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(
-          queryKeys.suggest.items(workspaceId, settingsId, {
-            status: statusFilter === 'all' ? undefined : statusFilter,
-            authorVkId: authorVkId || undefined,
-          }),
-          context.previous,
-        );
+        queryClient.setQueryData(itemsKey, context.previous);
       }
       toast({
         variant: 'destructive',
@@ -163,16 +176,20 @@ export function ModerationQueue({
 
   const bulkMutation = useMutation({
     mutationFn: async (action: 'approve_ids' | 'approve_all' | 'reject_all') => {
+      const ownedPending = new Set(
+        items.filter((item) => item.status === 'pending_moderation' && item.id).map((item) => item.id!),
+      );
+      const ids = selected.filter((id) => ownedPending.has(id));
       const confirmed =
         action === 'approve_ids'
-          ? window.confirm(t('confirmBulkSelected', { count: selected.length }))
+          ? ids.length > 0 && window.confirm(t('confirmBulkSelected', { count: ids.length }))
           : action === 'approve_all'
-            ? window.confirm(t('confirmApproveAll', { count: items.filter((i) => i.status === 'pending_moderation').length || items.length }))
+            ? window.confirm(t('confirmApproveAll'))
             : window.confirm(t('confirmRejectAll'));
       if (!confirmed) throw new Error('cancelled');
       return bulkSuggestItems(settingsId, {
         action,
-        ids: action === 'approve_ids' ? selected : undefined,
+        ids: action === 'approve_ids' ? ids : undefined,
         deleteRemote: action === 'reject_all' ? true : undefined,
       });
     },
@@ -220,7 +237,10 @@ export function ModerationQueue({
     },
   });
 
-  const job = bulkJobQuery.data;
+  const job =
+    bulkJobQuery.data && suggestJobInScope(bulkJobQuery.data, { workspaceId, settingsId })
+      ? bulkJobQuery.data
+      : undefined;
 
   return (
     <section className="space-y-4" data-testid="suggest-moderation-queue" aria-label={t('title')}>
@@ -248,8 +268,9 @@ export function ModerationQueue({
           <Input
             className="w-[160px]"
             placeholder={t('authorFilter')}
+            aria-label={t('authorFilter')}
             value={authorVkId}
-            onChange={(event) => setAuthorVkId(event.target.value.trim())}
+            onChange={(event) => setAuthorVkId(event.target.value)}
             data-testid="suggest-author-filter"
           />
           {canManage ? (
@@ -318,7 +339,18 @@ export function ModerationQueue({
             succeeded: job.succeeded ?? 0,
             failed: job.failed ?? 0,
           })}
-          <div className="mt-2 h-2 overflow-hidden rounded bg-muted">
+          <div
+            className="mt-2 h-2 overflow-hidden rounded bg-muted"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, job.progressPercent ?? 0)}
+            aria-label={t('bulkProgress', {
+              percent: job.progressPercent ?? 0,
+              succeeded: job.succeeded ?? 0,
+              failed: job.failed ?? 0,
+            })}
+          >
             <div
               className="h-full bg-primary transition-all"
               style={{ width: `${Math.min(100, job.progressPercent ?? 0)}%` }}
@@ -332,6 +364,17 @@ export function ModerationQueue({
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
+      ) : itemsQuery.isError ? (
+        <EmptyState
+          role="alert"
+          title={t('loadErrorTitle')}
+          description={getErrorMessage(itemsQuery.error)}
+          action={
+            <Button type="button" variant="outline" onClick={() => itemsQuery.refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
       ) : items.length === 0 ? (
         <EmptyState
           icon={<Inbox className="h-6 w-6" aria-hidden />}
@@ -359,6 +402,20 @@ export function ModerationQueue({
               }
             />
           ))}
+          {itemsQuery.hasNextPage ? (
+            <div className="pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={itemsQuery.isFetchingNextPage}
+                onClick={() => itemsQuery.fetchNextPage()}
+                data-testid="suggest-queue-load-more"
+              >
+                {t('loadMore')}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
 

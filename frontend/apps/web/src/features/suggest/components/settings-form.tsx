@@ -16,6 +16,7 @@ import {
   activateSuggestSettings,
   createSuggestSettings,
   patchSuggestSettings,
+  pauseSuggestSettings,
 } from '../api/suggest-api';
 import { channelHasPublishSuggested } from '../model/capabilities';
 import {
@@ -23,6 +24,7 @@ import {
   configAsApiBlob,
   defaultFormValues,
   formValuesFromSettings,
+  withConfigDefaults,
 } from '../model/config';
 import {
   suggestSettingsFormSchema,
@@ -71,7 +73,12 @@ export function SettingsForm({
 
   const saveMutation = useMutation({
     mutationFn: async (values: SuggestSettingsFormValues) => {
-      const config = configAsApiBlob(buildSuggestConfig(values));
+      const preservedMedia = settings
+        ? withConfigDefaults(settings.config).enrichment.media_asset_ids
+        : [];
+      const config = configAsApiBlob(
+        buildSuggestConfig(values, { mediaAssetIds: preservedMedia }),
+      );
       if (settings?.id) {
         const patched = await patchSuggestSettings(settings.id, {
           mode: values.mode,
@@ -80,6 +87,12 @@ export function SettingsForm({
         });
         if (values.activate && patched.status !== 'active') {
           return activateSuggestSettings(settings.id);
+        }
+        if (
+          !values.activate &&
+          (patched.status === 'active' || patched.status === 'auto_paused')
+        ) {
+          return pauseSuggestSettings(settings.id);
         }
         return patched;
       }
@@ -110,7 +123,15 @@ export function SettingsForm({
   return (
     <form
       className="space-y-6"
-      onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
+      onSubmit={handleSubmit(
+        (values) => saveMutation.mutate(values),
+        () =>
+          toast({
+            variant: 'destructive',
+            title: t('errorTitle'),
+            description: t('invalid'),
+          }),
+      )}
       data-testid="suggest-settings-form"
       noValidate
     >

@@ -441,6 +441,15 @@ export function listSuggestItems(
   });
 }
 
+export function seedSuggestItems(items: SuggestItem[]): void {
+  state.items = [...state.items, ...items];
+}
+
+export function setSuggestSettingsWorkspace(settingsId: string, workspaceId: string): void {
+  const settings = findSettings(settingsId);
+  if (settings) settings.workspaceId = workspaceId;
+}
+
 export function countPending(settingsId: string): number {
   return state.items.filter(
     (item) => item.settingsId === settingsId && item.status === 'pending_moderation',
@@ -531,7 +540,7 @@ export function bulkSuggestItems(
     settingsId,
     channelId: settings.channelId,
     action: body.action,
-    status: 'completed',
+    status: 'succeeded',
     total: targets.length,
     processed: targets.length,
     succeeded,
@@ -697,7 +706,21 @@ export const suggestHandlers: HttpHandler[] = [
       from: url.searchParams.get('from') ?? undefined,
       to: url.searchParams.get('to') ?? undefined,
     });
-    return HttpResponse.json({ items, hasMore: false });
+    const limitRaw = Number(url.searchParams.get('limit') ?? '50');
+    const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, limitRaw)) : 50;
+    const cursor = url.searchParams.get('cursor');
+    let start = 0;
+    if (cursor) {
+      const index = items.findIndex((item) => item.id === cursor);
+      start = index >= 0 ? index + 1 : items.length;
+    }
+    const page = items.slice(start, start + limit);
+    const hasMore = start + limit < items.length;
+    return HttpResponse.json({
+      items: page,
+      hasMore,
+      nextCursor: hasMore ? page[page.length - 1]?.id : undefined,
+    });
   }),
 
   http.post('/api/v1/suggest/settings/:settingsId/items/bulk', async ({ request, params }) => {

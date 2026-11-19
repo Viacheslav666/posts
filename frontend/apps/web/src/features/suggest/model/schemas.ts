@@ -2,6 +2,22 @@ import { z } from 'zod';
 
 const boolField = z.boolean();
 
+function emptyNumber(fallback: number) {
+  return (value: unknown) => {
+    if (typeof value === 'number' && Number.isNaN(value)) return fallback;
+    if (value === '' || value === null || value === undefined) return fallback;
+    return value;
+  };
+}
+
+function intField(min: number, max: number, fallback = 0) {
+  return z.preprocess(emptyNumber(fallback), z.number().int().min(min).max(max));
+}
+
+function floatField(min: number, max: number, fallback: number) {
+  return z.preprocess(emptyNumber(fallback), z.number().min(min).max(max));
+}
+
 export const suggestSettingsFormSchema = z.object({
   channelId: z.string().min(1, 'channelRequired'),
   mode: z.enum(['auto', 'manual', 'hybrid']),
@@ -20,12 +36,12 @@ export const suggestSettingsFormSchema = z.object({
   authorBlacklist: z.array(z.string()),
   authorWhitelist: z.array(z.string()),
 
-  perAuthorHour: z.number().int().min(0).max(500),
-  perAuthorDay: z.number().int().min(0).max(2000),
-  perAuthorWeek: z.number().int().min(0).max(10000),
-  globalHour: z.number().int().min(0).max(500),
-  globalDay: z.number().int().min(0).max(2000),
-  globalWeek: z.number().int().min(0).max(10000),
+  perAuthorHour: intField(0, 500),
+  perAuthorDay: intField(0, 2000),
+  perAuthorWeek: intField(0, 10000),
+  globalHour: intField(0, 500),
+  globalDay: intField(0, 2000),
+  globalWeek: intField(0, 10000),
 
   scheduleEnabled: boolField,
   scheduleTimezone: z.string().min(1),
@@ -36,15 +52,15 @@ export const suggestSettingsFormSchema = z.object({
       end: z.string(),
     }),
   ),
-  minIntervalMinutes: z.number().int().min(0).max(1440),
-  schedulePauseAfterAdsMinutes: z.number().int().min(0).max(10080),
+  minIntervalMinutes: intField(0, 1440),
+  schedulePauseAfterAdsMinutes: intField(0, 10080),
 
   dedupEnabled: boolField,
-  dedupLookbackDays: z.number().int().min(1).max(90),
-  dedupSimilarityThreshold: z.number().min(0).max(1),
+  dedupLookbackDays: intField(1, 90, 7),
+  dedupSimilarityThreshold: floatField(0, 1, 0.8),
 
   rejectPolicy: z.enum(['delete', 'keep', 'delete_after']),
-  deleteAfterHours: z.number().int().min(0).max(8760),
+  deleteAfterHours: intField(0, 8760),
   notifyAuthor: boolField,
 
   firstCommentEnabled: boolField,
@@ -55,11 +71,12 @@ export const suggestSettingsFormSchema = z.object({
 
   enrichmentHashtags: z.array(z.string()),
   enrichmentAppendText: z.string().max(4000),
+  keywordSignatures: z.array(z.string()),
 
   adsPauseEnabled: boolField,
   adsDetectMarkedAsAds: boolField,
   adsDetectErid: boolField,
-  adsPauseAfterMinutes: z.number().int().min(0).max(10080),
+  adsPauseAfterMinutes: intField(0, 10080),
 });
 
 export type SuggestSettingsFormValues = z.infer<typeof suggestSettingsFormSchema>;

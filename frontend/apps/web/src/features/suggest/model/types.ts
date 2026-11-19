@@ -23,6 +23,9 @@ export type KeywordMatchApi = 'contains' | 'whole_word';
 /** Soft plan limit for connected suggest channels (UI CTA; not a hard API metric yet). */
 export const SUGGEST_SOFT_CHANNEL_LIMIT = 20;
 
+/** Cursor page size. Sync-last-100 imports more than one page, so lists must follow `nextCursor`. */
+export const SUGGEST_PAGE_SIZE = 50;
+
 export const QUEUE_FILTERS: Array<ItemStatus | 'all'> = [
   'pending_moderation',
   'all',
@@ -38,7 +41,18 @@ export const HISTORY_FILTERS: Array<ItemStatus | 'all'> = [
   'published',
   'rejected',
   'deleted_remote',
+  'removed_externally',
+  'failed',
   'all',
+];
+
+/** Terminal outcomes included when the history filter is «all». */
+export const HISTORY_STATUSES: ItemStatus[] = [
+  'published',
+  'rejected',
+  'deleted_remote',
+  'removed_externally',
+  'failed',
 ];
 
 export const FORBID_ATTACHMENT_TYPES = ['photo', 'video', 'audio', 'doc', 'link', 'poll'] as const;
