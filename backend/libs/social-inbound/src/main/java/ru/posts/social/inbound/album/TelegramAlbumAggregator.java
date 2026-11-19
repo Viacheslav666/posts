@@ -41,7 +41,7 @@ public class TelegramAlbumAggregator {
     }
 
     public int pendingCount() {
-        return store instanceof InMemoryAlbumFragmentStore memory ? memory.pendingCount() : -1;
+        return store.pendingCount();
     }
 
     public record ReadyAlbum(String channelKey, String mediaGroupId, String botId, List<JsonNode> fragments) {}

@@ -11,4 +11,6 @@ public interface AlbumFragmentStore {
 
     /** Albums whose newest fragment is at least {@link TelegramAlbumAggregator#WINDOW} old. */
     List<TelegramAlbumAggregator.ReadyAlbum> drainReady(Instant now);
+
+    int pendingCount();
 }

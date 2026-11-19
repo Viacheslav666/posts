@@ -54,6 +54,15 @@ public class JdbcAlbumFragmentStore implements AlbumFragmentStore {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public int pendingCount() {
+        Long count = jdbc.sql("SELECT count(*) FROM telegram_album_fragments")
+                .query(Long.class)
+                .single();
+        return count == null ? 0 : Math.toIntExact(count);
+    }
+
+    @Override
     @Transactional
     public List<TelegramAlbumAggregator.ReadyAlbum> drainReady(Instant now) {
         jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended('tg-album-flush', 0))")

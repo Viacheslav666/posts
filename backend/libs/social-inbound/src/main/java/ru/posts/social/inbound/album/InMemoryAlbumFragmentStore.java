@@ -51,7 +51,8 @@ public class InMemoryAlbumFragmentStore implements AlbumFragmentStore {
         return ready;
     }
 
-    int pendingCount() {
+    @Override
+    public int pendingCount() {
         return buffers.size();
     }
 

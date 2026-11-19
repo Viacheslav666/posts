@@ -91,7 +91,6 @@ public class CrosspostPostFactory {
         Instant now = Instant.now();
         int delayMin = CrosspostConfigSupport.delayMinutes(rule.getConfig());
         Instant scheduledAt = CrosspostSchedule.align(rule.getConfig(), runAtBase.plusSeconds(delayMin * 60L));
-        PublicationPartitions.ensureMonth(jdbcTemplate, "publications", scheduledAt);
 
         String sourcePermalink = sourcePermalink(candidate, channelsById.get(item.getSourceChannelId()));
         Map<String, Object> sourceRef = LoopGuard.buildSourceRef(
@@ -145,6 +144,7 @@ public class CrosspostPostFactory {
         if (dryRun || accepted.isEmpty()) {
             return new PublishResult(null, results, false);
         }
+        PublicationPartitions.ensureMonth(jdbcTemplate, "publications", scheduledAt);
 
         PostEntity post = new PostEntity();
         post.setId(UuidV7.generate());
