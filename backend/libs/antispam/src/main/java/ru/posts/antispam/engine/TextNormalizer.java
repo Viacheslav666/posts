@@ -28,8 +28,26 @@ public final class TextNormalizer {
             i += Character.charCount(cp);
             mapped.appendCodePoint(mapLookalike(cp));
         }
-        String collapsedSeparators = collapseSeparators(mapped.toString());
+        String collapsedSeparators = collapseSeparators(mapped.toString(), false);
         return collapseRepeats(collapsedSeparators);
+    }
+
+    /**
+     * Same evasion folding as {@link #normalizeForKeywords}, but whitespace stays a word boundary
+     * so whole-word mode can tell «спам» from «спамер» and from the next word.
+     */
+    public static String normalizePreservingSpaces(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
+        String lower = input.toLowerCase(Locale.ROOT);
+        StringBuilder mapped = new StringBuilder(lower.length());
+        for (int i = 0; i < lower.length(); ) {
+            int cp = lower.codePointAt(i);
+            i += Character.charCount(cp);
+            mapped.appendCodePoint(mapLookalike(cp));
+        }
+        return collapseRepeats(collapseSeparators(mapped.toString(), true));
     }
 
     static int mapLookalike(int cp) {
@@ -59,10 +77,21 @@ public final class TextNormalizer {
      * keeping ordinary word boundaries (spaces between words).
      */
     static String collapseSeparators(String text) {
+        return collapseSeparators(text, false);
+    }
+
+    static String collapseSeparators(String text, boolean preserveSpaces) {
         StringBuilder out = new StringBuilder(text.length());
         for (int i = 0; i < text.length(); ) {
             int cp = text.codePointAt(i);
             int len = Character.charCount(cp);
+            if (preserveSpaces && Character.isWhitespace(cp)) {
+                if (out.length() == 0 || out.charAt(out.length() - 1) != ' ') {
+                    out.append(' ');
+                }
+                i += len;
+                continue;
+            }
             if (isWordSeparator(cp)) {
                 boolean leftLetter = hasLetterBefore(text, i);
                 boolean rightLetter = hasLetterAfter(text, i + len);

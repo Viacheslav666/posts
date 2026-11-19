@@ -1,5 +1,7 @@
 import type { AntispamRule } from '@posts/api-client';
 
+import type { KeywordMatchMode } from '@/features/automations-common/model/keywords';
+
 import type { AntispamRuleFormValues } from './schemas';
 import {
   ATTACHMENT_KEYS,
@@ -13,6 +15,8 @@ export type AntispamKeywordsConfig = {
   white: string[];
   black_list_ids: string[];
   white_list_ids: string[];
+  /** `whole_word` or `substring`. Engine default is substring. */
+  match: KeywordMatchMode;
 };
 
 export type AntispamLinksConfig = {
@@ -106,6 +110,10 @@ function asString(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function asMatchMode(value: unknown): 'whole_word' | 'substring' {
+  return value === 'whole_word' ? 'whole_word' : 'substring';
+}
+
 export function defaultAttachments(): AntispamAttachmentsConfig {
   return {
     photo: false,
@@ -121,7 +129,7 @@ export function defaultAttachments(): AntispamAttachmentsConfig {
 export function defaultConfig(): AntispamConfig {
   return {
     filters: {
-      keywords: { black: [], white: [], black_list_ids: [], white_list_ids: [] },
+      keywords: { black: [], white: [], black_list_ids: [], white_list_ids: [], match: 'substring' },
       links: { all: false, vk: false, domain_whitelist: [] },
       attachments: defaultAttachments(),
       caps: { enabled: false, ratio: 0.7, min_letters: 5 },
@@ -173,6 +181,7 @@ export function withConfigDefaults(raw: unknown): AntispamConfig {
         white: asStringList(keywordsRaw.white),
         black_list_ids: asStringList(keywordsRaw.black_list_ids),
         white_list_ids: asStringList(keywordsRaw.white_list_ids),
+        match: asMatchMode(keywordsRaw.match),
       },
       links: {
         all: asBool(linksRaw.all, false),
@@ -270,6 +279,7 @@ export function buildConfig(values: AntispamRuleFormValues): AntispamConfig {
         white: values.whiteWords,
         black_list_ids: values.blackListIds,
         white_list_ids: values.whiteListIds,
+        match: values.keywordMatchMode,
       },
       links: {
         all: values.linksAll,
@@ -333,7 +343,7 @@ export function formValuesFromRule(rule: AntispamRule): AntispamRuleFormValues {
     whiteWords: config.filters.keywords.white,
     blackListIds: config.filters.keywords.black_list_ids,
     whiteListIds: config.filters.keywords.white_list_ids,
-    keywordMatchMode: 'substring',
+    keywordMatchMode: config.filters.keywords.match,
     linksAll: config.filters.links.all,
     linksVk: config.filters.links.vk,
     domainWhitelist: config.filters.links.domain_whitelist,
@@ -361,9 +371,28 @@ export function formValuesFromRule(rule: AntispamRule): AntispamRuleFormValues {
   };
 }
 
-/** Config as OpenAPI `additionalProperties` blob. */
-export function configAsApiBlob(config: AntispamConfig): Record<string, never> {
-  return config as unknown as Record<string, never>;
+/**
+ * Config as OpenAPI blob. Unknown keys already stored on the rule are kept, so a save does not
+ * drop fields this form does not edit.
+ */
+export function configAsApiBlob(config: AntispamConfig, preserved?: unknown): Record<string, never> {
+  return overlayUnknown(preserved, config as unknown as Record<string, unknown>) as unknown as Record<
+    string,
+    never
+  >;
+}
+
+function overlayUnknown(preserved: unknown, next: Record<string, unknown>): Record<string, unknown> {
+  const base = asRecord(preserved);
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(next)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      out[key] = overlayUnknown(base[key], value as Record<string, unknown>);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 export function previewReplyTemplate(template: string, reasons: string[]): string {

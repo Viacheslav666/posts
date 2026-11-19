@@ -2,7 +2,7 @@
 
 import type { Channel } from '@posts/api-client';
 import { Button, EmptyState, Skeleton } from '@posts/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { BookOpen, Radio, ShieldOff, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -13,8 +13,10 @@ import { listChannels } from '@/features/channels/api/channels-api';
 import { listProjects } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
+import { getErrorMessage } from '@/shared/lib/errors';
 
 import { listAntispamRules } from '../api/antispam-api';
+import { belongsToWorkspace } from '../model/scope';
 import { ANTISPAM_NETWORKS } from '../model/types';
 import { RuleCard } from './rule-card';
 import { WordListsPanel } from './word-lists-panel';
@@ -34,11 +36,15 @@ export function AntispamPage({ workspaceId }: AntispamPageProps) {
     queryFn: () => listProjects(workspaceId),
     enabled: canView,
   });
-  const projectId = projectsQuery.data?.items?.[0]?.id;
+  const project = projectsQuery.data?.items?.find((item) => belongsToWorkspace(item, workspaceId));
+  const projectId = project?.id;
 
-  const rulesQuery = useQuery({
+  const rulesQuery = useInfiniteQuery({
     queryKey: queryKeys.antispam.rules(workspaceId, projectId ?? ''),
-    queryFn: () => listAntispamRules({ workspaceId, projectId: projectId! }),
+    queryFn: ({ pageParam }) =>
+      listAntispamRules({ workspaceId, projectId: projectId!, cursor: pageParam, limit: 50 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
     enabled: canView && Boolean(projectId),
   });
 
@@ -48,8 +54,17 @@ export function AntispamPage({ workspaceId }: AntispamPageProps) {
     enabled: canView,
   });
 
-  const rules = useMemo(() => rulesQuery.data?.items ?? [], [rulesQuery.data?.items]);
-  const channels = useMemo(() => channelsQuery.data?.items ?? [], [channelsQuery.data?.items]);
+  const rules = useMemo(
+    () =>
+      (rulesQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((rule) => belongsToWorkspace(rule, workspaceId)),
+    [rulesQuery.data?.pages, workspaceId],
+  );
+  const channels = useMemo(
+    () => (channelsQuery.data?.items ?? []).filter((channel) => belongsToWorkspace(channel, workspaceId)),
+    [channelsQuery.data?.items, workspaceId],
+  );
   const channelsById = useMemo(() => {
     const map = new Map<string, Channel>();
     for (const channel of channels) {
@@ -85,6 +100,30 @@ export function AntispamPage({ workspaceId }: AntispamPageProps) {
         icon={<ShieldOff className="h-6 w-6" aria-hidden />}
         title={t('forbiddenTitle')}
         description={t('forbiddenBody')}
+      />
+    );
+  }
+
+  if (projectsQuery.isError || rulesQuery.isError || channelsQuery.isError) {
+    const error = projectsQuery.error ?? rulesQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void projectsQuery.refetch();
+              void rulesQuery.refetch();
+              void channelsQuery.refetch();
+            }}
+          >
+            {t('retry')}
+          </Button>
+        }
       />
     );
   }
@@ -177,6 +216,18 @@ export function AntispamPage({ workspaceId }: AntispamPageProps) {
                 </div>
               );
             })}
+            {rulesQuery.hasNextPage ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={rulesQuery.isFetchingNextPage}
+                onClick={() => void rulesQuery.fetchNextPage()}
+                data-testid="antispam-rules-load-more"
+              >
+                {rulesQuery.isFetchingNextPage ? t('history.loadingMore') : t('history.loadMore')}
+              </Button>
+            ) : null}
           </div>
         )}
       </section>

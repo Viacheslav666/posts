@@ -26,6 +26,7 @@ import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
 import ru.posts.api.web.dto.antispam.AntispamDtos;
 import ru.posts.api.web.dto.common.CursorPage;
+import ru.posts.api.web.support.CursorPages;
 import ru.posts.api.workspace.WorkspaceAccessService;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.AntispamRuleEntity;
@@ -107,13 +108,10 @@ public class AntispamServiceImpl implements AntispamService {
         List<AntispamRuleEntity> rules =
                 ruleRepository.findByWorkspaceIdAndProjectIdOrderByPriorityAscCreatedAtDesc(workspaceId, projectId);
         int limit = page == null ? 20 : page.limitOrDefault();
-        List<AntispamDtos.AntispamRule> items =
-                rules.stream().limit(limit + 1L).map(this::toRuleDto).toList();
-        boolean hasMore = items.size() > limit;
-        if (hasMore) {
-            items = items.subList(0, limit);
-        }
-        return new AntispamDtos.AntispamRulePage(items, null, hasMore);
+        CursorPages.Slice<AntispamRuleEntity> slice =
+                CursorPages.slice(rules, page == null ? null : page.cursor(), limit, AntispamRuleEntity::getId);
+        return new AntispamDtos.AntispamRulePage(
+                slice.items().stream().map(this::toRuleDto).toList(), slice.nextCursor(), slice.hasMore());
     }
 
     @Override
@@ -233,11 +231,12 @@ public class AntispamServiceImpl implements AntispamService {
     @Transactional(readOnly = true)
     public AntispamDtos.AntispamWordListPage listWordLists(UUID userId, UUID workspaceId, CursorPage.Params page) {
         access.requirePermission(workspaceId, userId, "automations.view");
-        List<AntispamDtos.AntispamWordList> items =
-                wordListRepository.findByWorkspaceIdOrderByNameAsc(workspaceId).stream()
-                        .map(this::toWordListDto)
-                        .toList();
-        return new AntispamDtos.AntispamWordListPage(items, null, false);
+        List<AntispamWordListEntity> lists = wordListRepository.findByWorkspaceIdOrderByNameAsc(workspaceId);
+        int limit = page == null ? 20 : page.limitOrDefault();
+        CursorPages.Slice<AntispamWordListEntity> slice =
+                CursorPages.slice(lists, page == null ? null : page.cursor(), limit, AntispamWordListEntity::getId);
+        return new AntispamDtos.AntispamWordListPage(
+                slice.items().stream().map(this::toWordListDto).toList(), slice.nextCursor(), slice.hasMore());
     }
 
     @Override

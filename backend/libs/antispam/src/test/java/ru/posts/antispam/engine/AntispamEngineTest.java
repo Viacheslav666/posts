@@ -77,6 +77,32 @@ class AntispamEngineTest {
     @DisplayName("Engine filters")
     class Engine {
         @Test
+        void wholeWordSkipsKeywordInsideALongerWord() {
+            Map<String, Object> config = Map.of(
+                    "filters",
+                    Map.of("keywords", Map.of("black", List.of("спам"), "match", "whole_word")),
+                    "actions",
+                    Map.of("delete", true));
+            Verdict inside = eval(event("спамер пишет"), rule(config), EvaluationContext.empty());
+            assertThat(inside.matched()).isFalse();
+
+            Verdict exact = eval(event("это спам."), rule(config), EvaluationContext.empty());
+            assertThat(exact.matched()).isTrue();
+            assertThat(exact.reasons()).anyMatch(r -> r.startsWith("keyword:"));
+        }
+
+        @Test
+        void substringMatchStillHitsInsideAWord() {
+            Verdict v = eval(
+                    event("спамер"),
+                    rule(Map.of(
+                            "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
+            assertThat(v.matched()).isTrue();
+        }
+
+        @Test
         void keywordHitProducesDelete() {
             Verdict v = eval(
                     event("купи спам"),
