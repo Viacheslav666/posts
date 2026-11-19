@@ -12816,7 +12816,6 @@ paths:
         schema:
           type: string
           format: uuid
-
       - in: header
         name: Idempotency-Key
         required: false
@@ -14939,6 +14938,57 @@ components:
           minLength: 1
       required:
       - name
+    CrosspostItem:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        postId:
+          type: string
+          format: uuid
+        reasons:
+          type: array
+          items:
+            type: string
+        ruleId:
+          type: string
+          format: uuid
+        sourceChannelId:
+          type: string
+          format: uuid
+        sourceNetwork:
+          type: string
+        sourceRemoteId:
+          type: string
+        status:
+          type: string
+          enum:
+          - received
+          - filtered_out
+          - skipped_own
+          - skipped_loop
+          - skipped_duplicate
+          - skipped_unsupported_media
+          - queued
+          - published
+          - partially_published
+          - failed
+        updatedAt:
+          type: string
+          format: date-time
+    CrosspostItemPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostItem"
+        nextCursor:
+          type: string
     CrosspostPreviewRequest:
       type: object
       properties:
@@ -14950,6 +15000,33 @@ components:
           type: string
         sourceRemoteId:
           type: string
+    CrosspostPreviewResponse:
+      type: object
+      properties:
+        filterReasons:
+          type: array
+          items:
+            type: string
+        targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostPreviewTarget"
+    CrosspostPreviewTarget:
+      type: object
+      properties:
+        network:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        targetChannelId:
+          type: string
+          format: uuid
+        variant:
+          type: object
+          additionalProperties:
+            type: object
     CrosspostRule:
       type: object
       properties:
@@ -15021,6 +15098,13 @@ components:
       required:
       - name
       - sourceChannelId
+    CrosspostRuleList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrosspostRule"
     CrosspostRulePatch:
       type: object
       properties:
@@ -15076,96 +15160,6 @@ components:
           type: string
         message:
           type: string
-
-    CrosspostRuleList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/CrosspostRule"
-    CrosspostItemStatus:
-      type: string
-      enum:
-      - received
-      - filtered_out
-      - skipped_own
-      - skipped_loop
-      - skipped_duplicate
-      - skipped_unsupported_media
-      - queued
-      - published
-      - partially_published
-      - failed
-    CrosspostItem:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        ruleId:
-          type: string
-          format: uuid
-        sourceChannelId:
-          type: string
-          format: uuid
-        sourceRemoteId:
-          type: string
-        sourceNetwork:
-          type: string
-        status:
-          $ref: "#/components/schemas/CrosspostItemStatus"
-        reasons:
-          type: array
-          items:
-            type: string
-        postId:
-          type: string
-          format: uuid
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-    CrosspostItemPage:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/CrosspostItem"
-        nextCursor:
-          type: string
-          nullable: true
-    CrosspostPreviewTarget:
-      type: object
-      properties:
-        targetChannelId:
-          type: string
-          format: uuid
-        network:
-          type: string
-        status:
-          type: string
-        reason:
-          type: string
-        variant:
-          type: object
-          additionalProperties:
-            type: object
-    CrosspostPreviewResponse:
-      type: object
-      properties:
-        filterReasons:
-          type: array
-          items:
-            type: string
-        targets:
-          type: array
-          items:
-            $ref: "#/components/schemas/CrosspostPreviewTarget"
     DictionaryKktuItem:
       type: object
       properties:

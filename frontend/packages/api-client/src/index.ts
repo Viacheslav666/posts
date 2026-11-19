@@ -146,7 +146,8 @@ export type CrosspostTargetRequest = components['schemas']['CrosspostTargetReque
 export type CrosspostWarning = components['schemas']['CrosspostWarning'];
 export type CrosspostItem = components['schemas']['CrosspostItem'];
 export type CrosspostItemPage = components['schemas']['CrosspostItemPage'];
-export type CrosspostItemStatus = components['schemas']['CrosspostItemStatus'];
+/** Status enum is inlined on CrosspostItem by springdoc (no separate schema). */
+export type CrosspostItemStatus = NonNullable<CrosspostItem['status']>;
 export type CrosspostPreviewRequest = components['schemas']['CrosspostPreviewRequest'];
 export type CrosspostPreviewResponse = components['schemas']['CrosspostPreviewResponse'];
 export type CrosspostPreviewTarget = components['schemas']['CrosspostPreviewTarget'];

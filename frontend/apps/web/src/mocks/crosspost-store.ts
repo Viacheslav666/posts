@@ -236,7 +236,6 @@ function createInitialState(): StoreState {
         sourceNetwork: 'vk',
         status: 'failed',
         reasons: ['publish_error'],
-        postId: null,
         createdAt: minutesAgo(90),
         updatedAt: minutesAgo(80),
       },
@@ -248,7 +247,6 @@ function createInitialState(): StoreState {
         sourceNetwork: 'vk',
         status: 'filtered_out',
         reasons: ['exclude_ads', 'keyword_exclude'],
-        postId: null,
         createdAt: minutesAgo(120),
         updatedAt: minutesAgo(120),
       },
@@ -456,7 +454,7 @@ export function listCrosspostItems(
   status?: string,
   cursor?: string,
   limit = 50,
-): { items: CrosspostItem[]; nextCursor: string | null } {
+): { items: CrosspostItem[]; nextCursor?: string } {
   const filtered = state.items
     .filter((item) => {
       if (item.ruleId !== ruleId) return false;
@@ -473,7 +471,7 @@ export function listCrosspostItems(
   const slice = filtered.slice(start, start + limit);
   const last = slice[slice.length - 1];
   const nextCursor =
-    last && start + slice.length < filtered.length ? (last.id ?? null) : null;
+    last && start + slice.length < filtered.length ? last.id : undefined;
   return { items: slice, nextCursor };
 }
 
