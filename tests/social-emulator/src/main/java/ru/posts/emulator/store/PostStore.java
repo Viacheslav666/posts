@@ -192,12 +192,60 @@ public class PostStore {
                 duplicates.isEmpty());
     }
 
-    public boolean deleteByRemoteId(Network network, String channelId, String remotePostId) {
-        Optional<EmulatedPost> found = postsById.values().stream()
+    public Optional<EmulatedPost> findByRemoteId(Network network, String channelId, String remotePostId) {
+        return postsById.values().stream()
                 .filter(post -> post.network() == network)
-                .filter(post -> channelId == null || channelId.equals(post.channelId()))
+                .filter(post ->
+                        channelId == null || channelId.isBlank() || channelIdsEqual(channelId, post.channelId()))
                 .filter(post -> remotePostId != null && remotePostId.equals(post.remotePostId()))
                 .findFirst();
+    }
+
+    /**
+     * Seed a post with an explicit remote id and createdAt (for TG 48h delete-window tests).
+     */
+    public EmulatedPost seed(
+            Network network,
+            String channelId,
+            String remotePostId,
+            String text,
+            Instant createdAt,
+            Map<String, Object> metadata) {
+        Map<String, Object> safeMeta = new LinkedHashMap<>();
+        if (metadata != null) {
+            for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    safeMeta.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+        Instant at = createdAt == null ? Instant.now() : createdAt;
+        String remote = remotePostId == null || remotePostId.isBlank()
+                ? String.valueOf(remoteIdSequences.get(network).incrementAndGet())
+                : remotePostId;
+        EmulatedPost post = new EmulatedPost(
+                UUID.randomUUID().toString(),
+                network,
+                channelId == null ? "0" : channelId,
+                remote,
+                null,
+                text,
+                at,
+                Map.copyOf(safeMeta));
+        // Replace any existing remote id match so re-seed is idempotent for tests.
+        findByRemoteId(network, channelId, remote).ifPresent(existing -> {
+            postsById.remove(existing.id());
+            if (existing.idempotencyKey() != null) {
+                idempotencyIndex.remove(indexKey(network, existing.channelId(), existing.idempotencyKey()));
+            }
+        });
+        postsById.put(post.id(), post);
+        createdCounters.get(network).incrementAndGet();
+        return post;
+    }
+
+    public boolean deleteByRemoteId(Network network, String channelId, String remotePostId) {
+        Optional<EmulatedPost> found = findByRemoteId(network, channelId, remotePostId);
         if (found.isEmpty()) {
             return false;
         }

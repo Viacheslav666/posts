@@ -70,6 +70,15 @@ public class PublicationMetrics {
                 .increment();
     }
 
+    public void recordRemoteAction(String network, String kind, String result) {
+        String net = network == null ? "unknown" : network;
+        String actionKind = kind == null ? "unknown" : kind;
+        String outcome = result == null ? "unknown" : result;
+        meterRegistry
+                .counter("posts_remote_actions_total", "network", net, "kind", actionKind, "result", outcome)
+                .increment();
+    }
+
     public void recordDlq(String network, String queueKind) {
         meterRegistry
                 .counter("posts_pipeline_dlq_total", "network", network, "queue", queueKind)

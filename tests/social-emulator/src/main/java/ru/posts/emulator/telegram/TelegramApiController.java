@@ -4,11 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -19,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
+import ru.posts.emulator.store.EmulatedPost;
+import ru.posts.emulator.store.ModerationStore;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 import ru.posts.emulator.web.PublishSupport;
@@ -26,20 +32,29 @@ import ru.posts.emulator.web.PublishSupport;
 @RestController
 public class TelegramApiController {
 
+    static final Duration DELETE_WINDOW = Duration.ofHours(48);
+
     private final PostStore postStore;
+    private final ModerationStore moderationStore;
     private final PublishSupport publishSupport;
     private final ObjectMapper objectMapper;
     private final TelegramWebhookStore webhookStore;
+    /** chat_id → linked discussion group id for getChat (BE-33). */
+    private final ConcurrentHashMap<String, Long> linkedChats = new ConcurrentHashMap<>();
 
     public TelegramApiController(
             PostStore postStore,
+            ModerationStore moderationStore,
             PublishSupport publishSupport,
             ObjectMapper objectMapper,
             TelegramWebhookStore webhookStore) {
         this.postStore = postStore;
+        this.moderationStore = moderationStore;
         this.publishSupport = publishSupport;
         this.objectMapper = objectMapper;
         this.webhookStore = webhookStore;
+        // Default: channel -1001 has discussion group -1002
+        linkedChats.put("-1001", -1002L);
     }
 
     @PostMapping(
@@ -235,11 +250,152 @@ public class TelegramApiController {
     public ResponseEntity<?> deleteMessage(
             @PathVariable String token,
             @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
+            String chatId = stringParam(jsonBody, form, "chat_id");
+            String messageId = stringParam(jsonBody, form, "message_id");
+            ResponseEntity<?> tooOld = rejectIfOlderThanDeleteWindow(chatId, messageId);
+            if (tooOld != null) {
+                return tooOld;
+            }
+            postStore.deleteByRemoteId(Network.TELEGRAM, chatId, messageId);
+            return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        });
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/deleteMessages", "/telegram/bot{token}/deleteMessages"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> deleteMessages(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
+            String chatId = stringParam(jsonBody, form, "chat_id");
+            List<String> messageIds = messageIdsParam(jsonBody, form);
+            for (String messageId : messageIds) {
+                ResponseEntity<?> tooOld = rejectIfOlderThanDeleteWindow(chatId, messageId);
+                if (tooOld != null) {
+                    return tooOld;
+                }
+            }
+            for (String messageId : messageIds) {
+                postStore.deleteByRemoteId(Network.TELEGRAM, chatId, messageId);
+            }
+            return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        });
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/banChatMember", "/telegram/bot{token}/banChatMember"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> banChatMember(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
+            String chatId = stringParam(jsonBody, form, "chat_id");
+            String userId = stringParam(jsonBody, form, "user_id");
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("until_date", stringParam(jsonBody, form, "until_date"));
+            payload.put("revoke_messages", stringParam(jsonBody, form, "revoke_messages"));
+            moderationStore.ban(Network.TELEGRAM, chatId, userId, payload);
+            return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        });
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/unbanChatMember", "/telegram/bot{token}/unbanChatMember"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> unbanChatMember(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
+            String chatId = stringParam(jsonBody, form, "chat_id");
+            String userId = stringParam(jsonBody, form, "user_id");
+            moderationStore.unban(Network.TELEGRAM, chatId, userId);
+            return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        });
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/restrictChatMember", "/telegram/bot{token}/restrictChatMember"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> restrictChatMember(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam MultiValueMap<String, String> form,
+            HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.TELEGRAM, rawResponse, () -> {
+            String chatId = stringParam(jsonBody, form, "chat_id");
+            String userId = stringParam(jsonBody, form, "user_id");
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("until_date", stringParam(jsonBody, form, "until_date"));
+            payload.put("permissions", jsonBody != null ? jsonBody.get("permissions") : null);
+            payload.put("restricted", true);
+            moderationStore.ban(Network.TELEGRAM, chatId, "restrict:" + nullToEmpty(userId), payload);
+            return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        });
+    }
+
+    @PostMapping(
+            path = {"/bot{token}/getChat", "/telegram/bot{token}/getChat"},
+            consumes = {
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<?> getChat(
+            @PathVariable String token,
+            @RequestBody(required = false) Map<String, Object> jsonBody,
             @RequestParam MultiValueMap<String, String> form) {
         String chatId = stringParam(jsonBody, form, "chat_id");
-        String messageId = stringParam(jsonBody, form, "message_id");
-        postStore.deleteByRemoteId(Network.TELEGRAM, chatId, messageId);
-        return ResponseEntity.ok(Map.of("ok", true, "result", true));
+        Map<String, Object> chat = new LinkedHashMap<>();
+        chat.put("id", parseChatId(chatId));
+        chat.put("type", "channel");
+        chat.put("title", "Emulated chat " + nullToEmpty(chatId));
+        Long linked = linkedChats.get(chatId == null ? "" : chatId);
+        if (linked == null && chatId != null) {
+            // Deterministic linked group for any channel id ending with digits.
+            linked = linkedChats.computeIfAbsent(chatId, id -> {
+                try {
+                    long n = Long.parseLong(id);
+                    return n > 0 ? -n - 1 : n - 1;
+                } catch (NumberFormatException ex) {
+                    return -1002L;
+                }
+            });
+        }
+        if (linked != null) {
+            chat.put("linked_chat_id", linked);
+        }
+        return ResponseEntity.ok(Map.of("ok", true, "result", chat));
     }
 
     @PostMapping(
@@ -265,6 +421,43 @@ public class TelegramApiController {
         boolean pinned = !uri.contains("unpin");
         postStore.markPinned(Network.TELEGRAM, chatId, messageId, pinned);
         return ResponseEntity.ok(Map.of("ok", true, "result", true));
+    }
+
+    private ResponseEntity<?> rejectIfOlderThanDeleteWindow(String chatId, String messageId) {
+        Optional<EmulatedPost> found = postStore.findByRemoteId(Network.TELEGRAM, chatId, messageId);
+        if (found.isEmpty()) {
+            // Unknown message: treat as deletable (idempotent success path for missing).
+            return null;
+        }
+        Instant createdAt = found.get().createdAt();
+        if (createdAt != null && createdAt.isBefore(Instant.now().minus(DELETE_WINDOW))) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "ok", false, "error_code", 400, "description", "Bad Request: message can't be deleted"));
+        }
+        return null;
+    }
+
+    private List<String> messageIdsParam(Map<String, Object> jsonBody, MultiValueMap<String, String> form) {
+        List<String> ids = new ArrayList<>();
+        if (jsonBody != null && jsonBody.get("message_ids") instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    ids.add(String.valueOf(item));
+                }
+            }
+        }
+        String raw = stringParam(jsonBody, form, "message_ids");
+        if (ids.isEmpty() && raw != null) {
+            String cleaned = raw.replace("[", "").replace("]", "");
+            for (String part : cleaned.split(",")) {
+                String trimmed = part.trim().replace("\"", "");
+                if (!trimmed.isEmpty()) {
+                    ids.add(trimmed);
+                }
+            }
+        }
+        return ids;
     }
 
     private ResponseEntity<?> sendSingleMedia(

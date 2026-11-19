@@ -7,8 +7,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import ru.posts.social.api.SocialAdapter;
+import ru.posts.social.api.SocialModerationPort;
 import ru.posts.social.vk.VkAdapterProperties;
 import ru.posts.social.vk.VkSocialAdapter;
+import ru.posts.social.vk.VkSocialModerationAdapter;
 
 @AutoConfiguration
 @ConditionalOnProperty(name = "posts.publisher.network", havingValue = "vk")
@@ -19,5 +21,11 @@ public class VkSocialAutoConfiguration {
     @ConditionalOnMissingBean(SocialAdapter.class)
     SocialAdapter vkSocialAdapter(VkAdapterProperties properties, ObjectMapper objectMapper) {
         return new VkSocialAdapter(properties, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SocialModerationPort.class)
+    SocialModerationPort vkSocialModerationPort(VkAdapterProperties properties, ObjectMapper objectMapper) {
+        return new VkSocialModerationAdapter(properties, objectMapper);
     }
 }

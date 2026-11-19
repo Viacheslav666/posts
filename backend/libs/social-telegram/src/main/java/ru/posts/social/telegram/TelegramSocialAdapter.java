@@ -75,6 +75,7 @@ public class TelegramSocialAdapter implements SocialAdapter {
         features.put("inlineKeyboard", true);
         features.put("disableNotification", true);
         features.put("messageThreadId", true);
+        features.putAll(TelegramSocialModerationAdapter.moderationFeatures());
         return new NetworkCapabilities(Network.TG, true, true, false, features);
     }
 

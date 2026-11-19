@@ -41,6 +41,9 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | OK | `POST /ok/fb.do?method=mediatopic.post`, `/ok/api/mediatopic/post` | базовая публикация |
 | OK Moments | `moments.getUploadUrl` → `/ok/upload/{id}` → `moments.commit` / `moments.delete` | `owner_ref=group:…`; metadata `contentType=story` |
 | Max | `POST /max/messages`, `/messages` | базовая публикация |
+| VK moderation (BE-33) | `wall.delete`, `*.deleteComment`/`restoreComment`, `groups.ban`/`unban`, `messages.send`, `execute`, `wall.post(post_id)`, `wall.get(filter=suggests)`, `wall.getById` | in-memory suggests/comments |
+| Telegram moderation | `deleteMessage`/`deleteMessages` (окно 48 ч), `banChatMember`, `unbanChatMember`, `restrictChatMember`, `getChat` | `linked_chat_id` |
+| Max moderation | `DELETE /messages?message_id=`, `DELETE …/comments`, `POST …/comments`, `DELETE /chats/{id}/members` | restore → `not.supported` |
 
 Успешный VK `wall.post` с тем же `owner_id` + `guid` возвращает тот же `post_id` и `post_already_exists=1` (без второго поста в store).  
 То же для `stories.save` / `moments.commit` по `guid` / `idempotency_key`.
@@ -63,6 +66,10 @@ docker compose -f infra/docker-compose/docker-compose.yml --profile emulator up 
 | POST | `/_control/vk/story-tokens/{groupId}/revoke` | QA-11 / TC-STORY-20: отзыв stories-токена (далее `stories.*` → error_code=5) |
 | POST | `/_control/vk/story-tokens/{groupId}/restore` | восстановить stories-токен |
 | GET | `/_control/vk/story-tokens` | список отозванных group id |
+| PUT | `/_control/vk/suggests` | BE-33: seed предложенных записей VK |
+| PUT | `/_control/comments` | BE-33: seed комментариев (deleted/restored) |
+| PUT | `/_control/posts` | seed постов с `createdAt` (окно удаления TG 48 ч) |
+| GET | `/_control/comments`, `/_control/bans`, `/_control/vk/suggests` | снимки moderation store |
 
 ### Сценарий (пример)
 
@@ -84,7 +91,8 @@ curl -s -X PUT http://localhost:8090/_control/scenario \
 
 | Значение | Поведение |
 |---|---|
-| `5` / `6` / `9` / `10` / `15` / `100` | ответ VK с `error.error_code` (без создания поста); `5` = auth failed; на TG/OK/Max → HTTP 403 |
+| `5` / `6` / `9` / `10` / `15` / `27` / `203` / `100` | ответ VK с `error.error_code` (без создания поста); `5` = auth failed; на TG/OK/Max → HTTP 403 / Max `access.denied` |
+| `access.denied` / `access_denied` | Max: HTTP 403 + `code=access.denied`; VK → error 15 |
 | `429` | HTTP 429 + `Retry-After` / `retry_after` |
 | `5xx` | HTTP 5xx (`httpStatus` или 503) |
 | `403` / `401` / `permanent` / `forbidden` / `no_rights` | HTTP 4xx без создания поста (по умолчанию 403) |

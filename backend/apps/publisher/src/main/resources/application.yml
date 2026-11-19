@@ -105,8 +105,8 @@ posts:
         token-per-second: 5
         chat-per-minute: 30
       max:
-        global-per-second: 5
-        token-per-second: 5
+        global-per-second: 30
+        token-per-second: 30
         chat-per-minute: 30
 
 logging:

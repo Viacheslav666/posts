@@ -1,5 +1,7 @@
 package ru.posts.publisher.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -7,6 +9,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -20,9 +23,12 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import ru.posts.content.hash.ContentFingerprint;
+import ru.posts.persistence.jdbc.MediaAssetLoadJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.jdbc.PublicationClaim;
 import ru.posts.persistence.jdbc.PublicationLifecycleJdbc;
+import ru.posts.persistence.jdbc.RemotePostRegistryJdbc;
 import ru.posts.publisher.channel.ChannelAccessResolver;
 import ru.posts.publisher.config.PublisherProperties;
 import ru.posts.publisher.extension.PrePublishHook;
@@ -45,6 +51,8 @@ public class PublicationProcessor {
 
     private final PublicationLifecycleJdbc lifecycleJdbc;
     private final OutboxJdbc outboxJdbc;
+    private final RemotePostRegistryJdbc remotePostRegistryJdbc;
+    private final MediaAssetLoadJdbc mediaAssetLoadJdbc;
     private final ScheduledActionsFactory scheduledActionsFactory;
     private final SocialAdapter socialAdapter;
     private final SocialRateLimiter rateLimiter;
@@ -58,10 +66,13 @@ public class PublicationProcessor {
     private final List<PrePublishHook> prePublishHooks;
     private final MediaPublishSupport mediaPublishSupport;
     private final ChannelAccessResolver channelAccessResolver;
+    private final ObjectMapper objectMapper;
 
     public PublicationProcessor(
             PublicationLifecycleJdbc lifecycleJdbc,
             OutboxJdbc outboxJdbc,
+            RemotePostRegistryJdbc remotePostRegistryJdbc,
+            MediaAssetLoadJdbc mediaAssetLoadJdbc,
             ScheduledActionsFactory scheduledActionsFactory,
             SocialAdapter socialAdapter,
             SocialRateLimiter rateLimiter,
@@ -74,9 +85,12 @@ public class PublicationProcessor {
             PublicationMetrics metrics,
             List<PrePublishHook> prePublishHooks,
             MediaPublishSupport mediaPublishSupport,
-            ChannelAccessResolver channelAccessResolver) {
+            ChannelAccessResolver channelAccessResolver,
+            ObjectMapper objectMapper) {
         this.lifecycleJdbc = lifecycleJdbc;
         this.outboxJdbc = outboxJdbc;
+        this.remotePostRegistryJdbc = remotePostRegistryJdbc;
+        this.mediaAssetLoadJdbc = mediaAssetLoadJdbc;
         this.scheduledActionsFactory = scheduledActionsFactory;
         this.socialAdapter = socialAdapter;
         this.rateLimiter = rateLimiter;
@@ -90,6 +104,7 @@ public class PublicationProcessor {
         this.prePublishHooks = prePublishHooks;
         this.mediaPublishSupport = mediaPublishSupport;
         this.channelAccessResolver = channelAccessResolver;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -129,18 +144,26 @@ public class PublicationProcessor {
                     claim.externalChannelId(),
                     Network.fromCode(claim.network()));
 
+            String contentFingerprint = contentFingerprint(claim, content);
+
             if (claim.remotePostId() != null && !claim.remotePostId().isBlank()) {
-                finishSuccess(claim, new PublishResult(claim.remotePostId(), null), startedAt, "already_remote");
+                finishSuccess(
+                        claim,
+                        new PublishResult(claim.remotePostId(), null),
+                        startedAt,
+                        "already_remote",
+                        contentFingerprint);
                 return true;
             }
 
             content = mediaPublishSupport.withOptionsMeta(claim, content);
+            contentFingerprint = contentFingerprint(claim, content);
 
             // findExisting only on retries / unknown prior outcome — first attempt goes straight to publish.
             if (claim.attempts() > 1) {
                 Optional<PublishResult> existing = findExisting(ctx, claim, content);
                 if (existing.isPresent()) {
-                    finishSuccess(claim, existing.get(), startedAt, "find_existing");
+                    finishSuccess(claim, existing.get(), startedAt, "find_existing", contentFingerprint);
                     return true;
                 }
             }
@@ -168,10 +191,17 @@ public class PublicationProcessor {
 
             // BE-23/BE-28: options + mediaIds → meta; upload or inline-media enrich before publish.
             content = mediaPublishSupport.enrich(claim, content, socialAdapter, ctx);
+            contentFingerprint = contentFingerprint(claim, content);
+
+            // BE-33 L2: record publish intent before the social call for own-post recognition.
+            String fingerprint = contentFingerprint;
+            Instant intentExpires = Instant.now().plus(Duration.ofHours(1));
+            transactionTemplate.executeWithoutResult(status -> remotePostRegistryJdbc.insertIntent(
+                    claim.channelId(), claim.idempotencyKey(), fingerprint, intentExpires));
 
             PublishResult result = invokeSocial(ctx, content, claim);
             mediaPublishSupport.cacheUploadedFromPublish(claim.channelId(), result);
-            finishSuccess(claim, result, startedAt, "published");
+            finishSuccess(claim, result, startedAt, "published", fingerprint);
             return true;
         } catch (Exception ex) {
             return handleFailure(claim, startedAt, ex);
@@ -244,7 +274,12 @@ public class PublicationProcessor {
             Optional<PublishResult> recovered =
                     findExisting(ctx, claim, mediaPublishSupport.withOptionsMeta(claim, toContent(claim)));
             if (recovered.isPresent()) {
-                finishSuccess(claim, recovered.get(), startedAt, "recovered_unknown_outcome");
+                finishSuccess(
+                        claim,
+                        recovered.get(),
+                        startedAt,
+                        "recovered_unknown_outcome",
+                        contentFingerprint(claim, toContent(claim)));
                 return true;
             }
             errorClass = ErrorClass.RETRYABLE;
@@ -362,8 +397,10 @@ public class PublicationProcessor {
         return true;
     }
 
-    private void finishSuccess(PublicationClaim claim, PublishResult result, Instant startedAt, String path) {
+    private void finishSuccess(
+            PublicationClaim claim, PublishResult result, Instant startedAt, String path, String contentFingerprint) {
         String metaJson = successMetaJson(claim);
+        String fingerprint = contentFingerprint;
         transactionTemplate.executeWithoutResult(status -> {
             lifecycleJdbc.markSucceeded(claim.id(), claim.runAt(), result.remotePostId(), result.remoteUrl(), metaJson);
             lifecycleJdbc.recordAttempt(
@@ -376,6 +413,22 @@ public class PublicationProcessor {
                     path,
                     "{\"remotePostId\":\"" + result.remotePostId() + "\"}");
             scheduledActionsFactory.createAfterSuccess(claim, result.remotePostId());
+            if (result.remotePostId() != null && !result.remotePostId().isBlank()) {
+                remotePostRegistryJdbc.upsert(
+                        claim.workspaceId(),
+                        claim.network(),
+                        claim.channelId(),
+                        result.remotePostId(),
+                        "publication",
+                        claim.id(),
+                        claim.postId(),
+                        null,
+                        (short) 0,
+                        fingerprint);
+                if (claim.idempotencyKey() != null && !claim.idempotencyKey().isBlank()) {
+                    remotePostRegistryJdbc.consumeIntent(claim.channelId(), claim.idempotencyKey());
+                }
+            }
             outboxJdbc.append(
                     "publication",
                     claim.id(),
@@ -393,6 +446,54 @@ public class PublicationProcessor {
                             + "\"}");
         });
         metrics.recordSuccess(claim.network(), claim.runAt(), claim.contentKind());
+    }
+
+    private String contentFingerprint(PublicationClaim claim, PostVariantContent content) {
+        String text = content == null || content.text() == null ? claim.contentText() : content.text();
+        List<String> mediaShas = mediaSha256List(claim);
+        return ContentFingerprint.fingerprint(text, mediaShas);
+    }
+
+    private List<String> mediaSha256List(PublicationClaim claim) {
+        List<UUID> mediaIds = parseMediaIds(claim.mediaIdsJson());
+        if (mediaIds.isEmpty()) {
+            return List.of();
+        }
+        List<MediaAssetLoadJdbc.MediaAssetRow> rows = mediaAssetLoadJdbc.findReady(claim.workspaceId(), mediaIds);
+        List<String> shas = new ArrayList<>(rows.size());
+        for (MediaAssetLoadJdbc.MediaAssetRow row : rows) {
+            if (row.sha256() != null && !row.sha256().isBlank()) {
+                shas.add(row.sha256());
+            }
+        }
+        return shas;
+    }
+
+    private List<UUID> parseMediaIds(String mediaIdsJson) {
+        if (mediaIdsJson == null || mediaIdsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(mediaIdsJson);
+            if (!node.isArray()) {
+                return List.of();
+            }
+            List<UUID> ids = new ArrayList<>();
+            for (JsonNode item : node) {
+                String raw = item.asText(null);
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                try {
+                    ids.add(UUID.fromString(raw));
+                } catch (IllegalArgumentException ignored) {
+                    // skip malformed id
+                }
+            }
+            return ids;
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     private static PostVariantContent toContent(PublicationClaim claim) {

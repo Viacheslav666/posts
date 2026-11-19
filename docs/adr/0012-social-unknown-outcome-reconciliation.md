@@ -36,9 +36,21 @@
 2. Сверка: `stream.get` / лента группы — поиск по тексту / fingerprint в окне времени.
 3. Подпись запросов: `application_key` + `sig` (MD5) при наличии `applicationSecret`; для эмулятора secret пустой → sig не ставится.
 
+### BE-33 `publish_suggested` (VK)
+
+Для удалённого действия `publish_suggested` при `UNKNOWN_OUTCOME` (таймаут / обрыв после `wall.post`+`post_id`):
+
+1. `RemoteActionProcessor` переводит строку в `unknown_outcome`.
+2. Вызывает [`SocialModerationPort.reconcilePublishSuggested`](../../backend/libs/social-api/src/main/java/ru/posts/social/api/SocialModerationPort.java):
+   - `wall.get` с `filter=suggests` — есть ли ещё предложенный пост;
+   - `wall.getById` — появился ли уже опубликованный пост с тем же id.
+3. Если сверка находит опубликованный исход → `succeeded` + запись в `remote_post_registry` (**0 дублей**, без повторного `wall.post`).
+4. Если сверка пустая → `failed_retryable` с backoff и повторной попыткой.
+
 ### Publisher
 
-- На `UNKNOWN_OUTCOME` → `findExisting`; при успехе — `succeeded` без повторного `publish`.
+- На `UNKNOWN_OUTCOME` публикации → `findExisting`; при успехе — `succeeded` без повторного `publish`.
+- На `UNKNOWN_OUTCOME` для `publish_suggested` → `reconcilePublishSuggested` (см. выше).
 - Медиа загружаются до `publish` с кэшем `channel_media_cache` (V17), чтобы ретрай не грузил файл заново.
 
 ## Альтернативы

@@ -201,6 +201,8 @@ public class Bucket4jSocialRateLimiter implements SocialRateLimiter {
                         LimitSpec.perSecond(30), LimitSpec.perSecond(30), LimitSpec.perMinute(20));
                 case "vk" -> new NetworkLimitConfig(
                         LimitSpec.perSecond(20), LimitSpec.perSecond(3), LimitSpec.perMinute(60));
+                case "max" -> new NetworkLimitConfig(
+                        LimitSpec.perSecond(30), LimitSpec.perSecond(30), LimitSpec.perMinute(30));
                 default -> new NetworkLimitConfig(
                         LimitSpec.perSecond(5), LimitSpec.perSecond(5), LimitSpec.perMinute(30));
             };

@@ -31,6 +31,12 @@ public class DispatchScheduler {
         dispatchService.dispatchDueActions();
     }
 
+    /** BE-33: claim due social_remote_actions and enqueue actions.moderation.{network}. */
+    @Scheduled(fixedDelayString = "${posts.scheduler.dispatch-interval-ms:1000}")
+    public void dispatchModerationActions() {
+        dispatchService.dispatchDueModerationActions();
+    }
+
     /** BE-17: claim due grabber/rss rules and enqueue ingest.grabber. */
     @Scheduled(fixedDelayString = "${posts.scheduler.grabber-dispatch-interval-ms:15000}")
     public void dispatchGrabber() {
