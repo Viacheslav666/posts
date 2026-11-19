@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.ahocorasick.trie.Emit;
 import org.ahocorasick.trie.Trie;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import ru.posts.content.hash.SimHasher;
 import ru.posts.suggest.config.SuggestConfigSupport;
@@ -18,6 +19,7 @@ import ru.posts.suggest.config.SuggestConfigSupport;
  * Pure-ish filter evaluation for VK suggested posts (BE-34). Tries are cached by
  * configVersion+keyword set.
  */
+@Profile("!openapi")
 @Component
 public class SuggestFilterEngine {
 

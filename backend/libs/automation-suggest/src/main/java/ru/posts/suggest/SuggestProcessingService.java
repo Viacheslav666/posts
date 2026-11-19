@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
@@ -39,6 +40,7 @@ import ru.posts.suggest.metrics.SuggestMetrics;
 import ru.posts.suggest.schedule.SuggestSlotScheduler;
 
 /** Main suggest processing flow for inbound events and sync imports (BE-34). */
+@Profile("!openapi")
 @Service
 public class SuggestProcessingService {
 

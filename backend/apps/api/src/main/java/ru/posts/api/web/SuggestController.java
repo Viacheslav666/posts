@@ -179,11 +179,13 @@ public class SuggestController {
     public SuggestDtos.SuggestItem approve(
             @PathVariable UUID itemId,
             @RequestBody(required = false) SuggestDtos.SuggestItemApproveRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest httpRequest) {
         return suggestService.approve(
                 SecurityAuthSupport.requirePrincipal().userId(),
                 itemId,
                 request,
+                idempotencyKey,
                 ClientRequestContexts.from(httpRequest));
     }
 

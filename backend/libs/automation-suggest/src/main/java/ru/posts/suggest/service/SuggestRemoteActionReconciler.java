@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.persistence.entity.SuggestItemEntity;
@@ -23,6 +24,7 @@ import ru.posts.suggest.metrics.SuggestMetrics;
  * <p>Looks up by idempotency key first, then by {@code remote_action_id} with {@code scheduled_for}
  * as a run_at partition hint.
  */
+@Profile("!openapi")
 @Service
 public class SuggestRemoteActionReconciler {
 

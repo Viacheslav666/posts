@@ -98,6 +98,7 @@ public class OpenApiSuggestStubConfig {
                     UUID userId,
                     UUID itemId,
                     SuggestDtos.SuggestItemApproveRequest request,
+                    String idempotencyKey,
                     ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }

@@ -6,9 +6,11 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /** Micrometer meters for BE-34 suggest automation. */
+@Profile("!openapi")
 @Component
 public class SuggestMetrics {
 

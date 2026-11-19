@@ -16,6 +16,7 @@ import ru.posts.api.admin.FeatureFlagResolver;
 import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
+import ru.posts.api.idempotency.IdempotencyService;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.suggest.SuggestDtos;
 import ru.posts.api.web.support.CursorPages;
@@ -44,6 +45,7 @@ import ru.posts.suggest.sync.SuggestSyncService;
 public class SuggestServiceImpl implements SuggestService {
 
     public static final String FEATURE_FLAG = "automation.suggest";
+    static final String IDEMPOTENCY_SCOPE_APPROVE = "POST /api/v1/suggest/items/approve";
 
     private final WorkspaceAccessService access;
     private final SuggestSettingsRepository settingsRepository;
@@ -57,6 +59,7 @@ public class SuggestServiceImpl implements SuggestService {
     private final EventSubscriptionService eventSubscriptionService;
     private final AuditRecorder auditRecorder;
     private final FeatureFlagResolver featureFlagResolver;
+    private final IdempotencyService idempotencyService;
 
     public SuggestServiceImpl(
             WorkspaceAccessService access,
@@ -70,7 +73,8 @@ public class SuggestServiceImpl implements SuggestService {
             SuggestBulkProcessor bulkProcessor,
             EventSubscriptionService eventSubscriptionService,
             AuditRecorder auditRecorder,
-            FeatureFlagResolver featureFlagResolver) {
+            FeatureFlagResolver featureFlagResolver,
+            IdempotencyService idempotencyService) {
         this.access = access;
         this.settingsRepository = settingsRepository;
         this.itemRepository = itemRepository;
@@ -83,6 +87,7 @@ public class SuggestServiceImpl implements SuggestService {
         this.eventSubscriptionService = eventSubscriptionService;
         this.auditRecorder = auditRecorder;
         this.featureFlagResolver = featureFlagResolver;
+        this.idempotencyService = idempotencyService;
     }
 
     @Override
@@ -408,6 +413,21 @@ public class SuggestServiceImpl implements SuggestService {
     @Override
     @Transactional
     public SuggestDtos.SuggestItem approve(
+            UUID userId,
+            UUID itemId,
+            SuggestDtos.SuggestItemApproveRequest request,
+            String idempotencyKey,
+            ClientRequestContext ctx) {
+        return idempotencyService.execute(
+                userId,
+                idempotencyKey,
+                IDEMPOTENCY_SCOPE_APPROVE + "/" + itemId,
+                request == null ? Map.of() : request,
+                SuggestDtos.SuggestItem.class,
+                () -> approveOnce(userId, itemId, request, ctx));
+    }
+
+    private SuggestDtos.SuggestItem approveOnce(
             UUID userId, UUID itemId, SuggestDtos.SuggestItemApproveRequest request, ClientRequestContext ctx) {
         SuggestItemEntity item = requireItem(itemId);
         SuggestSettingsEntity settings = requireSettings(item.getSettingsId());
@@ -523,7 +543,14 @@ public class SuggestServiceImpl implements SuggestService {
     }
 
     private void ensureFeatureEnabled(UUID workspaceId) {
-        featureFlagResolver.ensureEnabledOrMissing(workspaceId, FEATURE_FLAG);
+        Boolean enabled = featureFlagResolver.resolveForWorkspace(workspaceId).get(FEATURE_FLAG);
+        // Missing flag → treat as enabled (seeded by V28 when present). Explicit false → 422.
+        if (Boolean.FALSE.equals(enabled)) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.SUGGEST_FEATURE_DISABLED,
+                    "Suggest automation is disabled for this workspace");
+        }
     }
 
     private void requireWallScope(ChannelEntity channel) {

@@ -49,6 +49,7 @@ public interface SuggestService {
             UUID userId,
             UUID itemId,
             SuggestDtos.SuggestItemApproveRequest request,
+            String idempotencyKey,
             ClientRequestContext ctx);
 
     SuggestDtos.SuggestItem reject(

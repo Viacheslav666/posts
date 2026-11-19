@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import ru.posts.suggest.config.SuggestConfigSupport;
 
@@ -20,6 +21,7 @@ import ru.posts.suggest.config.SuggestConfigSupport;
  * Computes the next publish slot for a suggested post given schedule windows, min interval, and
  * ads pause.
  */
+@Profile("!openapi")
 @Component
 public class SuggestSlotScheduler {
 

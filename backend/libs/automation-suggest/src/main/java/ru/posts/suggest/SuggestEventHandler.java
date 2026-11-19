@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import ru.posts.social.inbound.HandlerContext;
 import ru.posts.social.inbound.HandlerResult;
@@ -16,6 +17,7 @@ import ru.posts.social.inbound.SocialInboundAttachment;
 import ru.posts.social.inbound.SocialInboundEvent;
 
 /** BE-34: consumes POST_SUGGESTED for VK (order=20). Always CONTINUE so crosspost can run. */
+@Profile("!openapi")
 @Component
 public class SuggestEventHandler implements SocialEventHandler {
 

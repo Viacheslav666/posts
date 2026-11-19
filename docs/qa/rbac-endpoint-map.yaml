@@ -1060,6 +1060,110 @@ endpoints:
   action: posts.bulk
   query:
     workspaceId: '{workspaceId}'
+- operationId: suggestBulkJobGet
+  method: GET
+  path: /api/v1/suggest/bulk-jobs/{jobId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    jobId: '{jobId}'
+- operationId: suggestItemsGet
+  method: GET
+  path: /api/v1/suggest/items/{itemId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    itemId: '{itemId}'
+- operationId: suggestItemsApprove
+  method: POST
+  path: /api/v1/suggest/items/{itemId}/approve
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    itemId: '{itemId}'
+- operationId: suggestItemsReject
+  method: POST
+  path: /api/v1/suggest/items/{itemId}/reject
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    itemId: '{itemId}'
+- operationId: suggestSettingsGet
+  method: GET
+  path: /api/v1/suggest/settings/{settingsId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsPatch
+  method: PATCH
+  path: /api/v1/suggest/settings/{settingsId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsActivate
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/activate
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsCopy
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/copy
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestItemsList
+  method: GET
+  path: /api/v1/suggest/settings/{settingsId}/items
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestItemsBulk
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/items/bulk
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsPause
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/pause
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsResume
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/resume
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
+- operationId: suggestSettingsSync
+  method: POST
+  path: /api/v1/suggest/settings/{settingsId}/sync-last-100
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    settingsId: '{settingsId}'
 - operationId: workspacesList
   method: GET
   path: /api/v1/workspaces
@@ -1266,6 +1370,24 @@ endpoints:
 - operationId: ingestRulesCreate
   method: POST
   path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
+- operationId: suggestSettingsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/suggest/settings
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
+- operationId: suggestSettingsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/suggest/settings
   implementedHint: true
   rbac: matrix
   action: automations.manage

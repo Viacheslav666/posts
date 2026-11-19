@@ -525,6 +525,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{sessionId}": ("sessionId", "{sessionId}"),
         "{ruleId}": ("ruleId", "{ruleId}"),
         "{itemId}": ("itemId", "{itemId}"),
+        "{settingsId}": ("settingsId", "{settingsId}"),
+        "{jobId}": ("jobId", "{jobId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),

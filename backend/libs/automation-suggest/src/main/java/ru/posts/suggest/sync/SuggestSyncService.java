@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.persistence.entity.ChannelEntity;
@@ -25,6 +26,7 @@ import ru.posts.suggest.vk.SuggestVkClient;
 import ru.posts.suggest.vk.SuggestVkClient.SuggestWallPost;
 
 /** Reconciles suggest_items with VK wall.get filter=suggests (BE-34). */
+@Profile("!openapi")
 @Service
 public class SuggestSyncService {
 

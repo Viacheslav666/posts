@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.persistence.entity.SuggestBulkJobEntity;
@@ -17,6 +18,7 @@ import ru.posts.persistence.repository.SuggestSettingsRepository;
 import ru.posts.suggest.SuggestProcessingService;
 
 /** Processes bulk approve/reject jobs; sync loop for IT simplicity (BE-34). */
+@Profile("!openapi")
 @Service
 public class SuggestBulkProcessor {
 
