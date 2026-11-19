@@ -55,6 +55,13 @@ public class SocialRemoteActionLifecycleJdbc {
             String source,
             String sourceRefJson,
             UUID createdBy) {
+        // Unique index is (idempotency_key, run_at) because the table is partitioned by run_at.
+        // Serialize same-key enqueues so a second run_at cannot slip in between the lookup and insert.
+        jdbcClient
+                .sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:key AS text), 0))")
+                .param("key", idempotencyKey == null ? "" : idempotencyKey)
+                .query((rs, rowNum) -> 1)
+                .list();
         Optional<UUID> existing = findIdByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
             return existing.get();
@@ -89,6 +96,73 @@ public class SocialRemoteActionLifecycleJdbc {
             return findIdByIdempotencyKey(idempotencyKey).orElse(id);
         }
         return id;
+    }
+
+    public record ActionRef(UUID id, String state, Instant runAt) {}
+
+    @Transactional(readOnly = true)
+    public Optional<ActionRef> findLatest(String idempotencyKey) {
+        return jdbcClient
+                .sql(
+                        """
+                        SELECT id, state, run_at
+                        FROM social_remote_actions
+                        WHERE idempotency_key = :idempotencyKey
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """)
+                .param("idempotencyKey", idempotencyKey)
+                .query((rs, rowNum) -> new ActionRef(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("state"),
+                        rs.getTimestamp("run_at").toInstant()))
+                .optional();
+    }
+
+    /** Cancels a not-yet-started action. Returns false when it is already queued or running. */
+    @Transactional
+    public boolean cancelIfIdle(String idempotencyKey) {
+        int updated = jdbcClient
+                .sql(
+                        """
+                        UPDATE social_remote_actions
+                        SET state = 'cancelled',
+                            error_code = 'cancelled',
+                            error_message = 'cancelled before execution',
+                            completed_at = now(),
+                            locked_by = NULL,
+                            locked_until = NULL,
+                            next_attempt_at = NULL
+                        WHERE idempotency_key = :idempotencyKey
+                          AND state IN ('pending', 'failed_retryable')
+                        """)
+                .param("idempotencyKey", idempotencyKey)
+                .update();
+        return updated > 0;
+    }
+
+    /**
+     * Put an in-progress action back to pending without burning an attempt (prerequisite not done).
+     */
+    @Transactional
+    public void deferWaiting(UUID id, Instant runAt, Instant nextAttemptAt) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE social_remote_actions
+                        SET state = 'pending',
+                            next_attempt_at = :nextAttemptAt,
+                            attempts = GREATEST(attempts - 1, 0),
+                            error_code = 'waiting_prerequisite',
+                            error_message = 'waiting for prerequisite action',
+                            locked_by = NULL,
+                            locked_until = NULL
+                        WHERE id = :id AND run_at = :runAt
+                        """)
+                .param("id", id)
+                .param("runAt", Timestamp.from(runAt))
+                .param("nextAttemptAt", Timestamp.from(nextAttemptAt))
+                .update();
     }
 
     @Transactional(readOnly = true)

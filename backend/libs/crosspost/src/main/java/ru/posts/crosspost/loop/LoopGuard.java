@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import ru.posts.content.hash.ContentFingerprint;
 import ru.posts.content.hash.SimHasher;
 import ru.posts.crosspost.config.CrosspostConfigSupport;
 import ru.posts.crosspost.config.CrosspostProperties;
@@ -145,7 +146,7 @@ public final class LoopGuard {
         List<String> recent = registry.listRecentFingerprints(targetChannelId, since, 200);
         if (fingerprint != null && !fingerprint.isBlank()) {
             for (String fp : recent) {
-                if (fingerprint.equals(fp)) {
+                if (fingerprint.equals(fp) || sameText(fingerprint, fp)) {
                     return Decision.block("skipped_duplicate", "exact_fingerprint", Layer.L4_DEDUP);
                 }
                 if (nearDuplicate(fingerprint, fp, simhash)) {
@@ -154,6 +155,12 @@ public final class LoopGuard {
             }
         }
         return Decision.allow();
+    }
+
+    private static boolean sameText(String left, String right) {
+        String a = ContentFingerprint.simKey(left);
+        String b = ContentFingerprint.simKey(right);
+        return a != null && a.equals(b);
     }
 
     private boolean nearDuplicate(String fingerprint, String other, long simhash) {

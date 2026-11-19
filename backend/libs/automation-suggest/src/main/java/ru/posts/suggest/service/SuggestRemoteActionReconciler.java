@@ -5,12 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +27,6 @@ import ru.posts.suggest.metrics.SuggestMetrics;
 public class SuggestRemoteActionReconciler {
 
     private static final Logger log = LoggerFactory.getLogger(SuggestRemoteActionReconciler.class);
-
-    private static final Set<String> PENDING =
-            Set.of("scheduled", "publishing", "approved", "rejected", "filtered_out");
 
     private final SuggestItemRepository itemRepository;
     private final JdbcClient jdbcClient;
@@ -52,8 +47,7 @@ public class SuggestRemoteActionReconciler {
     @Transactional
     public int reconcile(int limit) {
         int pageSize = Math.max(1, Math.min(limit, 200));
-        List<SuggestItemEntity> items = itemRepository.findByStatusInAndRemoteActionIdIsNotNullOrderByUpdatedAtAsc(
-                PENDING, Pageable.ofSize(pageSize));
+        List<SuggestItemEntity> items = itemRepository.findDueForRemoteReconcile(pageSize);
         int updated = 0;
         for (SuggestItemEntity item : items) {
             try {

@@ -18,4 +18,17 @@ public final class ContentFingerprint {
         String mediaHex = ContentHasher.mediaDigest(mediaSha256);
         return "sim:" + simHex + "|media:" + mediaHex;
     }
+
+    /** Text half of a fingerprint ({@code sim:hex}), ignoring the media digest. */
+    public static String simKey(String fingerprint) {
+        if (fingerprint == null) {
+            return null;
+        }
+        int start = fingerprint.indexOf("sim:");
+        if (start < 0) {
+            return null;
+        }
+        int end = fingerprint.indexOf('|', start);
+        return end < 0 ? fingerprint.substring(start) : fingerprint.substring(start, end);
+    }
 }

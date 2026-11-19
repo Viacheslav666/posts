@@ -133,8 +133,11 @@ public class RemotePostRegistryJdbc {
                         SELECT 1
                         FROM remote_post_registry
                         WHERE channel_id = :channelId
-                          AND content_fingerprint = :fingerprint
                           AND created_at >= :since
+                          AND (
+                            content_fingerprint = :fingerprint
+                            OR split_part(content_fingerprint, '|', 1) = split_part(:fingerprint, '|', 1)
+                          )
                         LIMIT 1
                         """)
                 .param("channelId", channelId)
@@ -190,8 +193,11 @@ public class RemotePostRegistryJdbc {
                         SELECT 1
                         FROM publish_intents
                         WHERE channel_id = :channelId
-                          AND content_fingerprint = :contentFingerprint
                           AND expires_at > now()
+                          AND (
+                            content_fingerprint = :contentFingerprint
+                            OR split_part(content_fingerprint, '|', 1) = split_part(:contentFingerprint, '|', 1)
+                          )
                         LIMIT 1
                         """)
                 .param("channelId", channelId)

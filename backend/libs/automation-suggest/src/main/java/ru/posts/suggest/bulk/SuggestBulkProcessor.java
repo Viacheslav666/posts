@@ -103,7 +103,11 @@ public class SuggestBulkProcessor {
             List<SuggestItemEntity> out = new ArrayList<>();
             if (job.getItemIds() != null) {
                 for (UUID id : job.getItemIds()) {
-                    itemRepository.findById(id).ifPresent(out::add);
+                    itemRepository
+                            .findById(id)
+                            .filter(item -> job.getSettingsId().equals(item.getSettingsId())
+                                    && job.getWorkspaceId().equals(item.getWorkspaceId()))
+                            .ifPresent(out::add);
                 }
             }
             return out;

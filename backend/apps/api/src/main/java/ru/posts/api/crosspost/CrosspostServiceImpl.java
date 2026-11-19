@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -217,18 +216,9 @@ public class CrosspostServiceImpl implements CrosspostService {
         WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
         access.requireVisibleProject(membership, rule.getProjectId());
         int pageSize = Math.min(Math.max(limit, 1), 100);
-        List<CrosspostItemEntity> rows;
-        if (status != null && !status.isBlank()) {
-            rows = itemRepository.findByRuleIdAndStatusOrderByCreatedAtDesc(
-                    ruleId, status, PageRequest.of(0, pageSize + 1));
-        } else {
-            rows = itemRepository.findByRuleIdOrderByCreatedAtDesc(ruleId, PageRequest.of(0, pageSize + 1));
-        }
-        // cursor is opaque offset for simplicity
         int offset = decodeCursor(cursor);
-        if (offset > 0 && offset < rows.size()) {
-            rows = rows.subList(Math.min(offset, rows.size()), rows.size());
-        }
+        String statusFilter = status == null || status.isBlank() ? null : status;
+        List<CrosspostItemEntity> rows = itemRepository.pageByRule(ruleId, statusFilter, pageSize + 1, offset);
         boolean hasMore = rows.size() > pageSize;
         if (hasMore) {
             rows = rows.subList(0, pageSize);

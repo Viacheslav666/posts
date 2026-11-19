@@ -2,8 +2,10 @@ package ru.posts.social.inbound.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -18,6 +20,9 @@ import ru.posts.social.inbound.RecordingSocialEventHandler;
 import ru.posts.social.inbound.SocialEventDispatcher;
 import ru.posts.social.inbound.SocialEventHandler;
 import ru.posts.social.inbound.SocialInboundProcessor;
+import ru.posts.social.inbound.album.AlbumFragmentStore;
+import ru.posts.social.inbound.album.InMemoryAlbumFragmentStore;
+import ru.posts.social.inbound.album.JdbcAlbumFragmentStore;
 import ru.posts.social.inbound.album.TelegramAlbumAggregator;
 import ru.posts.social.inbound.client.MaxSubscriptionClient;
 import ru.posts.social.inbound.client.TelegramWebhookClient;
@@ -34,8 +39,8 @@ public class SocialInboundAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    SocialInboundMetrics socialInboundMetrics(MeterRegistry registry) {
-        return new SocialInboundMetrics(registry);
+    SocialInboundMetrics socialInboundMetrics(ObjectProvider<MeterRegistry> registry) {
+        return new SocialInboundMetrics(registry.getIfAvailable(SimpleMeterRegistry::new));
     }
 
     @Bean
@@ -63,9 +68,22 @@ public class SocialInboundAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(JdbcClient.class)
+    @ConditionalOnMissingBean(AlbumFragmentStore.class)
+    AlbumFragmentStore jdbcAlbumFragmentStore(JdbcClient jdbc, ObjectMapper objectMapper) {
+        return new JdbcAlbumFragmentStore(jdbc, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AlbumFragmentStore.class)
+    AlbumFragmentStore memoryAlbumFragmentStore(ObjectMapper objectMapper) {
+        return new InMemoryAlbumFragmentStore(objectMapper);
+    }
+
+    @Bean
     @ConditionalOnMissingBean
-    TelegramAlbumAggregator telegramAlbumAggregator(ObjectMapper objectMapper) {
-        return new TelegramAlbumAggregator(objectMapper);
+    TelegramAlbumAggregator telegramAlbumAggregator(AlbumFragmentStore albumFragmentStore) {
+        return new TelegramAlbumAggregator(albumFragmentStore);
     }
 
     @Bean
@@ -76,7 +94,13 @@ public class SocialInboundAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean({DataSource.class, InboundEventStore.class})
+    @ConditionalOnBean({
+        DataSource.class,
+        InboundEventStore.class,
+        ChannelRepository.class,
+        ChannelEventSubscriptionRepository.class,
+        TelegramBotRepository.class
+    })
     @ConditionalOnMissingBean
     SocialInboundProcessor socialInboundProcessor(
             ObjectMapper objectMapper,

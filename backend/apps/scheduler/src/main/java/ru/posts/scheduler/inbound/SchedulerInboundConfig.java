@@ -7,9 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.OutboxEntity;
-import ru.posts.persistence.entity.TelegramBotEntity;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.WorkspaceDataKeyRepository;
 import ru.posts.security.crypto.TokenCryptoService;
@@ -58,45 +56,7 @@ public class SchedulerInboundConfig {
             WorkspaceDataKeyRepository keys,
             @Value("${posts.channels.tg-bot-token:emulator-token}") String tgBotToken,
             @Value("${posts.channels.max-bot-token:emulator-max-token}") String maxBotToken) {
-        return new TokenResolver() {
-            private String unseal(UUID workspaceId, byte[] blob) {
-                if (blob == null || blob.length == 0 || (blob.length == 1 && blob[0] == 0)) {
-                    return null;
-                }
-                return keys.findById(workspaceId)
-                        .map(row -> crypto.unseal(crypto.unwrapDek(row.getDekEnc()), blob))
-                        .orElse(null);
-            }
-
-            @Override
-            public String groupToken(ChannelEntity channel) {
-                String v = unseal(channel.getWorkspaceId(), channel.getGroupTokenEnc());
-                return v != null ? v : "emulator-group-token";
-            }
-
-            @Override
-            public String botToken(TelegramBotEntity bot) {
-                if (bot.getTokenEnc() != null && bot.getTokenEnc().length == 1 && bot.getTokenEnc()[0] == 0) {
-                    return tgBotToken;
-                }
-                if (bot.getWorkspaceId() != null) {
-                    String v = unseal(bot.getWorkspaceId(), bot.getTokenEnc());
-                    if (v != null) {
-                        return v;
-                    }
-                }
-                return tgBotToken;
-            }
-
-            @Override
-            public String channelBotToken(ChannelEntity channel) {
-                String v = unseal(channel.getWorkspaceId(), channel.getBotTokenEnc());
-                if (v != null) {
-                    return v;
-                }
-                return "max".equals(channel.getNetwork()) ? maxBotToken : tgBotToken;
-            }
-        };
+        return new DecryptingTokenResolver(crypto, keys, tgBotToken, maxBotToken);
     }
 
     @Bean

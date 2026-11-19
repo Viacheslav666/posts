@@ -671,18 +671,27 @@ public class VkSocialModerationAdapter implements SocialModerationPort {
         };
     }
 
-    private static boolean isAlreadyGoneCode(int code, String msg) {
-        // Delete-path: 15/104/242 or "already" phrasing → idempotent success.
-        if (code == 15 || code == 104 || code == 242) {
-            return true;
-        }
+    /**
+     * VK error 15 is "Access denied" and is also returned for missing wall/comment permissions.
+     * Treat a delete as already-gone only when the message says the object is gone, or for the
+     * dedicated not-found codes 104 and 242.
+     */
+    static boolean isAlreadyGoneCode(int code, String msg) {
         String lower = msg == null ? "" : msg.toLowerCase(Locale.ROOT);
-        return lower.contains("already")
+        boolean textSaysGone = lower.contains("already")
                 || lower.contains("has been deleted")
                 || lower.contains("was deleted")
                 || lower.contains("not found")
                 || lower.contains("cannot be found")
-                || lower.contains("was removed");
+                || lower.contains("was removed")
+                || lower.contains("deleted");
+        if (code == 15) {
+            return textSaysGone;
+        }
+        if (code == 104 || code == 242) {
+            return true;
+        }
+        return textSaysGone;
     }
 
     private SocialApiException mapHttpError(RestClientResponseException ex) {

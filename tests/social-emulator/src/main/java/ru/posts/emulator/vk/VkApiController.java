@@ -162,6 +162,7 @@ public class VkApiController {
             case "stories.delete" -> storiesDelete(params);
             case "wall.get" -> ResponseEntity.ok(wallGet(params));
             case "wall.getById" -> ResponseEntity.ok(wallGetById(params));
+            case "wall.getComments" -> moderation(rawResponse, () -> ResponseEntity.ok(wallGetComments(params)));
             case "groups.getCallbackConfirmationCode" -> ResponseEntity.ok(callbackConfirmation(params));
             case "groups.getCallbackServers" -> ResponseEntity.ok(callbackServers(params));
             case "groups.addCallbackServer" -> ResponseEntity.ok(addCallbackServer(params));
@@ -269,6 +270,42 @@ public class VkApiController {
             return Map.of("response", response);
         }
         return wallSourceStore.wallGet(owner, count);
+    }
+
+    private Map<String, Object> wallGetComments(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id");
+        String countRaw = first(params, "count");
+        int count = 100;
+        if (countRaw != null) {
+            try {
+                count = Integer.parseInt(countRaw);
+            } catch (NumberFormatException ignored) {
+                count = 100;
+            }
+        }
+        String owner = ownerId == null ? "0" : ownerId;
+        List<ModerationStore.EmulatedComment> comments = moderationStore.listComments(Network.VK, owner);
+        int limit = count <= 0 ? comments.size() : Math.min(count, comments.size());
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (ModerationStore.EmulatedComment comment : comments) {
+            if (comment.deleted()) {
+                continue;
+            }
+            if (items.size() >= limit) {
+                break;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", Long.parseLong(comment.commentId()));
+            item.put("from_id", 1L);
+            item.put("post_id", 1L);
+            item.put("text", comment.text() == null ? "" : comment.text());
+            item.put("date", comment.createdAt().getEpochSecond());
+            items.add(item);
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("count", items.size());
+        response.put("items", items);
+        return Map.of("response", response);
     }
 
     private Map<String, Object> wallGetById(MultiValueMap<String, String> params) {
