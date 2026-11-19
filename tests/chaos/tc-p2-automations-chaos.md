@@ -12,7 +12,7 @@
 |---|---|
 | **ID** | TC-P2-CH-01 / TC-IN-08 |
 | **Приоритет** | P0 |
-| **Автотест** | `backend/apps/api/src/integrationTest/java/ru/posts/api/inbound/Qa14InboundChaosIT` |
+| **Автотест** | `backend/apps/api/src/integrationTest/java/ru/posts/api/qa14/Qa14InboundChaosIT` |
 | **Ручной прототип** | stop `rabbitmq` в compose 2–5 мин во время инъекции `/_control/vk/callback` |
 | **Критерий** | **0 потерь**, **0 дублей** после восстановления |
 
@@ -48,7 +48,7 @@
 |---|---|
 | **ID** | TC-P2-CH-02 |
 | **Приоритет** | P0 |
-| **Автотест** | `backend/libs/test-support/src/test/java/ru/posts/testsupport/chaos/Qa14RedisDegradeTest` (и/или `backend/apps/api/.../Qa14RedisDegradeIT`) |
+| **Автотест** | `backend/libs/ratelimit/src/test/java/ru/posts/ratelimit/Qa14RedisDegradeTest` (мок Redis-клиента, не остановка Redis) |
 | **Зоны** | BE-32 TG album 3s; BE-35 `RepeatDetector` / rate limit; BE-33 Bucket4j |
 | **Критерий** | **Деградация без потерь** (задержка или fail-safe), события не теряются |
 
@@ -89,8 +89,7 @@
 cd backend && ./gradlew :apps:api:integrationTest -PincludeNightly=true \
   --tests 'Qa14InboundChaosIT'
 
-cd backend && ./gradlew :libs:test-support:test -PincludeNightly=true \
-  --tests 'Qa14RedisDegradeTest'
+cd backend && ./gradlew :libs:ratelimit:test --tests 'ru.posts.ratelimit.Qa14RedisDegradeTest'
 ```
 
 ## История

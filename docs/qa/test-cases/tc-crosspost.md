@@ -12,23 +12,23 @@
 
 | AC (BE-36 Приёмка) | Кратко | TC | Приоритет | Автоматизация |
 |---|---|---|---|---|
-| VK → TG/OK/Max с медиа | 3 фото | TC-XP-01 | P0 | авто |
-| TG альбом → VK 3 фото | Агрегация BE-32 | TC-XP-02 | P0 | авто |
-| Max → TG | Пара сетей | TC-XP-03 | P0 | авто |
-| Длинный TG &gt;1024 + фото | Порядок сообщений | TC-XP-04 | P0 | авто |
-| Петля A↔B | 1 копия в B, 0 в A | TC-XP-05 | P0 | авто |
-| Гонка L2 (реестр) | Отложка 15 с | TC-XP-06 | P0 | авто |
-| Треугольник A→B→C→A | 1 в B,C; 0 в A | TC-XP-07 | P0 | авто |
+| VK → TG/OK/Max с медиа | 3 фото | TC-XP-01 | P0 | нет автотеста |
+| TG альбом → VK 3 фото | Агрегация BE-32 | TC-XP-02 | P0 | частично (inbound) |
+| Max → TG | Пара сетей | TC-XP-03 | P0 | нет автотеста |
+| Длинный TG &gt;1024 + фото | Порядок сообщений | TC-XP-04 | P0 | нет автотеста |
+| Петля A↔B | 1 копия в B, 0 в A | TC-XP-05 | P0 | частично (L1) |
+| Гонка L2 (реестр) | intent без строки реестра | TC-XP-06 | P0 | авто |
+| Треугольник A→B→C→A | 1 в B,C; 0 в A | TC-XP-07 | P0 | частично (L1, не L3) |
 | L4 A→C и B→C | Одна копия в C | TC-XP-08 | P0 | авто |
 | Повтор события ×5 | 1 публикация / приёмник | TC-XP-09 | P0 | авто |
-| UNKNOWN_OUTCOME | 0 дублей | TC-XP-10 | P0 | авто |
-| Автовыключатель L6 | `auto_paused` | TC-XP-11 | P0 | авто |
-| Реклама erid skip | `ad_post_excluded` | TC-XP-12 | P0 | авто |
+| UNKNOWN_OUTCOME | 0 дублей | TC-XP-10 | P0 | нет автотеста |
+| Автовыключатель L6 | `auto_paused` | TC-XP-11 | P0 | частично (unit) |
+| Реклама erid skip | `ad_post_excluded` | TC-XP-12 | P0 | частично (unit) |
 | TG файл &gt;20 МБ | `skipped_unsupported_media` | TC-XP-13 | P0 | авто |
-| Свой пост / suggest option | L1 + config | TC-XP-14 | P0 | авто |
+| Свой пост / suggest option | L1 + config | TC-XP-14 | P0 | частично (unit) |
 | Unit фильтры/трансформации ≥40 | libs/crosspost tests | TC-XP-15 | P0 | unit |
 | IDOR / RBAC | 404 | TC-XP-16 | P0 | авто |
-| Нагрузка 1000/мин ×3 | 0 петель, p95 &lt; 60 с | TC-XP-17 | P1 | load / nightly |
+| Нагрузка 1000/мин ×3 | 0 петель, p95 &lt; 60 с | TC-XP-17 | P1 | нет замера |
 
 ---
 
@@ -38,7 +38,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostPairsIT** |
+| **Автоматизация** | **нет автотеста** (класса `Qa14CrosspostPairsIT` нет) |
 | Сети | VK → TG/OK/Max |
 
 ### Ожидание
@@ -52,7 +52,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostAlbumIT** |
+| **Автоматизация** | **частично**: `SocialInboundIT#telegramAlbumAndFanOut` (inbound, не публикация VK) |
 
 ### Ожидание
 После album aggregator — одна публикация VK; **не** три отдельных поста.
@@ -65,7 +65,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostPairsIT** |
+| **Автоматизация** | **нет автотеста** (класса `Qa14CrosspostPairsIT` нет) |
 
 ### Ожидание
 Текст + markup переносятся; L7: пост от нашего бота в Max не источник (skip).
@@ -78,7 +78,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostLongTextIT** |
+| **Автоматизация** | **нет автотеста** |
 
 ### Ожидание
 Порядок публикаций в задании: photo+caption ≤1024, затем follow-up text; **0** потери хвоста.
@@ -104,7 +104,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostRegistryRaceIT** |
+| **Автоматизация** | **Qa14CrosspostLoopsIT#registryLagBlockedByIntent** |
 
 ### Ожидание
 `process_after` +15 с; `publish_intents` fingerprint; без ложного кросспоста «своего» поста.
@@ -130,7 +130,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostDedupIT** + `LoopGuardAndGraphTest` |
+| **Автоматизация** | **Qa14CrosspostLoopsIT#fanInOneCopyOnSharedTarget** + `LoopGuardAndGraphTest` |
 
 ### Ожидание
 Второй кандидат → `skipped_duplicate`; SimHash ≤3.
@@ -143,7 +143,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostIdempotencyIT** |
+| **Автоматизация** | **Qa14CrosspostLoopsIT#duplicateInboundFiveTimes** |
 
 ### Ожидание
 Ключ `xp:{ruleId}:{sourceChannelId}:{sourceRemoteId}:{targetChannelId}`; `unique(rule_id, source_remote_id)`.
@@ -156,7 +156,7 @@
 |---|---|
 | Story / AC | BE-36 + BE-33 |
 | Приоритет | P0 |
-| **Автоматизация** | **Be33PublishSuggestedReconcileTest** (паттерн) / **Qa14CrosspostReconcileIT** |
+| **Автоматизация** | **нет для crosspost** (`Be33PublishSuggestedReconcileTest` — только suggest) |
 
 ### Ожидание
 После reconcile в эмуляторе **1** пост на целевой канал.
@@ -169,7 +169,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostAutoPauseIT** |
+| **Автоматизация** | **частично**: unit `CircuitBreakerTest`, IT нет |
 
 ### Ожидание
 `crosspost_rules.status=auto_paused`; уведомление owner; новые items не публикуются.
@@ -182,7 +182,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostAdSkipIT** |
+| **Автоматизация** | **частично**: unit `CrosspostFilterEngineTest`, IT нет |
 
 ### Ожидание
 `crosspost_items.status=filtered_out`; publications **0**.
@@ -195,7 +195,7 @@
 |---|---|
 | Story / AC | BE-36 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14CrosspostOversizeMediaIT** |
+| **Автоматизация** | **Qa14CrosspostLoopsIT#telegramFileOver20MbSkipped** |
 
 ### Ожидание
 Причина с кодом unsupported media; **0** upload в S3 / публикаций.
@@ -208,7 +208,7 @@
 |---|---|
 | Story / AC | BE-36 L1 |
 | Приоритет | P0 |
-| **Автоматизация** | **`LoopGuardAndGraphTest` + `Qa14CrosspostOwnPostIT`** |
+| **Автоматизация** | **частично**: unit `LoopGuardAndGraphTest`, IT нет |
 
 ### Ожидание
 `include_posts_published_via_posts=false` → `skipped_own`; `include_suggest_published=true` → перенос suggest.

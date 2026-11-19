@@ -212,14 +212,27 @@ jobs:
           ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.qa14.Qa14InboundChaosIT'
 
       - name: P2 automations k6 harness (smoke rates)
+        env:
+          CHANNEL_ID: ${{ vars.QA14_CHANNEL_ID }}
+          VK_SECRET: ${{ secrets.QA14_VK_SECRET }}
+          GROUP_ID: ${{ vars.QA14_GROUP_ID }}
         run: |
+          set -euo pipefail
           mkdir -p tests/load/reports
-          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-inbound-smoke.json \
-            tests/load/scenarios/l3-social-inbound-hooks.js || true
-          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-antispam-smoke.json \
-            tests/load/scenarios/l4-p2-antispam-events.js || true
-          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-crosspost-smoke.json \
-            tests/load/scenarios/l5-p2-crosspost-ingest.js || true
+          if [ -z "${CHANNEL_ID}" ] || [ -z "${VK_SECRET}" ]; then
+            echo "QA-14 k6 requires CHANNEL_ID (vars.QA14_CHANNEL_ID) and VK_SECRET (secrets.QA14_VK_SECRET)."
+            echo "Refusing to mark an unconfigured run as success."
+            exit 1
+          fi
+          # l3 ignores PROFILE and defaults to 2000/s; smoke must set the rate explicitly.
+          INBOUND_RATE=50 INBOUND_DURATION=15s k6 run --out json=tests/load/reports/k6-p2-inbound-smoke.json \
+            tests/load/scenarios/l3-social-inbound-hooks.js
+          PROFILE=smoke ANTISPAM_RATE=30 ANTISPAM_DURATION=15s k6 run \
+            --out json=tests/load/reports/k6-p2-antispam-smoke.json \
+            tests/load/scenarios/l4-p2-antispam-events.js
+          PROFILE=smoke CROSSPOST_RATE=5 CROSSPOST_DURATION=15s k6 run \
+            --out json=tests/load/reports/k6-p2-crosspost-smoke.json \
+            tests/load/scenarios/l5-p2-crosspost-ingest.js
 
       - name: Upload reports
         if: always()

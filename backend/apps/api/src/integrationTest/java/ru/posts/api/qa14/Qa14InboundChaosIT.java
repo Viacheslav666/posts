@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,7 +45,9 @@ import ru.posts.api.channel.WorkspaceTokenVault;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.messaging.ingest.SocialInboundCommand;
 import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.TelegramBotEntity;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.TelegramBotRepository;
 import ru.posts.social.api.SocialLiveApiGuard;
 import ru.posts.social.inbound.RecordingSocialEventHandler;
 import ru.posts.social.inbound.SocialInboundProcessor;
@@ -75,6 +79,9 @@ class Qa14InboundChaosIT {
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
+        if (!rabbit.isRunning()) {
+            rabbit.start();
+        }
         if (emulator == null) {
             try {
                 System.setProperty("posts.repo.root", findRepoRoot());
@@ -110,6 +117,9 @@ class Qa14InboundChaosIT {
     ChannelRepository channelRepository;
 
     @Autowired
+    TelegramBotRepository telegramBotRepository;
+
+    @Autowired
     WorkspaceTokenVault tokenVault;
 
     @Autowired
@@ -138,60 +148,59 @@ class Qa14InboundChaosIT {
         recordingHandler.clear();
         mailSender.clear();
         emulator.reset();
+        ensureBrokerApp();
         drainQueue("ingest.vk");
-        if (!rabbit.isRunning()) {
-            rabbit.start();
-            await().atMost(Duration.ofSeconds(30)).until(rabbit::isRunning);
-        }
+        drainQueue("ingest.tg");
+        drainQueue("ingest.max");
     }
 
     @Test
-    @DisplayName("TC-IN-chaos-rabbit: stop RabbitMQ → hook 503, after restart ×1 handler delivery")
+    @DisplayName("TC-IN-chaos-rabbit: stop_app → 503; queued events survive start_app; retry is not a second row")
     void rabbitUnavailableThenRecover() throws Exception {
         Fixture fx = seedWorkspace();
-        ChannelEntity channel = vkChannel(fx, "-920001");
+        ChannelEntity channel = vkChannel(fx, "920001");
         subscriptionService.ensure(channel.getId(), "suggest", List.of("wall_post_new"));
         var sub = subscriptionService.getRequired(channel.getId());
         String secret = tokenVault.unseal(fx.workspaceId(), sub.getSecretEnc());
 
-        rabbit.stop();
-        await().atMost(Duration.ofSeconds(10)).until(() -> !rabbit.isRunning());
+        for (int i = 1; i <= 3; i++) {
+            postVk(channel, secret, "evt-up-" + i, 700 + i, "up-" + i).andExpect(status().isOk());
+        }
 
-        ObjectNode body = callbackBody("evt-chaos-1", 701, "chaos", secret);
+        rabbitmqctl("rabbitmqctl", "stop_app");
+        ObjectNode dropped = callbackBody("evt-down-1", "920001", 799, "down", secret);
         mockMvc.perform(post("/hooks/vk/" + channel.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(body)))
-                .andExpect(status().isServiceUnavailable());
+                        .content(objectMapper.writeValueAsBytes(dropped)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string("Retry-After", "10"))
+                .andExpect(content().string("unavailable"));
 
-        rabbit.start();
-        await().atMost(Duration.ofSeconds(45)).until(rabbit::isRunning);
-        await().pollDelay(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(60)).until(() -> true);
-
-        mockMvc.perform(post("/hooks/vk/" + channel.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(body)))
-                .andExpect(status().isOk());
+        ensureBrokerApp();
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> postVk(channel, secret, "evt-down-1", 799, "down")
+                .andExpect(status().isOk())
+                .andExpect(content().string("ok")));
 
         await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             drainAndProcess("ingest.vk");
-            assertThat(recordingHandler.size()).isEqualTo(1);
+            assertThat(recordingHandler.size()).isEqualTo(4);
         });
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM social_inbound_events WHERE channel_id = ?",
                         Integer.class,
                         channel.getId()))
-                .isEqualTo(1);
+                .isEqualTo(4);
     }
 
     @Test
     @DisplayName("TC-IN-dedup-callback: VK callback ×5 → one inbound row + one handler delivery")
     void vkCallbackFiveTimesDedup() throws Exception {
         Fixture fx = seedWorkspace();
-        ChannelEntity channel = vkChannel(fx, "-920002");
+        ChannelEntity channel = vkChannel(fx, "920002");
         subscriptionService.ensure(channel.getId(), "suggest", List.of("wall_post_new"));
         var sub = subscriptionService.getRequired(channel.getId());
         String secret = tokenVault.unseal(fx.workspaceId(), sub.getSecretEnc());
-        ObjectNode body = callbackBody("evt-five-1", 801, "dedup", secret);
+        ObjectNode body = callbackBody("evt-five-1", "920002", 801, "dedup", secret);
 
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(post("/hooks/vk/" + channel.getId())
@@ -210,11 +219,129 @@ class Qa14InboundChaosIT {
                 .isEqualTo(1);
     }
 
-    private ObjectNode callbackBody(String eventId, int postId, String text, String secret) {
+    @Test
+    @DisplayName("TC-IN-dedup-tg: same Telegram update_id twice → one inbound row")
+    void telegramUpdateReplayDedup() throws Exception {
+        Fixture fx = seedWorkspace();
+        TelegramBotEntity bot =
+                telegramBotRepository.findByStatusOrderByCreatedAtAsc("active").get(0);
+        ChannelEntity channel = new ChannelEntity();
+        channel.setId(UuidV7.generate());
+        channel.setWorkspaceId(fx.workspaceId());
+        channel.setNetwork("tg");
+        channel.setExternalId("-100920003");
+        channel.setType("channel");
+        channel.setTitle("TG replay");
+        channel.setStatus("active");
+        channel.setBotId(bot.getId());
+        channel.setCreatedAt(Instant.now());
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        subscriptionService.ensure(channel.getId(), "suggest", List.of("channel_post"));
+
+        ObjectNode update = objectMapper.createObjectNode();
+        update.put("update_id", 920003);
+        ObjectNode post = update.putObject("channel_post");
+        post.put("message_id", 77);
+        post.put("date", Instant.now().getEpochSecond());
+        post.put("text", "replay");
+        post.putObject("chat").put("id", -100920003L).put("type", "channel");
+        byte[] payload = objectMapper.writeValueAsBytes(update);
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/hooks/tg/" + bot.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .header("X-Telegram-Bot-Api-Secret-Token", bot.getWebhookSecret())
+                            .content(payload))
+                    .andExpect(status().isOk());
+        }
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            drainAndProcess("ingest.tg");
+            assertThat(recordingHandler.size()).isEqualTo(1);
+        });
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM social_inbound_events WHERE channel_id = ?",
+                        Integer.class,
+                        channel.getId()))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("TC-IN-dedup-max: same Max update ×10 → one inbound row")
+    void maxUpdateTenTimesDedup() throws Exception {
+        Fixture fx = seedWorkspace();
+        ChannelEntity channel = new ChannelEntity();
+        channel.setId(UuidV7.generate());
+        channel.setWorkspaceId(fx.workspaceId());
+        channel.setNetwork("max");
+        channel.setExternalId("max-920004");
+        channel.setType("channel");
+        channel.setTitle("Max replay");
+        channel.setStatus("active");
+        channel.setBotTokenEnc(tokenVault.seal(fx.workspaceId(), "emulator-max-token"));
+        channel.setCreatedAt(Instant.now());
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        subscriptionService.ensure(channel.getId(), "suggest", List.of("comment_created"));
+        var sub = subscriptionService.getRequired(channel.getId());
+        String secret = tokenVault.unseal(fx.workspaceId(), sub.getSecretEnc());
+
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("update_type", "comment_created");
+        body.put("timestamp", 1_700_000_000_000L);
+        body.putObject("comment")
+                .put("id", "c-replay")
+                .put("text", "again")
+                .putObject("sender")
+                .put("user_id", "u1");
+        byte[] payload = objectMapper.writeValueAsBytes(body);
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/hooks/max/" + channel.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .header("X-Max-Bot-Api-Secret", secret)
+                            .content(payload))
+                    .andExpect(status().isOk());
+        }
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            drainAndProcess("ingest.max");
+            assertThat(recordingHandler.size()).isEqualTo(1);
+        });
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM social_inbound_events WHERE channel_id = ?",
+                        Integer.class,
+                        channel.getId()))
+                .isEqualTo(1);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postVk(
+            ChannelEntity channel, String secret, String eventId, int postId, String text) throws Exception {
+        ObjectNode body = callbackBody(eventId, channel.getExternalId(), postId, text, secret);
+        return mockMvc.perform(post("/hooks/vk/" + channel.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsBytes(body)));
+    }
+
+    private void ensureBrokerApp() throws Exception {
+        rabbitmqctl("rabbitmqctl", "start_app");
+    }
+
+    private void rabbitmqctl(String... command) throws Exception {
+        org.testcontainers.containers.Container.ExecResult result = rabbit.execInContainer(command);
+        if (result.getExitCode() == 0) {
+            return;
+        }
+        String text = result.getStdout() + "\n" + result.getStderr();
+        String lower = text.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("already running") || lower.contains("already_running")) {
+            return;
+        }
+        throw new IllegalStateException(String.join(" ", command) + " exited " + result.getExitCode() + ": " + text);
+    }
+
+    private ObjectNode callbackBody(String eventId, String groupId, int postId, String text, String secret) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("type", "wall_post_new");
         body.put("event_id", eventId);
-        body.put("group_id", 920002);
+        body.put("group_id", groupId);
         body.put("secret", secret);
         ObjectNode object = body.putObject("object");
         object.put("id", postId);
@@ -251,9 +378,10 @@ class Qa14InboundChaosIT {
         channel.setType("group");
         channel.setTitle("VK chaos");
         channel.setStatus("active");
+        channel.setGroupTokenEnc(tokenVault.seal(fx.workspaceId(), "emulator-group-token"));
         channel.setCreatedAt(Instant.now());
         channel.setUpdatedAt(Instant.now());
-        return channel;
+        return channelRepository.save(channel);
     }
 
     private Fixture seedWorkspace() throws Exception {

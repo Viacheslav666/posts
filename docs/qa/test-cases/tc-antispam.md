@@ -50,7 +50,7 @@
 |---|---|
 | Story / AC | BE-35 |
 | Приоритет | P0 |
-| **Автоматизация** | **авто** / **Qa14AntispamRestoreIT** |
+| **Автоматизация** | **частично**: `Be33RemoteActionsVkIT` (restore action). Класса `Qa14AntispamRestoreIT` нет |
 
 ### Ожидание
 `POST …/antispam/log/{id}/restore` → `restore_comment`; эмулятор комментарий виден; log `state=restored`.
@@ -209,7 +209,7 @@
 |---|---|
 | Story / AC | BE-35 |
 | Приоритет | P0 |
-| **Автоматизация** | **Qa14AntispamCapabilityIT** |
+| **Автоматизация** | **нет автотеста** |
 
 ### Ожидание
 Activate без user token / scope → **422** с понятным кодом; rule остаётся `draft`.

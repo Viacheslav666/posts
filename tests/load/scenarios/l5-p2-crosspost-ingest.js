@@ -1,22 +1,20 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 import { apiBaseUrl } from '../lib/config.js';
 
 /**
- * QA-14 harness: crosspost source posts (VK wall_post_new) with fan-out on 3 targets in app.
- * PROFILE=full → 1000 posts/min (~16.7/s); smoke → 5/s.
+ * QA-14 harness: crosspost source posts (VK wall_post_new).
+ * PROFILE=full → 1000 posts/min (~17/s); smoke → 5/s.
+ * Hook acceptance only. Duplicate/loop counts are asserted by Qa14CrosspostLoopsIT, not by this counter.
  */
-const duplicates = new Counter('crosspost_duplicate_posts');
+const lost = new Counter('crosspost_hook_lost');
 
 export const options = {
   scenarios: {
     crosspost: {
       executor: 'constant-arrival-rate',
-      rate: Number(
-        __ENV.CROSSPOST_RATE ||
-          (__ENV.PROFILE === 'full' ? Math.ceil(1000 / 60) : 5)
-      ),
+      rate: Number(__ENV.CROSSPOST_RATE || (__ENV.PROFILE === 'full' ? Math.ceil(1000 / 60) : 5)),
       timeUnit: '1s',
       duration: __ENV.CROSSPOST_DURATION || '30s',
       preAllocatedVUs: Number(__ENV.PROFILE === 'full' ? 80 : 5),
@@ -25,27 +23,28 @@ export const options = {
   },
   thresholds: {
     http_req_failed: ['rate<0.02'],
+    crosspost_hook_lost: ['count==0'],
   },
 };
 
 const channelId = __ENV.CHANNEL_ID;
-const secret = __ENV.VK_SECRET || 'load-secret';
+const secret = __ENV.VK_SECRET || '';
 
 export default function () {
-  if (!channelId) {
-    duplicates.add(1);
+  if (!channelId || !secret) {
+    lost.add(1);
     return;
   }
-  const postId = 100000 + __ITER;
+  const postId = `${__VU}-${__ITER}`;
   const payload = JSON.stringify({
     type: 'wall_post_new',
-    event_id: `xp-${postId}-${Date.now()}`,
+    event_id: `xp-${postId}`,
     group_id: __ENV.GROUP_ID || '1',
     secret,
     object: {
-      id: postId,
+      id: Number(__ITER) + __VU * 1_000_000,
       from_id: 1,
-      owner_id: -(__ENV.GROUP_ID || 1),
+      owner_id: -Number(__ENV.GROUP_ID || 1),
       text: `crosspost load ${postId}`,
       post_type: 'post',
     },
@@ -54,6 +53,9 @@ export default function () {
     headers: { 'Content-Type': 'application/json' },
     timeout: '2s',
   });
-  check(res, { 'hook accepted': (r) => r.status === 200 });
-  sleep(0.01);
+  const ok = check(res, {
+    'status 200': (r) => r.status === 200,
+    'body ok': (r) => String(r.body).trim() === 'ok',
+  });
+  if (!ok) lost.add(1);
 }

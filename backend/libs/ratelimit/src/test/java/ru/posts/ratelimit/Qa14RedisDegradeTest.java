@@ -13,13 +13,16 @@ import org.mockito.Mockito;
 import ru.posts.ratelimit.Bucket4jSocialRateLimiter.LimitSpec;
 import ru.posts.ratelimit.Bucket4jSocialRateLimiter.NetworkLimitConfig;
 
-/** QA-14 chaos: Redis unavailable → local limiter degrades without throwing (no event loss). */
+/**
+ * QA-14 chaos: Redis unavailable → local limiter still enforces the cap and returns a wait (retry),
+ * instead of throwing or fail-opening.
+ */
 @Tag("ci")
 class Qa14RedisDegradeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    @DisplayName("TC-IN-redis-degrade: Redis error → local fallback allow")
+    @DisplayName("TC-IN-redis-degrade: Redis error → local cap, deny carries a delay, no throw")
     void redisDownUsesLocalFallback() {
         ProxyManager<byte[]> proxyManager = Mockito.mock(ProxyManager.class);
         when(proxyManager.builder()).thenThrow(new RuntimeException("redis down"));
@@ -32,7 +35,18 @@ class Qa14RedisDegradeTest {
                                 LimitSpec.perSecond(10), LimitSpec.perSecond(10), LimitSpec.perMinute(100))),
                 new SimpleMeterRegistry());
 
-        RateLimitDecision decision = limiter.tryAcquire("vk", "token-x", "-100");
-        assertThat(decision.allowed()).isTrue();
+        int allowed = 0;
+        int denied = 0;
+        for (int i = 0; i < 30; i++) {
+            RateLimitDecision decision = limiter.tryAcquire("vk", "token-x", "-100");
+            if (decision.allowed()) {
+                allowed++;
+            } else {
+                denied++;
+                assertThat(decision.waitTime()).isPositive();
+            }
+        }
+        assertThat(allowed).isBetween(1, 10);
+        assertThat(denied).isPositive();
     }
 }

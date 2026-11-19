@@ -12,10 +12,10 @@
 | Один TG-чат в **двух** workspace → **два** события | TC-IN-05 | `SocialInboundIT#telegramAlbumAndFanOut` | CI | авто |
 | Max: подписка с секретом; `comment_created` нормализуется | TC-IN-06 | `SocialInboundIT#maxCommentAndAuth` | CI | авто |
 | Max: неверный секрет → **401** | TC-IN-07 | `SocialInboundIT#maxCommentAndAuth` | CI | авто |
-| Chaos: RabbitMQ недоступен → **503**; после восстановления повтор обработан, **потерь 0** | TC-IN-08 | `backend/apps/api/src/integrationTest/java/ru/posts/api/inbound/Qa14InboundChaosIT` | nightly | авто |
-| Нагрузка **2000** событий/с, p99 хука **&lt; 200 мс**, без потерь | TC-IN-09 | `tests/load/scenarios/l3-social-inbound-hooks.js`; `Qa14InboundLoadSmokeIT` (сверка глубины очереди) | nightly `PROFILE=full` | авто |
+| Chaos: RabbitMQ недоступен → **503**; после восстановления повтор обработан, **потерь 0** | TC-IN-08 | `backend/apps/api/src/integrationTest/java/ru/posts/api/qa14/Qa14InboundChaosIT#rabbitUnavailableThenRecover` (`rabbitmqctl stop_app`, очередь переживает `start_app`). Рестарт процесса `posts-ingest` не поднимается | nightly | **частично** |
+| Нагрузка **2000** событий/с, p99 хука **&lt; 200 мс**, без потерь | TC-IN-09 | harness `tests/load/scenarios/l3-social-inbound-hooks.js`. Класса `Qa14InboundLoadSmokeIT` нет. p99 full не измерялся | nightly smoke только при `CHANNEL_ID`+`VK_SECRET` | **нет замера** |
 | В коде и логах **нет** хардкода секретов | TC-IN-10 | Ревью + `grep` в CI docs; конфиг через `secret_enc` | PR | ручной+авто |
-| ArchUnit: `/_control/**` только профиль **emulator** | TC-IN-10 | `backend/apps/publisher/src/test/java/ru/posts/publisher/config/ProdProfileNoControlPathTest`; `Qa14InboundArchIT` | CI / nightly | авто |
+| ArchUnit: `/_control/**` только профиль **emulator** | TC-IN-10 | `ProdProfileNoControlPathTest`. Класса `Qa14InboundArchIT` нет | CI | **частично** |
 | IDOR: чужой канал → **404** | TC-IN-11 | `SocialInboundIT#eventSubscriptionIdor` | CI | авто |
 | `RbacMatrixDocsSyncTest` зелёный | TC-IN-12 | `backend/libs/security/src/test/java/ru/posts/security/rbac/RbacMatrixDocsSyncTest` | CI | авто |
 | OpenAPI-diff | TC-IN-12 | `./gradlew :apps:api:generateOpenApiDocs` + contract | CI | авто |

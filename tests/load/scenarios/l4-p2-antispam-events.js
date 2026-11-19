@@ -27,7 +27,7 @@ export const options = {
 };
 
 const channelId = __ENV.CHANNEL_ID;
-const secret = __ENV.VK_SECRET || 'load-secret';
+const secret = __ENV.VK_SECRET || '';
 
 export default function () {
   if (!channelId) {
@@ -52,7 +52,8 @@ export default function () {
     timeout: '2s',
   });
   const ok = check(res, {
-    'status 200 or 503': (r) => r.status === 200 || r.status === 503,
+    'status 200': (r) => r.status === 200,
+    'body ok': (r) => String(r.body).trim() === 'ok',
   });
   if (!ok) lost.add(1);
 }

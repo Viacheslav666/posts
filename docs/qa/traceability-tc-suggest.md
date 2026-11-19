@@ -17,7 +17,7 @@
 | Unit фильтров **≥30** (ё/е, whole word, TZ Moscow/Samara, …) | TC-SUG-10, TC-SUG-11 | `backend/libs/automation-suggest/src/test/java/ru/posts/suggest/filter/SuggestFilterEngineTest` | CI | авто |
 | IDOR: чужой канал → **404** | TC-SUG-12 | `SuggestVkIT#idorNotFound`; `SuggestApiIT` | CI | авто |
 | RBAC: Author/Viewer не модерируют (**INV-RBAC-007**) | TC-SUG-12 | `SuggestApiIT` | CI | авто |
-| Нагрузка: **200** предложенных/с, **10 000** каналов, p95 «событие→решение» &lt; 2 с, **без дублей** | TC-SUG-12 | `Qa14SuggestLoadIT`; `tests/load/scenarios/l4-suggest-ingest.js` (каркас) | nightly `PROFILE=full` | авто |
+| Нагрузка: **200** предложенных/с, **10 000** каналов, p95 «событие→решение» &lt; 2 с, **без дублей** | TC-SUG-12 | классов `Qa14SuggestLoadIT` и `tests/load/scenarios/l4-suggest-ingest.js` нет | — | **нет автотеста** |
 | Ручной режим / hybrid (очередь модерации) | TC-SUG-04 | `SuggestVkIT#bulkApproveAll` (manual seed); `SuggestApiIT` (mode=manual) | CI | авто |
 | Guard: нет live `api.vk.com` | — | `SuggestVkIT#liveApiGuard`; `SocialLiveApiGuardTest` | CI | авто |
 
