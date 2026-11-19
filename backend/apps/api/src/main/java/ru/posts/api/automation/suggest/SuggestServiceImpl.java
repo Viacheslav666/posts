@@ -99,8 +99,11 @@ public class SuggestServiceImpl implements SuggestService {
         ensureFeatureEnabled(workspaceId);
         List<SuggestSettingsEntity> found =
                 settingsRepository.findByWorkspaceIdAndProjectIdOrderByCreatedAtDesc(workspaceId, projectId);
-        CursorPages.Slice<SuggestSettingsEntity> slice =
-                CursorPages.slice(found, page == null ? null : page.cursor(), page == null ? 20 : page.limitOrDefault(), SuggestSettingsEntity::getId);
+        CursorPages.Slice<SuggestSettingsEntity> slice = CursorPages.slice(
+                found,
+                page == null ? null : page.cursor(),
+                page == null ? 20 : page.limitOrDefault(),
+                SuggestSettingsEntity::getId);
         return new CursorPage.SuggestSettingsPage(
                 slice.items().stream().map(this::toSettingsDto).toList(), slice.nextCursor(), slice.hasMore());
     }
@@ -118,10 +121,12 @@ public class SuggestServiceImpl implements SuggestService {
         ensureFeatureEnabled(workspaceId);
         ChannelEntity channel = requireChannel(workspaceId, request.channelId());
         if (!"vk".equalsIgnoreCase(channel.getNetwork())) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, "VK channel required");
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, "VK channel required");
         }
         if (settingsRepository.findByChannelId(channel.getId()).isPresent()) {
-            throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Suggest settings already exist for channel");
+            throw new ApiException(
+                    HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Suggest settings already exist for channel");
         }
         Map<String, Object> config = SuggestConfigSupport.withDefaults(request.config());
         SuggestConfigSupport.validate(config);
@@ -177,7 +182,8 @@ public class SuggestServiceImpl implements SuggestService {
             settings.setMode(request.mode().name());
         }
         if (request.config() != null) {
-            Map<String, Object> merged = new LinkedHashMap<>(settings.getConfig() == null ? Map.of() : settings.getConfig());
+            Map<String, Object> merged =
+                    new LinkedHashMap<>(settings.getConfig() == null ? Map.of() : settings.getConfig());
             merged.putAll(request.config());
             Map<String, Object> config = SuggestConfigSupport.withDefaults(merged);
             SuggestConfigSupport.validate(config);
@@ -298,7 +304,8 @@ public class SuggestServiceImpl implements SuggestService {
                     results.add(new SuggestDtos.SuggestSettingsCopyItem(channelId, false, "not_vk", null));
                     continue;
                 }
-                SuggestSettingsEntity existing = settingsRepository.findByChannelId(channelId).orElse(null);
+                SuggestSettingsEntity existing =
+                        settingsRepository.findByChannelId(channelId).orElse(null);
                 Instant now = Instant.now();
                 if (existing == null) {
                     existing = new SuggestSettingsEntity();
@@ -466,7 +473,8 @@ public class SuggestServiceImpl implements SuggestService {
                 access.requirePermission(item.getWorkspaceId(), userId, "automations.moderate");
         access.requireVisibleProject(membership, settings.getProjectId());
         ensureFeatureEnabled(item.getWorkspaceId());
-        boolean deleteRemote = request == null || request.deleteRemote() == null || Boolean.TRUE.equals(request.deleteRemote());
+        boolean deleteRemote =
+                request == null || request.deleteRemote() == null || Boolean.TRUE.equals(request.deleteRemote());
         SuggestItemEntity saved = processingService.reject(item, settings, userId, deleteRemote);
         auditRecorder.record(
                 item.getWorkspaceId(),
@@ -493,9 +501,7 @@ public class SuggestServiceImpl implements SuggestService {
         access.requireVisibleProject(membership, settings.getProjectId());
         ensureFeatureEnabled(settings.getWorkspaceId());
 
-        String key = idempotencyKey == null || idempotencyKey.isBlank()
-                ? "bulk-" + UuidV7.generate()
-                : idempotencyKey;
+        String key = idempotencyKey == null || idempotencyKey.isBlank() ? "bulk-" + UuidV7.generate() : idempotencyKey;
         var existing = bulkJobRepository.findByWorkspaceIdAndIdempotencyKey(settings.getWorkspaceId(), key);
         if (existing.isPresent()) {
             return toBulkDto(existing.get());
@@ -535,7 +541,8 @@ public class SuggestServiceImpl implements SuggestService {
     public SuggestDtos.SuggestBulkJob getBulkJob(UUID userId, UUID jobId) {
         SuggestBulkJobEntity job = bulkJobRepository
                 .findById(jobId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Bulk job not found"));
+                .orElseThrow(
+                        () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Bulk job not found"));
         access.requirePermission(job.getWorkspaceId(), userId, "automations.moderate");
         ensureFeatureEnabled(job.getWorkspaceId());
         // IDOR: findByIdAndWorkspaceId after permission — also verify membership owns workspace
@@ -568,8 +575,9 @@ public class SuggestServiceImpl implements SuggestService {
         }
         boolean scopeOk = false;
         if (channel.getSocialAccountId() != null) {
-            SocialAccountEntity account =
-                    socialAccountRepository.findById(channel.getSocialAccountId()).orElse(null);
+            SocialAccountEntity account = socialAccountRepository
+                    .findById(channel.getSocialAccountId())
+                    .orElse(null);
             if (account != null && account.getScopes() != null) {
                 for (String scope : account.getScopes()) {
                     if (scope != null && scope.toLowerCase(Locale.ROOT).contains("wall")) {

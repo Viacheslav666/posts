@@ -2,10 +2,10 @@ package ru.posts.api.suggest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -238,11 +238,13 @@ class SuggestVkIT {
         postSuggestCallback(channel, secret, "evt-pub-1", 501, "55", "please approve");
         await().atMost(Duration.ofSeconds(25)).untilAsserted(() -> {
             drainAndProcess("ingest.vk");
-            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "501")).isPresent();
+            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "501"))
+                    .isPresent();
         });
 
-        SuggestItemEntity item =
-                itemRepository.findByChannelIdAndVkPostId(channel.getId(), "501").orElseThrow();
+        SuggestItemEntity item = itemRepository
+                .findByChannelIdAndVkPostId(channel.getId(), "501")
+                .orElseThrow();
         assertThat(item.getStatus()).isIn("scheduled", "publishing", "published");
         assertThat(item.getRemoteActionId()).isNotNull();
 
@@ -301,10 +303,12 @@ class SuggestVkIT {
         postSuggestCallback(channel, secret, "evt-stop-1", 601, "77", "Большой розыгрыш призов");
         await().atMost(Duration.ofSeconds(25)).untilAsserted(() -> {
             drainAndProcess("ingest.vk");
-            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "601")).isPresent();
+            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "601"))
+                    .isPresent();
         });
-        SuggestItemEntity item =
-                itemRepository.findByChannelIdAndVkPostId(channel.getId(), "601").orElseThrow();
+        SuggestItemEntity item = itemRepository
+                .findByChannelIdAndVkPostId(channel.getId(), "601")
+                .orElseThrow();
         assertThat(item.getStatus()).isIn("rejected", "deleted_remote");
         assertThat(item.getReasons()).contains("stop_words");
 
@@ -324,13 +328,7 @@ class SuggestVkIT {
         Fixture fx = seedWorkspaceJdbc();
         ChannelEntity channel = vkChannelJdbc(fx, "-700103");
         SuggestSettingsEntity settings = activeSettingsJdbc(
-                fx,
-                channel,
-                Map.of(
-                        "limits",
-                        Map.of("per_author", Map.of("day", 2)),
-                        "reject_policy",
-                        "keep"));
+                fx, channel, Map.of("limits", Map.of("per_author", Map.of("day", 2)), "reject_policy", "keep"));
 
         for (int i = 1; i <= 2; i++) {
             processingService
@@ -352,16 +350,7 @@ class SuggestVkIT {
         }
 
         SuggestItemEntity third = processingService
-                .processSuggested(
-                        channel.getId(),
-                        "703",
-                        "88",
-                        "post 3",
-                        List.of(),
-                        Map.of(),
-                        null,
-                        null,
-                        fx.userId())
+                .processSuggested(channel.getId(), "703", "88", "post 3", List.of(), Map.of(), null, null, fx.userId())
                 .orElseThrow();
         assertThat(third.getStatus()).isEqualTo("filtered_out");
         assertThat(third.getReasons()).contains("author_limit_day");
@@ -383,9 +372,11 @@ class SuggestVkIT {
         }
         await().atMost(Duration.ofSeconds(25)).untilAsserted(() -> {
             drainAndProcess("ingest.vk");
-            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "801")).isPresent();
+            assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "801"))
+                    .isPresent();
         });
-        assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "801")).isPresent();
+        assertThat(itemRepository.findByChannelIdAndVkPostId(channel.getId(), "801"))
+                .isPresent();
 
         Integer items = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM suggest_items WHERE channel_id = ? AND vk_post_id = '801'",
@@ -415,7 +406,8 @@ class SuggestVkIT {
         settings.setMode("manual");
         settingsRepository.save(settings);
 
-        for (int i = 0; i < 5; i++) {
+        int bulkSize = 50;
+        for (int i = 0; i < bulkSize; i++) {
             SuggestItemEntity item = new SuggestItemEntity();
             item.setId(UuidV7.generate());
             item.setWorkspaceId(fx.workspaceId());
@@ -472,7 +464,7 @@ class SuggestVkIT {
                 """,
                 Integer.class,
                 channel.getId());
-        assertThat(publishes).isEqualTo(5);
+        assertThat(publishes).isEqualTo(bulkSize);
     }
 
     @Test
@@ -499,14 +491,90 @@ class SuggestVkIT {
                 "/_control/vk/suggests",
                 """
                 {"ownerId":"%s","items":[]}
-                """
-                        .formatted(channel.getExternalId()));
+                """.formatted(channel.getExternalId()));
 
         // Token resolver noop returns test-token; emulator accepts it for wall.get
         syncService.syncChannel(settings.getId(), 100);
 
         SuggestItemEntity updated = itemRepository.findById(item.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo("removed_externally");
+    }
+
+    @Test
+    @DisplayName("near-duplicate of published text → filtered_out")
+    void nearDuplicateFilteredOut() {
+        Fixture fx = seedWorkspaceJdbc();
+        ChannelEntity channel = vkChannelJdbc(fx, "-700108");
+        activeSettingsJdbc(
+                fx,
+                channel,
+                Map.of(
+                        "dedup",
+                        Map.of("enabled", true, "lookback_days", 7, "similarity_threshold", 0.8),
+                        "reject_policy",
+                        "keep"));
+
+        String text = "Уникальный текст предложки для антидубля BE-34 номер сорок два";
+        processingService
+                .processSuggested(channel.getId(), "8101", "42", text, List.of(), Map.of(), null, null, fx.userId())
+                .ifPresent(item -> {
+                    item.setStatus("published");
+                    item.setDecidedAt(Instant.now());
+                    itemRepository.save(item);
+                });
+
+        SuggestItemEntity dup = processingService
+                .processSuggested(channel.getId(), "8102", "43", text, List.of(), Map.of(), null, null, fx.userId())
+                .orElseThrow();
+        assertThat(dup.getStatus()).isEqualTo("filtered_out");
+        assertThat(dup.getReasons()).contains("duplicate_content");
+    }
+
+    @Test
+    @DisplayName("ads pause delays next slot after marked_as_ads publish")
+    void adsPauseDelaysSlot() {
+        Fixture fx = seedWorkspaceJdbc();
+        ChannelEntity channel = vkChannelJdbc(fx, "-700109");
+        SuggestSettingsEntity settings = activeSettingsJdbc(
+                fx,
+                channel,
+                Map.of(
+                        "ads_pause",
+                        Map.of("enabled", true, "pause_after_ads_minutes", 60, "detect_marked_as_ads", true),
+                        "reject_policy",
+                        "keep"));
+
+        Instant publishedAt = Instant.now().minusSeconds(30);
+        SuggestItemEntity ads = new SuggestItemEntity();
+        ads.setId(UuidV7.generate());
+        ads.setWorkspaceId(fx.workspaceId());
+        ads.setChannelId(channel.getId());
+        ads.setSettingsId(settings.getId());
+        ads.setVkPostId("8200");
+        ads.setAuthorVkId("1");
+        ads.setText("promo");
+        ads.setStatus("published");
+        ads.setRaw(Map.of("marked_as_ads", 1));
+        ads.setDecidedAt(publishedAt);
+        ads.setScheduledFor(publishedAt);
+        ads.setCreatedAt(publishedAt);
+        ads.setUpdatedAt(publishedAt);
+        itemRepository.save(ads);
+
+        SuggestItemEntity next = processingService
+                .processSuggested(
+                        channel.getId(),
+                        "8201",
+                        "2",
+                        "normal suggest after ads",
+                        List.of(),
+                        Map.of(),
+                        null,
+                        null,
+                        fx.userId())
+                .orElseThrow();
+        assertThat(next.getStatus()).isIn("scheduled", "publishing");
+        assertThat(next.getScheduledFor()).isAfter(Instant.now().plusSeconds(50 * 60));
     }
 
     @Test
@@ -569,7 +637,8 @@ class SuggestVkIT {
         return vkChannel(fx, externalId);
     }
 
-    private SuggestSettingsEntity activeSettings(Fixture fx, ChannelEntity channel, Map<String, Object> configOverrides) {
+    private SuggestSettingsEntity activeSettings(
+            Fixture fx, ChannelEntity channel, Map<String, Object> configOverrides) {
         SuggestSettingsEntity settings = new SuggestSettingsEntity();
         settings.setId(UuidV7.generate());
         settings.setWorkspaceId(fx.workspaceId());

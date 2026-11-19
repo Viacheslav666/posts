@@ -14,9 +14,9 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
@@ -265,11 +265,12 @@ public class SuggestProcessingService {
             String messageOverride) {
         SuggestSettingsEntity locked =
                 settingsRepository.findByIdForUpdate(settings.getId()).orElse(settings);
-        Instant lastPublish = itemRepository
-                .findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(item.getChannelId(), PUBLISH_STATUSES)
+        Optional<SuggestItemEntity> lastPublished = itemRepository.findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(
+                item.getChannelId(), PUBLISH_STATUSES);
+        Instant lastPublish = lastPublished
                 .map(i -> i.getScheduledFor() != null ? i.getScheduledFor() : i.getDecidedAt())
                 .orElse(null);
-        boolean lastAds = false; // populated by sync/context; schedule still respects pause_after_ads when true
+        boolean lastAds = lastPublished.map(i -> looksLikeAds(i, config)).orElse(false);
         Instant slot = scheduledOverride != null
                 ? scheduledOverride
                 : slotScheduler.nextSlot(config, now, lastPublish, lastAds);
@@ -446,8 +447,49 @@ public class SuggestProcessingService {
                 .filter(s -> s != null)
                 .toList();
 
+        boolean lastWallWasAds = itemRepository
+                .findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(settings.getChannelId(), PUBLISH_STATUSES)
+                .map(i -> looksLikeAds(i, config))
+                .orElse(false);
+
         return new SuggestFilterContext(
-                settings.getMode(), messagesAllowed, closedProfile, recent, authorCounts, globalCounts, false, now);
+                settings.getMode(),
+                messagesAllowed,
+                closedProfile,
+                recent,
+                authorCounts,
+                globalCounts,
+                lastWallWasAds,
+                now);
+    }
+
+    private static boolean looksLikeAds(SuggestItemEntity item, Map<String, Object> config) {
+        Map<String, Object> adsPause = SuggestConfigSupport.adsPause(config);
+        if (item == null) {
+            return false;
+        }
+        if (SuggestConfigSupport.bool(adsPause.get("detect_erid"), true)) {
+            String text = item.getText() == null ? "" : item.getText().toLowerCase(java.util.Locale.ROOT);
+            if (text.contains("erid")) {
+                return true;
+            }
+        }
+        Map<String, Object> raw = item.getRaw();
+        if (raw != null && SuggestConfigSupport.bool(adsPause.get("detect_marked_as_ads"), true)) {
+            Object marked = raw.get("marked_as_ads");
+            if (Boolean.TRUE.equals(marked)
+                    || Integer.valueOf(1).equals(marked)
+                    || "1".equals(String.valueOf(marked))
+                    || "true".equalsIgnoreCase(String.valueOf(marked))) {
+                return true;
+            }
+            Object nested = raw.get("raw");
+            if (nested instanceof String s
+                    && s.toLowerCase(java.util.Locale.ROOT).contains("marked_as_ads")) {
+                return s.contains("\"marked_as_ads\":1") || s.contains("\"marked_as_ads\": true");
+            }
+        }
+        return false;
     }
 
     private static String formatVkAttachments(List<Map<String, Object>> attachments) {

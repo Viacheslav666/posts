@@ -99,27 +99,21 @@ public class SuggestController {
     @Operation(operationId = "suggestSettingsActivate", summary = "Activate suggest settings")
     public SuggestDtos.SuggestSettings activate(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.activate(
-                SecurityAuthSupport.requirePrincipal().userId(),
-                settingsId,
-                ClientRequestContexts.from(httpRequest));
+                SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
     }
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/pause")
     @Operation(operationId = "suggestSettingsPause", summary = "Pause suggest settings")
     public SuggestDtos.SuggestSettings pause(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.pause(
-                SecurityAuthSupport.requirePrincipal().userId(),
-                settingsId,
-                ClientRequestContexts.from(httpRequest));
+                SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
     }
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/resume")
     @Operation(operationId = "suggestSettingsResume", summary = "Resume suggest settings")
     public SuggestDtos.SuggestSettings resume(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.resume(
-                SecurityAuthSupport.requirePrincipal().userId(),
-                settingsId,
-                ClientRequestContexts.from(httpRequest));
+                SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
     }
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/copy")
@@ -137,12 +131,9 @@ public class SuggestController {
 
     @PostMapping("/api/v1/suggest/settings/{settingsId}/sync-last-100")
     @Operation(operationId = "suggestSettingsSync", summary = "Sync last 100 suggested posts from VK")
-    public SuggestDtos.SuggestSyncResult sync(
-            @PathVariable UUID settingsId, HttpServletRequest httpRequest) {
+    public SuggestDtos.SuggestSyncResult sync(@PathVariable UUID settingsId, HttpServletRequest httpRequest) {
         return suggestService.syncLast100(
-                SecurityAuthSupport.requirePrincipal().userId(),
-                settingsId,
-                ClientRequestContexts.from(httpRequest));
+                SecurityAuthSupport.requirePrincipal().userId(), settingsId, ClientRequestContexts.from(httpRequest));
     }
 
     @GetMapping("/api/v1/suggest/settings/{settingsId}/items")
@@ -159,13 +150,7 @@ public class SuggestController {
             @RequestParam(required = false) Instant to,
             @Valid @ParameterObject CursorPage.Params page) {
         return suggestService.listItems(
-                SecurityAuthSupport.requirePrincipal().userId(),
-                settingsId,
-                status,
-                authorVkId,
-                from,
-                to,
-                page);
+                SecurityAuthSupport.requirePrincipal().userId(), settingsId, status, authorVkId, from, to, page);
     }
 
     @GetMapping("/api/v1/suggest/items/{itemId}")

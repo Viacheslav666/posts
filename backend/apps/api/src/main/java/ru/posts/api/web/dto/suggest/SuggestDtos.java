@@ -59,16 +59,10 @@ public final class SuggestDtos {
             Instant nextSyncAt) {}
 
     @Schema(name = "SuggestSettingsCreate")
-    public record SuggestSettingsCreate(
-            @NotNull UUID channelId,
-            Mode mode,
-            Map<String, Object> config) {}
+    public record SuggestSettingsCreate(@NotNull UUID channelId, Mode mode, Map<String, Object> config) {}
 
     @Schema(name = "SuggestSettingsPatch")
-    public record SuggestSettingsPatch(
-            Mode mode,
-            Map<String, Object> config,
-            Integer version) {}
+    public record SuggestSettingsPatch(Mode mode, Map<String, Object> config, Integer version) {}
 
     @Schema(name = "SuggestSettingsCopyRequest")
     public record SuggestSettingsCopyRequest(@NotNull @Size(min = 1, max = 50) List<UUID> channelIds) {}
@@ -118,8 +112,7 @@ public final class SuggestDtos {
     }
 
     @Schema(name = "SuggestBulkRequest")
-    public record SuggestBulkRequest(
-            @NotNull BulkAction action, List<UUID> ids, Boolean deleteRemote) {}
+    public record SuggestBulkRequest(@NotNull BulkAction action, List<UUID> ids, Boolean deleteRemote) {}
 
     @Schema(name = "SuggestBulkJob")
     public record SuggestBulkJob(

@@ -146,3 +146,15 @@ CREATE INDEX IF NOT EXISTS suggest_bulk_jobs_settings_idx
     ON suggest_bulk_jobs (settings_id, created_at DESC);
 
 COMMENT ON TABLE suggest_bulk_jobs IS 'BE-34 async bulk moderation jobs with progress';
+
+-- Feature flag for module gating (no dedicated plan-limit key yet; TODO tariff limit).
+INSERT INTO feature_flags (id, key, description, enabled_global, created_at, updated_at)
+VALUES (
+    '018f0000-0000-7000-8000-000000000034'::uuid,
+    'automation.suggest',
+    'BE-34 VK suggest autopost module',
+    TRUE,
+    now(),
+    now()
+)
+ON CONFLICT (key) DO NOTHING;

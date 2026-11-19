@@ -1,7 +1,6 @@
 package ru.posts.api.automation.suggest;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.web.dto.common.CursorPage;

@@ -56,8 +56,7 @@ public class FeatureFlagResolver {
         }
         Boolean enabled = resolveForWorkspace(workspaceId).get(flagKey);
         if (Boolean.FALSE.equals(enabled)) {
-            throw new ApiException(
-                    HttpStatus.FORBIDDEN, ProblemCodes.FORBIDDEN, "Feature disabled: " + flagKey);
+            throw new ApiException(HttpStatus.FORBIDDEN, ProblemCodes.FORBIDDEN, "Feature disabled: " + flagKey);
         }
     }
 }

@@ -71,8 +71,7 @@ public class OpenApiSuggestStubConfig {
             }
 
             @Override
-            public SuggestDtos.SuggestSyncResult syncLast100(
-                    UUID userId, UUID settingsId, ClientRequestContext ctx) {
+            public SuggestDtos.SuggestSyncResult syncLast100(UUID userId, UUID settingsId, ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }
 

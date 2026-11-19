@@ -22,8 +22,9 @@ public class ApiSuggestTokenResolverConfig {
             if (channel == null || channel.getSocialAccountId() == null) {
                 return null;
             }
-            SocialAccountEntity account =
-                    socialAccountRepository.findById(channel.getSocialAccountId()).orElse(null);
+            SocialAccountEntity account = socialAccountRepository
+                    .findById(channel.getSocialAccountId())
+                    .orElse(null);
             if (account == null || account.getAccessTokenEnc() == null) {
                 return null;
             }

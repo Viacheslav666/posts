@@ -105,6 +105,7 @@ public final class SuggestConfigSupport {
         adsPause.putIfAbsent("enabled", true);
         adsPause.putIfAbsent("detect_marked_as_ads", true);
         adsPause.putIfAbsent("detect_erid", true);
+        adsPause.putIfAbsent("pause_after_ads_minutes", 60);
         config.put("ads_pause", adsPause);
 
         config.put("config_version", CURRENT_CONFIG_VERSION);
