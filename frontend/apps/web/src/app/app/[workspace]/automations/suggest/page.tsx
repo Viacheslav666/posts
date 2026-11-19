@@ -1,4 +1,4 @@
-import { AutomationSectionStub } from '@/features/automations-common/components/automation-section-stub';
+import { SuggestPage } from '@/features/suggest/components/suggest-page';
 
 type PageProps = {
   params: Promise<{ workspace: string }>;
@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function SuggestAutomationsPage({ params }: PageProps) {
   const { workspace } = await params;
-  return <AutomationSectionStub workspaceId={workspace} section="suggest" />;
+  return <SuggestPage workspaceId={workspace} />;
 }

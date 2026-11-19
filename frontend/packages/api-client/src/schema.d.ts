@@ -5698,6 +5698,34 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        SuggestBulkJob: {
+            action?: string;
+            /** Format: uuid */
+            channelId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int32 */
+            failed?: number;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: int32 */
+            processed?: number;
+            /** Format: int32 */
+            progressPercent?: number;
+            /** Format: uuid */
+            settingsId?: string;
+            status?: string;
+            /** Format: int32 */
+            succeeded?: number;
+            /** Format: int32 */
+            total?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** Format: uuid */
+            workspaceId?: string;
+        };
         SuggestBulkRequest: {
             /** @enum {string} */
             action: "approve_all" | "reject_all" | "approve_ids" | "reject_ids";
@@ -5780,8 +5808,19 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        SuggestSettingsCopyItem: {
+            /** Format: uuid */
+            channelId?: string;
+            error?: string;
+            ok?: boolean;
+            /** Format: uuid */
+            settingsId?: string;
+        };
         SuggestSettingsCopyRequest: {
             channelIds: string[];
+        };
+        SuggestSettingsCopyResult: {
+            results?: components["schemas"]["SuggestSettingsCopyItem"][];
         };
         SuggestSettingsCreate: {
             /** Format: uuid */
@@ -5805,6 +5844,15 @@ export interface components {
             mode?: "auto" | "manual" | "hybrid";
             /** Format: int32 */
             version?: number;
+        };
+        SuggestSyncResult: {
+            /** Format: int32 */
+            imported?: number;
+            /** Format: int32 */
+            markedPublished?: number;
+            /** Format: int32 */
+            removedExternally?: number;
+            status?: string;
         };
         TelegramLinkStartResponse: {
             /** @example posts_notify_bot */
@@ -20665,6 +20713,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Bulk job progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestBulkJob"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -20741,6 +20798,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Suggest item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -20823,6 +20889,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Approved item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -20903,6 +20978,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Rejected item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -20979,6 +21063,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Suggest settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettings"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21059,6 +21152,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettings"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21135,6 +21237,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Activated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettings"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21215,6 +21326,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Copy report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettingsCopyResult"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21397,6 +21517,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Bulk job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestBulkJob"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21473,6 +21602,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Paused settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettings"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21549,6 +21687,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Resumed settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSettings"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21625,6 +21772,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Sync result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestSyncResult"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
