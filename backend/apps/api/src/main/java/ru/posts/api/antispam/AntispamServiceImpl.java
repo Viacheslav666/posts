@@ -3,6 +3,7 @@ package ru.posts.api.antispam;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -445,6 +446,17 @@ public class AntispamServiceImpl implements AntispamService {
         access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
         Long hits =
                 jdbcTemplate.queryForObject("SELECT count(*) FROM antispam_log WHERE rule_id = ?", Long.class, ruleId);
+        Instant now = Instant.now();
+        Long hits24h = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM antispam_log WHERE rule_id = ? AND created_at >= ?",
+                Long.class,
+                ruleId,
+                Timestamp.from(now.minusSeconds(24L * 3600L)));
+        Long hits7d = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM antispam_log WHERE rule_id = ? AND created_at >= ?",
+                Long.class,
+                ruleId,
+                Timestamp.from(now.minusSeconds(7L * 24L * 3600L)));
         List<Map<String, Object>> byReasonRows = jdbcTemplate.queryForList(
                 """
                 SELECT unnest(reasons) AS reason, count(*) AS cnt
@@ -456,7 +468,12 @@ public class AntispamServiceImpl implements AntispamService {
         for (Map<String, Object> row : byReasonRows) {
             byReason.put(String.valueOf(row.get("reason")), ((Number) row.get("cnt")).longValue());
         }
-        return new AntispamDtos.AntispamRuleStats(ruleId, hits == null ? 0L : hits, byReason);
+        return new AntispamDtos.AntispamRuleStats(
+                ruleId,
+                hits == null ? 0L : hits,
+                hits24h == null ? 0L : hits24h,
+                hits7d == null ? 0L : hits7d,
+                byReason);
     }
 
     private AntispamDtos.AntispamRule setStatus(UUID userId, UUID ruleId, String status, String permission) {

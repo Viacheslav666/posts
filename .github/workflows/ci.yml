@@ -267,6 +267,10 @@ jobs:
       - name: Playwright automations crosspost (FE-24)
         working-directory: tests/e2e
         run: pnpm test:automations-crosspost
+      # FE-23: antispam rules / history restore / scan / word lists on MSW.
+      - name: Playwright automations antispam (FE-23)
+        working-directory: tests/e2e
+        run: pnpm test:automations-antispam
       # QA-11: TC-STORY P0 UI историй на MSW (IG absent; TG/Max disabled).
       - name: Playwright scheduled-stories (TC-STORY P0 UI)
         working-directory: tests/e2e

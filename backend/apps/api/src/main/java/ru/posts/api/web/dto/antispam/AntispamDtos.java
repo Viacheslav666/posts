@@ -96,5 +96,5 @@ public final class AntispamDtos {
     public record AntispamScanResponse(UUID jobId, String status, String message) {}
 
     @Schema(name = "AntispamRuleStats")
-    public record AntispamRuleStats(UUID ruleId, long hits, Map<String, Long> byReason) {}
+    public record AntispamRuleStats(UUID ruleId, long hits, long hits24h, long hits7d, Map<String, Long> byReason) {}
 }

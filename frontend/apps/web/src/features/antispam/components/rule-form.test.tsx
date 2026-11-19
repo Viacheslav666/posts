@@ -1,0 +1,118 @@
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { CHANNEL_IDS } from '@/mocks/channel-store';
+import {
+  listAntispamRules,
+  resetAntispamStore,
+} from '@/mocks/antispam-store';
+import { DEFAULT_PROJECT_ID, PERSONAL_WORKSPACE_ID } from '@/mocks/workspace-store';
+import { setAccessToken } from '@/shared/api-client';
+import { renderWithProviders } from '@/test/render';
+
+import { RuleForm } from './rule-form';
+
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn() }),
+  useParams: () => ({ workspace: PERSONAL_WORKSPACE_ID }),
+}));
+
+const channels = [
+  {
+    id: CHANNEL_IDS.vkNews,
+    workspaceId: PERSONAL_WORKSPACE_ID,
+    network: 'vk' as const,
+    title: 'Posts — новости',
+    status: 'active' as const,
+    type: 'group' as const,
+  },
+  {
+    id: CHANNEL_IDS.tgNews,
+    workspaceId: PERSONAL_WORKSPACE_ID,
+    network: 'tg' as const,
+    title: '@posts_news',
+    status: 'active' as const,
+    type: 'channel' as const,
+  },
+];
+
+describe('RuleForm (FE-23)', () => {
+  beforeEach(() => {
+    resetAntispamStore();
+    setAccessToken('msw.access.token');
+    push.mockReset();
+  });
+
+  it('creates a VK rule with stop-word and activates', async () => {
+    const user = userEvent.setup();
+    const before = listAntispamRules({
+      workspaceId: PERSONAL_WORKSPACE_ID,
+      projectId: DEFAULT_PROJECT_ID,
+    }).length;
+
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    expect(screen.getByTestId('antispam-rule-form')).toBeInTheDocument();
+    await user.clear(screen.getByTestId('antispam-rule-name'));
+    await user.type(screen.getByTestId('antispam-rule-name'), 'E2E стоп');
+
+    const keywordInput = screen.getAllByPlaceholderText(/Слово или список/i)[0]!;
+    await user.type(keywordInput, 'спам');
+    await user.click(screen.getAllByRole('button', { name: 'Добавить' })[0]!);
+
+    await user.click(screen.getByTestId('antispam-rule-submit'));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalled();
+    });
+
+    const after = listAntispamRules({
+      workspaceId: PERSONAL_WORKSPACE_ID,
+      projectId: DEFAULT_PROJECT_ID,
+    });
+    expect(after.length).toBeGreaterThan(before);
+    expect(after.some((r) => r.name === 'E2E стоп')).toBe(true);
+  });
+
+  it('toggles dry-run explanation', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    expect(screen.queryByTestId('antispam-dry-run-explain')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('antispam-dry-run'));
+    expect(screen.getByTestId('antispam-dry-run-explain')).toBeInTheDocument();
+  });
+
+  it('shows TG sender_chat when channel is Telegram', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    await user.click(screen.getByTestId(`automation-channel-${CHANNEL_IDS.tgNews}`));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('antispam-authors-sender-chat')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('antispam-section-tg_discussion')).toBeInTheDocument();
+  });
+});
