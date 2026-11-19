@@ -1,0 +1,13 @@
+{
+  "type": "wall_post_new",
+  "event_id": "fixture-vk-suggest-1",
+  "group_id": "1",
+  "object": {
+    "id": 101,
+    "from_id": 200,
+    "owner_id": -1,
+    "date": 1700000000,
+    "post_type": "suggest",
+    "text": "Please publish this"
+  }
+}

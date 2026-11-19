@@ -1062,6 +1062,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels/{channelId}/event-subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get channel event subscription status */
+        get: operations["channelsEventSubscriptionGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channelId}/event-subscription/repair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repair / re-register event subscription */
+        post: operations["channelsEventSubscriptionRepair"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/channels/{channelId}/story-connection": {
         parameters: {
             query?: never;
@@ -2482,7 +2516,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/hooks/max/{botId}": {
+    "/hooks/max/{channelId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3512,6 +3546,27 @@ export interface components {
         };
         EmailVerifyRequest: {
             token: string;
+        };
+        EventSubscriptionResponse: {
+            /** Format: uuid */
+            channelId?: string;
+            consumers?: string[];
+            eventTypes?: string[];
+            /** Format: int32 */
+            failureCount?: number;
+            /** Format: uuid */
+            id?: string;
+            lastError?: string;
+            /** Format: date-time */
+            lastEventAt?: string;
+            mode?: string;
+            network?: string;
+            status?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            warning?: string;
+            /** Format: uuid */
+            workspaceId?: string;
         };
         FeatureFlags: {
             /** @description VK Clips via shortVideo API when available (BE-29) */
@@ -11459,6 +11514,50 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    channelsEventSubscriptionGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSubscriptionResponse"];
+                };
+            };
+        };
+    };
+    channelsEventSubscriptionRepair: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSubscriptionResponse"];
                 };
             };
         };
@@ -20590,7 +20689,7 @@ export interface operations {
                 "X-Max-Bot-Api-Secret"?: string;
             };
             path: {
-                botId: string;
+                channelId: string;
             };
             cookie?: never;
         };
@@ -20675,7 +20774,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Callback-Secret"?: string;
+                "X-Retry-Counter"?: number;
             };
             path: {
                 channelId: string;
@@ -20694,7 +20793,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "text/plain": string;
                 };
             };
         };

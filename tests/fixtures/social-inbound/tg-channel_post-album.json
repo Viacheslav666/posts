@@ -1,0 +1,34 @@
+{
+  "updates": [
+    {
+      "update_id": 1,
+      "channel_post": {
+        "message_id": 1,
+        "date": 1700000000,
+        "media_group_id": "album-1",
+        "chat": { "id": -1001, "type": "channel" },
+        "photo": [{ "file_id": "ph1", "file_size": 10 }]
+      }
+    },
+    {
+      "update_id": 2,
+      "channel_post": {
+        "message_id": 2,
+        "date": 1700000000,
+        "media_group_id": "album-1",
+        "chat": { "id": -1001, "type": "channel" },
+        "photo": [{ "file_id": "ph2", "file_size": 11 }]
+      }
+    },
+    {
+      "update_id": 3,
+      "channel_post": {
+        "message_id": 3,
+        "date": 1700000000,
+        "media_group_id": "album-1",
+        "chat": { "id": -1001, "type": "channel" },
+        "photo": [{ "file_id": "ph3", "file_size": 12 }]
+      }
+    }
+  ]
+}

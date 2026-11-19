@@ -38,6 +38,7 @@ public class VkApiController {
     private final WallSourceStore wallSourceStore;
     private final StoryTokenStore storyTokenStore;
     private final VkUploadSessionStore uploadSessions;
+    private final VkCallbackServerStore callbackServerStore;
     private final EmulatorProperties emulatorProperties;
     private final AtomicLong photoSeq = new AtomicLong();
 
@@ -48,6 +49,7 @@ public class VkApiController {
             WallSourceStore wallSourceStore,
             StoryTokenStore storyTokenStore,
             VkUploadSessionStore uploadSessions,
+            VkCallbackServerStore callbackServerStore,
             EmulatorProperties emulatorProperties) {
         this.postStore = postStore;
         this.moderationStore = moderationStore;
@@ -55,6 +57,7 @@ public class VkApiController {
         this.wallSourceStore = wallSourceStore;
         this.storyTokenStore = storyTokenStore;
         this.uploadSessions = uploadSessions;
+        this.callbackServerStore = callbackServerStore;
         this.emulatorProperties = emulatorProperties;
     }
 
@@ -159,6 +162,11 @@ public class VkApiController {
             case "stories.delete" -> storiesDelete(params);
             case "wall.get" -> ResponseEntity.ok(wallGet(params));
             case "wall.getById" -> ResponseEntity.ok(wallGetById(params));
+            case "groups.getCallbackConfirmationCode" -> ResponseEntity.ok(callbackConfirmation(params));
+            case "groups.getCallbackServers" -> ResponseEntity.ok(callbackServers(params));
+            case "groups.addCallbackServer" -> ResponseEntity.ok(addCallbackServer(params));
+            case "groups.setCallbackSettings" -> ResponseEntity.ok(setCallbackSettings(params));
+            case "groups.deleteCallbackServer" -> ResponseEntity.ok(deleteCallbackServer(params));
             default -> ResponseEntity.ok(
                     Map.of("error", Map.of("error_code", 3, "error_msg", "Unknown method passed: " + normalized)));
         };
@@ -168,6 +176,71 @@ public class VkApiController {
             HttpServletResponse rawResponse, java.util.function.Supplier<ResponseEntity<?>> success)
             throws IOException {
         return publishSupport.execute(Network.VK, rawResponse, success);
+    }
+
+    private Map<String, Object> callbackConfirmation(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        return Map.of(
+                "response", Map.of("code", callbackServerStore.confirmationCode(groupId == null ? "0" : groupId)));
+    }
+
+    private Map<String, Object> callbackServers(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        List<Map<String, Object>> items = new java.util.ArrayList<>();
+        for (VkCallbackServerStore.Server s : callbackServerStore.list(groupId == null ? "0" : groupId)) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", Long.parseLong(s.id()));
+            item.put("url", s.url());
+            item.put("title", s.title());
+            item.put("status", s.status());
+            items.add(item);
+        }
+        return Map.of("response", Map.of("count", items.size(), "items", items));
+    }
+
+    private Map<String, Object> addCallbackServer(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        String url = first(params, "url");
+        String title = first(params, "title");
+        String secret = first(params, "secret_key");
+        VkCallbackServerStore.Server existing = callbackServerStore.findByUrl(groupId == null ? "0" : groupId, url);
+        if (existing != null) {
+            return Map.of("response", Map.of("server_id", Long.parseLong(existing.id())));
+        }
+        List<VkCallbackServerStore.Server> current = callbackServerStore.list(groupId == null ? "0" : groupId);
+        if (current.size() >= 10) {
+            return Map.of("error", Map.of("error_code", 2000, "error_msg", "Servers number limit is reached"));
+        }
+        VkCallbackServerStore.Server created =
+                callbackServerStore.add(groupId == null ? "0" : groupId, url, title == null ? "Posts" : title, secret);
+        return Map.of("response", Map.of("server_id", Long.parseLong(created.id())));
+    }
+
+    private Map<String, Object> setCallbackSettings(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        String serverId = first(params, "server_id");
+        Map<String, String> events = new LinkedHashMap<>();
+        params.forEach((k, v) -> {
+            if (k != null
+                    && v != null
+                    && !v.isEmpty()
+                    && !"group_id".equals(k)
+                    && !"server_id".equals(k)
+                    && !"access_token".equals(k)
+                    && !"v".equals(k)
+                    && !"api_version".equals(k)) {
+                events.put(k, v.get(0));
+            }
+        });
+        callbackServerStore.setSettings(groupId == null ? "0" : groupId, serverId == null ? "0" : serverId, events);
+        return Map.of("response", 1);
+    }
+
+    private Map<String, Object> deleteCallbackServer(MultiValueMap<String, String> params) {
+        String groupId = first(params, "group_id");
+        String serverId = first(params, "server_id");
+        callbackServerStore.delete(groupId == null ? "0" : groupId, serverId == null ? "" : serverId);
+        return Map.of("response", 1);
     }
 
     private Map<String, Object> wallGet(MultiValueMap<String, String> params) {

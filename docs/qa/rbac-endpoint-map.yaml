@@ -473,6 +473,22 @@ endpoints:
   action: channels.manage
   pathParams:
     channelId: '{channelId}'
+- operationId: channelsEventSubscriptionGet
+  method: GET
+  path: /api/v1/channels/{channelId}/event-subscription
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    channelId: '{channelId}'
+- operationId: channelsEventSubscriptionRepair
+  method: POST
+  path: /api/v1/channels/{channelId}/event-subscription/repair
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    channelId: '{channelId}'
 - operationId: channelsStoryConnectionGet
   method: GET
   path: /api/v1/channels/{channelId}/story-connection
@@ -1258,7 +1274,7 @@ endpoints:
     projectId: '{projectId}'
 - operationId: hooksMax
   method: POST
-  path: /hooks/max/{botId}
+  path: /hooks/max/{channelId}
   implementedHint: true
   rbac: none
 - operationId: hooksTelegramNotify

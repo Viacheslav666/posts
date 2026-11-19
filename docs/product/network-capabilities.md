@@ -2,8 +2,8 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.1.0 |
-| Статус | Готово к использованию бэком (задача **AN-2**; модерация **BE-33**) |
+| Версия | 1.2.0 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**) |
 | Дата проверки | **2026-11-18** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
@@ -227,7 +227,19 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ---
 
-## 9. Открытые пункты (unknown → бэклог)
+## 9. Inbound events (BE-32, проверка 2026-11-18)
+
+| Сеть | Приём | Секрет | Ретраи | Примечание |
+|---|---|---|---|---|
+| VK Callback API | `POST /hooks/vk/{channelId}` | JSON `secret`; confirmation code из `groups.getCallbackConfirmationCode` | 10с / 3м / 10м / 30м / 1ч | Один наш Callback-сервер на сообщество; ответ `ok` text/plain; `event_id` для дедупа |
+| Telegram Bot API | `POST /hooks/tg/{botId}` | `X-Telegram-Bot-Api-Secret-Token` | хранение update ≤ 24 ч | webhook ⊕ getUpdates; альбомы `media_group_id` (окно 3 с); кастомный бот → takeover warning |
+| Max | `POST /hooks/max/{channelId}` | `X-Max-Bot-Api-Secret` (5–256 `[A-Za-z0-9_-]`) | до 10×, ×2.5; автоотписка 8 ч | только HTTPS:443; health-job переподписывает |
+
+Источники: [dev.vk.com](https://dev.vk.com), Telegram Bot API 10.4, [dev.max.ru](https://dev.max.ru) / platform-api2.max.ru.
+
+---
+
+## 10. Открытые пункты (unknown → бэклог)
 
 | Сеть | Что уточнить | Зачем |
 |---|---|---|
@@ -245,5 +257,6 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |
 | 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

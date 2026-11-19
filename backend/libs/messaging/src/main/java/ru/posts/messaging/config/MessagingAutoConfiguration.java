@@ -33,7 +33,8 @@ public class MessagingAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     MessageConverter jacksonMessageConverter(ObjectMapper objectMapper) {
-        return new Jackson2JsonMessageConverter(objectMapper);
+        // Trust ru.posts.* for __TypeId__ (SocialInboundCommand and other domain records).
+        return new Jackson2JsonMessageConverter(objectMapper, "ru.posts");
     }
 
     @Bean

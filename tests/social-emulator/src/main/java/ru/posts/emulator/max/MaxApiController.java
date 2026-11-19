@@ -30,13 +30,67 @@ public class MaxApiController {
     private final PostStore postStore;
     private final ModerationStore moderationStore;
     private final PublishSupport publishSupport;
+    private final MaxSubscriptionStore subscriptionStore;
     private final ConcurrentHashMap<String, String> uploadTokens = new ConcurrentHashMap<>();
     private final AtomicLong commentSeq = new AtomicLong();
 
-    public MaxApiController(PostStore postStore, ModerationStore moderationStore, PublishSupport publishSupport) {
+    public MaxApiController(
+            PostStore postStore,
+            ModerationStore moderationStore,
+            PublishSupport publishSupport,
+            MaxSubscriptionStore subscriptionStore) {
         this.postStore = postStore;
         this.moderationStore = moderationStore;
         this.publishSupport = publishSupport;
+        this.subscriptionStore = subscriptionStore;
+    }
+
+    @PostMapping(
+            path = {"/subscriptions", "/max/subscriptions"},
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> createSubscription(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody Map<String, Object> body) {
+        String token = bearer(authorization);
+        String url = body.get("url") == null ? null : String.valueOf(body.get("url"));
+        String secret = body.get("secret") == null ? null : String.valueOf(body.get("secret"));
+        @SuppressWarnings("unchecked")
+        List<String> types =
+                body.get("update_types") instanceof List<?> list ? (List<String>) (List<?>) list : List.of();
+        subscriptionStore.put(token, url, secret, types);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping(path = {"/subscriptions", "/max/subscriptions"})
+    public ResponseEntity<?> listSubscriptions(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        String token = bearer(authorization);
+        List<Map<String, Object>> subscriptions = new java.util.ArrayList<>();
+        for (MaxSubscriptionStore.Subscription s : subscriptionStore.list(token)) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("url", s.url());
+            item.put("update_types", s.updateTypes());
+            subscriptions.add(item);
+        }
+        return ResponseEntity.ok(Map.of("subscriptions", subscriptions));
+    }
+
+    @DeleteMapping(path = {"/subscriptions", "/max/subscriptions"})
+    public ResponseEntity<?> deleteSubscription(
+            @RequestHeader(value = "Authorization", required = false) String authorization, @RequestParam String url) {
+        subscriptionStore.delete(bearer(authorization), url);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    private static String bearer(String authorization) {
+        if (authorization == null) {
+            return "";
+        }
+        String v = authorization.trim();
+        if (v.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return v.substring(7).trim();
+        }
+        return v;
     }
 
     @PostMapping(

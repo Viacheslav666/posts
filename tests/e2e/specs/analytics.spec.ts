@@ -41,7 +41,10 @@ test.describe('Posts analytics (FE-19)', () => {
     await analytics.gotoAnalytics(demoWorkspace, 2026);
     await expect(analytics.retryButton()).toBeVisible({ timeout: 15_000 });
     await analytics.retryButton().click();
-    await expect(page.getByText(/поставлена в очередь/i)).toBeVisible({ timeout: 10_000 });
+    // Toast + status both contain the phrase; pin to the toast title to avoid strict-mode clash.
+    await expect(page.getByText('Публикация поставлена в очередь на повтор', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('analytics page usable at 360px without serious axe issues', async ({ page }) => {
