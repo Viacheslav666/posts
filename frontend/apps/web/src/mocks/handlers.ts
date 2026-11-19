@@ -133,6 +133,9 @@ import {
   updateChannelSet,
   type ConnectNetwork,
 } from './channel-store';
+import { antispamHandlers } from './antispam-store';
+import { crosspostHandlers } from './crosspost-store';
+import { eventSubscriptionHandlers } from './event-subscription-store';
 import {
   activateRule,
   approveItem,
@@ -155,6 +158,7 @@ import {
   startRun,
   type GrabberMutationError,
 } from './grabber-store';
+import { suggestHandlers } from './suggest-store';
 import {
   advanceProcessing,
   completeUpload,
@@ -3195,4 +3199,10 @@ export const handlers = [
       }),
     );
   }),
+
+  // FE-21 automations shell modules (one spread line each for FE-22…24).
+  ...eventSubscriptionHandlers,
+  ...suggestHandlers,
+  ...antispamHandlers,
+  ...crosspostHandlers,
 ];

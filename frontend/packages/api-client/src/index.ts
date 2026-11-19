@@ -49,6 +49,7 @@ export type ChannelConnectConfirmRequest = components['schemas']['ChannelConnect
 export type CreateChannelSetRequest = components['schemas']['CreateChannelSetRequest'];
 export type UpdateChannelSetRequest = components['schemas']['UpdateChannelSetRequest'];
 export type UpdateChannelRequest = components['schemas']['UpdateChannelRequest'];
+export type EventSubscriptionResponse = components['schemas']['EventSubscriptionResponse'];
 
 export type MediaAsset = components['schemas']['MediaAsset'];
 export type MediaPage = components['schemas']['MediaPage'];
