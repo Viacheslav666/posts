@@ -67,7 +67,16 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Install ffmpeg (posts-media integration tests)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get update && sudo apt-get install -y ffmpeg; then
+              exit 0
+            fi
+            echo "apt attempt ${attempt} failed" >&2
+            sleep $((attempt * 15))
+          done
+          exit 1
       - name: Docker API compatibility for Testcontainers
         run: echo 'api.version=1.44' > "$HOME/.docker-java.properties"
       - uses: gradle/actions/setup-gradle@v4
