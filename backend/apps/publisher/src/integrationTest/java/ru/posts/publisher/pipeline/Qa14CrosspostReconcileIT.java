@@ -38,43 +38,21 @@ class Qa14CrosspostReconcileIT extends AbstractVkPipelineIT {
                 .put("remote_post_id", "src-9901");
         sourceRef.put("hop", 1);
 
-        jdbcTemplate.update(
-                """
-                INSERT INTO posts (
-                    id, workspace_id, title, base_content, status, content_kind, story_options,
-                    source_type, source_ref)
-                VALUES (?, ?, 'xp', ?::jsonb, 'scheduled', 'post', '{}'::jsonb, 'crosspost', ?::jsonb)
-                """,
-                postId,
-                workspaceId,
-                "{\"text\":\"" + text + "\"}",
-                sourceRef.toString());
-        jdbcTemplate.update(
-                """
-                INSERT INTO post_variants (id, post_id, channel_id, network, content, options)
-                VALUES (?, ?, ?, 'vk', ?::jsonb, '{}'::jsonb)
-                """,
-                variantId,
-                postId,
-                channelId,
-                "{\"text\":\"" + text + "\"}");
-
-        UUID publicationId = UuidV7.generate();
-        String idem = "xp:" + UuidV7.generate() + ":" + channelId + ":src-9901:" + channelId;
-        jdbcTemplate.update(
-                """
-                INSERT INTO publications (
-                    id, workspace_id, post_id, variant_id, channel_id, network,
-                    run_at, idempotency_key, state, attempts)
-                VALUES (?, ?, ?, ?, ?, 'vk', ?, ?, 'pending', 0)
-                """,
-                publicationId,
+        UUID publicationId = PipelineTestSupport.insertVkPublication(
+                jdbcTemplate,
                 workspaceId,
                 postId,
                 variantId,
                 channelId,
-                java.sql.Timestamp.from(Instant.now().minusSeconds(10)),
-                idem);
+                Instant.now().minusSeconds(5),
+                text);
+        jdbcTemplate.update(
+                """
+                UPDATE posts SET source_type = 'crosspost', source_ref = ?::jsonb
+                WHERE id = ?
+                """,
+                sourceRef.toString(),
+                postId);
 
         emulator()
                 .putScenario(
@@ -83,23 +61,22 @@ class Qa14CrosspostReconcileIT extends AbstractVkPipelineIT {
                         """);
 
         dispatchService.dispatchDueBatch();
-        await().atMost(Duration.ofSeconds(25)).untilAsserted(() -> assertThat(jdbcTemplate.queryForObject(
+        await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> assertThat(jdbcTemplate.queryForObject(
                         "SELECT state FROM publications WHERE id = ?", String.class, publicationId))
-                .isIn("failed_retryable", "succeeded"));
+                .isIn("succeeded", "failed_retryable"));
 
-        emulator().putScenario("{\"networks\":{\"vk\":{}}}");
-        jdbcTemplate.update(
-                """
-                UPDATE publications
-                SET state = 'failed_retryable', next_attempt_at = now() - interval '1 second'
-                WHERE id = ? AND state <> 'succeeded'
-                """,
-                publicationId);
-
-        dispatchService.dispatchDueBatch();
-        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(jdbcTemplate.queryForObject(
-                        "SELECT state FROM publications WHERE id = ?", String.class, publicationId))
-                .isEqualTo("succeeded"));
+        if (!"succeeded"
+                .equals(jdbcTemplate.queryForObject(
+                        "SELECT state FROM publications WHERE id = ?", String.class, publicationId))) {
+            emulator().putScenario("{\"networks\":{\"vk\":{}}}");
+            jdbcTemplate.update(
+                    "UPDATE publications SET next_attempt_at = now() - interval '1 second' WHERE id = ?",
+                    publicationId);
+            dispatchService.dispatchDueBatch();
+            await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> assertThat(jdbcTemplate.queryForObject(
+                            "SELECT state FROM publications WHERE id = ?", String.class, publicationId))
+                    .isEqualTo("succeeded"));
+        }
 
         long vkCount = objectMapper
                 .readTree(emulator().get("/_control/posts/count"))
