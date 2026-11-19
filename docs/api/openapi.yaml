@@ -84,24 +84,14 @@ servers:
 security:
 - bearer-jwt: []
 tags:
-- description: Lightweight content calendar queries and drag-and-drop moves
-  name: Calendar
 - description: Named channel groups for one-click multi-publish (US-3.6)
   name: Channel sets
-- description: Connected social channels and connect flows
-  name: Channels
-- description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b/BE-27)"
-  name: Ingest
-- description: Inbound webhooks for VK / Telegram / Max (validate + enqueue)
-  name: Social hooks
 - description: In-app notifications and delivery settings (US-5.4)
   name: Notifications
 - description: "Wallet, plans, top-up, autopay, invoices, promo codes"
   name: Billing
 - description: Inbound social event subscription status / repair (BE-32)
   name: Event subscriptions
-- description: Media library uploads via presigned S3 URLs
-  name: Media
 - description: VK suggested posts automation (BE-34)
   name: Suggest
 - description: Platform admin API (E7 / A13). Requires users.platform_admin — not
@@ -111,18 +101,12 @@ tags:
   name: Stories
 - description: "Posts, variants, schedule actions, preview, bulk"
   name: Posts
-- description: YooKassa payment notifications
-  name: Billing webhooks
 - description: Projects (clients/brands) inside a workspace
   name: Projects
 - description: Workspace invitations by email (US-2.3)
   name: Invitations
 - description: Workspaces and members
   name: Workspaces
-- description: Per-channel publication attempts and live status
-  name: Publications
-- description: Network capability matrix for validation and UI
-  name: Networks
 - description: Public signing keys for access JWT verification
   name: JWKS
 - description: "Ad marking / ORD connections, contractors, creatives"
@@ -135,6 +119,22 @@ tags:
   name: Crosspost
 - description: "Registration, login, OAuth, 2FA, password recovery"
   name: Auth
+- description: Lightweight content calendar queries and drag-and-drop moves
+  name: Calendar
+- description: Connected social channels and connect flows
+  name: Channels
+- description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b/BE-27)"
+  name: Ingest
+- description: Inbound webhooks for VK / Telegram / Max (validate + enqueue)
+  name: Social hooks
+- description: Media library uploads via presigned S3 URLs
+  name: Media
+- description: YooKassa payment notifications
+  name: Billing webhooks
+- description: Per-channel publication attempts and live status
+  name: Publications
+- description: Network capability matrix for validation and UI
+  name: Networks
 paths:
   /.well-known/jwks.json:
     get:

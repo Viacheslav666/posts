@@ -1002,7 +1002,6 @@ final class RbacHttpProbeSupport {
         return new SeededGrabber(rule.getId(), item.getId(), rule.getVersion());
     }
 
-
     private SeededCrosspost insertCrosspost(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
         Instant now = Instant.now();
         CrosspostRuleEntity rule = new CrosspostRuleEntity();
