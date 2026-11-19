@@ -3,6 +3,7 @@ package ru.posts.api.antispam;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -450,12 +451,12 @@ public class AntispamServiceImpl implements AntispamService {
                 "SELECT count(*) FROM antispam_log WHERE rule_id = ? AND created_at >= ?",
                 Long.class,
                 ruleId,
-                now.minusSeconds(24L * 3600L));
+                Timestamp.from(now.minusSeconds(24L * 3600L)));
         Long hits7d = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM antispam_log WHERE rule_id = ? AND created_at >= ?",
                 Long.class,
                 ruleId,
-                now.minusSeconds(7L * 24L * 3600L));
+                Timestamp.from(now.minusSeconds(7L * 24L * 3600L)));
         List<Map<String, Object>> byReasonRows = jdbcTemplate.queryForList(
                 """
                 SELECT unnest(reasons) AS reason, count(*) AS cnt

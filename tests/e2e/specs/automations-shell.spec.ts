@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 /**
- * FE-21: automations hub shell — suggest / antispam / crosspost stubs,
+ * FE-21: automations hub shell — suggest stub / antispam + crosspost UIs,
  * ChannelEventStatus failed → repair → connected on MSW.
  */
 test.describe('Automations shell (FE-21)', () => {
@@ -35,7 +35,7 @@ test.describe('Automations shell (FE-21)', () => {
 
     await page.goto(`/app/${demoWorkspace}/automations`);
     await page.getByTestId('automations-card-antispam').click();
-    await expect(page.getByTestId('automations-antispam-stub')).toBeVisible();
+    await expect(page.getByTestId('antispam-page')).toBeVisible();
 
     await page.goto(`/app/${demoWorkspace}/automations`);
     await page.getByTestId('automations-card-crosspost').click();
