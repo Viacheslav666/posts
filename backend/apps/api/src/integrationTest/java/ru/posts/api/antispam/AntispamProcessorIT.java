@@ -205,7 +205,7 @@ class AntispamProcessorIT {
                 "filters", Map.of("links", Map.of("all", true)),
                 "actions", Map.of("delete", true)));
         rule.setConfigVersion(rule.getConfigVersion() + 1);
-        rule = ruleRepository.save(rule);
+        ruleRepository.save(rule);
 
         SocialInboundEvent fwd = new SocialInboundEvent(
                 "tg",
