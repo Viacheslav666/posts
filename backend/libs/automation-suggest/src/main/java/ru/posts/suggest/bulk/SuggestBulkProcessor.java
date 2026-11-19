@@ -40,9 +40,8 @@ public class SuggestBulkProcessor {
 
     @Transactional
     public SuggestBulkJobEntity process(UUID jobId) {
-        SuggestBulkJobEntity job = jobRepository
-                .findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("Bulk job not found"));
+        SuggestBulkJobEntity job =
+                jobRepository.findById(jobId).orElseThrow(() -> new IllegalArgumentException("Bulk job not found"));
         if ("succeeded".equals(job.getStatus()) || "failed".equals(job.getStatus())) {
             return job;
         }

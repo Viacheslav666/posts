@@ -44,8 +44,7 @@ public class SuggestProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(SuggestProcessingService.class);
 
-    private static final Set<String> PUBLISH_STATUSES =
-            Set.of("approved", "scheduled", "publishing", "published");
+    private static final Set<String> PUBLISH_STATUSES = Set.of("approved", "scheduled", "publishing", "published");
 
     private final SuggestSettingsRepository settingsRepository;
     private final SuggestItemRepository itemRepository;
@@ -107,7 +106,8 @@ public class SuggestProcessingService {
         long simhash = SimHasher.fingerprint(text);
         String fingerprint = ContentFingerprint.fingerprint(text, List.of());
 
-        SuggestFilterContext ctx = buildContext(settings, authorVkId, authorMessagesAllowed, authorClosedProfile, config, started);
+        SuggestFilterContext ctx =
+                buildContext(settings, authorVkId, authorMessagesAllowed, authorClosedProfile, config, started);
         SuggestItemView view = new SuggestItemView(
                 vkPostId,
                 authorVkId,
@@ -261,9 +261,8 @@ public class SuggestProcessingService {
             UUID actorId,
             Instant scheduledOverride,
             String messageOverride) {
-        SuggestSettingsEntity locked = settingsRepository
-                .findByIdForUpdate(settings.getId())
-                .orElse(settings);
+        SuggestSettingsEntity locked =
+                settingsRepository.findByIdForUpdate(settings.getId()).orElse(settings);
         Instant lastPublish = itemRepository
                 .findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(item.getChannelId(), PUBLISH_STATUSES)
                 .map(i -> i.getScheduledFor() != null ? i.getScheduledFor() : i.getDecidedAt())
@@ -291,13 +290,9 @@ public class SuggestProcessingService {
         }
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("guid", "suggest:" + item.getChannelId() + ":" + item.getVkPostId());
-        List<Map<String, Object>> media = SuggestConfigSupport.stringList(
-                        SuggestConfigSupport.enrichment(config).get("media_asset_ids"))
-                .stream()
-                .map(id -> Map.<String, Object>of("mediaAssetId", id))
-                .toList();
-        if (!media.isEmpty()) {
-            extra.put("attachments", media);
+        String attachmentCsv = formatVkAttachments(item.getAttachments());
+        if (attachmentCsv != null) {
+            extra.put("attachments", attachmentCsv);
         }
         payload.put("extra", extra);
 
@@ -450,14 +445,34 @@ public class SuggestProcessingService {
                 .toList();
 
         return new SuggestFilterContext(
-                settings.getMode(),
-                messagesAllowed,
-                closedProfile,
-                recent,
-                authorCounts,
-                globalCounts,
-                false,
-                now);
+                settings.getMode(), messagesAllowed, closedProfile, recent, authorCounts, globalCounts, false, now);
+    }
+
+    private static String formatVkAttachments(List<Map<String, Object>> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> att : attachments) {
+            if (att == null) {
+                continue;
+            }
+            Object type = att.get("type");
+            Object ownerId = att.get("owner_id");
+            Object id = att.get("id");
+            if (type == null || ownerId == null || id == null) {
+                continue;
+            }
+            if (!sb.isEmpty()) {
+                sb.append(',');
+            }
+            sb.append(type).append(ownerId).append('_').append(id);
+            Object accessKey = att.get("access_key");
+            if (accessKey != null && !accessKey.toString().isBlank()) {
+                sb.append('_').append(accessKey);
+            }
+        }
+        return sb.isEmpty() ? null : sb.toString();
     }
 
     private static String buildMessage(SuggestItemEntity item, Map<String, Object> config, String override) {

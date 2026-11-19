@@ -54,14 +54,12 @@ public class SuggestFilterEngine {
         }
 
         List<String> exclude = SuggestConfigSupport.stringList(filters.get("keyword_exclude"));
-        if (!exclude.isEmpty()
-                && matchesKeywords(normalized, exclude, configVersion, "exclude", matchMode(filters))) {
+        if (!exclude.isEmpty() && matchesKeywords(normalized, exclude, configVersion, "exclude", matchMode(filters))) {
             hard.add(SuggestReason.hard("keyword_exclude", "Текст содержит запрещённое ключевое слово"));
         }
 
         List<String> include = SuggestConfigSupport.stringList(filters.get("keyword_include"));
-        if (!include.isEmpty()
-                && !matchesKeywords(normalized, include, configVersion, "include", matchMode(filters))) {
+        if (!include.isEmpty() && !matchesKeywords(normalized, include, configVersion, "include", matchMode(filters))) {
             hard.add(SuggestReason.hard("keyword_include", "Нет обязательного ключевого слова"));
         }
 
@@ -76,8 +74,7 @@ public class SuggestFilterEngine {
         if (!forbid.isEmpty()) {
             for (String type : presentTypes(attachments)) {
                 if (forbid.stream().anyMatch(f -> f.equalsIgnoreCase(type))) {
-                    hard.add(SuggestReason.hard(
-                            "forbid_attachments", "Запрещённый тип вложения: " + type));
+                    hard.add(SuggestReason.hard("forbid_attachments", "Запрещённый тип вложения: " + type));
                     break;
                 }
             }
@@ -85,8 +82,7 @@ public class SuggestFilterEngine {
 
         if (SuggestConfigSupport.bool(filters.get("require_messages_allowed"), false)) {
             if (ctx.authorMessagesAllowed() != null && !ctx.authorMessagesAllowed()) {
-                hard.add(SuggestReason.hard(
-                        "require_messages_allowed", "Автор не разрешил сообщения от сообщества"));
+                hard.add(SuggestReason.hard("require_messages_allowed", "Автор не разрешил сообщения от сообщества"));
             }
         }
         if (SuggestConfigSupport.bool(filters.get("forbid_closed_profile"), false)) {
@@ -98,12 +94,42 @@ public class SuggestFilterEngine {
         Map<String, Object> limits = SuggestConfigSupport.limits(cfg);
         Map<String, Object> perAuthor = SuggestConfigSupport.map(limits.get("per_author"));
         Map<String, Object> global = SuggestConfigSupport.map(limits.get("global"));
-        checkLimit(hard, "author_limit_hour", "Лимит автора за час", perAuthor.get("hour"), ctx.authorPublishCounts().hour());
-        checkLimit(hard, "author_limit_day", "Лимит автора за сутки", perAuthor.get("day"), ctx.authorPublishCounts().day());
-        checkLimit(hard, "author_limit_week", "Лимит автора за неделю", perAuthor.get("week"), ctx.authorPublishCounts().week());
-        checkLimit(hard, "global_limit_hour", "Глобальный лимит за час", global.get("hour"), ctx.globalPublishCounts().hour());
-        checkLimit(hard, "global_limit_day", "Глобальный лимит за сутки", global.get("day"), ctx.globalPublishCounts().day());
-        checkLimit(hard, "global_limit_week", "Глобальный лимит за неделю", global.get("week"), ctx.globalPublishCounts().week());
+        checkLimit(
+                hard,
+                "author_limit_hour",
+                "Лимит автора за час",
+                perAuthor.get("hour"),
+                ctx.authorPublishCounts().hour());
+        checkLimit(
+                hard,
+                "author_limit_day",
+                "Лимит автора за сутки",
+                perAuthor.get("day"),
+                ctx.authorPublishCounts().day());
+        checkLimit(
+                hard,
+                "author_limit_week",
+                "Лимит автора за неделю",
+                perAuthor.get("week"),
+                ctx.authorPublishCounts().week());
+        checkLimit(
+                hard,
+                "global_limit_hour",
+                "Глобальный лимит за час",
+                global.get("hour"),
+                ctx.globalPublishCounts().hour());
+        checkLimit(
+                hard,
+                "global_limit_day",
+                "Глобальный лимит за сутки",
+                global.get("day"),
+                ctx.globalPublishCounts().day());
+        checkLimit(
+                hard,
+                "global_limit_week",
+                "Глобальный лимит за неделю",
+                global.get("week"),
+                ctx.globalPublishCounts().week());
 
         Map<String, Object> adsPause = SuggestConfigSupport.adsPause(cfg);
         if (SuggestConfigSupport.bool(adsPause.get("enabled"), true) && ctx.lastWallWasAds()) {
@@ -124,8 +150,7 @@ public class SuggestFilterEngine {
                 }
                 if (threshold > 0.05 && sim + 1e-9 >= threshold - 0.05) {
                     soft.add(SuggestReason.soft(
-                            "near_duplicate",
-                            String.format(Locale.ROOT, "Похожий контент (%.0f%%)", sim * 100)));
+                            "near_duplicate", String.format(Locale.ROOT, "Похожий контент (%.0f%%)", sim * 100)));
                 }
             }
         }
@@ -139,8 +164,8 @@ public class SuggestFilterEngine {
         all.addAll(soft);
         if (!hard.isEmpty()) {
             // stop_words / keyword → REJECT; limits/blacklist/dedup → FILTER_OUT
-            boolean reject =
-                    hard.stream().anyMatch(r -> r.code().equals("stop_words") || r.code().equals("keyword_exclude"));
+            boolean reject = hard.stream()
+                    .anyMatch(r -> r.code().equals("stop_words") || r.code().equals("keyword_exclude"));
             return SuggestDecision.of(reject ? SuggestAction.REJECT : SuggestAction.FILTER_OUT, all);
         }
         String m = mode == null ? "auto" : mode.toLowerCase(Locale.ROOT);

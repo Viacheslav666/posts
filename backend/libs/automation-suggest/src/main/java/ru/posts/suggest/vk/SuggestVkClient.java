@@ -65,9 +65,7 @@ public class SuggestVkClient {
         form.add("user_id", userId);
         JsonNode body = call("messages.isMessagesFromGroupAllowed", form);
         JsonNode response = body.path("response");
-        return response.path("is_allowed").asInt(0) == 1
-                || response.asBoolean(false)
-                || response.asInt(0) == 1;
+        return response.path("is_allowed").asInt(0) == 1 || response.asBoolean(false) || response.asInt(0) == 1;
     }
 
     public boolean isClosedProfile(String userId, String accessToken) {
@@ -124,7 +122,8 @@ public class SuggestVkClient {
         String text = item.path("text").asText("");
         boolean markedAsAds = item.path("marked_as_ads").asInt(0) == 1
                 || item.path("marked_as_ads").asBoolean(false);
-        boolean hasErid = text != null && text.toLowerCase(java.util.Locale.ROOT).contains("erid");
+        boolean hasErid =
+                text != null && text.toLowerCase(java.util.Locale.ROOT).contains("erid");
         String postType = item.path("post_type").asText("");
         List<Map<String, Object>> attachments = new ArrayList<>();
         JsonNode atts = item.path("attachments");
@@ -135,8 +134,10 @@ public class SuggestVkClient {
                 String type = a.path("type").asText("unknown");
                 JsonNode payload = a.path(type);
                 if (!payload.isMissingNode()) {
-                    map.put("remoteRef", payload.path("owner_id").asText("") + "_"
-                            + payload.path("id").asText(""));
+                    map.put(
+                            "remoteRef",
+                            payload.path("owner_id").asText("") + "_"
+                                    + payload.path("id").asText(""));
                 }
                 attachments.add(map);
             }

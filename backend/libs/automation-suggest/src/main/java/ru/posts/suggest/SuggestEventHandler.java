@@ -39,9 +39,7 @@ public class SuggestEventHandler implements SocialEventHandler {
 
     @Override
     public boolean supports(SocialEventKind kind, String network) {
-        return kind == SocialEventKind.POST_SUGGESTED
-                && network != null
-                && "vk".equalsIgnoreCase(network);
+        return kind == SocialEventKind.POST_SUGGESTED && network != null && "vk".equalsIgnoreCase(network);
     }
 
     @Override
@@ -68,15 +66,7 @@ public class SuggestEventHandler implements SocialEventHandler {
         }
         try {
             processingService.processSuggested(
-                    event.channelId(),
-                    vkPostId,
-                    authorVkId,
-                    event.text(),
-                    attachments,
-                    raw,
-                    null,
-                    null,
-                    null);
+                    event.channelId(), vkPostId, authorVkId, event.text(), attachments, raw, null, null, null);
         } catch (RuntimeException ex) {
             log.warn(
                     "suggest processing failed channelId={} postId={}: {}",

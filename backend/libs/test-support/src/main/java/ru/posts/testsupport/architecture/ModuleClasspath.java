@@ -24,6 +24,8 @@ public final class ModuleClasspath {
         "libs/social-telegram/build/classes/java/main",
         "libs/social-ok/build/classes/java/main",
         "libs/social-max/build/classes/java/main",
+        "libs/social-inbound/build/classes/java/main",
+        "libs/automation-suggest/build/classes/java/main",
         "libs/ord-api/build/classes/java/main",
         "libs/ord-vk/build/classes/java/main",
         "libs/ord-yandex/build/classes/java/main",

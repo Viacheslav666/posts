@@ -99,6 +99,14 @@ public class VkSocialModerationAdapter implements SocialModerationPort {
         if (Boolean.TRUE.equals(p.signed())) {
             form.add("signed", "1");
         }
+        String message = firstNonBlank(p.text(), p.messageText());
+        if (message != null && !message.isBlank()) {
+            form.add("message", message);
+        }
+        String attachments = firstExtraString(target, p, "attachments");
+        if (attachments != null && !attachments.isBlank()) {
+            form.add("attachments", attachments);
+        }
         String guid = firstExtraString(target, p, "guid", "idempotencyKey", "idempotency_key");
         if (guid != null) {
             form.add("guid", guid);
@@ -415,6 +423,14 @@ public class VkSocialModerationAdapter implements SocialModerationPort {
                 params.put("from_group", "1");
                 if (Boolean.TRUE.equals(payload.signed())) {
                     params.put("signed", "1");
+                }
+                String message = firstNonBlank(payload.text(), payload.messageText());
+                if (message != null && !message.isBlank()) {
+                    params.put("message", message);
+                }
+                String attachments = firstExtraString(target, payload, "attachments");
+                if (attachments != null && !attachments.isBlank()) {
+                    params.put("attachments", attachments);
                 }
                 String guid = firstNonBlank(
                         item.idempotencyKey(),

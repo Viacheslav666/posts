@@ -22,8 +22,7 @@ public final class SuggestConfigSupport {
     public static final String PUBLISH_EDIT_WALL_POST = "wall_post_edit";
     public static final String PUBLISH_EDIT_FALLBACK = "fallback_new_post";
 
-    private static final Set<String> REJECT_POLICIES =
-            Set.of(REJECT_DELETE, REJECT_KEEP, REJECT_DELETE_AFTER);
+    private static final Set<String> REJECT_POLICIES = Set.of(REJECT_DELETE, REJECT_KEEP, REJECT_DELETE_AFTER);
     private static final Set<String> KEYWORD_MATCHES = Set.of(KEYWORD_CONTAINS, KEYWORD_WHOLE_WORD);
     private static final Set<String> PUBLISH_EDIT_MODES = Set.of(PUBLISH_EDIT_WALL_POST, PUBLISH_EDIT_FALLBACK);
 
@@ -89,6 +88,7 @@ public final class SuggestConfigSupport {
         Map<String, Object> firstComment = map(config.get("first_comment"));
         firstComment.putIfAbsent("enabled", false);
         firstComment.putIfAbsent("text", "");
+        firstComment.putIfAbsent("attachments", List.of());
         config.put("first_comment", firstComment);
 
         config.putIfAbsent("signed", true);

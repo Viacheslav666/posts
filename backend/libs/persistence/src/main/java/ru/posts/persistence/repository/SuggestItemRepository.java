@@ -68,4 +68,7 @@ public interface SuggestItemRepository extends JpaRepository<SuggestItemEntity, 
 
     Optional<SuggestItemEntity> findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(
             UUID channelId, Collection<String> statuses);
+
+    List<SuggestItemEntity> findByStatusInAndRemoteActionIdIsNotNullOrderByUpdatedAtAsc(
+            Collection<String> statuses, Pageable pageable);
 }

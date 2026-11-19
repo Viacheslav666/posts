@@ -37,11 +37,9 @@ public class SuggestMetrics {
     public void recordStatus(String status) {
         String key = status == null ? "unknown" : status;
         statusCounters
-                .computeIfAbsent(
-                        key,
-                        s -> Counter.builder("suggest_items_total")
-                                .tag("status", s)
-                                .register(registry))
+                .computeIfAbsent(key, s -> Counter.builder("suggest_items_total")
+                        .tag("status", s)
+                        .register(registry))
                 .increment();
     }
 

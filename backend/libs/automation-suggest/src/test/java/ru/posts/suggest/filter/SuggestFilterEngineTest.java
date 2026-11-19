@@ -40,12 +40,8 @@ class SuggestFilterEngineTest {
     @Test
     @DisplayName("3 whole_word: substring inside word does not match")
     void wholeWordVsContains() {
-        Map<String, Object> whole = config(Map.of(
-                "keyword_include", List.of("кот"),
-                "keyword_match", "whole_word"));
-        Map<String, Object> contains = config(Map.of(
-                "keyword_include", List.of("кот"),
-                "keyword_match", "contains"));
+        Map<String, Object> whole = config(Map.of("keyword_include", List.of("кот"), "keyword_match", "whole_word"));
+        Map<String, Object> contains = config(Map.of("keyword_include", List.of("кот"), "keyword_match", "contains"));
         assertThat(eval(item("который день"), whole).action()).isEqualTo(SuggestAction.FILTER_OUT);
         assertThat(eval(item("который день"), contains).action()).isEqualTo(SuggestAction.PUBLISH);
         assertThat(eval(item("мой кот дома"), whole).action()).isEqualTo(SuggestAction.PUBLISH);
@@ -106,8 +102,7 @@ class SuggestFilterEngineTest {
     @Test
     @DisplayName("10 author whitelist bypasses stop words")
     void authorWhitelistBypass() {
-        Map<String, Object> config =
-                config(Map.of("author_whitelist", List.of("42"), "stop_words", List.of("спам")));
+        Map<String, Object> config = config(Map.of("author_whitelist", List.of("42"), "stop_words", List.of("спам")));
         SuggestItemView view = SuggestItemView.of("1", "42", "это спам", List.of(), null);
         assertThat(eval(view, config).action()).isEqualTo(SuggestAction.PUBLISH);
     }
@@ -278,7 +273,8 @@ class SuggestFilterEngineTest {
     @Test
     @DisplayName("21 links do not auto-reject without forbid")
     void linksAllowedByDefault() {
-        assertThat(eval(item("см. https://example.com"), SuggestConfigSupport.withDefaults(Map.of())).action())
+        assertThat(eval(item("см. https://example.com"), SuggestConfigSupport.withDefaults(Map.of()))
+                        .action())
                 .isEqualTo(SuggestAction.PUBLISH);
     }
 
@@ -299,8 +295,7 @@ class SuggestFilterEngineTest {
     @Test
     @DisplayName("24 whole_word boundary with punctuation")
     void wholeWordPunctuation() {
-        Map<String, Object> config =
-                config(Map.of("keyword_include", List.of("пост"), "keyword_match", "whole_word"));
+        Map<String, Object> config = config(Map.of("keyword_include", List.of("пост"), "keyword_match", "whole_word"));
         assertThat(eval(item("новый пост!"), config).action()).isEqualTo(SuggestAction.PUBLISH);
         assertThat(eval(item("репост записи"), config).action()).isEqualTo(SuggestAction.FILTER_OUT);
     }
@@ -308,7 +303,8 @@ class SuggestFilterEngineTest {
     @Test
     @DisplayName("25 auto mode publishes clean item")
     void autoPublish() {
-        assertThat(eval(item("чистая новость"), SuggestConfigSupport.withDefaults(Map.of())).action())
+        assertThat(eval(item("чистая новость"), SuggestConfigSupport.withDefaults(Map.of()))
+                        .action())
                 .isEqualTo(SuggestAction.PUBLISH);
     }
 
@@ -378,8 +374,7 @@ class SuggestFilterEngineTest {
             Instant now = Instant.parse("2026-11-18T10:00:00Z");
             Instant last = Instant.parse("2026-11-18T09:50:00Z");
             Map<String, Object> config = SuggestConfigSupport.withDefaults(Map.of(
-                    "schedule",
-                    Map.of("enabled", false, "min_interval_minutes", 30, "timezone", "Europe/Moscow")));
+                    "schedule", Map.of("enabled", false, "min_interval_minutes", 30, "timezone", "Europe/Moscow")));
             Instant slot = scheduler.nextSlot(config, now, last, false);
             assertThat(slot).isEqualTo(last.plusSeconds(30 * 60));
         }
@@ -391,13 +386,7 @@ class SuggestFilterEngineTest {
             Instant last = Instant.parse("2026-11-18T09:55:00Z");
             Map<String, Object> config = SuggestConfigSupport.withDefaults(Map.of(
                     "schedule",
-                    Map.of(
-                            "enabled",
-                            false,
-                            "pause_after_ads_minutes",
-                            60,
-                            "timezone",
-                            "Europe/Moscow"),
+                    Map.of("enabled", false, "pause_after_ads_minutes", 60, "timezone", "Europe/Moscow"),
                     "ads_pause",
                     Map.of("enabled", true)));
             Instant slot = scheduler.nextSlot(config, now, last, true);
@@ -428,8 +417,8 @@ class SuggestFilterEngineTest {
         String b = "очень похожий длинный текст для проверки околопорогового дедупа два";
         long ha = SimHasher.fingerprint(a);
         long hb = SimHasher.fingerprint(b);
-        Map<String, Object> config = SuggestConfigSupport.withDefaults(Map.of(
-                "dedup", Map.of("enabled", true, "similarity_threshold", 0.99d, "lookback_days", 7)));
+        Map<String, Object> config = SuggestConfigSupport.withDefaults(
+                Map.of("dedup", Map.of("enabled", true, "similarity_threshold", 0.99d, "lookback_days", 7)));
         SuggestItemView view = SuggestItemView.of("1", "10", a, List.of(), ha);
         SuggestFilterContext ctx = new SuggestFilterContext(
                 "hybrid",
@@ -485,13 +474,7 @@ class SuggestFilterEngineTest {
                         "timezone",
                         timezone,
                         "windows",
-                        List.of(Map.of(
-                                "days_of_week",
-                                List.of(1, 2, 3, 4, 5, 6, 7),
-                                "from",
-                                "09:00",
-                                "to",
-                                "21:00")),
+                        List.of(Map.of("days_of_week", List.of(1, 2, 3, 4, 5, 6, 7), "from", "09:00", "to", "21:00")),
                         "min_interval_minutes",
                         0,
                         "pause_after_ads_minutes",
