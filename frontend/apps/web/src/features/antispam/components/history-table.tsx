@@ -176,6 +176,7 @@ export function HistoryTable({
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="px-2 py-2 font-medium">{t('columns.time')}</th>
+                  <th className="px-2 py-2 font-medium">{t('columns.channel')}</th>
                   <th className="px-2 py-2 font-medium">{t('columns.text')}</th>
                   <th className="px-2 py-2 font-medium">{t('columns.section')}</th>
                   <th className="px-2 py-2 font-medium">{t('columns.action')}</th>
@@ -247,6 +248,11 @@ function HistoryRow({
       data-testid={`antispam-history-item-${entry.id}`}
     >
       <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">{stamp}</td>
+      <td className="px-2 py-3">
+        <p className="max-w-[10rem] truncate" title={channel?.title}>
+          {channel?.title ?? entry.channelId ?? '—'}
+        </p>
+      </td>
       <td className="px-2 py-3">
         <p className="max-w-xs truncate" title={entry.textSnapshot}>
           {entry.textSnapshot || '—'}

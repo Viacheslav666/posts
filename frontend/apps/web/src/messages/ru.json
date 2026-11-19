@@ -2985,6 +2985,7 @@
         "loadingMore": "Загрузка…",
         "columns": {
           "time": "Время",
+          "channel": "Канал",
           "text": "Текст",
           "section": "Секция",
           "action": "Действие",
