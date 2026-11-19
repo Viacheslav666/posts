@@ -14,6 +14,7 @@ public record RuleConfig(
         List<String> whiteWords,
         List<UUID> blackListIds,
         List<UUID> whiteListIds,
+        boolean keywordWholeWord,
         boolean filterAllLinks,
         boolean filterVkLinks,
         Set<String> domainWhitelist,
@@ -68,6 +69,7 @@ public record RuleConfig(
                 stringList(keywords.get("white")),
                 uuidList(keywords.get("black_list_ids")),
                 uuidList(keywords.get("white_list_ids")),
+                keywordWholeWord(keywords.get("match")),
                 bool(links.get("all"), false),
                 bool(links.get("vk"), false),
                 stringSet(links.get("domain_whitelist")),
@@ -199,5 +201,10 @@ public record RuleConfig(
 
     private static String str(Object o, String def) {
         return o == null ? def : o.toString();
+    }
+
+    /** {@code filters.keywords.match}: {@code whole_word} or {@code substring} (default). */
+    private static boolean keywordWholeWord(Object o) {
+        return "whole_word".equalsIgnoreCase(str(o, "substring"));
     }
 }

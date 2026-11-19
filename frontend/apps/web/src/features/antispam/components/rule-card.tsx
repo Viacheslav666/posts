@@ -130,7 +130,7 @@ export function RuleCard({
         </div>
 
         <p className="text-xs text-muted-foreground" data-testid={`antispam-stats-${rule.id}`}>
-          {t('stats', { hits24h, hits7d })}
+          {statsQuery.isError ? t('statsUnavailable') : t('stats', { hits24h, hits7d })}
         </p>
 
         {rule.channelId ? (

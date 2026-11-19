@@ -3,10 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { AntispamRule, AntispamWordList, Channel, Project } from '@posts/api-client';
 import { Button, Input, toast } from '@posts/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import {
@@ -32,6 +32,7 @@ import {
   previewReplyTemplate,
 } from '../model/config';
 import { antispamRuleFormSchema, type AntispamRuleFormValues } from '../model/schemas';
+import { belongsToWorkspace } from '../model/scope';
 import {
   ANTISPAM_NETWORKS,
   ATTACHMENT_KEYS,
@@ -58,18 +59,28 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
     () =>
       channels.filter(
         (channel) =>
+          belongsToWorkspace(channel, workspaceId) &&
           channel.status === 'active' &&
           channel.network &&
           ANTISPAM_NETWORKS.includes(channel.network as (typeof ANTISPAM_NETWORKS)[number]),
       ),
-    [channels],
+    [channels, workspaceId],
   );
 
-  const wordListsQuery = useQuery({
+  const wordListsQuery = useInfiniteQuery({
     queryKey: queryKeys.antispam.wordLists(workspaceId),
-    queryFn: () => listAntispamWordLists({ workspaceId }),
+    queryFn: ({ pageParam }) =>
+      listAntispamWordLists({ workspaceId, cursor: pageParam, limit: 50 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
   });
-  const wordLists = wordListsQuery.data?.items ?? [];
+  const wordLists = useMemo(
+    () =>
+      (wordListsQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((list) => belongsToWorkspace(list, workspaceId)),
+    [wordListsQuery.data?.pages, workspaceId],
+  );
 
   const {
     register,
@@ -97,7 +108,10 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
 
   const saveMutation = useMutation({
     mutationFn: async (values: AntispamRuleFormValues) => {
-      const config = configAsApiBlob(buildConfig(values));
+      if (rule && !belongsToWorkspace(rule, workspaceId)) {
+        throw new Error('rule is outside this workspace');
+      }
+      const config = configAsApiBlob(buildConfig(values), rule?.config);
       if (rule?.id) {
         return patchAntispamRule(rule.id, {
           name: values.name,
@@ -241,7 +255,9 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
           )}
         />
         {errors.sections ? (
-          <p className="text-sm text-destructive">{t('errors.sectionsRequired')}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {t('errors.sectionsRequired')}
+          </p>
         ) : null}
       </section>
 
@@ -299,22 +315,13 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         <h3 className="text-sm font-semibold">{t('linksTitle')}</h3>
         <CheckboxRow label={t('linksAll')} {...register('linksAll')} data-testid="antispam-links-all" />
         <CheckboxRow label={t('linksVk')} {...register('linksVk')} data-testid="antispam-links-vk" />
-        <div className="space-y-1">
-          <label htmlFor="antispam-domain-whitelist" className="text-sm font-medium">
-            {t('domainWhitelist')}
-          </label>
-          <textarea
-            id="antispam-domain-whitelist"
-            className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            data-testid="antispam-domain-whitelist"
-            defaultValue={watch('domainWhitelist').join('\n')}
-            onBlur={(event) =>
-              setValue('domainWhitelist', parseKeywordPaste(event.target.value), {
-                shouldDirty: true,
-              })
-            }
-          />
-        </div>
+        <LinesField
+          id="antispam-domain-whitelist"
+          label={t('domainWhitelist')}
+          testId="antispam-domain-whitelist"
+          initial={watch('domainWhitelist')}
+          onParsed={(lines) => setValue('domainWhitelist', lines, { shouldDirty: true })}
+        />
       </section>
 
       <section className="space-y-3" data-testid="antispam-form-attachments">
@@ -490,36 +497,20 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
 
       <section className="space-y-3" data-testid="antispam-form-exceptions">
         <h3 className="text-sm font-semibold">{t('exceptionsTitle')}</h3>
-        <div className="space-y-1">
-          <label htmlFor="antispam-admin-ids" className="text-sm font-medium">
-            {t('adminIds')}
-          </label>
-          <textarea
-            id="antispam-admin-ids"
-            className="min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            data-testid="antispam-admin-ids"
-            defaultValue={watch('adminIds').join('\n')}
-            onBlur={(event) =>
-              setValue('adminIds', parseKeywordPaste(event.target.value), { shouldDirty: true })
-            }
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="antispam-user-whitelist" className="text-sm font-medium">
-            {t('userWhitelist')}
-          </label>
-          <textarea
-            id="antispam-user-whitelist"
-            className="min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            data-testid="antispam-user-whitelist"
-            defaultValue={watch('userWhitelist').join('\n')}
-            onBlur={(event) =>
-              setValue('userWhitelist', parseKeywordPaste(event.target.value), {
-                shouldDirty: true,
-              })
-            }
-          />
-        </div>
+        <LinesField
+          id="antispam-admin-ids"
+          label={t('adminIds')}
+          testId="antispam-admin-ids"
+          initial={watch('adminIds')}
+          onParsed={(lines) => setValue('adminIds', lines, { shouldDirty: true })}
+        />
+        <LinesField
+          id="antispam-user-whitelist"
+          label={t('userWhitelist')}
+          testId="antispam-user-whitelist"
+          initial={watch('userWhitelist')}
+          onParsed={(lines) => setValue('userWhitelist', lines, { shouldDirty: true })}
+        />
         <CheckboxRow
           label={t('excludeOwnCommunity')}
           {...register('excludeOwnCommunity')}
@@ -554,6 +545,40 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         </Button>
       </div>
     </form>
+  );
+}
+
+function LinesField({
+  id,
+  label,
+  testId,
+  initial,
+  onParsed,
+}: {
+  id: string;
+  label: string;
+  testId: string;
+  initial: string[];
+  onParsed: (lines: string[]) => void;
+}) {
+  const [raw, setRaw] = useState(() => initial.join('\n'));
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        data-testid={testId}
+        value={raw}
+        onChange={(event) => {
+          const next = event.target.value;
+          setRaw(next);
+          onParsed(parseKeywordPaste(next));
+        }}
+      />
+    </div>
   );
 }
 

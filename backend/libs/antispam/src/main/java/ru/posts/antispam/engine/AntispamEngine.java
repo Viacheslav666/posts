@@ -96,13 +96,14 @@ public final class AntispamEngine {
         List<String> reasons = new ArrayList<>();
         String text = event.text();
 
+        boolean wholeWord = cfg.keywordWholeWord();
         // White keywords short-circuit (message allowed)
-        if (rule.whiteMatcher() != null && rule.whiteMatcher().containsAny(text)) {
+        if (rule.whiteMatcher() != null && rule.whiteMatcher().containsAny(text, wholeWord)) {
             return List.of();
         }
 
         if (rule.blackMatcher() != null) {
-            var hits = rule.blackMatcher().findAll(text);
+            var hits = rule.blackMatcher().findAll(text, wholeWord);
             if (!hits.isEmpty()) {
                 reasons.add("keyword:" + hits.getFirst().original());
             }

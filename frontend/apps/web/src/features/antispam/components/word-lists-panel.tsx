@@ -2,7 +2,7 @@
 
 import type { AntispamRule, AntispamWordList } from '@posts/api-client';
 import { Button, EmptyState, Input, Skeleton, toast } from '@posts/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
@@ -17,6 +17,7 @@ import {
   patchAntispamWordList,
 } from '../api/antispam-api';
 import { collectWordListUsage } from '../model/config';
+import { belongsToWorkspace } from '../model/scope';
 
 type WordListsPanelProps = {
   workspaceId: string;
@@ -32,12 +33,21 @@ export function WordListsPanel({ workspaceId, rules, canManage }: WordListsPanel
   const [wordsRaw, setWordsRaw] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const listsQuery = useQuery({
+  const listsQuery = useInfiniteQuery({
     queryKey: queryKeys.antispam.wordLists(workspaceId),
-    queryFn: () => listAntispamWordLists({ workspaceId }),
+    queryFn: ({ pageParam }) =>
+      listAntispamWordLists({ workspaceId, cursor: pageParam, limit: 50 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
   });
 
-  const lists = useMemo(() => listsQuery.data?.items ?? [], [listsQuery.data?.items]);
+  const lists = useMemo(
+    () =>
+      (listsQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((list) => belongsToWorkspace(list, workspaceId)),
+    [listsQuery.data?.pages, workspaceId],
+  );
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -77,13 +87,17 @@ export function WordListsPanel({ workspaceId, rules, canManage }: WordListsPanel
   });
 
   const updateMutation = useMutation({
-    mutationFn: (list: AntispamWordList) =>
-      patchAntispamWordList(list.id!, {
+    mutationFn: (list: AntispamWordList) => {
+      if (!belongsToWorkspace(list, workspaceId)) {
+        return Promise.reject(new Error('word list is outside this workspace'));
+      }
+      return patchAntispamWordList(list.id!, {
         name: list.name,
         words: list.words,
         mode: list.mode,
         version: list.version ?? 1,
-      }),
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.antispam.all(workspaceId) });
       setEditingId(null);
@@ -100,6 +114,21 @@ export function WordListsPanel({ workspaceId, rules, canManage }: WordListsPanel
 
   if (listsQuery.isLoading) {
     return <Skeleton className="h-40 w-full" data-testid="antispam-word-lists-loading" />;
+  }
+
+  if (listsQuery.isError) {
+    return (
+      <EmptyState
+        role="alert"
+        title={t('errorTitle')}
+        description={getErrorMessage(listsQuery.error)}
+        action={
+          <Button type="button" variant="outline" onClick={() => void listsQuery.refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -200,6 +229,7 @@ export function WordListsPanel({ workspaceId, rules, canManage }: WordListsPanel
                   {isEditing ? (
                     <textarea
                       className="mt-2 min-h-20 w-full max-w-lg rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      aria-label={t('words')}
                       defaultValue={(list.words ?? []).join('\n')}
                       data-testid={`antispam-word-list-edit-${list.id}`}
                       onBlur={(event) => {
@@ -240,8 +270,20 @@ export function WordListsPanel({ workspaceId, rules, canManage }: WordListsPanel
               </li>
             );
           })}
-        </ul>
+          </ul>
       )}
+      {listsQuery.hasNextPage ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={listsQuery.isFetchingNextPage}
+          onClick={() => void listsQuery.fetchNextPage()}
+          data-testid="antispam-word-lists-load-more"
+        >
+          {listsQuery.isFetchingNextPage ? t('loadingMore') : t('loadMore')}
+        </Button>
+      ) : null}
     </section>
   );
 }

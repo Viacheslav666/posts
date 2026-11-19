@@ -60,6 +60,14 @@ describe('HistoryTable (FE-23)', () => {
     });
     expect(await screen.findByTestId(`antispam-history-item-${LOG_IDS.vkDeleted}`)).toBeInTheDocument();
     expect(screen.getByTestId(`antispam-restore-unavailable-${LOG_IDS.tgDeleted}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`antispam-log-state-${LOG_IDS.vkFailed}`)).toHaveTextContent('Ошибка');
+    expect(screen.getByTestId(`antispam-log-state-${LOG_IDS.vkRestoreFailed}`)).toHaveTextContent(
+      'Ошибка восстановления',
+    );
+    expect(screen.getByTestId(`antispam-restore-${LOG_IDS.vkRestoreFailed}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`antispam-restore-${LOG_IDS.vkFailed}`)).not.toBeInTheDocument();
+    expect(screen.getByText('Стоп-слово: спам')).toBeInTheDocument();
+    expect(screen.getByText('Ссылка')).toBeInTheDocument();
 
     await user.click(screen.getByTestId(`antispam-restore-${LOG_IDS.vkDeleted}`));
     await waitFor(() => {

@@ -10,9 +10,10 @@ import {
   TabsTrigger,
   toast,
 } from '@posts/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ShieldOff } from 'lucide-react';
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { listChannels } from '@/features/channels/api/channels-api';
@@ -27,6 +28,7 @@ import {
   listAntispamRules,
   pauseAntispamRule,
 } from '../api/antispam-api';
+import { belongsToWorkspace } from '../model/scope';
 import { HistoryTable } from './history-table';
 import { RuleForm } from './rule-form';
 import { RuleStatusBadge } from './rule-status-badge';
@@ -63,12 +65,23 @@ export function RuleDetailPage({ workspaceId, ruleId }: RuleDetailPageProps) {
     enabled: canView,
   });
 
-  const projectId = projectsQuery.data?.items?.[0]?.id;
-  const rulesQuery = useQuery({
+  const project = projectsQuery.data?.items?.find((item) => belongsToWorkspace(item, workspaceId));
+  const projectId = project?.id;
+  const rulesQuery = useInfiniteQuery({
     queryKey: queryKeys.antispam.rules(workspaceId, projectId ?? ''),
-    queryFn: () => listAntispamRules({ workspaceId, projectId: projectId! }),
+    queryFn: ({ pageParam }) =>
+      listAntispamRules({ workspaceId, projectId: projectId!, cursor: pageParam, limit: 50 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
     enabled: canView && Boolean(projectId),
   });
+  const rules = useMemo(
+    () =>
+      (rulesQuery.data?.pages ?? [])
+        .flatMap((page) => page.items ?? [])
+        .filter((item) => belongsToWorkspace(item, workspaceId)),
+    [rulesQuery.data?.pages, workspaceId],
+  );
 
   const actionMutation = useMutation({
     mutationFn: async (action: 'activate' | 'pause') => {
@@ -98,14 +111,32 @@ export function RuleDetailPage({ workspaceId, ruleId }: RuleDetailPageProps) {
     );
   }
 
+  if (ruleQuery.isError || projectsQuery.isError || channelsQuery.isError) {
+    const error = ruleQuery.error ?? projectsQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button type="button" variant="outline" onClick={() => void ruleQuery.refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
   if (ruleQuery.isLoading || projectsQuery.isLoading || channelsQuery.isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
 
   const rule = ruleQuery.data;
-  const project = projectsQuery.data?.items?.[0];
-  const channels = channelsQuery.data?.items ?? [];
-  if (!rule || !project) {
+  const channels = (channelsQuery.data?.items ?? []).filter((item) =>
+    belongsToWorkspace(item, workspaceId),
+  );
+  const foreignWorkspace = Boolean(rule && !belongsToWorkspace(rule, workspaceId));
+  if (!rule || foreignWorkspace || !project) {
     return <EmptyState title={t('notFoundTitle')} description={t('notFoundBody')} />;
   }
 
@@ -185,7 +216,7 @@ export function RuleDetailPage({ workspaceId, ruleId }: RuleDetailPageProps) {
         <TabsContent value="dictionaries" className="mt-4">
           <WordListsPanel
             workspaceId={workspaceId}
-            rules={rulesQuery.data?.items ?? [rule]}
+            rules={rules.length > 0 ? rules : [rule]}
             canManage={canManage}
           />
         </TabsContent>
