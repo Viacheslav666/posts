@@ -99,6 +99,20 @@ class VkSocialModerationAdapterWireMockTest {
     }
 
     @Test
+    void deleteCommentAccessDenied15IsNotAlreadyGone() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.deleteComment"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"error\":{\"error_code\":15,\"error_msg\":\"Access denied\"}}")));
+
+        assertThatThrownBy(() -> adapter.deleteComment(ctx, new ModerationTarget("wall", "10", "99", null, "-100")))
+                .isInstanceOf(SocialApiException.class)
+                .satisfies(
+                        ex -> assertThat(((SocialApiException) ex).errorClass()).isEqualTo(ErrorClass.PERMISSION));
+    }
+
+    @Test
     void executeBatchUsesVkExecute() {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/execute"))
                 .willReturn(aResponse()

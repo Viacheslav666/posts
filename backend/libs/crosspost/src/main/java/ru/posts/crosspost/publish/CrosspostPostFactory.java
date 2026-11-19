@@ -1,20 +1,20 @@
 package ru.posts.crosspost.publish;
 
 import java.time.Instant;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.crosspost.config.CrosspostConfigSupport;
 import ru.posts.crosspost.loop.LoopGuard;
 import ru.posts.crosspost.model.CrosspostCandidate;
+import ru.posts.crosspost.schedule.CrosspostSchedule;
 import ru.posts.crosspost.transform.CrosspostTransformer;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.CrosspostItemEntity;
@@ -24,6 +24,7 @@ import ru.posts.persistence.entity.OutboxEntity;
 import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
+import ru.posts.persistence.jdbc.PublicationPartitions;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
@@ -46,16 +47,19 @@ public class CrosspostPostFactory {
     private final PostVariantRepository postVariantRepository;
     private final PublicationRepository publicationRepository;
     private final OutboxRepository outboxRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public CrosspostPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            JdbcTemplate jdbcTemplate) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.outboxRepository = outboxRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public static String idempotencyKey(
@@ -86,8 +90,8 @@ public class CrosspostPostFactory {
 
         Instant now = Instant.now();
         int delayMin = CrosspostConfigSupport.delayMinutes(rule.getConfig());
-        Instant scheduledAt = runAtBase.plusSeconds(delayMin * 60L);
-        ensurePublicationPartition(scheduledAt);
+        Instant scheduledAt = CrosspostSchedule.align(rule.getConfig(), runAtBase.plusSeconds(delayMin * 60L));
+        PublicationPartitions.ensureMonth(jdbcTemplate, "publications", scheduledAt);
 
         String sourcePermalink = sourcePermalink(candidate, channelsById.get(item.getSourceChannelId()));
         Map<String, Object> sourceRef = LoopGuard.buildSourceRef(
@@ -237,15 +241,6 @@ public class CrosspostPostFactory {
             case "max" -> null;
             default -> null;
         };
-    }
-
-    private static void ensurePublicationPartition(Instant runAt) {
-        YearMonth ym = YearMonth.from(runAt.atZone(ZoneOffset.UTC));
-        YearMonth min = YearMonth.of(2026, 10);
-        YearMonth max = YearMonth.of(2027, 9);
-        if (ym.isBefore(min) || ym.isAfter(max)) {
-            throw new IllegalArgumentException("scheduledAt outside publication partitions (" + min + ".." + max + ")");
-        }
     }
 
     private static String truncate(String text, int max) {

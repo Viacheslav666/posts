@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -11,12 +12,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import ru.posts.antispam.engine.CompiledRuleCache;
 import ru.posts.antispam.handler.AntispamSocialEventHandler;
 import ru.posts.antispam.metrics.AntispamMetrics;
 import ru.posts.antispam.service.AdsContextResolver;
 import ru.posts.antispam.service.AntispamActionApplier;
 import ru.posts.antispam.service.AntispamEventProcessor;
+import ru.posts.antispam.service.AntispamHistoryScanner;
+import ru.posts.antispam.service.AntispamLogReconciler;
 import ru.posts.antispam.service.MembershipCache;
 import ru.posts.antispam.service.PinnedPostCache;
 import ru.posts.antispam.service.RemoteRefFactory;
@@ -143,5 +147,23 @@ public class AntispamAutoConfiguration {
     @ConditionalOnBean(AntispamEventProcessor.class)
     AntispamSocialEventHandler antispamSocialEventHandler(AntispamEventProcessor processor) {
         return new AntispamSocialEventHandler(processor);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean({AntispamLogJdbc.class, JdbcTemplate.class})
+    AntispamLogReconciler antispamLogReconciler(AntispamLogJdbc logJdbc, JdbcTemplate jdbc) {
+        return new AntispamLogReconciler(logJdbc, jdbc);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(AntispamEventProcessor.class)
+    AntispamHistoryScanner antispamHistoryScanner(
+            AntispamEventProcessor processor,
+            @Value("${posts.social.vk.base-url:${posts.social-inbound.social-base-url:http://127.0.0.1:8090}}")
+                    String baseUrl,
+            @Value("${posts.social.vk.api-version:5.199}") String apiVersion) {
+        return new AntispamHistoryScanner(processor, baseUrl, apiVersion);
     }
 }

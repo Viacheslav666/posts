@@ -21,6 +21,22 @@ public interface CrosspostItemRepository extends JpaRepository<CrosspostItemEnti
 
     List<CrosspostItemEntity> findByRuleIdAndStatusOrderByCreatedAtDesc(UUID ruleId, String status, Pageable pageable);
 
+    @Query(
+            value =
+                    """
+                    SELECT * FROM crosspost_items
+                    WHERE rule_id = :ruleId
+                      AND (CAST(:status AS text) IS NULL OR status = CAST(:status AS text))
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT :limit OFFSET :offset
+                    """,
+            nativeQuery = true)
+    List<CrosspostItemEntity> pageByRule(
+            @Param("ruleId") UUID ruleId,
+            @Param("status") String status,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
+
     List<CrosspostItemEntity> findByStatusInOrderByUpdatedAtAsc(Collection<String> statuses, Pageable pageable);
 
     @Query(

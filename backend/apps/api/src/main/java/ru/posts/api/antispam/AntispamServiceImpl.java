@@ -17,8 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.antispam.engine.CompiledRuleCache;
 import ru.posts.antispam.service.AntispamEventTypes;
+import ru.posts.antispam.service.AntispamHistoryScanner;
 import ru.posts.api.admin.FeatureFlagResolver;
 import ru.posts.api.channel.PlanLimitService;
+import ru.posts.api.channel.WorkspaceTokenVault;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
 import ru.posts.api.web.dto.antispam.AntispamDtos;
@@ -28,11 +30,12 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.AntispamRuleEntity;
 import ru.posts.persistence.entity.AntispamWordListEntity;
 import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.SocialAccountEntity;
 import ru.posts.persistence.jdbc.AntispamLogJdbc;
-import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AntispamWordListRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.service.RemoteActionService;
 import ru.posts.social.inbound.subscription.EventSubscriptionService;
 
@@ -53,12 +56,14 @@ public class AntispamServiceImpl implements AntispamService {
     private final AntispamWordListRepository wordListRepository;
     private final ChannelRepository channelRepository;
     private final AntispamLogJdbc logJdbc;
-    private final OutboxJdbc outboxJdbc;
     private final RemoteActionService remoteActionService;
     private final EventSubscriptionService subscriptionService;
     private final CompiledRuleCache ruleCache;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final AntispamHistoryScanner historyScanner;
+    private final WorkspaceTokenVault tokenVault;
+    private final SocialAccountRepository socialAccountRepository;
 
     public AntispamServiceImpl(
             WorkspaceAccessService access,
@@ -68,12 +73,14 @@ public class AntispamServiceImpl implements AntispamService {
             AntispamWordListRepository wordListRepository,
             ChannelRepository channelRepository,
             AntispamLogJdbc logJdbc,
-            OutboxJdbc outboxJdbc,
             RemoteActionService remoteActionService,
             EventSubscriptionService subscriptionService,
             CompiledRuleCache ruleCache,
             ObjectMapper objectMapper,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate,
+            AntispamHistoryScanner historyScanner,
+            WorkspaceTokenVault tokenVault,
+            SocialAccountRepository socialAccountRepository) {
         this.access = access;
         this.planLimitService = planLimitService;
         this.featureFlagResolver = featureFlagResolver;
@@ -81,12 +88,14 @@ public class AntispamServiceImpl implements AntispamService {
         this.wordListRepository = wordListRepository;
         this.channelRepository = channelRepository;
         this.logJdbc = logJdbc;
-        this.outboxJdbc = outboxJdbc;
         this.remoteActionService = remoteActionService;
         this.subscriptionService = subscriptionService;
         this.ruleCache = ruleCache;
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.historyScanner = historyScanner;
+        this.tokenVault = tokenVault;
+        this.socialAccountRepository = socialAccountRepository;
     }
 
     @Override
@@ -417,25 +426,36 @@ public class AntispamServiceImpl implements AntispamService {
                     "Manual scan is currently implemented for VK only");
         }
         ensureVkCapabilities(channel, rule);
+        String token = resolveUserToken(channel);
+        if (token == null || token.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    CODE_VK_PERMISSIONS,
+                    "VK antispam scan requires a user access token");
+        }
         UUID jobId = UuidV7.generate();
-        outboxJdbc.append(
-                "antispam_rule",
-                rule.getId(),
-                "antispam.scan_requested",
-                writeJson(Map.of(
-                        "jobId",
-                        jobId.toString(),
-                        "workspaceId",
-                        rule.getWorkspaceId().toString(),
-                        "ruleId",
-                        rule.getId().toString(),
-                        "channelId",
-                        rule.getChannelId().toString(),
-                        "dryRun",
-                        rule.isDryRun(),
-                        "limit",
-                        100)));
-        return new AntispamDtos.AntispamScanResponse(jobId, "queued", "VK wall.get + wall.getComments scan queued");
+        int scanned;
+        try {
+            scanned = historyScanner.scan(rule, channel, token, 100);
+        } catch (RuntimeException ex) {
+            throw new ApiException(
+                    HttpStatus.BAD_GATEWAY,
+                    "antispam_scan_failed",
+                    ex.getMessage() == null ? "VK scan failed" : ex.getMessage());
+        }
+        return new AntispamDtos.AntispamScanResponse(jobId, "done", "Scanned " + scanned + " VK wall comments");
+    }
+
+    private String resolveUserToken(ChannelEntity channel) {
+        if (channel.getSocialAccountId() == null) {
+            return null;
+        }
+        SocialAccountEntity account =
+                socialAccountRepository.findById(channel.getSocialAccountId()).orElse(null);
+        if (account == null || account.getAccessTokenEnc() == null) {
+            return null;
+        }
+        return tokenVault.unseal(channel.getWorkspaceId(), account.getAccessTokenEnc());
     }
 
     @Override

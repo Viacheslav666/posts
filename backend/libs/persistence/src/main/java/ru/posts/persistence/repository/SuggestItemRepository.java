@@ -83,4 +83,35 @@ public interface SuggestItemRepository extends JpaRepository<SuggestItemEntity, 
 
     List<SuggestItemEntity> findByStatusInAndRemoteActionIdIsNotNullOrderByUpdatedAtAsc(
             Collection<String> statuses, Pageable pageable);
+
+    /**
+     * Items whose remote action is already terminal/in-flight, or pending and due.
+     * Future scheduled rows are excluded so they cannot crowd out the rest of the queue.
+     * Lookup is by idempotency key, so a delete enqueued without {@code remote_action_id} is still visible.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT i.* FROM suggest_items i
+                    WHERE i.status IN ('scheduled', 'publishing', 'approved', 'rejected', 'filtered_out')
+                      AND EXISTS (
+                        SELECT 1 FROM social_remote_actions a
+                        WHERE a.idempotency_key IN (
+                            'suggest:' || i.channel_id::text || ':' || i.vk_post_id,
+                            'suggest-delete:' || i.channel_id::text || ':' || i.vk_post_id)
+                          AND (
+                            a.state IN (
+                              'succeeded', 'failed_permanent', 'cancelled',
+                              'queued', 'in_progress', 'unknown_outcome')
+                            OR (
+                              a.state IN ('pending', 'failed_retryable')
+                              AND COALESCE(a.next_attempt_at, a.run_at) <= NOW()
+                            )
+                          )
+                      )
+                    ORDER BY i.updated_at ASC
+                    LIMIT :limit
+                    """,
+            nativeQuery = true)
+    List<SuggestItemEntity> findDueForRemoteReconcile(@Param("limit") int limit);
 }

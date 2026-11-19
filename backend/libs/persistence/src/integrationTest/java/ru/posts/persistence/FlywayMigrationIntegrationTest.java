@@ -50,7 +50,8 @@ class FlywayMigrationIntegrationTest {
             "analytics_posts_job_state",
             "antispam_rules",
             "antispam_word_lists",
-            "antispam_log");
+            "antispam_log",
+            "telegram_album_fragments");
 
     @Container
     @ServiceConnection

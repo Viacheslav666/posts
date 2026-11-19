@@ -41,16 +41,41 @@ public class InboundEventStore {
     }
 
     /**
-     * Inserts event if not duplicate. Returns empty when duplicate.
+     * Claim an inbox row for dispatch. Same dedup key is inserted once (advisory lock; the unique
+     * index includes {@code received_at} because the table is partitioned). A row that was inserted
+     * but never marked processed is returned again so a retry re-dispatches it.
      */
     @Transactional
-    public Optional<UUID> insertIfNew(SocialInboundEvent event) {
-        Optional<UUID> existing = findExisting(event.network(), event.channelId(), event.dedupKey());
+    public Optional<DispatchClaim> claimForDispatch(SocialInboundEvent event) {
+        String lockKey = event.network() + ":" + event.channelId() + ":" + event.dedupKey();
+        jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:key AS text), 0))")
+                .param("key", lockKey)
+                .query((rs, rowNum) -> 1)
+                .list();
+        Optional<ExistingRow> existing = findExistingRow(event.network(), event.channelId(), event.dedupKey());
         if (existing.isPresent()) {
-            return Optional.empty();
+            ExistingRow row = existing.get();
+            if (row.processedAt() != null) {
+                return Optional.empty();
+            }
+            return Optional.of(new DispatchClaim(row.id(), row.receivedAt()));
         }
         UUID id = UuidV7.generate();
         Instant receivedAt = event.receivedAt() == null ? Instant.now() : event.receivedAt();
+        insertRow(event, id, receivedAt);
+        return Optional.of(new DispatchClaim(id, receivedAt));
+    }
+
+    /**
+     * Inserts event if not duplicate. Returns empty when the event was already processed.
+     * Unprocessed duplicates return the existing id so callers can re-dispatch.
+     */
+    @Transactional
+    public Optional<UUID> insertIfNew(SocialInboundEvent event) {
+        return claimForDispatch(event).map(DispatchClaim::id);
+    }
+
+    private void insertRow(SocialInboundEvent event, UUID id, Instant receivedAt) {
         jdbc.sql(
                         """
                         INSERT INTO social_inbound_events (
@@ -89,7 +114,31 @@ public class InboundEventStore {
                 .param("occurredAt", ts(event.occurredAt()))
                 .param("receivedAt", ts(receivedAt))
                 .update();
-        return Optional.of(id);
+    }
+
+    public record DispatchClaim(UUID id, Instant receivedAt) {}
+
+    private record ExistingRow(UUID id, Instant receivedAt, Instant processedAt) {}
+
+    private Optional<ExistingRow> findExistingRow(String network, UUID channelId, String dedupKey) {
+        return jdbc.sql(
+                        """
+                        SELECT id, received_at, processed_at
+                        FROM social_inbound_events
+                        WHERE network = :network AND channel_id = :channelId AND dedup_key = :dedupKey
+                        ORDER BY received_at
+                        LIMIT 1
+                        """)
+                .param("network", network)
+                .param("channelId", channelId)
+                .param("dedupKey", dedupKey)
+                .query((rs, rowNum) -> new ExistingRow(
+                        rs.getObject("id", UUID.class),
+                        rs.getTimestamp("received_at").toInstant(),
+                        rs.getTimestamp("processed_at") == null
+                                ? null
+                                : rs.getTimestamp("processed_at").toInstant()))
+                .optional();
     }
 
     @Transactional

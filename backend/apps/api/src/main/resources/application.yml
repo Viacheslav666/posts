@@ -27,6 +27,9 @@ spring:
           auth: false
           starttls:
             enable: false
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
 
 server:
   port: 8080

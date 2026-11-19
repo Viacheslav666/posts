@@ -2,6 +2,7 @@ package ru.posts.scheduler.inbound;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +30,7 @@ import ru.posts.social.inbound.subscription.TokenResolver;
 public class SubscriptionHealthJob {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionHealthJob.class);
-    private static final List<String> ACTIVE_STATUSES = List.of("active", "degraded", "pending");
+    private static final List<String> ACTIVE_STATUSES = List.of("active", "degraded", "pending", "failed");
 
     private final ChannelEventSubscriptionRepository subscriptionRepository;
     private final ChannelRepository channelRepository;
@@ -67,6 +68,9 @@ public class SubscriptionHealthJob {
     public void run() {
         List<ChannelEventSubscriptionEntity> subs = subscriptionRepository.findByStatusIn(ACTIVE_STATUSES);
         for (ChannelEventSubscriptionEntity sub : subs) {
+            if (!dueForRepair(sub.getStatus(), sub.getFailureCount(), sub.getUpdatedAt(), Instant.now())) {
+                continue;
+            }
             try {
                 checkOne(sub);
             } catch (RuntimeException ex) {
@@ -74,6 +78,20 @@ public class SubscriptionHealthJob {
                 markFailed(sub, ex.getMessage());
             }
         }
+    }
+
+    /**
+     * Failed subscriptions are retried with exponential backoff (5 min, doubled, capped at 6 h).
+     * Active, degraded and pending subscriptions are always checked.
+     */
+    static boolean dueForRepair(String status, int failureCount, Instant updatedAt, Instant now) {
+        if (!"failed".equals(status)) {
+            return true;
+        }
+        int steps = Math.max(0, Math.min(failureCount - 1, 6));
+        long minutes = Math.min(360, 5L << steps);
+        Instant updated = updatedAt == null ? Instant.EPOCH : updatedAt;
+        return !updated.plus(minutes, ChronoUnit.MINUTES).isAfter(now);
     }
 
     private void checkOne(ChannelEventSubscriptionEntity sub) {

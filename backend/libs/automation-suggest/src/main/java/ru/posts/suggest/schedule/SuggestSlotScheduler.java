@@ -61,8 +61,8 @@ public class SuggestSlotScheduler {
         }
 
         ZonedDateTime cursor = base.atZone(zone);
-        // Search up to 14 days ahead for an open window.
-        for (int dayOffset = 0; dayOffset < 14; dayOffset++) {
+        // dayOffset -1 catches an overnight window that started yesterday and is still open.
+        for (int dayOffset = -1; dayOffset < 14; dayOffset++) {
             LocalDate date = cursor.toLocalDate().plusDays(dayOffset);
             int isoDay = date.getDayOfWeek().getValue();
             for (Window w : windows) {
@@ -75,11 +75,8 @@ public class SuggestSlotScheduler {
                     // overnight: treat as from → 24:00 of this day
                     to = ZonedDateTime.of(date.plusDays(1), w.to(), zone);
                 }
-                ZonedDateTime candidate = dayOffset == 0 ? cursor : from;
-                if (candidate.isBefore(from)) {
-                    candidate = from;
-                }
-                if (!candidate.isBefore(to)) {
+                ZonedDateTime candidate = cursor.isBefore(from) ? from : cursor;
+                if (candidate.isBefore(cursor) || !candidate.isBefore(to)) {
                     continue;
                 }
                 return candidate.toInstant();

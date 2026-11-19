@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -101,20 +102,22 @@ public class AntispamActionApplier {
                 return inserted;
             }
 
-            for (AntispamAction action : verdict.actions()) {
-                if (action.kind() == AntispamActionKind.FLAG) {
-                    continue;
-                }
-                UUID actionId = enqueue(event, section, remote, verdict, action, runAt);
-                actionIds.add(actionId);
-                // reply before delete: same runAt; ban after delete slightly delayed to keep order under rate limits
-                if (action.kind() == AntispamActionKind.DELETE) {
-                    runAt = runAt.plusMillis(50);
+            List<AntispamAction> ordered = verdict.actions().stream()
+                    .filter(action -> action.kind() != AntispamActionKind.FLAG)
+                    .sorted(Comparator.comparingInt(AntispamActionApplier::actionOrder))
+                    .toList();
+            String replyKey = ordered.stream().anyMatch(action -> action.kind() == AntispamActionKind.REPLY)
+                    ? idempotencyKey(event, section, remote, AntispamActionKind.REPLY)
+                    : null;
+            for (AntispamAction action : ordered) {
+                Instant actionAt = runAt;
+                if (action.kind() == AntispamActionKind.DELETE && replyKey != null) {
+                    actionAt = runAt.plusSeconds(1);
                 } else if (action.kind() == AntispamActionKind.BAN) {
-                    runAt = runAt.plusMillis(100);
-                } else if (action.kind() == AntispamActionKind.REPLY) {
-                    runAt = runAt.plusMillis(10);
+                    actionAt = runAt.plusSeconds(2);
                 }
+                UUID actionId = enqueue(event, section, remote, verdict, action, actionAt, replyKey);
+                actionIds.add(actionId);
             }
             state = actionIds.isEmpty() ? "done" : "pending";
         }
@@ -146,13 +149,38 @@ public class AntispamActionApplier {
         return inserted;
     }
 
+    private static int actionOrder(AntispamAction action) {
+        return switch (action.kind()) {
+            case REPLY -> 0;
+            case DELETE -> 1;
+            case BAN -> 2;
+            case FLAG -> 3;
+        };
+    }
+
+    static String idempotencyKey(
+            SocialInboundEvent event,
+            AntispamSection section,
+            RemoteRefFactory.RemoteIds remote,
+            AntispamActionKind kind) {
+        return "antispam:"
+                + event.channelId()
+                + ":"
+                + section.wire()
+                + ":"
+                + remote.remoteCommentKey()
+                + ":"
+                + kind.name().toLowerCase(Locale.ROOT);
+    }
+
     private UUID enqueue(
             SocialInboundEvent event,
             AntispamSection section,
             RemoteRefFactory.RemoteIds remote,
             Verdict verdict,
             AntispamAction action,
-            Instant runAt) {
+            Instant runAt,
+            String replyKey) {
         String kind =
                 switch (action.kind()) {
                     case REPLY -> "reply_comment";
@@ -162,14 +190,7 @@ public class AntispamActionApplier {
                     case BAN -> "ban_user";
                     case FLAG -> throw new IllegalStateException("FLAG is not a remote action");
                 };
-        String idempotencyKey = "antispam:"
-                + event.channelId()
-                + ":"
-                + section.wire()
-                + ":"
-                + remote.remoteCommentKey()
-                + ":"
-                + action.kind().name().toLowerCase(Locale.ROOT);
+        String idempotencyKey = idempotencyKey(event, section, remote, action.kind());
 
         Map<String, Object> target = new LinkedHashMap<>();
         target.put("commentType", remote.commentType());
@@ -191,7 +212,12 @@ public class AntispamActionApplier {
             String template = String.valueOf(action.params().getOrDefault("template", ""));
             payload.put("text", renderReply(template, verdict.reasons()));
             payload.put("replyToCommentId", remote.remoteCommentId());
-        } else if (action.kind() == AntispamActionKind.BAN) {
+        } else if (action.kind() == AntispamActionKind.DELETE || action.kind() == AntispamActionKind.BAN) {
+            if (replyKey != null) {
+                payload.put("waitForIdempotencyKey", replyKey);
+            }
+        }
+        if (action.kind() == AntispamActionKind.BAN) {
             int days = ((Number) action.params().getOrDefault("days", 7)).intValue();
             payload.put(
                     "banEndDate",

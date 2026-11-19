@@ -23,9 +23,14 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.content.hash.ContentFingerprint;
 import ru.posts.content.hash.SimHasher;
 import ru.posts.persistence.entity.ChannelEntity;
+import ru.posts.persistence.entity.PostEntity;
+import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.SuggestItemEntity;
 import ru.posts.persistence.entity.SuggestSettingsEntity;
+import ru.posts.persistence.jdbc.SocialRemoteActionLifecycleJdbc.ActionRef;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.PostRepository;
+import ru.posts.persistence.repository.PublicationRepository;
 import ru.posts.persistence.repository.SuggestItemRepository;
 import ru.posts.persistence.repository.SuggestSettingsRepository;
 import ru.posts.persistence.service.RemoteActionService;
@@ -37,6 +42,7 @@ import ru.posts.suggest.filter.SuggestFilterEngine;
 import ru.posts.suggest.filter.SuggestItemView;
 import ru.posts.suggest.filter.SuggestReason;
 import ru.posts.suggest.metrics.SuggestMetrics;
+import ru.posts.suggest.schedule.SuggestAdsPause;
 import ru.posts.suggest.schedule.SuggestSlotScheduler;
 
 /** Main suggest processing flow for inbound events and sync imports (BE-34). */
@@ -56,6 +62,8 @@ public class SuggestProcessingService {
     private final RemoteActionService remoteActionService;
     private final SuggestMetrics metrics;
     private final ObjectMapper objectMapper;
+    private final PublicationRepository publicationRepository;
+    private final PostRepository postRepository;
 
     public SuggestProcessingService(
             SuggestSettingsRepository settingsRepository,
@@ -65,7 +73,9 @@ public class SuggestProcessingService {
             SuggestSlotScheduler slotScheduler,
             RemoteActionService remoteActionService,
             SuggestMetrics metrics,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            PublicationRepository publicationRepository,
+            PostRepository postRepository) {
         this.settingsRepository = settingsRepository;
         this.itemRepository = itemRepository;
         this.channelRepository = channelRepository;
@@ -74,6 +84,8 @@ public class SuggestProcessingService {
         this.remoteActionService = remoteActionService;
         this.metrics = metrics;
         this.objectMapper = objectMapper;
+        this.publicationRepository = publicationRepository;
+        this.postRepository = postRepository;
     }
 
     /**
@@ -97,7 +109,8 @@ public class SuggestProcessingService {
         if (settingsOpt.isEmpty() || !"active".equals(settingsOpt.get().getStatus())) {
             return Optional.empty();
         }
-        SuggestSettingsEntity settings = settingsOpt.get();
+        SuggestSettingsEntity settings =
+                settingsRepository.findByIdForUpdate(settingsOpt.get().getId()).orElse(settingsOpt.get());
 
         Optional<SuggestItemEntity> existing = itemRepository.findByChannelIdAndVkPostId(channelId, vkPostId);
         if (existing.isPresent()) {
@@ -185,6 +198,7 @@ public class SuggestProcessingService {
     @Transactional
     public SuggestItemEntity reject(
             SuggestItemEntity item, SuggestSettingsEntity settings, UUID actorId, boolean deleteRemote) {
+        guardReject(item);
         Map<String, Object> config = SuggestConfigSupport.withDefaults(settings.getConfig());
         Instant now = Instant.now();
         item.setDecidedBy(actorId);
@@ -271,9 +285,11 @@ public class SuggestProcessingService {
                 .map(i -> i.getScheduledFor() != null ? i.getScheduledFor() : i.getDecidedAt())
                 .orElse(null);
         boolean lastAds = lastPublished.map(i -> looksLikeAds(i, config)).orElse(false);
+        WallHit wall = latestWall(item.getChannelId());
+        SuggestAdsPause.Decision pause = SuggestAdsPause.decide(lastPublish, lastAds, wall.at(), wall.ad());
         Instant slot = scheduledOverride != null
                 ? scheduledOverride
-                : slotScheduler.nextSlot(config, now, lastPublish, lastAds);
+                : slotScheduler.nextSlot(config, now, pause.anchor(), pause.lastWallWasAds());
 
         ChannelEntity channel = channelRepository.findById(item.getChannelId()).orElse(null);
         String ownerId = channel == null ? null : channel.getExternalId();
@@ -357,7 +373,7 @@ public class SuggestProcessingService {
         if (ownerId != null) {
             target.put("ownerId", ownerId);
         }
-        remoteActionService.enqueue(
+        UUID actionId = remoteActionService.enqueue(
                 "delete_post",
                 item.getWorkspaceId(),
                 item.getChannelId(),
@@ -370,9 +386,54 @@ public class SuggestProcessingService {
                         "suggestItemId", item.getId().toString(),
                         "settingsId", settings.getId().toString())),
                 actorId);
+        item.setRemoteActionId(actionId);
         if (!runAt.isAfter(now.plusSeconds(1))) {
             item.setStatus("deleted_remote");
         }
+    }
+
+    private void guardReject(SuggestItemEntity item) {
+        String status = item.getStatus() == null ? "" : item.getStatus();
+        if ("published".equals(status)) {
+            throw new SuggestConflictException("Cannot reject a published post");
+        }
+        String publishKey = "suggest:" + item.getChannelId() + ":" + item.getVkPostId();
+        Optional<ActionRef> action = remoteActionService.findLatest(publishKey);
+        if (action.isPresent()) {
+            String state = action.get().state() == null ? "" : action.get().state();
+            if ("in_progress".equals(state) || "queued".equals(state) || "unknown_outcome".equals(state)) {
+                throw new SuggestConflictException("Publish action is already running");
+            }
+            if ("pending".equals(state) || "failed_retryable".equals(state)) {
+                remoteActionService.cancelIfIdle(publishKey);
+            }
+            if ("succeeded".equals(state)) {
+                throw new SuggestConflictException("Cannot reject a published post");
+            }
+        } else if ("publishing".equals(status)) {
+            throw new SuggestConflictException("Publish action is already running");
+        }
+    }
+
+    private WallHit latestWall(UUID channelId) {
+        List<PublicationEntity> rows = publicationRepository.findLatestSucceeded(channelId);
+        if (rows == null || rows.isEmpty()) {
+            return WallHit.NONE;
+        }
+        PublicationEntity publication = rows.getFirst();
+        Instant at = publication.getPublishedAt() != null ? publication.getPublishedAt() : publication.getRunAt();
+        boolean ad = false;
+        if (publication.getPostId() != null) {
+            ad = postRepository
+                    .findById(publication.getPostId())
+                    .map(PostEntity::isAd)
+                    .orElse(false);
+        }
+        return new WallHit(at, ad);
+    }
+
+    private record WallHit(Instant at, boolean ad) {
+        private static final WallHit NONE = new WallHit(null, false);
     }
 
     private void enqueueNotify(
@@ -447,10 +508,15 @@ public class SuggestProcessingService {
                 .filter(s -> s != null)
                 .toList();
 
-        boolean lastWallWasAds = itemRepository
-                .findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(settings.getChannelId(), PUBLISH_STATUSES)
-                .map(i -> looksLikeAds(i, config))
-                .orElse(false);
+        Optional<SuggestItemEntity> lastSuggest = itemRepository.findFirstByChannelIdAndStatusInOrderByDecidedAtDesc(
+                settings.getChannelId(), PUBLISH_STATUSES);
+        Instant suggestAt = lastSuggest
+                .map(i -> i.getScheduledFor() != null ? i.getScheduledFor() : i.getDecidedAt())
+                .orElse(null);
+        boolean suggestAd = lastSuggest.map(i -> looksLikeAds(i, config)).orElse(false);
+        WallHit wall = latestWall(settings.getChannelId());
+        boolean lastWallWasAds = SuggestAdsPause.decide(suggestAt, suggestAd, wall.at(), wall.ad())
+                .lastWallWasAds();
 
         return new SuggestFilterContext(
                 settings.getMode(),

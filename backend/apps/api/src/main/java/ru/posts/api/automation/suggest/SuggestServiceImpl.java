@@ -475,7 +475,12 @@ public class SuggestServiceImpl implements SuggestService {
         ensureFeatureEnabled(item.getWorkspaceId());
         boolean deleteRemote =
                 request == null || request.deleteRemote() == null || Boolean.TRUE.equals(request.deleteRemote());
-        SuggestItemEntity saved = processingService.reject(item, settings, userId, deleteRemote);
+        SuggestItemEntity saved;
+        try {
+            saved = processingService.reject(item, settings, userId, deleteRemote);
+        } catch (ru.posts.suggest.SuggestConflictException ex) {
+            throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, ex.getMessage());
+        }
         auditRecorder.record(
                 item.getWorkspaceId(),
                 userId,

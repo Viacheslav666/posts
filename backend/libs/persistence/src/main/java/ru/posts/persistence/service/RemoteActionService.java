@@ -1,9 +1,11 @@
 package ru.posts.persistence.service;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.persistence.jdbc.SocialRemoteActionLifecycleJdbc;
+import ru.posts.persistence.jdbc.SocialRemoteActionLifecycleJdbc.ActionRef;
 
 /**
  * Module-facing API to enqueue remote moderation actions (BE-33).
@@ -42,5 +44,15 @@ public class RemoteActionService {
                 source,
                 sourceRefJson,
                 createdBy);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ActionRef> findLatest(String idempotencyKey) {
+        return lifecycleJdbc.findLatest(idempotencyKey);
+    }
+
+    @Transactional
+    public boolean cancelIfIdle(String idempotencyKey) {
+        return lifecycleJdbc.cancelIfIdle(idempotencyKey);
     }
 }

@@ -18,6 +18,9 @@ import ru.posts.social.inbound.RecordingSocialEventHandler;
 import ru.posts.social.inbound.SocialEventDispatcher;
 import ru.posts.social.inbound.SocialEventHandler;
 import ru.posts.social.inbound.SocialInboundProcessor;
+import ru.posts.social.inbound.album.AlbumFragmentStore;
+import ru.posts.social.inbound.album.InMemoryAlbumFragmentStore;
+import ru.posts.social.inbound.album.JdbcAlbumFragmentStore;
 import ru.posts.social.inbound.album.TelegramAlbumAggregator;
 import ru.posts.social.inbound.client.MaxSubscriptionClient;
 import ru.posts.social.inbound.client.TelegramWebhookClient;
@@ -63,9 +66,22 @@ public class SocialInboundAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(JdbcClient.class)
+    @ConditionalOnMissingBean(AlbumFragmentStore.class)
+    AlbumFragmentStore jdbcAlbumFragmentStore(JdbcClient jdbc, ObjectMapper objectMapper) {
+        return new JdbcAlbumFragmentStore(jdbc, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AlbumFragmentStore.class)
+    AlbumFragmentStore memoryAlbumFragmentStore(ObjectMapper objectMapper) {
+        return new InMemoryAlbumFragmentStore(objectMapper);
+    }
+
+    @Bean
     @ConditionalOnMissingBean
-    TelegramAlbumAggregator telegramAlbumAggregator(ObjectMapper objectMapper) {
-        return new TelegramAlbumAggregator(objectMapper);
+    TelegramAlbumAggregator telegramAlbumAggregator(AlbumFragmentStore albumFragmentStore) {
+        return new TelegramAlbumAggregator(albumFragmentStore);
     }
 
     @Bean

@@ -1,5 +1,6 @@
 package ru.posts.publisher.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
@@ -114,6 +115,9 @@ public class RemoteActionProcessor {
 
         ModerationTarget target = parseTarget(claim.targetJson());
         ModerationPayload payload = parsePayload(claim.payloadJson());
+        if (deferIfPrerequisitePending(claim)) {
+            return true;
+        }
         AccessTokenKind tokenKind = ChannelAccessResolver.tokenKindFor(claim.network(), claim.kind(), target);
         ChannelContext ctx = channelAccessResolver.context(
                 claim.workspaceId(),
@@ -156,6 +160,9 @@ public class RemoteActionProcessor {
             Optional<SocialRemoteActionClaim> sibling = transactionTemplate.execute(
                     status -> lifecycleJdbc.claimQueued(siblingId, properties.podName(), properties.claimLockTtl()));
             if (sibling != null && sibling.isPresent()) {
+                if (deferIfPrerequisitePending(sibling.get())) {
+                    continue;
+                }
                 batch.add(sibling.get());
             }
         }
@@ -208,6 +215,51 @@ public class RemoteActionProcessor {
             }
         }
         return true;
+    }
+
+    /**
+     * Delete/ban must not run while the reply that references the same comment is still in flight.
+     * Returns true when this claim was deferred.
+     */
+    private boolean deferIfPrerequisitePending(SocialRemoteActionClaim claim) {
+        String waitKey = waitForKey(claim.payloadJson());
+        if (waitKey == null || waitKey.isBlank()) {
+            return false;
+        }
+        String state = lifecycleJdbc
+                .findLatest(waitKey)
+                .map(SocialRemoteActionLifecycleJdbc.ActionRef::state)
+                .orElse(null);
+        if (!mustWait(state)) {
+            return false;
+        }
+        transactionTemplate.executeWithoutResult(status -> lifecycleJdbc.deferWaiting(
+                claim.id(), claim.runAt(), Instant.now().plusSeconds(2)));
+        metrics.recordRemoteAction(claim.network(), claim.kind(), "waiting_prerequisite");
+        return true;
+    }
+
+    static boolean mustWait(String prerequisiteState) {
+        if (prerequisiteState == null) {
+            return true;
+        }
+        return switch (prerequisiteState) {
+            case "pending", "queued", "in_progress", "failed_retryable", "unknown_outcome" -> true;
+            default -> false;
+        };
+    }
+
+    private String waitForKey(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(payloadJson);
+            String key = node.path("waitForIdempotencyKey").asText(null);
+            return key == null || key.isBlank() ? null : key;
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private ModerationResult executeOne(

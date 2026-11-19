@@ -247,6 +247,20 @@ public class AntispamLogJdbc {
         return jdbc.execute((java.sql.Connection conn) -> conn.createArrayOf("text", arr));
     }
 
+    @Transactional(readOnly = true)
+    public List<AntispamLogRow> findByStates(List<String> states, int limit) {
+        if (states == null || states.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(",", states.stream().map(s -> "?").toList());
+        List<Object> args = new java.util.ArrayList<>(states);
+        args.add(limit);
+        return jdbc.query(
+                "SELECT * FROM antispam_log WHERE state IN (" + placeholders + ") ORDER BY created_at ASC LIMIT ?",
+                ROW_MAPPER,
+                args.toArray());
+    }
+
     private Array toUuidArray(List<UUID> values) {
         Object[] arr = values == null ? new UUID[0] : values.toArray();
         return jdbc.execute((java.sql.Connection conn) -> conn.createArrayOf("uuid", arr));

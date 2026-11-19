@@ -124,6 +124,20 @@ class LoopGuardAndGraphTest {
     }
 
     @Test
+    void l4SameTextDifferentMediaIsExactNotAMiss() {
+        UUID target = UUID.randomUUID();
+        String stored = ContentFingerprint.fingerprint("same text", List.of("media-a"));
+        String incoming = ContentFingerprint.fingerprint("same text", List.of("media-b"));
+        assertThat(stored).isNotEqualTo(incoming);
+        assertThat(ContentFingerprint.simKey(stored)).isEqualTo(ContentFingerprint.simKey(incoming));
+        when(registry.listRecentFingerprints(eq(target), any(Instant.class), eq(200)))
+                .thenReturn(List.of(stored));
+        var d = guard.checkTargetDedup(target, incoming, 0L);
+        assertThat(d.block()).isTrue();
+        assertThat(d.reason()).isEqualTo("exact_fingerprint");
+    }
+
+    @Test
     void l7MaxBotIdentity() {
         var d = guard.checkBotIdentity("max", "bot-1", "bot-1");
         assertThat(d.block()).isTrue();

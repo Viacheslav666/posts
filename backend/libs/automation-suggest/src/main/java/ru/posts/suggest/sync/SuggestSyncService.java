@@ -98,7 +98,15 @@ public class SuggestSyncService {
             return new SuggestSyncResult(0, 0, 0, "missing_token");
         }
 
-        List<SuggestWallPost> suggests = vkClient.getSuggests(channel.getExternalId(), token, count);
+        List<SuggestWallPost> suggests = new java.util.ArrayList<>();
+        int pageSize = Math.max(1, Math.min(count, 100));
+        for (int offset = 0; offset < 1000; offset += pageSize) {
+            List<SuggestWallPost> page = vkClient.getSuggests(channel.getExternalId(), token, pageSize, offset);
+            suggests.addAll(page);
+            if (page.size() < pageSize) {
+                break;
+            }
+        }
         Set<String> remoteIds = new HashSet<>();
         int imported = 0;
         for (SuggestWallPost post : suggests) {
@@ -130,11 +138,12 @@ public class SuggestSyncService {
             if (remoteIds.contains(item.getVkPostId())) {
                 continue;
             }
-            SuggestWallPost byId = null;
+            SuggestWallPost byId;
             try {
                 byId = vkClient.getById(channel.getExternalId(), item.getVkPostId(), token);
             } catch (RuntimeException ex) {
-                log.debug("wall.getById failed for {}: {}", item.getVkPostId(), ex.getMessage());
+                log.warn("wall.getById failed for {}, leaving item unchanged: {}", item.getVkPostId(), ex.getMessage());
+                continue;
             }
             if (byId != null && isPublishedOnWall(byId)) {
                 item.setStatus("published");
@@ -143,7 +152,7 @@ public class SuggestSyncService {
                 itemRepository.save(item);
                 metrics.recordStatus("published");
                 published++;
-            } else {
+            } else if (byId == null) {
                 item.setStatus("removed_externally");
                 item.setUpdatedAt(now);
                 itemRepository.save(item);

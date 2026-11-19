@@ -1,5 +1,6 @@
 plugins {
     id("posts.java-conventions")
+    id("posts.integration-test")
     id("io.spring.dependency-management")
 }
 
@@ -27,6 +28,15 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(project(":libs:test-support"))
+
+    "integrationTestImplementation"("org.springframework.boot:spring-boot-starter-test")
+    "integrationTestImplementation"(libs.spring.boot.testcontainers)
+    "integrationTestImplementation"(platform(libs.testcontainers.bom))
+    "integrationTestImplementation"(libs.testcontainers.junit)
+    "integrationTestImplementation"(libs.testcontainers.postgresql)
+    "integrationTestImplementation"(libs.flyway.core)
+    "integrationTestImplementation"(libs.flyway.database.postgresql)
+    "integrationTestRuntimeOnly"(libs.postgresql)
 }
 
 tasks.named<Test>("test") {

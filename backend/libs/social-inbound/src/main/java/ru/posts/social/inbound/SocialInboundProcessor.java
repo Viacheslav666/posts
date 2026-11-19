@@ -158,8 +158,8 @@ public class SocialInboundProcessor {
     }
 
     private void accept(SocialInboundEvent event) {
-        Optional<UUID> inserted = eventStore.insertIfNew(event);
-        if (inserted.isEmpty()) {
+        Optional<InboundEventStore.DispatchClaim> claim = eventStore.claimForDispatch(event);
+        if (claim.isEmpty()) {
             metrics.recordDuplicate(event.network());
             metrics.recordResult(event.network(), event.kind().name(), "duplicate");
             log.debug(
@@ -170,7 +170,7 @@ public class SocialInboundProcessor {
             return;
         }
         dispatcher.dispatch(event);
-        eventStore.markProcessed(inserted.get(), event.receivedAt());
+        eventStore.markProcessed(claim.get().id(), claim.get().receivedAt());
     }
 
     private List<String> consumersFor(UUID channelId) {

@@ -41,10 +41,15 @@ public class SuggestVkClient {
     }
 
     public List<SuggestWallPost> getSuggests(String ownerId, String accessToken, int count) {
+        return getSuggests(ownerId, accessToken, count, 0);
+    }
+
+    public List<SuggestWallPost> getSuggests(String ownerId, String accessToken, int count, int offset) {
         MultiValueMap<String, String> form = baseForm(accessToken);
         form.add("owner_id", ownerId);
         form.add("filter", "suggests");
         form.add("count", String.valueOf(Math.max(1, Math.min(count, 100))));
+        form.add("offset", String.valueOf(Math.max(0, offset)));
         JsonNode body = call("wall.get", form);
         return parseItems(body.path("response").path("items"));
     }
