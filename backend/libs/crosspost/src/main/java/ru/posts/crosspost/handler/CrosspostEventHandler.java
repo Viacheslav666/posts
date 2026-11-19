@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
@@ -30,7 +31,6 @@ import ru.posts.social.inbound.HandlerResult;
 import ru.posts.social.inbound.SocialEventHandler;
 import ru.posts.social.inbound.SocialEventKind;
 import ru.posts.social.inbound.SocialInboundEvent;
-import org.springframework.context.annotation.Profile;
 
 /**
  * Inbound {@code POST_NEW} consumer for crosspost. Enqueues deferred items (L2 +15s); heavy work runs
@@ -87,7 +87,9 @@ public class CrosspostEventHandler implements SocialEventHandler {
     @Transactional
     public HandlerResult handle(SocialInboundEvent event, HandlerContext ctx) {
         // TG groups: only posts from the group itself (sender_chat.id == chat.id → author.community)
-        if ("tg".equalsIgnoreCase(event.network()) && event.author() != null && !event.author().community()) {
+        if ("tg".equalsIgnoreCase(event.network())
+                && event.author() != null
+                && !event.author().community()) {
             // channel_post authors are typically channel (=community); plain group user posts skipped
             String chatType = extractChatType(event);
             if ("group".equals(chatType) || "supergroup".equals(chatType)) {
@@ -115,8 +117,7 @@ public class CrosspostEventHandler implements SocialEventHandler {
             }
         }
 
-        List<CrosspostRuleEntity> rules =
-                ruleRepository.findBySourceChannelIdAndStatus(event.channelId(), "active");
+        List<CrosspostRuleEntity> rules = ruleRepository.findBySourceChannelIdAndStatus(event.channelId(), "active");
         if (rules.isEmpty()) {
             return HandlerResult.CONTINUE;
         }
@@ -128,7 +129,9 @@ public class CrosspostEventHandler implements SocialEventHandler {
         long simhash = SimHasher.fingerprint(candidate.text());
 
         for (CrosspostRuleEntity rule : rules) {
-            if (itemRepository.findByRuleIdAndSourceRemoteId(rule.getId(), remoteId).isPresent()) {
+            if (itemRepository
+                    .findByRuleIdAndSourceRemoteId(rule.getId(), remoteId)
+                    .isPresent()) {
                 continue; // idempotent
             }
             CrosspostItemEntity item = new CrosspostItemEntity();
@@ -148,7 +151,11 @@ public class CrosspostEventHandler implements SocialEventHandler {
             payload.put("candidate", candidateFlags(candidate));
             payload.put("hop", 0);
             payload.put("dedupKey", event.dedupKey());
-            payload.put("receivedAt", event.receivedAt() == null ? Instant.now().toString() : event.receivedAt().toString());
+            payload.put(
+                    "receivedAt",
+                    event.receivedAt() == null
+                            ? Instant.now().toString()
+                            : event.receivedAt().toString());
             item.setPayload(payload);
             item.setCreatedAt(Instant.now());
             item.setUpdatedAt(Instant.now());

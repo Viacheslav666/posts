@@ -18,8 +18,7 @@ public interface CrosspostService {
 
     CrosspostDtos.Rule getRule(UUID userId, UUID ruleId);
 
-    CrosspostDtos.Rule patchRule(
-            UUID userId, UUID ruleId, CrosspostDtos.RulePatch request, ClientRequestContext ctx);
+    CrosspostDtos.Rule patchRule(UUID userId, UUID ruleId, CrosspostDtos.RulePatch request, ClientRequestContext ctx);
 
     CrosspostDtos.Rule activate(UUID userId, UUID ruleId, ClientRequestContext ctx);
 

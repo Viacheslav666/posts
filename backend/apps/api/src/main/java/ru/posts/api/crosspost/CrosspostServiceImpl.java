@@ -14,10 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.admin.FeatureFlagResolver;
+import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.channel.PlanLimitService;
 import ru.posts.api.error.ApiException;
 import ru.posts.api.error.ProblemCodes;
-import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.web.dto.crosspost.CrosspostDtos;
 import ru.posts.api.workspace.WorkspaceAccessService;
 import ru.posts.api.workspace.WorkspaceMembership;
@@ -132,8 +132,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     @Transactional(readOnly = true)
     public CrosspostDtos.Rule getRule(UUID userId, UUID ruleId) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
         access.requireVisibleProject(membership, rule.getProjectId());
         return toDto(rule, true);
     }
@@ -142,8 +141,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     public CrosspostDtos.Rule patchRule(
             UUID userId, UUID ruleId, CrosspostDtos.RulePatch request, ClientRequestContext ctx) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
         access.requireVisibleProject(membership, rule.getProjectId());
         if (request.version() == null || request.version() != rule.getVersion()) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.OPTIMISTIC_LOCK_CONFLICT, "Rule version mismatch");
@@ -166,8 +164,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     @Override
     public CrosspostDtos.Rule activate(UUID userId, UUID ruleId, ClientRequestContext ctx) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
         access.requireVisibleProject(membership, rule.getProjectId());
         requireFeature(rule.getWorkspaceId());
         activateInternal(rule);
@@ -177,8 +174,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     @Override
     public CrosspostDtos.Rule pause(UUID userId, UUID ruleId, ClientRequestContext ctx) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
         access.requireVisibleProject(membership, rule.getProjectId());
         rule.setStatus("paused");
         rule.setUpdatedAt(Instant.now());
@@ -190,8 +186,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     @Transactional(readOnly = true)
     public CrosspostDtos.PreviewResponse preview(UUID userId, UUID ruleId, CrosspostDtos.PreviewRequest request) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
         access.requireVisibleProject(membership, rule.getProjectId());
         CrosspostCandidate candidate = previewCandidate(rule, request);
         List<String> filterReasons = CrosspostFilterEngine.evaluate(candidate, rule.getConfig());
@@ -210,11 +205,7 @@ public class CrosspostServiceImpl implements CrosspostService {
         for (CrosspostPostFactory.TargetPublish tp : result.targets()) {
             ChannelEntity ch = channels.get(tp.targetChannelId());
             out.add(new CrosspostDtos.PreviewTarget(
-                    tp.targetChannelId(),
-                    ch == null ? null : ch.getNetwork(),
-                    tp.status(),
-                    tp.reason(),
-                    tp.preview()));
+                    tp.targetChannelId(), ch == null ? null : ch.getNetwork(), tp.status(), tp.reason(), tp.preview()));
         }
         return new CrosspostDtos.PreviewResponse(filterReasons, out);
     }
@@ -223,8 +214,7 @@ public class CrosspostServiceImpl implements CrosspostService {
     @Transactional(readOnly = true)
     public CrosspostDtos.ItemPage listItems(UUID userId, UUID ruleId, String status, String cursor, int limit) {
         CrosspostRuleEntity rule = requireRule(ruleId);
-        WorkspaceMembership membership =
-                access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
+        WorkspaceMembership membership = access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
         access.requireVisibleProject(membership, rule.getProjectId());
         int pageSize = Math.min(Math.max(limit, 1), 100);
         List<CrosspostItemEntity> rows;
@@ -276,7 +266,8 @@ public class CrosspostServiceImpl implements CrosspostService {
     private void activateInternal(CrosspostRuleEntity rule) {
         List<CrosspostRuleTargetEntity> targets = targetRepository.findByRuleIdOrderByCreatedAtAsc(rule.getId());
         if (targets.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "At least one target required");
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "At least one target required");
         }
         ChannelEntity source = requireChannel(rule.getWorkspaceId(), rule.getSourceChannelId());
         subscriptionService.ensure(source.getId(), "crosspost", eventTypesFor(source.getNetwork()));
@@ -312,9 +303,8 @@ public class CrosspostServiceImpl implements CrosspostService {
     private List<CrosspostDtos.Warning> graphWarnings(CrosspostRuleEntity rule) {
         List<RuleGraphValidator.Edge> edges = new ArrayList<>();
         // include all active/paused rules in workspace for cycle detection
-        List<CrosspostRuleEntity> all =
-                ruleRepository.findByWorkspaceIdAndProjectIdOrderByCreatedAtDesc(
-                        rule.getWorkspaceId(), rule.getProjectId());
+        List<CrosspostRuleEntity> all = ruleRepository.findByWorkspaceIdAndProjectIdOrderByCreatedAtDesc(
+                rule.getWorkspaceId(), rule.getProjectId());
         for (CrosspostRuleEntity r : all) {
             if ("draft".equals(r.getStatus())) {
                 continue;
@@ -336,15 +326,15 @@ public class CrosspostServiceImpl implements CrosspostService {
         List<CrosspostRuleTargetEntity> targets = targetRepository.findByRuleIdOrderByCreatedAtAsc(rule.getId());
         List<CrosspostDtos.Target> targetDtos = new ArrayList<>();
         for (CrosspostRuleTargetEntity t : targets) {
-            ChannelEntity ch = channelRepository.findByIdAndDeletedAtIsNull(t.getTargetChannelId()).orElse(null);
+            ChannelEntity ch = channelRepository
+                    .findByIdAndDeletedAtIsNull(t.getTargetChannelId())
+                    .orElse(null);
             targetDtos.add(new CrosspostDtos.Target(
-                    t.getId(),
-                    t.getTargetChannelId(),
-                    ch == null ? null : ch.getNetwork(),
-                    t.getOptions()));
+                    t.getId(), t.getTargetChannelId(), ch == null ? null : ch.getNetwork(), t.getOptions()));
         }
-        ChannelEntity source =
-                channelRepository.findByIdAndDeletedAtIsNull(rule.getSourceChannelId()).orElse(null);
+        ChannelEntity source = channelRepository
+                .findByIdAndDeletedAtIsNull(rule.getSourceChannelId())
+                .orElse(null);
         List<CrosspostDtos.Warning> warnings = withWarnings ? graphWarnings(rule) : List.of();
         return new CrosspostDtos.Rule(
                 rule.getId(),
@@ -389,20 +379,28 @@ public class CrosspostServiceImpl implements CrosspostService {
         if (request.candidate() != null && request.candidate().get("text") != null) {
             text = request.candidate().get("text").toString();
         }
-        ChannelEntity source =
-                channelRepository.findByIdAndDeletedAtIsNull(rule.getSourceChannelId()).orElse(null);
+        ChannelEntity source = channelRepository
+                .findByIdAndDeletedAtIsNull(rule.getSourceChannelId())
+                .orElse(null);
         return CrosspostCandidate.builder()
                 .network(source == null ? "vk" : source.getNetwork())
                 .remoteId(remoteId)
                 .text(text)
                 .attachments(List.of())
-                .markedAsAds(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("markedAsAds")))
-                .hasErid(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("hasErid")))
-                .isRepost(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("isRepost")))
-                .hasImage(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("hasImage")))
-                .hasVideo(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("hasVideo")))
-                .hasPoll(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("hasPoll")))
-                .hasGeo(request.candidate() != null && Boolean.TRUE.equals(request.candidate().get("hasGeo")))
+                .markedAsAds(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("markedAsAds")))
+                .hasErid(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("hasErid")))
+                .isRepost(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("isRepost")))
+                .hasImage(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("hasImage")))
+                .hasVideo(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("hasVideo")))
+                .hasPoll(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("hasPoll")))
+                .hasGeo(request.candidate() != null
+                        && Boolean.TRUE.equals(request.candidate().get("hasGeo")))
                 .build();
     }
 

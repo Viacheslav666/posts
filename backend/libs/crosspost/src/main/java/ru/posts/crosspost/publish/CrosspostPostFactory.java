@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
@@ -27,7 +28,6 @@ import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
 import ru.posts.persistence.repository.PublicationRepository;
-import org.springframework.context.annotation.Profile;
 
 /**
  * Creates posts/variants/publications for crosspost items through the BE-10 pipeline. Idempotency
@@ -58,7 +58,8 @@ public class CrosspostPostFactory {
         this.outboxRepository = outboxRepository;
     }
 
-    public static String idempotencyKey(UUID ruleId, UUID sourceChannelId, String sourceRemoteId, UUID targetChannelId) {
+    public static String idempotencyKey(
+            UUID ruleId, UUID sourceChannelId, String sourceRemoteId, UUID targetChannelId) {
         return "xp:" + ruleId + ":" + sourceChannelId + ":" + sourceRemoteId + ":" + targetChannelId;
     }
 
@@ -113,7 +114,9 @@ public class CrosspostPostFactory {
                         null,
                         decision.status(),
                         decision.reason(),
-                        Map.of("layer", decision.layer() == null ? "" : decision.layer().name())));
+                        Map.of(
+                                "layer",
+                                decision.layer() == null ? "" : decision.layer().name())));
                 continue;
             }
             CrosspostTransformer.TransformResult transformed = CrosspostTransformer.transform(
@@ -168,7 +171,8 @@ public class CrosspostPostFactory {
             Map<String, Object> content = new LinkedHashMap<>();
             content.put("text", transformed.text());
             content.put("mediaIds", List.of());
-            if (transformed.overflowText() != null && !transformed.overflowText().isBlank()) {
+            if (transformed.overflowText() != null
+                    && !transformed.overflowText().isBlank()) {
                 content.put("followUpText", transformed.overflowText());
             }
 
@@ -183,8 +187,8 @@ public class CrosspostPostFactory {
             variant.setUpdatedAt(now);
             postVariantRepository.save(variant);
 
-            String key = idempotencyKey(
-                    rule.getId(), item.getSourceChannelId(), item.getSourceRemoteId(), channel.getId());
+            String key =
+                    idempotencyKey(rule.getId(), item.getSourceChannelId(), item.getSourceRemoteId(), channel.getId());
             PublicationEntity pub = new PublicationEntity();
             pub.setId(UuidV7.generate());
             pub.setWorkspaceId(rule.getWorkspaceId());

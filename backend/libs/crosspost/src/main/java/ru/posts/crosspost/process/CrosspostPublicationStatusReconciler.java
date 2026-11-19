@@ -2,6 +2,7 @@ package ru.posts.crosspost.process;
 
 import java.time.Instant;
 import java.util.List;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -11,7 +12,6 @@ import ru.posts.persistence.entity.CrosspostItemEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.repository.CrosspostItemRepository;
 import ru.posts.persistence.repository.PublicationRepository;
-import org.springframework.context.annotation.Profile;
 
 /** Polls queued crosspost items and mirrors publication terminal states. */
 @Profile("!openapi")
@@ -52,7 +52,8 @@ public class CrosspostPublicationStatusReconciler {
         int fail = 0;
         int pending = 0;
         for (java.util.UUID id : ids) {
-            PublicationEntity p = publicationRepository.findFirstByPublicationId(id).orElse(null);
+            PublicationEntity p =
+                    publicationRepository.findFirstByPublicationId(id).orElse(null);
             if (p == null) {
                 pending++;
                 continue;
@@ -85,5 +86,4 @@ public class CrosspostPublicationStatusReconciler {
             metrics.itemStatus(status, "reconcile");
         }
     }
-
 }

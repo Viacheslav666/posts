@@ -417,7 +417,9 @@ public class PublicationProcessor {
                 String origin = "crosspost".equals(claim.source()) ? "crosspost" : "publication";
                 short hop = 0;
                 String rootOriginJson = null;
-                if ("crosspost".equals(origin) && claim.sourceRefJson() != null && !claim.sourceRefJson().isBlank()) {
+                if ("crosspost".equals(origin)
+                        && claim.sourceRefJson() != null
+                        && !claim.sourceRefJson().isBlank()) {
                     hop = 1;
                     rootOriginJson = extractRootOriginJson(claim.sourceRefJson());
                     hop = extractHop(claim.sourceRefJson(), hop);

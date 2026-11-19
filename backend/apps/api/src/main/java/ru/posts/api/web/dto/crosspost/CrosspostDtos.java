@@ -34,8 +34,7 @@ public final class CrosspostDtos {
     }
 
     @Schema(name = "CrosspostTargetRequest")
-    public record TargetRequest(
-            @NotNull UUID targetChannelId, Map<String, Object> options) {}
+    public record TargetRequest(@NotNull UUID targetChannelId, Map<String, Object> options) {}
 
     @Schema(name = "CrosspostRuleCreate")
     public record RuleCreate(
@@ -46,18 +45,13 @@ public final class CrosspostDtos {
             Boolean activate) {}
 
     @Schema(name = "CrosspostRulePatch")
-    public record RulePatch(
-            Integer version,
-            String name,
-            Map<String, Object> config,
-            List<TargetRequest> targets) {}
+    public record RulePatch(Integer version, String name, Map<String, Object> config, List<TargetRequest> targets) {}
 
     @Schema(name = "CrosspostWarning")
     public record Warning(String code, String message, List<UUID> channelPath) {}
 
     @Schema(name = "CrosspostTarget")
-    public record Target(
-            UUID id, UUID targetChannelId, String network, Map<String, Object> options) {}
+    public record Target(UUID id, UUID targetChannelId, String network, Map<String, Object> options) {}
 
     @Schema(name = "CrosspostRule")
     public record Rule(
@@ -84,11 +78,7 @@ public final class CrosspostDtos {
 
     @Schema(name = "CrosspostPreviewTarget")
     public record PreviewTarget(
-            UUID targetChannelId,
-            String network,
-            String status,
-            String reason,
-            Map<String, Object> variant) {}
+            UUID targetChannelId, String network, String status, String reason, Map<String, Object> variant) {}
 
     @Schema(name = "CrosspostPreviewResponse")
     public record PreviewResponse(List<String> filterReasons, List<PreviewTarget> targets) {}

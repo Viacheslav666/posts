@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import ru.posts.api.crosspost.CrosspostService;
 import ru.posts.api.auth.ClientRequestContexts;
+import ru.posts.api.crosspost.CrosspostService;
 import ru.posts.api.web.dto.crosspost.CrosspostDtos;
 import ru.posts.security.auth.SecurityAuthSupport;
 
@@ -39,8 +39,7 @@ public class CrosspostController {
 
     @GetMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/crosspost/rules")
     @Operation(operationId = "crosspostRulesList", summary = "List crosspost rules")
-    public CrosspostDtos.RuleList list(
-            @PathVariable UUID workspaceId, @PathVariable UUID projectId) {
+    public CrosspostDtos.RuleList list(@PathVariable UUID workspaceId, @PathVariable UUID projectId) {
         UUID userId = SecurityAuthSupport.requirePrincipal().userId();
         return crosspostService.listRules(userId, workspaceId, projectId);
     }

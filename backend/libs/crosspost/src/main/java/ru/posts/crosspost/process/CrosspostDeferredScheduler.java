@@ -4,12 +4,12 @@ import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ru.posts.persistence.entity.CrosspostItemEntity;
 import ru.posts.persistence.repository.CrosspostItemRepository;
-import org.springframework.context.annotation.Profile;
 
 /** Drains deferred crosspost_items after the L2 15s race window. */
 @Profile("!openapi")

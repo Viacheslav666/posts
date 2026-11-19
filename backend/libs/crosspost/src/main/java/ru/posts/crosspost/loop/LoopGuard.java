@@ -102,11 +102,7 @@ public final class LoopGuard {
      * L3: refuse publishing into visited channels or root origin channel; hop≥1 never becomes a
      * source (caller skips processing copies).
      */
-    public Decision checkLineage(
-            UUID targetChannelId,
-            UUID sourceChannelId,
-            Map<String, Object> sourceRef,
-            short hop) {
+    public Decision checkLineage(UUID targetChannelId, UUID sourceChannelId, Map<String, Object> sourceRef, short hop) {
         if (hop >= 1) {
             return Decision.block("skipped_loop", "hop_copy_not_source", Layer.L3_LINEAGE);
         }

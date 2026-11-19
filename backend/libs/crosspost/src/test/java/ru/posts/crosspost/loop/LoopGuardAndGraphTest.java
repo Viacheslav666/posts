@@ -39,7 +39,8 @@ class LoopGuardAndGraphTest {
     void l1SkipsOwnPublication() {
         UUID channel = UUID.randomUUID();
         when(registry.findOwn(channel, "10"))
-                .thenReturn(Optional.of(new RemotePostRegistryJdbc.RegistryEntry("publication", (short) 0, "fp", "{}")));
+                .thenReturn(
+                        Optional.of(new RemotePostRegistryJdbc.RegistryEntry("publication", (short) 0, "fp", "{}")));
         var d = guard.checkOwnRegistry(channel, "10", Map.of());
         assertThat(d.block()).isTrue();
         assertThat(d.status()).isEqualTo("skipped_own");
@@ -69,7 +70,8 @@ class LoopGuardAndGraphTest {
     void l1AllowsPublicationWhenIncludePostsViaPosts() {
         UUID channel = UUID.randomUUID();
         when(registry.findOwn(channel, "10"))
-                .thenReturn(Optional.of(new RemotePostRegistryJdbc.RegistryEntry("publication", (short) 0, "fp", "{}")));
+                .thenReturn(
+                        Optional.of(new RemotePostRegistryJdbc.RegistryEntry("publication", (short) 0, "fp", "{}")));
         var d = guard.checkOwnRegistry(channel, "10", Map.of("include_posts_published_via_posts", true));
         assertThat(d.block()).isFalse();
     }
@@ -77,7 +79,8 @@ class LoopGuardAndGraphTest {
     @Test
     void l2BlocksIntentFingerprint() {
         UUID channel = UUID.randomUUID();
-        when(registry.isOwnByFingerprint(eq(channel), eq("fp"), any(Instant.class))).thenReturn(false);
+        when(registry.isOwnByFingerprint(eq(channel), eq("fp"), any(Instant.class)))
+                .thenReturn(false);
         when(registry.isIntentOwn(channel, "fp")).thenReturn(true);
         var d = guard.checkIntentRace(channel, "fp");
         assertThat(d.block()).isTrue();
@@ -89,8 +92,10 @@ class LoopGuardAndGraphTest {
         UUID source = UUID.randomUUID();
         UUID target = UUID.randomUUID();
         Map<String, Object> ref = Map.of(
-                "root_origin", Map.of("channel_id", source.toString()),
-                "visited_channel_ids", List.of(source.toString(), target.toString()),
+                "root_origin",
+                Map.of("channel_id", source.toString()),
+                "visited_channel_ids",
+                List.of(source.toString(), target.toString()),
                 "hop",
                 0);
         var d = guard.checkLineage(target, source, ref, (short) 0);
@@ -111,7 +116,8 @@ class LoopGuardAndGraphTest {
     void l4ExactFingerprintDuplicate() {
         UUID target = UUID.randomUUID();
         String fp = ContentFingerprint.fingerprint("same text", List.of());
-        when(registry.listRecentFingerprints(eq(target), any(Instant.class), eq(200))).thenReturn(List.of(fp));
+        when(registry.listRecentFingerprints(eq(target), any(Instant.class), eq(200)))
+                .thenReturn(List.of(fp));
         var d = guard.checkTargetDedup(target, fp, SimHasher.fingerprint("same text"));
         assertThat(d.block()).isTrue();
         assertThat(d.status()).isEqualTo("skipped_duplicate");
@@ -131,8 +137,8 @@ class LoopGuardAndGraphTest {
         UUID b = UUID.randomUUID();
         UUID rule1 = UUID.randomUUID();
         UUID rule2 = UUID.randomUUID();
-        var warnings = RuleGraphValidator.validate(List.of(
-                new RuleGraphValidator.Edge(rule1, a, b), new RuleGraphValidator.Edge(rule2, b, a)));
+        var warnings = RuleGraphValidator.validate(
+                List.of(new RuleGraphValidator.Edge(rule1, a, b), new RuleGraphValidator.Edge(rule2, b, a)));
         assertThat(warnings).isNotEmpty();
         assertThat(warnings.getFirst().code()).isEqualTo("cycle_detected");
     }

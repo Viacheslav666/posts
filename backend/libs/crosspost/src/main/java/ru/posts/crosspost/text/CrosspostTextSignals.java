@@ -6,11 +6,12 @@ import java.util.regex.Pattern;
 /** Pure text helpers for crosspost filters/transforms. */
 public final class CrosspostTextSignals {
 
-    private static final Pattern URL = Pattern.compile(
-            "(?i)\\b((?:https?://|www\\.)[^\\s<>\\[\\]()\"']+|vk\\.cc/\\S+|t\\.me/\\S+|max\\.ru/\\S+)");
+    private static final Pattern URL =
+            Pattern.compile("(?i)\\b((?:https?://|www\\.)[^\\s<>\\[\\]()\"']+|vk\\.cc/\\S+|t\\.me/\\S+|max\\.ru/\\S+)");
     private static final Pattern HASHTAG = Pattern.compile("(?u)#[\\p{L}\\p{N}_]+");
     private static final Pattern ERID = Pattern.compile("(?i)(?:^|[^a-z0-9_])erid(?:[=:\\s]+[a-z0-9_-]+|\\b)");
-    private static final Pattern AD_MARK = Pattern.compile("(?iu)(?:^|[^\\p{L}\\p{N}_])(?:реклама|reklama)(?:$|[^\\p{L}\\p{N}_])");
+    private static final Pattern AD_MARK =
+            Pattern.compile("(?iu)(?:^|[^\\p{L}\\p{N}_])(?:реклама|reklama)(?:$|[^\\p{L}\\p{N}_])");
 
     private CrosspostTextSignals() {}
 

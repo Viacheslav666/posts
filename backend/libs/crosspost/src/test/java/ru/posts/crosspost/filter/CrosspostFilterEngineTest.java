@@ -30,9 +30,11 @@ class CrosspostFilterEngineTest {
                 .isEqualTo("ad_post_excluded");
         assertThat(CrosspostFilterEngine.firstReason(base().markedAsAds(true).build(), config))
                 .isEqualTo("ad_post_excluded");
-        assertThat(CrosspostFilterEngine.firstReason(base().text("Текст erid=AbC123").build(), config))
+        assertThat(CrosspostFilterEngine.firstReason(
+                        base().text("Текст erid=AbC123").build(), config))
                 .isEqualTo("ad_post_excluded");
-        assertThat(CrosspostFilterEngine.firstReason(base().text("Это Реклама продукта").build(), config))
+        assertThat(CrosspostFilterEngine.firstReason(
+                        base().text("Это Реклама продукта").build(), config))
                 .isEqualTo("ad_post_excluded");
         assertThat(CrosspostFilterEngine.firstReason(base().text("обычный пост").build(), config))
                 .isNull();
@@ -50,16 +52,19 @@ class CrosspostFilterEngineTest {
         @Test
         void excludeLinksInText() {
             Map<String, Object> config = filters(Map.of("exclude_links", true, "exclude_ads", false));
-            assertThat(CrosspostFilterEngine.firstReason(base().text("см https://example.com").build(), config))
+            assertThat(CrosspostFilterEngine.firstReason(
+                            base().text("см https://example.com").build(), config))
                     .isEqualTo("exclude_links");
-            assertThat(CrosspostFilterEngine.firstReason(base().text("без ссылок").build(), config))
+            assertThat(CrosspostFilterEngine.firstReason(
+                            base().text("без ссылок").build(), config))
                     .isNull();
         }
 
         @Test
         void excludeLinkAttachment() {
             Map<String, Object> config = filters(Map.of("exclude_links", true, "exclude_ads", false));
-            assertThat(CrosspostFilterEngine.firstReason(base().hasLinkAttachment(true).build(), config))
+            assertThat(CrosspostFilterEngine.firstReason(
+                            base().hasLinkAttachment(true).build(), config))
                     .isEqualTo("exclude_links");
         }
 
@@ -166,20 +171,19 @@ class CrosspostFilterEngineTest {
     class Keywords {
         @Test
         void keywordInclude() {
-            Map<String, Object> config = filters(Map.of(
-                    "exclude_ads", false,
-                    "keyword_include", List.of("новость", "апдейт")));
-            assertThat(CrosspostFilterEngine.firstReason(base().text("важная Новость дня").build(), config))
+            Map<String, Object> config =
+                    filters(Map.of("exclude_ads", false, "keyword_include", List.of("новость", "апдейт")));
+            assertThat(CrosspostFilterEngine.firstReason(
+                            base().text("важная Новость дня").build(), config))
                     .isNull();
-            assertThat(CrosspostFilterEngine.firstReason(base().text("просто текст").build(), config))
+            assertThat(CrosspostFilterEngine.firstReason(
+                            base().text("просто текст").build(), config))
                     .isEqualTo("keyword_include");
         }
 
         @Test
         void keywordExclude() {
-            Map<String, Object> config = filters(Map.of(
-                    "exclude_ads", false,
-                    "keyword_exclude", List.of("спам")));
+            Map<String, Object> config = filters(Map.of("exclude_ads", false, "keyword_exclude", List.of("спам")));
             assertThat(CrosspostFilterEngine.firstReason(base().text("это СПАМ").build(), config))
                     .isEqualTo("keyword_exclude");
             assertThat(CrosspostFilterEngine.firstReason(base().text("ок").build(), config))
@@ -212,7 +216,8 @@ class CrosspostFilterEngineTest {
         @Test
         void insideWorkingWindow() {
             Map<String, Object> config = CrosspostConfigSupport.withDefaults(Map.of(
-                    "filters", Map.of("exclude_ads", false),
+                    "filters",
+                    Map.of("exclude_ads", false),
                     "schedule",
                     Map.of(
                             "enabled",
@@ -247,7 +252,8 @@ class CrosspostFilterEngineTest {
     })
     void mediaMatrix(boolean video, boolean clip, boolean poll, boolean geo, String expected) {
         Map<String, Object> config = filters(Map.of("exclude_ads", false, "exclude_video", true));
-        CrosspostCandidate c = base().hasVideo(video).hasClip(clip).hasPoll(poll).hasGeo(geo).build();
+        CrosspostCandidate c =
+                base().hasVideo(video).hasClip(clip).hasPoll(poll).hasGeo(geo).build();
         assertThat(CrosspostFilterEngine.firstReason(c, config)).isEqualTo(expected);
     }
 

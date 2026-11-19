@@ -88,7 +88,8 @@ class CrosspostServiceIdorTest {
     @Test
     void createRejectsForeignChannelAs404() {
         WorkspaceMembership membership = new WorkspaceMembership(workspaceId, userId, RbacRole.owner, Set.of());
-        when(access.requirePermission(workspaceId, userId, "automations.manage")).thenReturn(membership);
+        when(access.requirePermission(workspaceId, userId, "automations.manage"))
+                .thenReturn(membership);
         when(featureFlagResolver.resolveForWorkspace(workspaceId)).thenReturn(Map.of("automation.crosspost", true));
         ChannelEntity foreign = new ChannelEntity();
         foreign.setId(UuidV7.generate());
@@ -96,8 +97,7 @@ class CrosspostServiceIdorTest {
         foreign.setNetwork("vk");
         when(channelRepository.findByIdAndDeletedAtIsNull(foreign.getId())).thenReturn(Optional.of(foreign));
 
-        CrosspostDtos.RuleCreate req =
-                new CrosspostDtos.RuleCreate("r", foreign.getId(), Map.of(), List.of(), false);
+        CrosspostDtos.RuleCreate req = new CrosspostDtos.RuleCreate("r", foreign.getId(), Map.of(), List.of(), false);
 
         assertThatThrownBy(() -> service.createRule(userId, workspaceId, projectId, req, null, null))
                 .isInstanceOf(ApiException.class)

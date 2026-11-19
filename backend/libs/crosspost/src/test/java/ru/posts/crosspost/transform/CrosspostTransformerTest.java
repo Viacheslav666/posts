@@ -12,8 +12,8 @@ class CrosspostTransformerTest {
 
     @Test
     void removeLinksAndHashtags() {
-        Map<String, Object> config = CrosspostConfigSupport.withDefaults(Map.of(
-                "transform", Map.of("remove_links", true, "remove_hashtags", true)));
+        Map<String, Object> config = CrosspostConfigSupport.withDefaults(
+                Map.of("transform", Map.of("remove_links", true, "remove_hashtags", true)));
         var result = CrosspostTransformer.transform(
                 candidate("см https://example.com и #новость"), config, Map.of(), "vk", null);
         assertThat(result.text()).doesNotContain("https://").doesNotContain("#");
@@ -24,8 +24,8 @@ class CrosspostTransformerTest {
     void addSourceLink() {
         Map<String, Object> config =
                 CrosspostConfigSupport.withDefaults(Map.of("transform", Map.of("add_source_link", true)));
-        var result = CrosspostTransformer.transform(
-                candidate("текст"), config, Map.of(), "vk", "https://vk.com/wall-1_2");
+        var result =
+                CrosspostTransformer.transform(candidate("текст"), config, Map.of(), "vk", "https://vk.com/wall-1_2");
         assertThat(result.text()).contains("https://vk.com/wall-1_2");
     }
 
@@ -106,8 +106,8 @@ class CrosspostTransformerTest {
 
     @Test
     void publishAsVkRepostOption() {
-        Map<String, Object> config = CrosspostConfigSupport.withDefaults(
-                Map.of("transform", Map.of("publish_as_vk_repost", true)));
+        Map<String, Object> config =
+                CrosspostConfigSupport.withDefaults(Map.of("transform", Map.of("publish_as_vk_repost", true)));
         var result = CrosspostTransformer.transform(candidate("t"), config, Map.of(), "vk", null);
         assertThat(result.options()).containsEntry("publishAsRepost", true);
     }
@@ -115,12 +115,15 @@ class CrosspostTransformerTest {
     @Test
     void targetOptionsOverride() {
         Map<String, Object> config = CrosspostConfigSupport.withDefaults(Map.of());
-        var result = CrosspostTransformer.transform(
-                candidate("t"), config, Map.of("close_comments", true), "ok", null);
+        var result = CrosspostTransformer.transform(candidate("t"), config, Map.of("close_comments", true), "ok", null);
         assertThat(result.options()).containsEntry("closeComments", true);
     }
 
     private static CrosspostCandidate candidate(String text) {
-        return CrosspostCandidate.builder().network("vk").remoteId("1").text(text).build();
+        return CrosspostCandidate.builder()
+                .network("vk")
+                .remoteId("1")
+                .text(text)
+                .build();
     }
 }

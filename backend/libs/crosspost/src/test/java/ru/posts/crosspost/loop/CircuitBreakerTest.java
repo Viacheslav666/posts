@@ -40,7 +40,8 @@ class CircuitBreakerTest {
     @Test
     void tripsOnVolume() {
         CrosspostRuleEntity rule = rule();
-        when(itemRepository.countByRuleIdAndCreatedAtAfter(eq(rule.getId()), any(Instant.class))).thenReturn(100L);
+        when(itemRepository.countByRuleIdAndCreatedAtAfter(eq(rule.getId()), any(Instant.class)))
+                .thenReturn(100L);
         var trip = breaker.evaluateAndMaybePause(rule, null);
         assertThat(trip.tripped()).isTrue();
         ArgumentCaptor<CrosspostRuleEntity> cap = ArgumentCaptor.forClass(CrosspostRuleEntity.class);
@@ -51,7 +52,8 @@ class CircuitBreakerTest {
     @Test
     void tripsOnConsecutiveLoopSkips() {
         CrosspostRuleEntity rule = rule();
-        when(itemRepository.countByRuleIdAndCreatedAtAfter(eq(rule.getId()), any(Instant.class))).thenReturn(1L);
+        when(itemRepository.countByRuleIdAndCreatedAtAfter(eq(rule.getId()), any(Instant.class)))
+                .thenReturn(1L);
         CrosspostItemEntity latest = new CrosspostItemEntity();
         latest.setStatus("skipped_loop");
         latest.setConsecutiveLoopSkips(5);
@@ -62,10 +64,12 @@ class CircuitBreakerTest {
 
     @Test
     void consecutiveCounter() {
-        assertThat(CircuitBreaker.nextConsecutiveLoopSkips(null, "skipped_loop")).isEqualTo(1);
+        assertThat(CircuitBreaker.nextConsecutiveLoopSkips(null, "skipped_loop"))
+                .isEqualTo(1);
         CrosspostItemEntity prev = new CrosspostItemEntity();
         prev.setConsecutiveLoopSkips(2);
-        assertThat(CircuitBreaker.nextConsecutiveLoopSkips(prev, "skipped_loop")).isEqualTo(3);
+        assertThat(CircuitBreaker.nextConsecutiveLoopSkips(prev, "skipped_loop"))
+                .isEqualTo(3);
         assertThat(CircuitBreaker.nextConsecutiveLoopSkips(prev, "queued")).isEqualTo(0);
     }
 

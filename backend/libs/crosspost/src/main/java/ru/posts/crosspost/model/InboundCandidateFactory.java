@@ -78,14 +78,20 @@ public final class InboundCandidateFactory {
                 if ("link".equals(t)) {
                     hasLink = true;
                     if (att.path("link").path("button").isObject()
-                            || "article".equals(att.path("link").path("button").path("action").path("type").asText(""))) {
+                            || "article"
+                                    .equals(att.path("link")
+                                            .path("button")
+                                            .path("action")
+                                            .path("type")
+                                            .asText(""))) {
                         hasArticle = true;
                     }
                     if (att.path("link").has("photo") || att.path("link").has("product")) {
                         hasSnippet = true;
                     }
                 }
-                if ("video".equals(t) && "clip".equals(att.path("video").path("type").asText(""))) {
+                if ("video".equals(t)
+                        && "clip".equals(att.path("video").path("type").asText(""))) {
                     hasClip = true;
                 }
             }
@@ -114,7 +120,10 @@ public final class InboundCandidateFactory {
                 .publishedAt(event.occurredAt())
                 .rawMeta(Map.of(
                         "dedupKey", event.dedupKey() == null ? "" : event.dedupKey(),
-                        "authorId", event.author() == null ? "" : String.valueOf(event.author().id()),
+                        "authorId",
+                                event.author() == null
+                                        ? ""
+                                        : String.valueOf(event.author().id()),
                         "authorBot", event.author() != null && event.author().bot()))
                 .build();
     }

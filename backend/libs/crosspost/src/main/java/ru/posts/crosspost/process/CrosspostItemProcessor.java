@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.content.hash.ContentFingerprint;
@@ -19,7 +20,6 @@ import ru.posts.crosspost.loop.CircuitBreaker;
 import ru.posts.crosspost.loop.LoopGuard;
 import ru.posts.crosspost.metrics.CrosspostMetrics;
 import ru.posts.crosspost.model.CrosspostCandidate;
-import ru.posts.crosspost.model.InboundCandidateFactory;
 import ru.posts.crosspost.publish.CrosspostPostFactory;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.CrosspostItemEntity;
@@ -32,7 +32,6 @@ import ru.posts.persistence.repository.CrosspostItemRepository;
 import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.CrosspostRuleTargetRepository;
 import ru.posts.persistence.repository.OutboxRepository;
-import org.springframework.context.annotation.Profile;
 
 @Profile("!openapi")
 @Service
@@ -97,8 +96,8 @@ public class CrosspostItemProcessor {
         }
 
         // L1
-        LoopGuard.Decision own = loopGuard.checkOwnRegistry(
-                item.getSourceChannelId(), item.getSourceRemoteId(), rule.getConfig());
+        LoopGuard.Decision own =
+                loopGuard.checkOwnRegistry(item.getSourceChannelId(), item.getSourceRemoteId(), rule.getConfig());
         if (own.block()) {
             finishSkip(item, rule, own);
             return;
@@ -113,7 +112,8 @@ public class CrosspostItemProcessor {
         // Copies (hop≥1) never become sources — check payload hop
         Object hopObj = item.getPayload() == null ? null : item.getPayload().get("hop");
         if (hopObj instanceof Number n && n.intValue() >= 1) {
-            LoopGuard.Decision hop = LoopGuard.Decision.block("skipped_loop", "hop_copy_not_source", LoopGuard.Layer.L3_LINEAGE);
+            LoopGuard.Decision hop =
+                    LoopGuard.Decision.block("skipped_loop", "hop_copy_not_source", LoopGuard.Layer.L3_LINEAGE);
             finishSkip(item, rule, hop);
             return;
         }
@@ -165,16 +165,15 @@ public class CrosspostItemProcessor {
                 anyLoop = true;
                 continue;
             }
-            LoopGuard.Decision dedup =
-                    loopGuard.checkTargetDedup(t.getTargetChannelId(), fingerprint, sim);
+            LoopGuard.Decision dedup = loopGuard.checkTargetDedup(t.getTargetChannelId(), fingerprint, sim);
             if (dedup.block()) {
                 decisions.put(t.getTargetChannelId(), dedup);
                 metrics.loopBlocked(dedup.layer().name());
             }
         }
 
-        CrosspostPostFactory.PublishResult published = postFactory.publish(
-                rule, item, candidate, targets, channels, decisions, Instant.now(), false);
+        CrosspostPostFactory.PublishResult published =
+                postFactory.publish(rule, item, candidate, targets, channels, decisions, Instant.now(), false);
 
         List<String> reasons = new ArrayList<>();
         int queued = 0;
@@ -196,7 +195,8 @@ public class CrosspostItemProcessor {
                 .orElse(null);
 
         if (queued == 0) {
-            String status = anyLoop || decisions.values().stream().anyMatch(d -> d.block() && "skipped_loop".equals(d.status()))
+            String status = anyLoop
+                            || decisions.values().stream().anyMatch(d -> d.block() && "skipped_loop".equals(d.status()))
                     ? "skipped_loop"
                     : decisions.values().stream().anyMatch(d -> d.block() && "skipped_duplicate".equals(d.status()))
                             ? "skipped_duplicate"

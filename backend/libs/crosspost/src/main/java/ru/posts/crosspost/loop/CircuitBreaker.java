@@ -62,8 +62,8 @@ public class CircuitBreaker {
         }
         rule.setStatus("auto_paused");
         rule.setUpdatedAt(Instant.now());
-        Map<String, Object> config = new java.util.LinkedHashMap<>(
-                rule.getConfig() == null ? Map.of() : rule.getConfig());
+        Map<String, Object> config =
+                new java.util.LinkedHashMap<>(rule.getConfig() == null ? Map.of() : rule.getConfig());
         config.put("auto_pause_reason", reason);
         config.put("auto_paused_at", Instant.now().toString());
         rule.setConfig(config);
