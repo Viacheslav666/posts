@@ -505,6 +505,62 @@ endpoints:
   action: channels.manage
   pathParams:
     channelId: '{channelId}'
+- operationId: crosspostItemsRetry
+  method: POST
+  path: /api/v1/crosspost/items/{itemId}/retry
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    itemId: '{itemId}'
+- operationId: crosspostRulesGet
+  method: GET
+  path: /api/v1/crosspost/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: crosspostRulesPatch
+  method: PATCH
+  path: /api/v1/crosspost/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: crosspostRulesActivate
+  method: POST
+  path: /api/v1/crosspost/rules/{ruleId}/activate
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: crosspostItemsList
+  method: GET
+  path: /api/v1/crosspost/rules/{ruleId}/items
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: crosspostRulesPause
+  method: POST
+  path: /api/v1/crosspost/rules/{ruleId}/pause
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{ruleId}'
+- operationId: crosspostRulesPreview
+  method: POST
+  path: /api/v1/crosspost/rules/{ruleId}/preview
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{ruleId}'
 - operationId: ingestItemsBulk
   method: POST
   path: /api/v1/ingest/items/bulk
@@ -1254,6 +1310,24 @@ endpoints:
   action: projects.manage
   pathParams:
     workspaceId: '{workspaceId}'
+- operationId: crosspostRulesList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/crosspost/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
+- operationId: crosspostRulesCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/crosspost/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
 - operationId: ingestRulesList
   method: GET
   path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules

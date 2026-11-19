@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":libs:ord-reporting"))
     implementation(project(":libs:analytics"))
     implementation(project(":libs:grabber"))
+    implementation(project(":libs:crosspost"))
     implementation(project(":libs:social-inbound"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
