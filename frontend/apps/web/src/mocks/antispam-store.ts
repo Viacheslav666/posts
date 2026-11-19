@@ -35,6 +35,8 @@ export const LIST_IDS = {
 export const LOG_IDS = {
   vkDeleted: '019a0000-aslog-7000-8000-000000000001',
   tgDeleted: '019a0000-aslog-7000-8000-000000000002',
+  vkFailed: '019a0000-aslog-7000-8000-000000000003',
+  vkRestoreFailed: '019a0000-aslog-7000-8000-000000000004',
 } as const;
 
 export type AntispamDemoSeed = {
@@ -216,6 +218,36 @@ function createInitialState(): StoreState {
     createdAt: minutesAgo(20),
   };
 
+  const vkFailed: AntispamLogEntry = {
+    id: LOG_IDS.vkFailed,
+    workspaceId: PERSONAL_WORKSPACE_ID,
+    channelId: CHANNEL_IDS.vkNews,
+    ruleId: RULE_IDS.vkActive,
+    section: 'wall_comment',
+    authorRef: 'vk:1002',
+    textSnapshot: 'Не удалилось',
+    reasons: ['link'],
+    action: 'deleted',
+    state: 'failed',
+    restorable: false,
+    createdAt: minutesAgo(10),
+  };
+
+  const vkRestoreFailed: AntispamLogEntry = {
+    id: LOG_IDS.vkRestoreFailed,
+    workspaceId: PERSONAL_WORKSPACE_ID,
+    channelId: CHANNEL_IDS.vkNews,
+    ruleId: RULE_IDS.vkActive,
+    section: 'wall_comment',
+    authorRef: 'vk:1003',
+    textSnapshot: 'Верните комментарий',
+    reasons: ['keyword:спам'],
+    action: 'deleted',
+    state: 'restore_failed',
+    restorable: true,
+    createdAt: minutesAgo(5),
+  };
+
   return {
     seq: 100,
     seed: {
@@ -225,7 +257,7 @@ function createInitialState(): StoreState {
     },
     rules: [vkRule, tgRule],
     wordLists: [stopList],
-    logs: [vkLog, tgLog],
+    logs: [vkLog, tgLog, vkFailed, vkRestoreFailed],
   };
 }
 
@@ -237,6 +269,30 @@ export function resetAntispamStore(): void {
 
 export function getAntispamDemoSeed(): AntispamDemoSeed {
   return state.seed;
+}
+
+export function insertAntispamRule(rule: AntispamRule): void {
+  state.rules = [rule, ...state.rules.filter((item) => item.id !== rule.id)];
+}
+
+function pageSlice<T extends { id?: string }>(
+  items: T[],
+  cursor: string | undefined,
+  limit: number,
+): { items: T[]; nextCursor?: string; hasMore: boolean } {
+  let start = 0;
+  if (cursor) {
+    const idx = items.findIndex((item) => item.id === cursor);
+    start = idx >= 0 ? idx + 1 : items.length;
+  }
+  const slice = items.slice(start, start + limit);
+  const hasMore = start + slice.length < items.length;
+  const last = slice[slice.length - 1];
+  return {
+    items: slice,
+    nextCursor: hasMore && last?.id ? last.id : undefined,
+    hasMore,
+  };
 }
 
 export function listAntispamRules(params?: {
@@ -618,11 +674,15 @@ export const antispamHandlers: HttpHandler[] = [
     ({ request, params }) => {
       const denied = requirePermission(request, 'automations.view');
       if (denied) return denied;
+      const url = new URL(request.url);
       const items = listAntispamRules({
         workspaceId: String(params.workspaceId),
         projectId: String(params.projectId),
       });
-      return HttpResponse.json({ items, hasMore: false });
+      const limit = Number(url.searchParams.get('limit') ?? '50');
+      return HttpResponse.json(
+        pageSlice(items, url.searchParams.get('cursor') ?? undefined, Number.isFinite(limit) ? limit : 50),
+      );
     },
   ),
 
@@ -722,8 +782,12 @@ export const antispamHandlers: HttpHandler[] = [
   http.get('/api/v1/workspaces/:workspaceId/antispam/word-lists', ({ request, params }) => {
     const denied = requirePermission(request, 'automations.view');
     if (denied) return denied;
+    const url = new URL(request.url);
     const items = listAntispamWordLists(String(params.workspaceId));
-    return HttpResponse.json({ items, hasMore: false });
+    const limit = Number(url.searchParams.get('limit') ?? '50');
+    return HttpResponse.json(
+      pageSlice(items, url.searchParams.get('cursor') ?? undefined, Number.isFinite(limit) ? limit : 50),
+    );
   }),
 
   http.post(

@@ -1,6 +1,6 @@
 'use client';
 
-import { EmptyState, Skeleton } from '@posts/ui';
+import { Button, EmptyState, Skeleton } from '@posts/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Radio, ShieldOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -9,7 +9,9 @@ import { listChannels } from '@/features/channels/api/channels-api';
 import { listProjects } from '@/features/workspace/api/workspace-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
+import { getErrorMessage } from '@/shared/lib/errors';
 
+import { belongsToWorkspace } from '../model/scope';
 import { ANTISPAM_NETWORKS } from '../model/types';
 import { RuleForm } from './rule-form';
 
@@ -42,16 +44,34 @@ export function RuleCreatePage({ workspaceId }: RuleCreatePageProps) {
     );
   }
 
+  if (projectsQuery.isError || channelsQuery.isError) {
+    const error = projectsQuery.error ?? channelsQuery.error;
+    return (
+      <EmptyState
+        role="alert"
+        title={t('loadErrorTitle')}
+        description={getErrorMessage(error)}
+        action={
+          <Button type="button" variant="outline" onClick={() => void projectsQuery.refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
   if (projectsQuery.isLoading || channelsQuery.isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
 
-  const project = projectsQuery.data?.items?.[0];
+  const project = projectsQuery.data?.items?.find((item) => belongsToWorkspace(item, workspaceId));
   if (!project) {
     return <EmptyState title={t('noProjectTitle')} description={t('noProjectBody')} />;
   }
 
-  const channels = channelsQuery.data?.items ?? [];
+  const channels = (channelsQuery.data?.items ?? []).filter((channel) =>
+    belongsToWorkspace(channel, workspaceId),
+  );
   const antispamChannels = channels.filter(
     (channel) =>
       channel.status === 'active' &&

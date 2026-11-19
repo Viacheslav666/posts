@@ -8,12 +8,13 @@ import { ru } from 'date-fns/locale';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
-import { ReasonChips } from '@/features/automations-common';
 import { queryKeys } from '@/shared/api-client';
 import { getErrorMessage } from '@/shared/lib/errors';
 
 import { listAntispamLog, restoreAntispamLog } from '../api/antispam-api';
-import { ALL_SECTIONS, ANTISPAM_ACTIONS } from '../model/types';
+import { isKnownLogState, parseAntispamReason } from '../model/reasons';
+import { belongsToWorkspace } from '../model/scope';
+import { ALL_SECTIONS, ANTISPAM_ACTIONS, type AttachmentKey } from '../model/types';
 
 type HistoryTableProps = {
   workspaceId: string;
@@ -57,9 +58,11 @@ export function HistoryTable({
 
   useEffect(() => {
     if (!logQuery.data) return;
-    setItems(logQuery.data.items ?? []);
+    setItems(
+      (logQuery.data.items ?? []).filter((entry) => belongsToWorkspace(entry, workspaceId)),
+    );
     setNextCursor(logQuery.data.nextCursor ?? null);
-  }, [logQuery.data]);
+  }, [logQuery.data, workspaceId]);
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
@@ -70,7 +73,10 @@ export function HistoryTable({
         ...filters,
         cursor: nextCursor,
       });
-      setItems((prev) => [...prev, ...(page.items ?? [])]);
+      setItems((prev) => [
+        ...prev,
+        ...(page.items ?? []).filter((entry) => belongsToWorkspace(entry, workspaceId)),
+      ]);
       setNextCursor(page.nextCursor ?? null);
     } catch (error) {
       toast({
@@ -105,6 +111,21 @@ export function HistoryTable({
     return <Skeleton className="h-40 w-full" data-testid="antispam-history-loading" />;
   }
 
+  if (logQuery.isError && items.length === 0) {
+    return (
+      <EmptyState
+        role="alert"
+        title={t('errorTitle')}
+        description={getErrorMessage(logQuery.error)}
+        action={
+          <Button type="button" variant="outline" onClick={() => void logQuery.refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <div className="space-y-4" data-testid="antispam-history">
       <div className="flex flex-wrap items-end gap-3">
@@ -120,7 +141,7 @@ export function HistoryTable({
             data-testid="antispam-history-channel-filter"
           >
             <option value="all">{t('allChannels')}</option>
-            {channels.map((channel) => (
+            {channels.filter((channel) => belongsToWorkspace(channel, workspaceId)).map((channel) => (
               <option key={channel.id} value={channel.id}>
                 {channel.title}
               </option>
@@ -167,6 +188,12 @@ export function HistoryTable({
         </div>
       </div>
 
+      {logQuery.isError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {t('errorTitle')}: {getErrorMessage(logQuery.error)}
+        </p>
+      ) : null}
+
       {items.length === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyBody')} />
       ) : (
@@ -175,13 +202,13 @@ export function HistoryTable({
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">{t('columns.time')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.channel')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.text')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.section')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.action')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.reasons')}</th>
-                  <th className="px-2 py-2 font-medium">{t('columns.actions')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.time')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.channel')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.text')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.section')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.action')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.reasons')}</th>
+                  <th scope="col" className="px-2 py-2 font-medium">{t('columns.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -235,6 +262,8 @@ function HistoryRow({
   const tAction = useTranslations('automations.antispam.actions');
   const tSection = useTranslations('automations.antispam.sections');
   const tState = useTranslations('automations.antispam.logState');
+  const tReason = useTranslations('automations.antispam.reasons');
+  const tAttach = useTranslations('automations.antispam.attachments');
   const [unban, setUnban] = useState(false);
   const stamp = entry.createdAt
     ? format(new Date(entry.createdAt), 'dd MMM HH:mm', { locale: ru })
@@ -260,18 +289,31 @@ function HistoryRow({
         <p className="mt-0.5 text-xs text-muted-foreground">{entry.authorRef}</p>
       </td>
       <td className="px-2 py-3">
-        {entry.section ? tSection(entry.section as 'wall_comment') : '—'}
+        {entry.section && ALL_SECTIONS.includes(entry.section as (typeof ALL_SECTIONS)[number])
+          ? tSection(entry.section as 'wall_comment')
+          : (entry.section ?? '—')}
       </td>
       <td className="px-2 py-3">
         <div className="space-y-0.5">
-          <span>{entry.action ? tAction(entry.action as 'deleted') : '—'}</span>
-          <p className="text-xs text-muted-foreground">
-            {entry.state ? tState(entry.state as 'done') : ''}
+          <span>
+            {entry.action && ANTISPAM_ACTIONS.includes(entry.action as (typeof ANTISPAM_ACTIONS)[number])
+              ? tAction(entry.action as 'deleted')
+              : (entry.action ?? '—')}
+          </span>
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid={`antispam-log-state-${entry.id}`}
+          >
+            {isKnownLogState(entry.state) ? tState(entry.state) : (entry.state ?? '')}
           </p>
         </div>
       </td>
       <td className="px-2 py-3">
-        <ReasonChips codes={entry.reasons ?? []} namespace="automations.antispam.reasons" />
+        <ReasonList
+          codes={entry.reasons ?? []}
+          tReason={tReason}
+          tAttach={tAttach}
+        />
       </td>
       <td className="px-2 py-3">
         {canModerate && entry.restorable && !isRestored ? (
@@ -311,5 +353,39 @@ function HistoryRow({
         ) : null}
       </td>
     </tr>
+  );
+}
+
+function ReasonList({
+  codes,
+  tReason,
+  tAttach,
+}: {
+  codes: string[];
+  tReason: (key: string, values?: Record<string, string>) => string;
+  tAttach: (key: AttachmentKey) => string;
+}) {
+  if (codes.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-1.5" data-testid="reason-chips" aria-label={tReason('label')}>
+      {codes.map((code) => {
+        const view = parseAntispamReason(code);
+        let label = code;
+        if (view.kind === 'key') label = tReason(view.key);
+        else if (view.kind === 'keyword') label = tReason('keywordWithWord', { word: view.word });
+        else if (view.kind === 'attachment') label = tAttach(view.attachment);
+        else label = view.text;
+        return (
+          <li key={code}>
+            <span
+              className="inline-flex rounded-md border border-border px-1.5 py-0.5 text-xs"
+              data-reason-code={code}
+            >
+              {label}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

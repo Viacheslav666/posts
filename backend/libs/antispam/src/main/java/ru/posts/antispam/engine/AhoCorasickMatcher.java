@@ -43,10 +43,21 @@ public final class AhoCorasickMatcher {
     }
 
     public List<Match> findAll(String text) {
+        return findAll(text, false);
+    }
+
+    /**
+     * Finds keyword hits in {@code text}.
+     *
+     * @param wholeWord when true, a hit counts only if the pattern is not inside a longer word.
+     *     Failure-link outputs end at the same index, so the boundary uses each pattern's length.
+     */
+    public List<Match> findAll(String text, boolean wholeWord) {
         if (text == null || text.isEmpty()) {
             return List.of();
         }
-        String normalized = TextNormalizer.normalizeForKeywords(text);
+        String normalized =
+                wholeWord ? TextNormalizer.normalizePreservingSpaces(text) : TextNormalizer.normalizeForKeywords(text);
         List<Match> found = new ArrayList<>();
         Node node = root;
         for (int i = 0; i < normalized.length(); ) {
@@ -57,14 +68,41 @@ public final class AhoCorasickMatcher {
             }
             node = node.children.getOrDefault(cp, root);
             if (!node.outputs.isEmpty()) {
-                found.addAll(node.outputs);
+                for (Match match : node.outputs) {
+                    if (!wholeWord || isWholeWord(normalized, i, match.normalized())) {
+                        found.add(match);
+                    }
+                }
             }
         }
         return found;
     }
 
     public boolean containsAny(String text) {
-        return !findAll(text).isEmpty();
+        return containsAny(text, false);
+    }
+
+    public boolean containsAny(String text, boolean wholeWord) {
+        return !findAll(text, wholeWord).isEmpty();
+    }
+
+    /** {@code endExclusive} is the char index just after the match in the normalized text. */
+    static boolean isWholeWord(String text, int endExclusive, String pattern) {
+        if (pattern == null || pattern.isEmpty()) {
+            return false;
+        }
+        int start = endExclusive - pattern.length();
+        if (start < 0) {
+            return false;
+        }
+        if (start > 0 && isWordChar(text.charAt(start - 1))) {
+            return false;
+        }
+        return endExclusive >= text.length() || !isWordChar(text.charAt(endExclusive));
+    }
+
+    private static boolean isWordChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '_';
     }
 
     private static void buildFailureLinks(Node root) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildConfig,
   collectWordListUsage,
+  configAsApiBlob,
   defaultFormValues,
   formValuesFromRule,
   previewReplyTemplate,
@@ -77,6 +78,48 @@ describe('antispam config', () => {
     expect(restored.dryRun).toBe(true);
     expect(restored.sections).toEqual(['wall_comment']);
     expect(restored.priority).toBe(50);
+    expect(restored.keywordMatchMode).toBe('substring');
+  });
+
+  it('round-trips whole-word match mode', () => {
+    const values = {
+      ...defaultFormValues('chan-1', 'vk'),
+      name: 'Whole',
+      keywordMatchMode: 'whole_word' as const,
+      blackWords: ['спам'],
+    };
+    const restored = formValuesFromRule({
+      name: 'Whole',
+      config: buildConfig(values) as never,
+    });
+    expect(restored.keywordMatchMode).toBe('whole_word');
+    expect(restored.blackWords).toEqual(['спам']);
+  });
+
+  it('keeps config keys the form does not edit', () => {
+    const preserved = {
+      filters: {
+        keywords: { black: ['old'], match: 'substring', legacy_flag: true },
+      },
+      custom: { keep: 1 },
+    };
+    const values = {
+      ...defaultFormValues('chan-1', 'vk'),
+      name: 'Keep',
+      blackWords: ['спам'],
+      domainWhitelist: ['vk.com'],
+      adminIds: ['1'],
+    };
+    const blob = configAsApiBlob(buildConfig(values), preserved) as unknown as {
+      filters: { keywords: { black: string[]; legacy_flag?: boolean }; links: { domain_whitelist: string[] } };
+      exceptions: { admin_ids: string[] };
+      custom?: { keep: number };
+    };
+    expect(blob.filters.keywords.black).toEqual(['спам']);
+    expect(blob.filters.keywords.legacy_flag).toBe(true);
+    expect(blob.filters.links.domain_whitelist).toEqual(['vk.com']);
+    expect(blob.exceptions.admin_ids).toEqual(['1']);
+    expect(blob.custom).toEqual({ keep: 1 });
   });
 
   it('requires at least one section in schema', () => {

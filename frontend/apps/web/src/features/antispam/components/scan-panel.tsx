@@ -10,6 +10,7 @@ import { CapabilityNotice } from '@/features/automations-common';
 import { getErrorMessage } from '@/shared/lib/errors';
 
 import { scanAntispamRule } from '../api/antispam-api';
+import { isKnownScanStatus } from '../model/reasons';
 
 type ScanPanelProps = {
   ruleId: string;
@@ -19,7 +20,7 @@ type ScanPanelProps = {
 
 export function ScanPanel({ ruleId, channel, canModerate }: ScanPanelProps) {
   const t = useTranslations('automations.antispam.scan');
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<{ status?: string; message?: string } | null>(null);
   const network = channel?.network;
   const isVk = network === 'vk';
   const isTgOrMax = network === 'tg' || network === 'max';
@@ -27,8 +28,16 @@ export function ScanPanel({ ruleId, channel, canModerate }: ScanPanelProps) {
   const scanMutation = useMutation({
     mutationFn: () => scanAntispamRule(ruleId),
     onSuccess: (data) => {
-      setResultMessage(data.message ?? t('queued'));
-      toast({ title: t('success') });
+      setResult({ status: data.status, message: data.message });
+      const status = data.status;
+      toast({
+        title:
+          status === 'done'
+            ? t('statuses.done')
+            : status === 'failed'
+              ? t('statuses.failed')
+              : t('statuses.queued'),
+      });
     },
     onError: (error) => {
       toast({
@@ -48,6 +57,12 @@ export function ScanPanel({ ruleId, channel, canModerate }: ScanPanelProps) {
 
       {isVk ? (
         <CapabilityNotice variant="vk_user_wall" body={t('vkCapabilityBody')} />
+      ) : null}
+
+      {!isVk && !isTgOrMax ? (
+        <p className="text-sm text-muted-foreground" data-testid="antispam-scan-unavailable">
+          {t('tgDisabledBody')}
+        </p>
       ) : null}
 
       {isTgOrMax ? (
@@ -76,13 +91,16 @@ export function ScanPanel({ ruleId, channel, canModerate }: ScanPanelProps) {
         <p className="text-sm text-muted-foreground">{t('forbidden')}</p>
       ) : null}
 
-      {resultMessage ? (
+      {result ? (
         <div
           role="status"
           className="rounded-md border border-border px-3 py-2 text-sm"
           data-testid="antispam-scan-result"
         >
-          {resultMessage}
+          <p data-testid="antispam-scan-status">
+            {isKnownScanStatus(result.status) ? t(`statuses.${result.status}`) : (result.status ?? t('statuses.queued'))}
+          </p>
+          {result.message ? <p className="mt-1 text-muted-foreground">{result.message}</p> : null}
         </div>
       ) : null}
     </div>
