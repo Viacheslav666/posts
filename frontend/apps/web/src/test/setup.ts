@@ -4,13 +4,17 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { clearAccessToken, clearPendingLogin, resetApiClient } from '@/shared/api-client';
 import { resetAdminStore } from '@/mocks/admin-store';
+import { resetAntispamStore } from '@/mocks/antispam-store';
 import { resetBillingStore } from '@/mocks/billing-store';
 import { resetChannelStore } from '@/mocks/channel-store';
+import { resetCrosspostStore } from '@/mocks/crosspost-store';
+import { resetEventSubscriptionStore } from '@/mocks/event-subscription-store';
 import { resetGrabberStore } from '@/mocks/grabber-store';
 import { resetMediaStoreForTests } from '@/mocks/media-store';
 import { resetNotificationStoreForTests } from '@/mocks/notification-store';
 import { resetOrdStore } from '@/mocks/ord-store';
 import { resetPostStore } from '@/mocks/post-store';
+import { resetSuggestStore } from '@/mocks/suggest-store';
 import { server } from '@/mocks/server';
 import { resetWorkspaceStore } from '@/mocks/workspace-store';
 
@@ -77,6 +81,10 @@ afterEach(() => {
   resetBillingStore();
   resetChannelStore();
   resetGrabberStore();
+  resetEventSubscriptionStore();
+  resetSuggestStore();
+  resetAntispamStore();
+  resetCrosspostStore();
   resetMediaStoreForTests();
   resetPostStore();
   resetOrdStore();

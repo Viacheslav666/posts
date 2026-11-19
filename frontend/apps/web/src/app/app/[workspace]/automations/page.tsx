@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { AutomationsHub } from '@/features/automations-common/components/automations-hub';
 
 type AutomationsPageProps = {
   params: Promise<{ workspace: string }>;
@@ -6,5 +6,5 @@ type AutomationsPageProps = {
 
 export default async function AutomationsPage({ params }: AutomationsPageProps) {
   const { workspace } = await params;
-  redirect(`/app/${workspace}/automations/grabber`);
+  return <AutomationsHub workspaceId={workspace} />;
 }

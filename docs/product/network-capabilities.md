@@ -2,8 +2,8 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.2.1 |
-| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**) |
+| Версия | 1.3.1 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**; кросспостинг **BE-36**) |
 | Дата проверки | **2026-11-19** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
@@ -77,6 +77,7 @@
 | Альбом | 2–10 | sendMediaGroup | 2026-11-17 |
 | Фото | ≤ 10 MB; width+height ≤ 10000 | sendPhoto | 2026-11-17 |
 | Видео / файл | до 50 MB | sendVideo / FAQ | 2026-11-17 |
+| Скачивание `getFile` | облачный Bot API **≤ 20 МБ**; Local Bot API Server — без лимита | getFile / Local Bot API | 2026-11-19 |
 | Форматирование | HTML (`b,i,u,s,span,a,code,pre,blockquote`, spoiler…) | formatting options | 2026-11-17 |
 | Нативная отложка | нет | Bot API | 2026-11-17 |
 | Edit / delete / pin | editMessage*, deleteMessage, pinChatMessage | Bot API | 2026-11-17 |
@@ -128,6 +129,7 @@
 | video | MP4/MOV/MKV/WEBM; ≤ 250 МБ | POST /uploads | 2026-11-17 |
 | audio | ≤ 256 МБ и ≤ 60 мин | POST /uploads | 2026-11-17 |
 | file | до 4 ГБ | POST /uploads | 2026-11-17 |
+| Кросспостинг: лимит вложения-источника | **≤ 100 МБ** на вложение (продуктовый soft-cap по паритету vposter; официальный upload выше) | BE-36 / vposter; docs-api uploads | 2026-11-19 |
 | Форматирование | `html` / `markdown` (b/i/u/s/code/a/h*/blockquote/mark…) | text-formatting | 2026-11-17 |
 | Edit / delete | PUT/DELETE /messages (≤2/с на чат) | docs-api | 2026-11-17 |
 | Pin / unpin | PUT/DELETE `/chats/{chatId}/pin` | docs-api | 2026-11-17 |
@@ -248,8 +250,25 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 | OK | Число символов текста (601) и max media blocks | валидация |
 | OK | Pin / first comment / webhooks | паритет фич |
 | Max | First comment / stories / native schedule | roadmap |
+| Max | Официально ли подтверждён soft-cap 100 МБ для входящих вложений кросспостинга (сейчас — паритет vposter) | BE-36 |
 | TG / Max / Rutube | Числовой TTL bot/partner refresh где не указан | token-refresh scheduler |
 | Все | Суточные лимиты публикаций | планирование пиков |
+| Max | Синхронизация удалений копий по `message_removed` (опция P2 кросспостинга) | BE-36 follow-up |
+
+---
+
+## 11. Кросспостинг — ограничения медиа (BE-36, 2026-11-19)
+
+| Сеть | Ограничение | Поведение Posts | Источник |
+|---|---|---|---|
+| Telegram | `getFile` облачного Bot API — **≤ 20 МБ** | без Local Bot API → `skipped_unsupported_media`; флаг `posts.telegram.local-bot-api-url` снимает лимит | Bot API 10.4 |
+| Telegram | Видео из источника (vposter) — до **40 МБ** | сверх лимита без Local Bot API → skip | паритет vposter |
+| VK | Видео/клипы **файлом не отдаются** API | опция `vk_video_as_link` или фильтр `exclude_video`/`exclude_clips`; аудио не переносится | dev.vk.com |
+| Max | Вложение-источник **≤ 100 МБ** (soft-cap) | сверх → `skipped_unsupported_media` | vposter + проверка docs 2026-11-19 |
+| Max | Посты от нашего бота | L7: не переносятся (`sender.user_id == bot`) | vposter / BE-36 |
+| Max | `message_removed` | синхронизация удалений копий — **не в v1** (опция P2) | BE-36 |
+
+Петли: L1 реестр / L2 intent+15с / L3 lineage / L4 SimHash / L5 graph warning / L6 circuit / L7 bot identity. Идемпотентность: `xp:{rule}:{srcChannel}:{srcRemote}:{target}`.
 
 ---
 
@@ -257,6 +276,8 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.3.1 | 2026-11-19 | BE-34: предложка VK — `publish_suggested` / wall.post `post_id` (правка текста); merge с BE-36 |
+| 1.3.0 | 2026-11-19 | BE-36: кросспостинг — лимиты медиа TG/VK/Max, soft-cap Max 100 МБ, §11 |
 | 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |
 | 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

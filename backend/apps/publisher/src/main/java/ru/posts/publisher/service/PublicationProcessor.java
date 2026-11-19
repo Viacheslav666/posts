@@ -414,16 +414,26 @@ public class PublicationProcessor {
                     "{\"remotePostId\":\"" + result.remotePostId() + "\"}");
             scheduledActionsFactory.createAfterSuccess(claim, result.remotePostId());
             if (result.remotePostId() != null && !result.remotePostId().isBlank()) {
+                String origin = "crosspost".equals(claim.source()) ? "crosspost" : "publication";
+                short hop = 0;
+                String rootOriginJson = null;
+                if ("crosspost".equals(origin)
+                        && claim.sourceRefJson() != null
+                        && !claim.sourceRefJson().isBlank()) {
+                    hop = 1;
+                    rootOriginJson = extractRootOriginJson(claim.sourceRefJson());
+                    hop = extractHop(claim.sourceRefJson(), hop);
+                }
                 remotePostRegistryJdbc.upsert(
                         claim.workspaceId(),
                         claim.network(),
                         claim.channelId(),
                         result.remotePostId(),
-                        "publication",
+                        origin,
                         claim.id(),
                         claim.postId(),
-                        null,
-                        (short) 0,
+                        rootOriginJson,
+                        hop,
                         fingerprint);
                 if (claim.idempotencyKey() != null && !claim.idempotencyKey().isBlank()) {
                     remotePostRegistryJdbc.consumeIntent(claim.channelId(), claim.idempotencyKey());
@@ -452,6 +462,30 @@ public class PublicationProcessor {
         String text = content == null || content.text() == null ? claim.contentText() : content.text();
         List<String> mediaShas = mediaSha256List(claim);
         return ContentFingerprint.fingerprint(text, mediaShas);
+    }
+
+    private String extractRootOriginJson(String sourceRefJson) {
+        try {
+            JsonNode root = objectMapper.readTree(sourceRefJson).path("root_origin");
+            if (root.isMissingNode() || root.isNull()) {
+                return null;
+            }
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private short extractHop(String sourceRefJson, short fallback) {
+        try {
+            JsonNode hop = objectMapper.readTree(sourceRefJson).path("hop");
+            if (hop.isNumber()) {
+                return hop.shortValue();
+            }
+        } catch (Exception ignored) {
+            // fallback
+        }
+        return fallback;
     }
 
     private List<String> mediaSha256List(PublicationClaim claim) {

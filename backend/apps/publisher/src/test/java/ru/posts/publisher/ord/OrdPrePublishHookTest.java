@@ -101,6 +101,7 @@ class OrdPrePublishHookTest {
                 "Europe/Moscow",
                 "Test",
                 "[]",
-                placement);
+                placement,
+                "{}");
     }
 }

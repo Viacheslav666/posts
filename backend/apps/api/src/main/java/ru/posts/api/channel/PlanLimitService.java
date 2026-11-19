@@ -39,6 +39,7 @@ public class PlanLimitService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final InvitationRepository invitationRepository;
     private final AutomationRuleRepository automationRuleRepository;
+    private final ru.posts.persistence.repository.CrosspostRuleRepository crosspostRuleRepository;
 
     public PlanLimitService(
             WorkspaceRepository workspaceRepository,
@@ -48,7 +49,8 @@ public class PlanLimitService {
             UsageCounterRepository usageCounterRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
             InvitationRepository invitationRepository,
-            AutomationRuleRepository automationRuleRepository) {
+            AutomationRuleRepository automationRuleRepository,
+            ru.posts.persistence.repository.CrosspostRuleRepository crosspostRuleRepository) {
         this.workspaceRepository = workspaceRepository;
         this.planRepository = planRepository;
         this.channelRepository = channelRepository;
@@ -57,6 +59,7 @@ public class PlanLimitService {
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.invitationRepository = invitationRepository;
         this.automationRuleRepository = automationRuleRepository;
+        this.crosspostRuleRepository = crosspostRuleRepository;
     }
 
     public void ensureNotFrozen(UUID workspaceId) {
@@ -114,6 +117,24 @@ public class PlanLimitService {
                     ProblemCodes.PLAN_LIMIT_EXCEEDED,
                     "Workspace grabber rule limit reached",
                     Map.of("limit", "grabber_rules", "grabber_rules", limit, "current", current));
+        }
+    }
+
+    public void ensureCanCreateCrosspostRule(UUID workspaceId) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        Integer limit = nullableIntLimit(workspace, "crosspost_rules");
+        if (limit == null) {
+            return;
+        }
+        long current = crosspostRuleRepository.countByWorkspaceIdAndStatusIn(
+                workspaceId, List.of("draft", "active", "paused", "auto_paused"));
+        if (current >= limit) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace crosspost rule limit reached",
+                    Map.of("limit", "crosspost_rules", "crosspost_rules", limit, "current", current));
         }
     }
 

@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":libs:messaging"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:automation-suggest"))
+    implementation(project(":libs:crosspost"))
     implementation(project(":libs:social-inbound"))
     implementation(project(":libs:social-vk"))
 

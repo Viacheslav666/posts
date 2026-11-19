@@ -143,6 +143,18 @@ export function can(role: WorkspaceRole | null | undefined, action: PermissionAc
   return ROLE_ACTIONS[role]?.has(action) ?? false;
 }
 
+export function canViewAutomations(role: WorkspaceRole | null | undefined): boolean {
+  return can(role, 'automations.view');
+}
+
+export function canManageAutomations(role: WorkspaceRole | null | undefined): boolean {
+  return can(role, 'automations.manage');
+}
+
+export function canModerateAutomations(role: WorkspaceRole | null | undefined): boolean {
+  return can(role, 'automations.moderate');
+}
+
 export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value);
 }
