@@ -43,6 +43,8 @@ export const queryKeys = {
     detail: (workspaceId: string, channelId: string) =>
       [...queryKeys.channels.all(workspaceId), channelId] as const,
     sets: (workspaceId: string) => [...queryKeys.channels.all(workspaceId), 'sets'] as const,
+    eventSubscription: (workspaceId: string, channelId: string) =>
+      [...queryKeys.channels.detail(workspaceId, channelId), 'event-subscription'] as const,
   },
 
   posts: {

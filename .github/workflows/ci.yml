@@ -259,6 +259,10 @@ jobs:
       - name: Playwright posts analytics (FE-19)
         working-directory: tests/e2e
         run: pnpm test:analytics
+      # FE-21: automations shell (hub / stubs / event-subscription repair / a11y).
+      - name: Playwright automations shell (FE-21)
+        working-directory: tests/e2e
+        run: pnpm test:automations-shell
       # QA-11: TC-STORY P0 UI историй на MSW (IG absent; TG/Max disabled).
       - name: Playwright scheduled-stories (TC-STORY P0 UI)
         working-directory: tests/e2e
