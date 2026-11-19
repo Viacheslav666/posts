@@ -25,11 +25,14 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.crosspost.config.CrosspostConfigSupport;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
+import ru.posts.persistence.entity.CrosspostItemEntity;
+import ru.posts.persistence.entity.CrosspostRuleEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.InvoiceEntity;
 import ru.posts.persistence.entity.MediaAssetEntity;
@@ -42,6 +45,8 @@ import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.CrosspostItemRepository;
+import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.InvoiceRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
@@ -76,6 +81,8 @@ final class RbacHttpProbeSupport {
     private final PublicationRepository publicationRepository;
     private final AutomationRuleRepository automationRuleRepository;
     private final GrabberItemRepository grabberItemRepository;
+    private final CrosspostRuleRepository crosspostRuleRepository;
+    private final CrosspostItemRepository crosspostItemRepository;
     private final InvoiceRepository invoiceRepository;
     private final OrdInvoiceRepository ordInvoiceRepository;
 
@@ -93,6 +100,8 @@ final class RbacHttpProbeSupport {
             PublicationRepository publicationRepository,
             AutomationRuleRepository automationRuleRepository,
             GrabberItemRepository grabberItemRepository,
+            CrosspostRuleRepository crosspostRuleRepository,
+            CrosspostItemRepository crosspostItemRepository,
             InvoiceRepository invoiceRepository,
             OrdInvoiceRepository ordInvoiceRepository) {
         this.mockMvc = mockMvc;
@@ -108,6 +117,8 @@ final class RbacHttpProbeSupport {
         this.publicationRepository = publicationRepository;
         this.automationRuleRepository = automationRuleRepository;
         this.grabberItemRepository = grabberItemRepository;
+        this.crosspostRuleRepository = crosspostRuleRepository;
+        this.crosspostItemRepository = crosspostItemRepository;
         this.invoiceRepository = invoiceRepository;
         this.ordInvoiceRepository = ordInvoiceRepository;
     }
@@ -400,12 +411,11 @@ final class RbacHttpProbeSupport {
                     ids.publicationId() == null
                             ? randomUuid()
                             : ids.publicationId().toString());
-            values.put(
-                    "{ruleId}",
-                    ids.ruleId() == null ? randomUuid() : ids.ruleId().toString());
-            values.put(
-                    "{itemId}",
-                    ids.itemId() == null ? randomUuid() : ids.itemId().toString());
+            boolean crosspost = endpoint != null && endpoint.path().contains("/crosspost/");
+            UUID ruleId = crosspost ? ids.crosspostRuleId() : ids.ruleId();
+            UUID itemId = crosspost ? ids.crosspostItemId() : ids.itemId();
+            values.put("{ruleId}", ruleId == null ? randomUuid() : ruleId.toString());
+            values.put("{itemId}", itemId == null ? randomUuid() : itemId.toString());
         }
         values.put("{botId}", randomUuid());
         if (scope == Scope.FOREIGN) {
@@ -737,6 +747,26 @@ final class RbacHttpProbeSupport {
                 node.put("limit", 1);
                 yield node.toString();
             }
+            case "crosspostRulesCreate" -> {
+                // Minimal valid body so Bean Validation passes and RBAC runs (deny → 403, IDOR → 404).
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Crosspost " + UUID.randomUUID());
+                node.put("sourceChannelId", channelId.toString());
+                yield node.toString();
+            }
+            case "crosspostRulesPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Crosspost Patched");
+                node.put("version", ids.crosspostRuleVersion());
+                yield node.toString();
+            }
+            case "crosspostRulesPreview" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("sourceRemoteId", "rbac-preview-1");
+                var candidate = node.putObject("candidate");
+                candidate.put("text", "RBAC crosspost preview");
+                yield node.toString();
+            }
             default -> "{}";
         };
     }
@@ -792,6 +822,7 @@ final class RbacHttpProbeSupport {
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
         SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
+        SeededCrosspost seededCrosspost = insertCrosspost(workspaceId, projectAlpha, channelId, ownerUserId);
         UUID invoiceId = insertInvoice(workspaceId);
         UUID ordInvoiceId = insertOrdInvoice(workspaceId);
 
@@ -813,6 +844,9 @@ final class RbacHttpProbeSupport {
                 seededGrabber.ruleId(),
                 seededGrabber.itemId(),
                 seededGrabber.ruleVersion(),
+                seededCrosspost.ruleId(),
+                seededCrosspost.itemId(),
+                seededCrosspost.ruleVersion(),
                 invoiceId,
                 ordInvoiceId,
                 ownerToken,
@@ -898,6 +932,40 @@ final class RbacHttpProbeSupport {
         grabberItemRepository.save(item);
 
         return new SeededGrabber(rule.getId(), item.getId(), rule.getVersion());
+    }
+
+    private SeededCrosspost insertCrosspost(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
+        Instant now = Instant.now();
+        CrosspostRuleEntity rule = new CrosspostRuleEntity();
+        rule.setId(UuidV7.generate());
+        rule.setWorkspaceId(workspaceId);
+        rule.setProjectId(projectId);
+        rule.setSourceChannelId(channelId);
+        rule.setName("RBAC fixture crosspost");
+        // Draft without targets: activate allow-path hits 400 after authz (still ≠ 401/403).
+        rule.setStatus("draft");
+        rule.setConfig(CrosspostConfigSupport.withDefaults(Map.of()));
+        rule.setCreatedBy(ownerId);
+        rule.setCreatedAt(now);
+        rule.setUpdatedAt(now);
+        crosspostRuleRepository.save(rule);
+
+        CrosspostItemEntity item = new CrosspostItemEntity();
+        item.setId(UuidV7.generate());
+        item.setWorkspaceId(workspaceId);
+        item.setRuleId(rule.getId());
+        item.setSourceChannelId(channelId);
+        item.setSourceRemoteId("rbac-xp-" + UUID.randomUUID());
+        item.setSourceNetwork("vk");
+        item.setStatus("failed");
+        item.setReasons(new String[] {"rbac-fixture"});
+        item.setContentText("RBAC crosspost failed item");
+        item.setProcessAfter(now);
+        item.setCreatedAt(now);
+        item.setUpdatedAt(now);
+        crosspostItemRepository.save(item);
+
+        return new SeededCrosspost(rule.getId(), item.getId(), rule.getVersion());
     }
 
     private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
@@ -1132,6 +1200,8 @@ final class RbacHttpProbeSupport {
 
     record SeededGrabber(UUID ruleId, UUID itemId, int ruleVersion) {}
 
+    record SeededCrosspost(UUID ruleId, UUID itemId, int ruleVersion) {}
+
     record EndpointIds(
             UUID workspaceId,
             UUID projectAlpha,
@@ -1150,6 +1220,9 @@ final class RbacHttpProbeSupport {
             UUID ruleId,
             UUID itemId,
             int ruleVersion,
+            UUID crosspostRuleId,
+            UUID crosspostItemId,
+            int crosspostRuleVersion,
             UUID invoiceId,
             UUID ordInvoiceId,
             String ownerToken,
