@@ -2,8 +2,10 @@ package ru.posts.social.inbound.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -37,8 +39,8 @@ public class SocialInboundAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    SocialInboundMetrics socialInboundMetrics(MeterRegistry registry) {
-        return new SocialInboundMetrics(registry);
+    SocialInboundMetrics socialInboundMetrics(ObjectProvider<MeterRegistry> registry) {
+        return new SocialInboundMetrics(registry.getIfAvailable(SimpleMeterRegistry::new));
     }
 
     @Bean
@@ -92,7 +94,13 @@ public class SocialInboundAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean({DataSource.class, InboundEventStore.class})
+    @ConditionalOnBean({
+        DataSource.class,
+        InboundEventStore.class,
+        ChannelRepository.class,
+        ChannelEventSubscriptionRepository.class,
+        TelegramBotRepository.class
+    })
     @ConditionalOnMissingBean
     SocialInboundProcessor socialInboundProcessor(
             ObjectMapper objectMapper,

@@ -34,8 +34,6 @@ dependencies {
     "integrationTestImplementation"(platform(libs.testcontainers.bom))
     "integrationTestImplementation"(libs.testcontainers.junit)
     "integrationTestImplementation"(libs.testcontainers.postgresql)
-    "integrationTestImplementation"(libs.flyway.core)
-    "integrationTestImplementation"(libs.flyway.database.postgresql)
     "integrationTestRuntimeOnly"(libs.postgresql)
 }
 

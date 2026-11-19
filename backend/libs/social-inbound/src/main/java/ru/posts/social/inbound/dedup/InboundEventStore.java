@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,7 +62,7 @@ public class InboundEventStore {
             return Optional.of(new DispatchClaim(row.id(), row.receivedAt()));
         }
         UUID id = UuidV7.generate();
-        Instant receivedAt = event.receivedAt() == null ? Instant.now() : event.receivedAt();
+        Instant receivedAt = postgresTimestamp(event.receivedAt() == null ? Instant.now() : event.receivedAt());
         insertRow(event, id, receivedAt);
         return Optional.of(new DispatchClaim(id, receivedAt));
     }
@@ -158,6 +159,24 @@ public class InboundEventStore {
     /** JdbcClient binds raw Instant as VARCHAR; PostgreSQL timestamptz needs Timestamp. */
     private static Timestamp ts(Instant instant) {
         return instant == null ? null : Timestamp.from(instant);
+    }
+
+    /**
+     * PostgreSQL {@code timestamptz} stores microseconds and rounds the remainder. The claim must
+     * return that stored value: a later retry reads it back, and {@code received_at} is the
+     * partition key used by {@link #markProcessed}.
+     */
+    static Instant postgresTimestamp(Instant instant) {
+        int nanos = instant.getNano();
+        int micros = nanos / 1000;
+        if (nanos % 1000 >= 500) {
+            micros++;
+        }
+        Instant seconds = instant.truncatedTo(ChronoUnit.SECONDS);
+        if (micros == 1_000_000) {
+            return seconds.plusSeconds(1);
+        }
+        return seconds.plus(micros, ChronoUnit.MICROS);
     }
 
     public static String truncateRaw(String raw) {
