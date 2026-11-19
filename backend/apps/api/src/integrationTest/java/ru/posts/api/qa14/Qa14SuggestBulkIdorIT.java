@@ -78,6 +78,7 @@ class Qa14SuggestBulkIdorIT {
 
     UUID workspaceId;
     UUID userId;
+    UUID projectId;
     UUID settingsId;
     UUID channelId;
 
@@ -85,6 +86,7 @@ class Qa14SuggestBulkIdorIT {
     void seed() {
         userId = UuidV7.generate();
         workspaceId = UuidV7.generate();
+        projectId = UuidV7.generate();
         settingsId = UuidV7.generate();
         channelId = UuidV7.generate();
         UUID planId = jdbc.queryForObject("SELECT id FROM plans WHERE code = 'free'", UUID.class);
@@ -101,9 +103,17 @@ class Qa14SuggestBulkIdorIT {
                 workspaceId,
                 userId,
                 planId);
+        jdbc.update(
+                """
+                INSERT INTO projects (id, workspace_id, name, created_at, updated_at)
+                VALUES (?, ?, 'suggest-idor', now(), now())
+                """,
+                projectId,
+                workspaceId);
         ChannelEntity channel = new ChannelEntity();
         channel.setId(channelId);
         channel.setWorkspaceId(workspaceId);
+        channel.setProjectId(projectId);
         channel.setNetwork("vk");
         channel.setExternalId("-1003701");
         channel.setType("group");
@@ -115,6 +125,7 @@ class Qa14SuggestBulkIdorIT {
         SuggestSettingsEntity settings = new SuggestSettingsEntity();
         settings.setId(settingsId);
         settings.setWorkspaceId(workspaceId);
+        settings.setProjectId(projectId);
         settings.setChannelId(channelId);
         settings.setMode("auto");
         settings.setStatus("active");
@@ -134,6 +145,7 @@ class Qa14SuggestBulkIdorIT {
         ChannelEntity foreignChannel = new ChannelEntity();
         foreignChannel.setId(foreignChannelId);
         foreignChannel.setWorkspaceId(workspaceId);
+        foreignChannel.setProjectId(projectId);
         foreignChannel.setNetwork("vk");
         foreignChannel.setExternalId("-1003702");
         foreignChannel.setType("group");
@@ -147,6 +159,7 @@ class Qa14SuggestBulkIdorIT {
         SuggestSettingsEntity foreignCfg = new SuggestSettingsEntity();
         foreignCfg.setId(foreignSettings);
         foreignCfg.setWorkspaceId(workspaceId);
+        foreignCfg.setProjectId(projectId);
         foreignCfg.setChannelId(foreignChannelId);
         foreignCfg.setMode("auto");
         foreignCfg.setStatus("active");
@@ -165,6 +178,7 @@ class Qa14SuggestBulkIdorIT {
         job.setChannelId(channelId);
         job.setAction("reject_ids");
         job.setStatus("pending");
+        job.setIdempotencyKey("reject-idor-" + job.getId());
         job.setItemIds(new UUID[] {foreignId, ownId});
         job.setCreatedBy(userId);
         job.setCreatedAt(Instant.now());
@@ -174,7 +188,7 @@ class Qa14SuggestBulkIdorIT {
         SuggestBulkJobEntity done = bulkProcessor.process(job.getId());
         assertThat(done.getTotal()).isEqualTo(1);
         assertThat(done.getSucceeded()).isEqualTo(1);
-        assertThat(itemRepository.findById(ownId).orElseThrow().getStatus()).isEqualTo("rejected");
+        assertThat(itemRepository.findById(ownId).orElseThrow().getStatus()).isEqualTo("deleted_remote");
         assertThat(itemRepository.findById(foreignId).orElseThrow().getStatus()).isEqualTo("pending_moderation");
     }
 
@@ -201,6 +215,7 @@ class Qa14SuggestBulkIdorIT {
         job.setChannelId(channelId);
         job.setAction("approve_ids");
         job.setStatus("pending");
+        job.setIdempotencyKey("approve-idor-" + job.getId());
         job.setItemIds(new UUID[] {foreignId, ownId});
         job.setCreatedBy(userId);
         job.setCreatedAt(Instant.now());
