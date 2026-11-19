@@ -42,24 +42,36 @@ public interface SuggestItemRepository extends JpaRepository<SuggestItemEntity, 
             @Param("since") Instant since,
             Pageable pageable);
 
+    /**
+     * Native search with explicit casts so PostgreSQL can type nullable filter params (avoids
+     * {@code could not determine data type of parameter $N} / SQLGrammarException).
+     */
     @Query(
-            """
-            SELECT i FROM SuggestItemEntity i
-            WHERE i.channelId = :channelId
-              AND (:status IS NULL OR i.status = :status)
-              AND (:authorVkId IS NULL OR i.authorVkId = :authorVkId)
-              AND (:from IS NULL OR i.createdAt >= :from)
-              AND (:to IS NULL OR i.createdAt <= :to)
-              AND (:cursorCreatedAt IS NULL OR i.createdAt < :cursorCreatedAt
-                   OR (i.createdAt = :cursorCreatedAt AND i.id < :cursorId))
-            ORDER BY i.createdAt DESC, i.id DESC
-            """)
+            value =
+                    """
+                    SELECT i.* FROM suggest_items i
+                    WHERE i.channel_id = :channelId
+                      AND (CAST(:status AS text) IS NULL OR i.status = CAST(:status AS text))
+                      AND (CAST(:authorVkId AS text) IS NULL OR i.author_vk_id = CAST(:authorVkId AS text))
+                      AND (CAST(:fromTs AS timestamptz) IS NULL OR i.created_at >= CAST(:fromTs AS timestamptz))
+                      AND (CAST(:toTs AS timestamptz) IS NULL OR i.created_at <= CAST(:toTs AS timestamptz))
+                      AND (
+                        CAST(:cursorCreatedAt AS timestamptz) IS NULL
+                        OR i.created_at < CAST(:cursorCreatedAt AS timestamptz)
+                        OR (
+                          i.created_at = CAST(:cursorCreatedAt AS timestamptz)
+                          AND i.id < CAST(:cursorId AS uuid)
+                        )
+                      )
+                    ORDER BY i.created_at DESC, i.id DESC
+                    """,
+            nativeQuery = true)
     List<SuggestItemEntity> findByChannelCursor(
             @Param("channelId") UUID channelId,
             @Param("status") String status,
             @Param("authorVkId") String authorVkId,
-            @Param("from") Instant from,
-            @Param("to") Instant to,
+            @Param("fromTs") Instant fromTs,
+            @Param("toTs") Instant toTs,
             @Param("cursorCreatedAt") Instant cursorCreatedAt,
             @Param("cursorId") UUID cursorId,
             Pageable pageable);

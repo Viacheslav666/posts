@@ -395,7 +395,7 @@ public class SuggestServiceImpl implements SuggestService {
                 from,
                 to,
                 cursorCreatedAt,
-                cursorId,
+                cursorId == null && cursorCreatedAt == null ? null : cursorId,
                 org.springframework.data.domain.PageRequest.of(0, limit + 1));
         boolean hasMore = found.size() > limit;
         List<SuggestItemEntity> pageItems = hasMore ? found.subList(0, limit) : found;
