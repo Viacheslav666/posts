@@ -16,7 +16,6 @@ public record EvaluationContext(
         Set<String> attachmentTypes) {
 
     public static EvaluationContext empty() {
-        return new EvaluationContext(
-                false, true, false, false, false, false, false, false, null, Set.of());
+        return new EvaluationContext(false, true, false, false, false, false, false, false, null, Set.of());
     }
 }

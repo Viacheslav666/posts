@@ -18,8 +18,7 @@ public final class RuleCompiler {
 
     private RuleCompiler() {}
 
-    public static CompiledRule compile(
-            AntispamRuleEntity rule, Collection<AntispamWordListEntity> wordLists) {
+    public static CompiledRule compile(AntispamRuleEntity rule, Collection<AntispamWordListEntity> wordLists) {
         RuleConfig config = RuleConfig.fromMap(rule.getConfig());
         Map<UUID, AntispamWordListEntity> byId = wordLists == null
                 ? Map.of()

@@ -8,8 +8,10 @@ import java.util.UUID;
 /** In-memory cache of pinned post ids per channel. */
 public class PinnedPostCache {
 
-    private final Cache<UUID, String> pinned =
-            Caffeine.newBuilder().maximumSize(50_000).expireAfterWrite(Duration.ofHours(1)).build();
+    private final Cache<UUID, String> pinned = Caffeine.newBuilder()
+            .maximumSize(50_000)
+            .expireAfterWrite(Duration.ofHours(1))
+            .build();
 
     public void put(UUID channelId, String remotePostId) {
         if (channelId != null && remotePostId != null) {

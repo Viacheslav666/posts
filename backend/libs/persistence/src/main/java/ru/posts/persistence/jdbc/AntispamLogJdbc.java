@@ -87,7 +87,8 @@ public class AntispamLogJdbc {
                     row.restoredAt() == null ? null : Timestamp.from(row.restoredAt()));
             return row.id();
         } catch (DuplicateKeyException ex) {
-            return findIdByDedup(row.channelId(), row.section(), row.remoteCommentKey()).orElse(row.id());
+            return findIdByDedup(row.channelId(), row.section(), row.remoteCommentKey())
+                    .orElse(row.id());
         }
     }
 
@@ -276,7 +277,9 @@ public class AntispamLogJdbc {
             readUuidArray(rs, "remote_action_ids"),
             rs.getTimestamp("created_at").toInstant(),
             (UUID) rs.getObject("restored_by"),
-            rs.getTimestamp("restored_at") == null ? null : rs.getTimestamp("restored_at").toInstant());
+            rs.getTimestamp("restored_at") == null
+                    ? null
+                    : rs.getTimestamp("restored_at").toInstant());
 
     private static List<String> readTextArray(ResultSet rs, String col) throws SQLException {
         Array arr = rs.getArray(col);
@@ -303,7 +306,9 @@ public class AntispamLogJdbc {
             return Arrays.asList(uuids);
         }
         if (raw instanceof Object[] objects) {
-            return Arrays.stream(objects).map(o -> UUID.fromString(String.valueOf(o))).toList();
+            return Arrays.stream(objects)
+                    .map(o -> UUID.fromString(String.valueOf(o)))
+                    .toList();
         }
         return List.of();
     }

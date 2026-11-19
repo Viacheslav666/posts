@@ -17,15 +17,14 @@ import ru.posts.antispam.model.Verdict;
  */
 public final class AntispamEngine {
 
-    private static final Pattern URL = Pattern.compile(
-            "(?i)\\b((?:https?://|www\\.)[^\\s<>\\[\\]()\"']+|vk\\.cc/\\S+|t\\.me/\\S+)");
+    private static final Pattern URL =
+            Pattern.compile("(?i)\\b((?:https?://|www\\.)[^\\s<>\\[\\]()\"']+|vk\\.cc/\\S+|t\\.me/\\S+)");
     private static final Pattern VK_URL =
             Pattern.compile("(?i)\\b(?:https?://)?(?:m\\.)?(?:vk\\.com|vk\\.ru|vk\\.cc)/\\S+");
 
     private AntispamEngine() {}
 
-    public static Verdict evaluate(
-            AntispamEventView event, List<CompiledRule> rules, EvaluationContext context) {
+    public static Verdict evaluate(AntispamEventView event, List<CompiledRule> rules, EvaluationContext context) {
         if (event == null || rules == null || rules.isEmpty()) {
             return Verdict.none();
         }

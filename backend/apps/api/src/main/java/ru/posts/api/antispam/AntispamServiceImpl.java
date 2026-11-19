@@ -144,8 +144,7 @@ public class AntispamServiceImpl implements AntispamService {
         AntispamRuleEntity rule = requireRule(ruleId);
         access.requirePermission(rule.getWorkspaceId(), userId, "automations.manage");
         if (request.version() != null && request.version() != rule.getVersion()) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT, ProblemCodes.OPTIMISTIC_LOCK_CONFLICT, "Rule version mismatch");
+            throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.OPTIMISTIC_LOCK_CONFLICT, "Rule version mismatch");
         }
         if (request.name() != null) {
             rule.setName(request.name());
@@ -222,14 +221,12 @@ public class AntispamServiceImpl implements AntispamService {
 
     @Override
     @Transactional(readOnly = true)
-    public AntispamDtos.AntispamWordListPage listWordLists(
-            UUID userId, UUID workspaceId, CursorPage.Params page) {
+    public AntispamDtos.AntispamWordListPage listWordLists(UUID userId, UUID workspaceId, CursorPage.Params page) {
         access.requirePermission(workspaceId, userId, "automations.view");
-        List<AntispamDtos.AntispamWordList> items = wordListRepository
-                .findByWorkspaceIdOrderByNameAsc(workspaceId)
-                .stream()
-                .map(this::toWordListDto)
-                .toList();
+        List<AntispamDtos.AntispamWordList> items =
+                wordListRepository.findByWorkspaceIdOrderByNameAsc(workspaceId).stream()
+                        .map(this::toWordListDto)
+                        .toList();
         return new AntispamDtos.AntispamWordListPage(items, null, false);
     }
 
@@ -309,8 +306,8 @@ public class AntispamServiceImpl implements AntispamService {
         Instant cursorCreatedAt = null;
         UUID cursorId = null;
         if (page != null && page.cursor() != null && !page.cursor().isBlank()) {
-            String[] parts = new String(Base64.getUrlDecoder().decode(page.cursor()), StandardCharsets.UTF_8)
-                    .split("\\|", 2);
+            String[] parts =
+                    new String(Base64.getUrlDecoder().decode(page.cursor()), StandardCharsets.UTF_8).split("\\|", 2);
             if (parts.length == 2) {
                 cursorCreatedAt = Instant.parse(parts[0]);
                 cursorId = UUID.fromString(parts[1]);
@@ -323,7 +320,8 @@ public class AntispamServiceImpl implements AntispamService {
         if (hasMore) {
             rows = rows.subList(0, limit);
         }
-        List<AntispamDtos.AntispamLogEntry> items = rows.stream().map(this::toLogDto).toList();
+        List<AntispamDtos.AntispamLogEntry> items =
+                rows.stream().map(this::toLogDto).toList();
         String next = null;
         if (hasMore && !rows.isEmpty()) {
             AntispamLogJdbc.AntispamLogRow last = rows.getLast();
@@ -335,10 +333,8 @@ public class AntispamServiceImpl implements AntispamService {
     }
 
     @Override
-    public AntispamDtos.AntispamLogEntry restore(
-            UUID userId, UUID logId, AntispamDtos.AntispamRestoreRequest request) {
-        AntispamLogJdbc.AntispamLogRow row = logJdbc
-                .findById(logId)
+    public AntispamDtos.AntispamLogEntry restore(UUID userId, UUID logId, AntispamDtos.AntispamRestoreRequest request) {
+        AntispamLogJdbc.AntispamLogRow row = logJdbc.findById(logId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "Not found"));
         access.requirePermission(row.workspaceId(), userId, "automations.moderate");
         if (!row.restorable()) {
@@ -406,7 +402,8 @@ public class AntispamServiceImpl implements AntispamService {
         AntispamRuleEntity rule = requireRule(ruleId);
         access.requirePermission(rule.getWorkspaceId(), userId, "automations.moderate");
         ChannelEntity channel = requireChannel(rule.getChannelId(), rule.getWorkspaceId());
-        String network = channel.getNetwork() == null ? "" : channel.getNetwork().toLowerCase(Locale.ROOT);
+        String network =
+                channel.getNetwork() == null ? "" : channel.getNetwork().toLowerCase(Locale.ROOT);
         if ("tg".equals(network) || "telegram".equals(network)) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
@@ -446,8 +443,8 @@ public class AntispamServiceImpl implements AntispamService {
     public AntispamDtos.AntispamRuleStats stats(UUID userId, UUID ruleId) {
         AntispamRuleEntity rule = requireRule(ruleId);
         access.requirePermission(rule.getWorkspaceId(), userId, "automations.view");
-        Long hits = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM antispam_log WHERE rule_id = ?", Long.class, ruleId);
+        Long hits =
+                jdbcTemplate.queryForObject("SELECT count(*) FROM antispam_log WHERE rule_id = ?", Long.class, ruleId);
         List<Map<String, Object>> byReasonRows = jdbcTemplate.queryForList(
                 """
                 SELECT unnest(reasons) AS reason, count(*) AS cnt
@@ -489,15 +486,14 @@ public class AntispamServiceImpl implements AntispamService {
         }
         boolean needsUserToken = rule.getSections() == null
                 || rule.getSections().isEmpty()
-                || rule.getSections().stream()
-                        .anyMatch(s -> {
-                            String x = s.toLowerCase(Locale.ROOT);
-                            return x.contains("wall")
-                                    || x.contains("photo")
-                                    || x.contains("video")
-                                    || x.contains("market")
-                                    || x.contains("suggest");
-                        });
+                || rule.getSections().stream().anyMatch(s -> {
+                    String x = s.toLowerCase(Locale.ROOT);
+                    return x.contains("wall")
+                            || x.contains("photo")
+                            || x.contains("video")
+                            || x.contains("market")
+                            || x.contains("suggest");
+                });
         if (!needsUserToken) {
             return;
         }

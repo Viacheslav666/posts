@@ -20,13 +20,12 @@ public class CompiledRuleCache {
     }
 
     public CompiledRuleCache(long maxSize, Duration ttl) {
-        this.cache = Caffeine.newBuilder().maximumSize(maxSize).expireAfterWrite(ttl).build();
+        this.cache =
+                Caffeine.newBuilder().maximumSize(maxSize).expireAfterWrite(ttl).build();
     }
 
     public List<CompiledRule> getOrCompile(
-            UUID channelId,
-            List<AntispamRuleEntity> rules,
-            Collection<AntispamWordListEntity> wordLists) {
+            UUID channelId, List<AntispamRuleEntity> rules, Collection<AntispamWordListEntity> wordLists) {
         String key = cacheKey(channelId, rules, wordLists);
         return cache.get(key, k -> RuleCompiler.compileAll(rules, wordLists));
     }

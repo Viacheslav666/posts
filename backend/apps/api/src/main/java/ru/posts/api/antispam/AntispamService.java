@@ -1,8 +1,6 @@
 package ru.posts.api.antispam;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import ru.posts.api.web.dto.antispam.AntispamDtos;
 import ru.posts.api.web.dto.common.CursorPage;
@@ -31,8 +29,7 @@ public interface AntispamService {
     AntispamDtos.AntispamWordList createWordList(
             UUID userId, UUID workspaceId, AntispamDtos.AntispamWordListCreate request);
 
-    AntispamDtos.AntispamWordList patchWordList(
-            UUID userId, UUID listId, AntispamDtos.AntispamWordListPatch request);
+    AntispamDtos.AntispamWordList patchWordList(UUID userId, UUID listId, AntispamDtos.AntispamWordListPatch request);
 
     void deleteWordList(UUID userId, UUID listId);
 
@@ -47,8 +44,7 @@ public interface AntispamService {
             Instant to,
             CursorPage.Params page);
 
-    AntispamDtos.AntispamLogEntry restore(
-            UUID userId, UUID logId, AntispamDtos.AntispamRestoreRequest request);
+    AntispamDtos.AntispamLogEntry restore(UUID userId, UUID logId, AntispamDtos.AntispamRestoreRequest request);
 
     AntispamDtos.AntispamScanResponse scan(UUID userId, UUID ruleId);
 

@@ -37,7 +37,8 @@ public final class TelegramEventNormalizer {
                 remoteIds.put("is_automatic_forward", "true");
             }
             if (message.has("sender_chat") && !message.path("sender_chat").isNull()) {
-                remoteIds.put("sender_chat_id", message.path("sender_chat").path("id").asText());
+                remoteIds.put(
+                        "sender_chat_id", message.path("sender_chat").path("id").asText());
             }
         }
         SocialInboundAuthor author = authorFrom(message);

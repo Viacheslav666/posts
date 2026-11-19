@@ -38,7 +38,8 @@ public class AntispamPartitionJob {
         for (int i = 0; i <= aheadMonths; i++) {
             ensurePartition(today.plusMonths(i));
         }
-        LocalDate dropBefore = LocalDate.now(ZoneOffset.UTC).minusDays(retentionDays).withDayOfMonth(1);
+        LocalDate dropBefore =
+                LocalDate.now(ZoneOffset.UTC).minusDays(retentionDays).withDayOfMonth(1);
         jdbc.query(
                         """
                         SELECT c.relname

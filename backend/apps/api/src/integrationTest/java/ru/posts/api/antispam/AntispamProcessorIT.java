@@ -169,7 +169,8 @@ class AntispamProcessorIT {
                 Integer.class,
                 channelId);
         assertThat(actions).isEqualTo(3);
-        assertThat(logJdbc.findIdByDedup(channelId, "wall_comment", "wall_comment:-1003501:10:91")).isPresent();
+        assertThat(logJdbc.findIdByDedup(channelId, "wall_comment", "wall_comment:-1003501:10:91"))
+                .isPresent();
 
         processor.process(event);
         processor.process(event);
@@ -178,7 +179,8 @@ class AntispamProcessorIT {
                         Integer.class,
                         channelId))
                 .isEqualTo(3);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM antispam_log WHERE channel_id = ?", Integer.class, channelId))
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM antispam_log WHERE channel_id = ?", Integer.class, channelId))
                 .isEqualTo(1);
 
         AntispamRuleEntity dry = ruleRepository.findById(ruleId).orElseThrow();
@@ -186,8 +188,8 @@ class AntispamProcessorIT {
         dry.setConfigVersion(dry.getConfigVersion() + 1);
         ruleRepository.save(dry);
         processor.process(commentEvent("92", "ещё спам"));
-        var dryLog = logJdbc
-                .findById(logJdbc.findIdByDedup(channelId, "wall_comment", "wall_comment:-1003501:10:92").orElseThrow())
+        var dryLog = logJdbc.findById(logJdbc.findIdByDedup(channelId, "wall_comment", "wall_comment:-1003501:10:92")
+                        .orElseThrow())
                 .orElseThrow();
         assertThat(dryLog.action()).isEqualTo("flagged");
         assertThat(dryLog.remoteActionIds()).isEmpty();
@@ -221,7 +223,8 @@ class AntispamProcessorIT {
                 "{\"message\":{\"is_automatic_forward\":true,\"text\":\"https://spam.example\"}}",
                 List.of("antispam"));
         processor.process(fwd);
-        assertThat(logJdbc.findIdByDedup(channelId, "tg_discussion", "tg:-1001:5")).isEmpty();
+        assertThat(logJdbc.findIdByDedup(channelId, "tg_discussion", "tg:-1001:5"))
+                .isEmpty();
 
         SocialInboundEvent msg = new SocialInboundEvent(
                 "tg",
@@ -239,11 +242,12 @@ class AntispamProcessorIT {
                 "{\"message\":{\"message_id\":6,\"text\":\"https://spam.example\"}}",
                 List.of("antispam"));
         processor.process(msg);
-        var tgLog = logJdbc
-                .findById(logJdbc.findIdByDedup(channelId, "tg_discussion", "tg:-1001:6").orElseThrow())
+        var tgLog = logJdbc.findById(logJdbc.findIdByDedup(channelId, "tg_discussion", "tg:-1001:6")
+                        .orElseThrow())
                 .orElseThrow();
         assertThat(tgLog.restorable()).isFalse();
-        assertThatThrownBy(() -> antispamService.restore(userId, tgLog.id(), new AntispamDtos.AntispamRestoreRequest(false)))
+        assertThatThrownBy(() ->
+                        antispamService.restore(userId, tgLog.id(), new AntispamDtos.AntispamRestoreRequest(false)))
                 .isInstanceOf(ApiException.class);
 
         jdbc.update("UPDATE channels SET network = 'max', external_id = 'chat-1' WHERE id = ?", channelId);
@@ -269,8 +273,8 @@ class AntispamProcessorIT {
                 "{\"update_type\":\"comment_created\"}",
                 List.of("antispam"));
         processor.process(max);
-        var maxLog = logJdbc
-                .findById(logJdbc.findIdByDedup(channelId, "max_comment", "max:m1:c1").orElseThrow())
+        var maxLog = logJdbc.findById(logJdbc.findIdByDedup(channelId, "max_comment", "max:m1:c1")
+                        .orElseThrow())
                 .orElseThrow();
         assertThat(maxLog.restorable()).isFalse();
         assertThat(maxLog.action()).isEqualTo("deleted");

@@ -45,8 +45,7 @@ public class AntispamController {
             @PathVariable UUID workspaceId,
             @PathVariable UUID projectId,
             @Valid @ParameterObject CursorPage.Params page) {
-        return antispamService.listRules(
-                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, projectId, page);
+        return antispamService.listRules(SecurityAuthSupport.requirePrincipal().userId(), workspaceId, projectId, page);
     }
 
     @PostMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/antispam/rules")
@@ -70,8 +69,7 @@ public class AntispamController {
     @Operation(operationId = "antispamRulesPatch", summary = "Update antispam rule")
     public AntispamDtos.AntispamRule patchRule(
             @PathVariable UUID ruleId, @Valid @RequestBody AntispamDtos.AntispamRulePatch request) {
-        return antispamService.patchRule(
-                SecurityAuthSupport.requirePrincipal().userId(), ruleId, request);
+        return antispamService.patchRule(SecurityAuthSupport.requirePrincipal().userId(), ruleId, request);
     }
 
     @PostMapping("/api/v1/antispam/rules/{ruleId}/activate")

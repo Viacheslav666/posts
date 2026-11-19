@@ -55,9 +55,11 @@ public class AntispamActionApplier {
     @Transactional
     public UUID apply(SocialInboundEvent event, AntispamSection section, Verdict verdict) {
         RemoteRefFactory.RemoteIds remote = remoteRefFactory.from(event, section);
-        if (logJdbc.findIdByDedup(event.channelId(), section.wire(), remote.remoteCommentKey()).isPresent()) {
+        if (logJdbc.findIdByDedup(event.channelId(), section.wire(), remote.remoteCommentKey())
+                .isPresent()) {
             metrics.recordAction("duplicate");
-            return logJdbc.findIdByDedup(event.channelId(), section.wire(), remote.remoteCommentKey()).orElseThrow();
+            return logJdbc.findIdByDedup(event.channelId(), section.wire(), remote.remoteCommentKey())
+                    .orElseThrow();
         }
 
         Instant now = Instant.now();
@@ -191,7 +193,9 @@ public class AntispamActionApplier {
             payload.put("replyToCommentId", remote.remoteCommentId());
         } else if (action.kind() == AntispamActionKind.BAN) {
             int days = ((Number) action.params().getOrDefault("days", 7)).intValue();
-            payload.put("banEndDate", Instant.now().plus(Duration.ofDays(Math.max(1, days))).toString());
+            payload.put(
+                    "banEndDate",
+                    Instant.now().plus(Duration.ofDays(Math.max(1, days))).toString());
             payload.put("banReason", 1);
             payload.put("banComment", String.valueOf(action.params().getOrDefault("reason", "spam")));
             payload.put("banCommentVisible", Boolean.TRUE.equals(action.params().get("comment_visible")));

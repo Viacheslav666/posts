@@ -17,8 +17,10 @@ public class MembershipCache {
     private static final String KEY_PREFIX = "antispam:member:";
 
     private final ObjectProvider<StringRedisTemplate> redis;
-    private final Cache<String, Boolean> local =
-            Caffeine.newBuilder().maximumSize(100_000).expireAfterWrite(Duration.ofHours(1)).build();
+    private final Cache<String, Boolean> local = Caffeine.newBuilder()
+            .maximumSize(100_000)
+            .expireAfterWrite(Duration.ofHours(1))
+            .build();
     private final Duration ttl = Duration.ofHours(1);
 
     public MembershipCache(ObjectProvider<StringRedisTemplate> redis) {

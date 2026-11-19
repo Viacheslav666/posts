@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -79,9 +78,12 @@ class AntispamEngineTest {
     class Engine {
         @Test
         void keywordHitProducesDelete() {
-            Verdict v = eval(event("купи спам"), rule(Map.of(
-                    "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("купи спам"),
+                    rule(Map.of(
+                            "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.matched()).isTrue();
             assertThat(v.reasons()).anyMatch(r -> r.startsWith("keyword:"));
             assertThat(v.actions()).extracting(a -> a.kind()).contains(AntispamActionKind.DELETE);
@@ -90,47 +92,57 @@ class AntispamEngineTest {
         @ParameterizedTest
         @ValueSource(strings = {"сп@м", "cпам", "с-п-а-м", "С П А М", "спаааам"})
         void keywordNormalizationVariants(String text) {
-            Verdict v = eval(event(text), rule(Map.of(
-                    "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event(text),
+                    rule(Map.of(
+                            "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.matched()).as(text).isTrue();
         }
 
         @Test
         void whiteKeywordAllows() {
-            Verdict v = eval(event("спам но белый"), rule(Map.of(
-                    "filters",
-                            Map.of(
-                                    "keywords",
-                                    Map.of("black", List.of("спам"), "white", List.of("белый"))),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("спам но белый"),
+                    rule(Map.of(
+                            "filters", Map.of("keywords", Map.of("black", List.of("спам"), "white", List.of("белый"))),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.matched()).isFalse();
         }
 
         @Test
         void allLinks() {
-            Verdict v = eval(event("смотри https://evil.example/x"), rule(Map.of(
-                    "filters", Map.of("links", Map.of("all", true)),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("смотри https://evil.example/x"),
+                    rule(Map.of(
+                            "filters", Map.of("links", Map.of("all", true)),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.reasons()).contains("link");
         }
 
         @Test
         void vkLinks() {
-            Verdict v = eval(event("https://vk.com/id1"), rule(Map.of(
-                    "filters", Map.of("links", Map.of("vk", true)),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("https://vk.com/id1"),
+                    rule(Map.of(
+                            "filters", Map.of("links", Map.of("vk", true)),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.reasons()).contains("vk_link");
         }
 
         @Test
         void domainWhitelistSkipsLink() {
-            Verdict v = eval(event("https://good.example/a"), rule(Map.of(
-                    "filters",
-                            Map.of(
-                                    "links",
-                                    Map.of("all", true, "domain_whitelist", List.of("good.example"))),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("https://good.example/a"),
+                    rule(Map.of(
+                            "filters",
+                                    Map.of("links", Map.of("all", true, "domain_whitelist", List.of("good.example"))),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.matched()).isFalse();
         }
 
@@ -138,15 +150,7 @@ class AntispamEngineTest {
         void photoAttachment() {
             Verdict v = eval(
                     AntispamEventView.of(
-                            "vk",
-                            AntispamSection.WALL_COMMENT,
-                            "1",
-                            false,
-                            false,
-                            "",
-                            List.of("photo"),
-                            false,
-                            false),
+                            "vk", AntispamSection.WALL_COMMENT, "1", false, false, "", List.of("photo"), false, false),
                     rule(Map.of(
                             "filters", Map.of("attachments", Map.of("photo", true)),
                             "actions", Map.of("delete", true))),
@@ -198,9 +202,12 @@ class AntispamEngineTest {
 
         @Test
         void caps() {
-            Verdict v = eval(event("ЭТО ВЕСЬ КАПС ТЕКСТ!!!"), rule(Map.of(
-                    "filters", Map.of("caps", Map.of("enabled", true, "ratio", 0.6, "min_letters", 5)),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    event("ЭТО ВЕСЬ КАПС ТЕКСТ!!!"),
+                    rule(Map.of(
+                            "filters", Map.of("caps", Map.of("enabled", true, "ratio", 0.6, "min_letters", 5)),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.reasons()).contains("caps");
         }
 
@@ -208,9 +215,12 @@ class AntispamEngineTest {
         void fromCommunity() {
             AntispamEventView e = AntispamEventView.of(
                     "vk", AntispamSection.WALL_COMMENT, "-10", true, false, "hi", List.of(), false, false);
-            Verdict v = eval(e, rule(Map.of(
-                    "filters", Map.of("authors", Map.of("communities", true)),
-                    "actions", Map.of("delete", true))), EvaluationContext.empty());
+            Verdict v = eval(
+                    e,
+                    rule(Map.of(
+                            "filters", Map.of("authors", Map.of("communities", true)),
+                            "actions", Map.of("delete", true))),
+                    EvaluationContext.empty());
             assertThat(v.reasons()).contains("from_community");
         }
 
@@ -281,9 +291,17 @@ class AntispamEngineTest {
 
         @Test
         void dryRunOnlyFlags() {
-            CompiledRule r = rule(Map.of(
-                    "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
-                    "actions", Map.of("delete", true, "ban", Map.of("enabled", true), "reply", Map.of("enabled", true))),
+            CompiledRule r = rule(
+                    Map.of(
+                            "filters", Map.of("keywords", Map.of("black", List.of("спам"))),
+                            "actions",
+                                    Map.of(
+                                            "delete",
+                                            true,
+                                            "ban",
+                                            Map.of("enabled", true),
+                                            "reply",
+                                            Map.of("enabled", true))),
                     true);
             Verdict v = eval(event("спам"), r, EvaluationContext.empty());
             assertThat(v.dryRun()).isTrue();
@@ -375,7 +393,8 @@ class AntispamEngineTest {
                     Map.of(
                             "filters", Map.of("links", Map.of("all", true)),
                             "actions", Map.of("delete", true)));
-            Verdict v = AntispamEngine.evaluate(event("спам https://x.com"), List.of(high, low), EvaluationContext.empty());
+            Verdict v =
+                    AntispamEngine.evaluate(event("спам https://x.com"), List.of(high, low), EvaluationContext.empty());
             assertThat(v.ruleId()).isEqualTo(high.ruleId());
             assertThat(v.reasons()).anyMatch(r -> r.startsWith("keyword:"));
         }
@@ -400,7 +419,8 @@ class AntispamEngineTest {
 
         @Test
         void emptyRules() {
-            assertThat(AntispamEngine.evaluate(event("x"), List.of(), EvaluationContext.empty()).matched())
+            assertThat(AntispamEngine.evaluate(event("x"), List.of(), EvaluationContext.empty())
+                            .matched())
                     .isFalse();
         }
     }

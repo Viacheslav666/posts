@@ -114,7 +114,8 @@ public class AntispamEventProcessor {
             return HandlerResult.CONTINUE;
         }
 
-        String primaryReason = verdict.reasons().isEmpty() ? "matched" : verdict.reasons().getFirst();
+        String primaryReason =
+                verdict.reasons().isEmpty() ? "matched" : verdict.reasons().getFirst();
         metrics.recordVerdict(event.network(), section.wire(), primaryReason, took);
         actionApplier.apply(event, section, verdict);
 
@@ -126,7 +127,8 @@ public class AntispamEventProcessor {
     }
 
     private EvaluationContext buildContext(SocialInboundEvent event, List<CompiledRule> compiled) {
-        ChannelEntity channel = channelRepository.findByIdAndDeletedAtIsNull(event.channelId()).orElse(null);
+        ChannelEntity channel =
+                channelRepository.findByIdAndDeletedAtIsNull(event.channelId()).orElse(null);
         String communityId = channel == null ? null : channel.getExternalId();
         String authorId = event.author() == null ? null : event.author().id();
 
@@ -191,7 +193,8 @@ public class AntispamEventProcessor {
     }
 
     private boolean isAutomaticForward(SocialInboundEvent event) {
-        if (event.remoteIds() != null && "true".equalsIgnoreCase(event.remoteIds().get("is_automatic_forward"))) {
+        if (event.remoteIds() != null
+                && "true".equalsIgnoreCase(event.remoteIds().get("is_automatic_forward"))) {
             return true;
         }
         JsonNode raw = readRaw(event.raw());

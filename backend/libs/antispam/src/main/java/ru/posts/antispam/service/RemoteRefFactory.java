@@ -46,13 +46,10 @@ public class RemoteRefFactory {
         };
     }
 
-    private RemoteIds fromVk(
-            SocialInboundEvent event, AntispamSection section, Map<String, String> ids, JsonNode raw) {
+    private RemoteIds fromVk(SocialInboundEvent event, AntispamSection section, Map<String, String> ids, JsonNode raw) {
         JsonNode object = raw.path("object");
-        String ownerId = firstNonBlank(
-                ids.get("owner_id"),
-                text(object, "owner_id"),
-                negativeGroup(ids.get("group_id")));
+        String ownerId =
+                firstNonBlank(ids.get("owner_id"), text(object, "owner_id"), negativeGroup(ids.get("group_id")));
         String commentId = firstNonBlank(ids.get("comment_id"), text(object, "id"));
         String postId = firstNonBlank(ids.get("post_id"), text(object, "post_id"), text(object, "id"));
         if (section == AntispamSection.WALL_COMMENT
@@ -62,7 +59,13 @@ public class RemoteRefFactory {
                 || section == AntispamSection.BOARD_COMMENT) {
             // for comments post_id is separate; comment id is object.id
             commentId = firstNonBlank(ids.get("comment_id"), text(object, "id"));
-            postId = firstNonBlank(ids.get("post_id"), text(object, "post_id"), text(object, "photo_id"), text(object, "video_id"), text(object, "item_id"), text(object, "topic_id"));
+            postId = firstNonBlank(
+                    ids.get("post_id"),
+                    text(object, "post_id"),
+                    text(object, "photo_id"),
+                    text(object, "video_id"),
+                    text(object, "item_id"),
+                    text(object, "topic_id"));
         }
         String commentType =
                 switch (section) {
@@ -73,8 +76,8 @@ public class RemoteRefFactory {
                     case WALL_POST, SUGGESTED_POST -> "wall";
                     default -> "wall";
                 };
-        String key = section.wire() + ":" + nullToEmpty(ownerId) + ":" + nullToEmpty(postId) + ":"
-                + nullToEmpty(commentId);
+        String key =
+                section.wire() + ":" + nullToEmpty(ownerId) + ":" + nullToEmpty(postId) + ":" + nullToEmpty(commentId);
         Map<String, Object> ref = new LinkedHashMap<>();
         ref.put("owner_id", ownerId);
         ref.put("post_id", postId);
@@ -91,8 +94,14 @@ public class RemoteRefFactory {
     }
 
     private RemoteIds fromTg(SocialInboundEvent event, Map<String, String> ids, JsonNode raw) {
-        String chatId = firstNonBlank(ids.get("chat_id"), text(raw.path("message").path("chat"), "id"), text(raw.path("edited_message").path("chat"), "id"));
-        String messageId = firstNonBlank(ids.get("message_id"), text(raw.path("message"), "message_id"), text(raw.path("edited_message"), "message_id"));
+        String chatId = firstNonBlank(
+                ids.get("chat_id"),
+                text(raw.path("message").path("chat"), "id"),
+                text(raw.path("edited_message").path("chat"), "id"));
+        String messageId = firstNonBlank(
+                ids.get("message_id"),
+                text(raw.path("message"), "message_id"),
+                text(raw.path("edited_message"), "message_id"));
         String key = "tg:" + nullToEmpty(chatId) + ":" + nullToEmpty(messageId);
         Map<String, Object> ref = new LinkedHashMap<>();
         ref.put("chat_id", chatId);

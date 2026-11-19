@@ -17,8 +17,10 @@ import ru.posts.antispam.engine.TextNormalizer;
 public class RepeatDetector {
 
     private final ObjectProvider<StringRedisTemplate> redis;
-    private final Cache<String, AtomicInteger> local =
-            Caffeine.newBuilder().maximumSize(200_000).expireAfterWrite(Duration.ofHours(12)).build();
+    private final Cache<String, AtomicInteger> local = Caffeine.newBuilder()
+            .maximumSize(200_000)
+            .expireAfterWrite(Duration.ofHours(12))
+            .build();
 
     public RepeatDetector(ObjectProvider<StringRedisTemplate> redis) {
         this.redis = redis;
@@ -29,7 +31,8 @@ public class RepeatDetector {
      * 1).
      */
     public boolean isRepeat(UUID channelId, String authorId, String text, Duration window) {
-        String key = "antispam:repeat:" + channelId + ":" + authorId + ":" + hash(TextNormalizer.normalizeForKeywords(text));
+        String key =
+                "antispam:repeat:" + channelId + ":" + authorId + ":" + hash(TextNormalizer.normalizeForKeywords(text));
         Duration ttl = window == null ? Duration.ofHours(12) : window;
         StringRedisTemplate template = redis.getIfAvailable();
         if (template != null) {

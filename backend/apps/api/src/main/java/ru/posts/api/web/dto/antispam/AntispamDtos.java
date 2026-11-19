@@ -57,9 +57,7 @@ public final class AntispamDtos {
 
     @Schema(name = "AntispamWordListCreate")
     public record AntispamWordListCreate(
-            @NotBlank @Size(max = 200) String name,
-            @NotNull List<@NotBlank String> words,
-            @NotBlank String mode) {}
+            @NotBlank @Size(max = 200) String name, @NotNull List<@NotBlank String> words, @NotBlank String mode) {}
 
     @Schema(name = "AntispamWordListPatch")
     public record AntispamWordListPatch(
