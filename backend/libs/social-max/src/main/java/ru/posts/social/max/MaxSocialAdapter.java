@@ -230,6 +230,9 @@ public class MaxSocialAdapter implements SocialAdapter {
             if (status >= 500) {
                 return ErrorClass.RETRYABLE;
             }
+            if (status == 499) {
+                return ErrorClass.UNKNOWN_OUTCOME;
+            }
             return ErrorClass.PERMANENT;
         }
         if (error instanceof ResourceAccessException) {
@@ -312,6 +315,9 @@ public class MaxSocialAdapter implements SocialAdapter {
         }
         if (status == 401 || status == 403) {
             return new SocialApiException(ErrorClass.AUTH, "Max auth failed", status, null, ex);
+        }
+        if (status == 499) {
+            return new SocialApiException(ErrorClass.UNKNOWN_OUTCOME, "Max response lost", status, null, ex);
         }
         return new SocialApiException(ErrorClass.PERMANENT, "Max error: " + status, status, null, ex);
     }
