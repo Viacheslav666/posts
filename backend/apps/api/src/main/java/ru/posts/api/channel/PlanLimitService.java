@@ -15,6 +15,7 @@ import ru.posts.api.error.ProblemCodes;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.UsageCounterEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.InvitationRepository;
@@ -39,6 +40,7 @@ public class PlanLimitService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final InvitationRepository invitationRepository;
     private final AutomationRuleRepository automationRuleRepository;
+    private final AntispamRuleRepository antispamRuleRepository;
 
     public PlanLimitService(
             WorkspaceRepository workspaceRepository,
@@ -48,7 +50,8 @@ public class PlanLimitService {
             UsageCounterRepository usageCounterRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
             InvitationRepository invitationRepository,
-            AutomationRuleRepository automationRuleRepository) {
+            AutomationRuleRepository automationRuleRepository,
+            AntispamRuleRepository antispamRuleRepository) {
         this.workspaceRepository = workspaceRepository;
         this.planRepository = planRepository;
         this.channelRepository = channelRepository;
@@ -57,6 +60,7 @@ public class PlanLimitService {
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.invitationRepository = invitationRepository;
         this.automationRuleRepository = automationRuleRepository;
+        this.antispamRuleRepository = antispamRuleRepository;
     }
 
     public void ensureNotFrozen(UUID workspaceId) {
@@ -114,6 +118,24 @@ public class PlanLimitService {
                     ProblemCodes.PLAN_LIMIT_EXCEEDED,
                     "Workspace grabber rule limit reached",
                     Map.of("limit", "grabber_rules", "grabber_rules", limit, "current", current));
+        }
+    }
+
+    /** Optional {@code plans.limits.antispam_rules}; null = unlimited. Feature flag gates the module. */
+    public void ensureCanCreateAntispamRule(UUID workspaceId) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        Integer limit = nullableIntLimit(workspace, "antispam_rules");
+        if (limit == null) {
+            return;
+        }
+        long current = antispamRuleRepository.countByWorkspaceIdAndStatusNot(workspaceId, "archived");
+        if (current >= limit) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace antispam rule limit reached",
+                    Map.of("limit", "antispam_rules", "antispam_rules", limit, "current", current));
         }
     }
 

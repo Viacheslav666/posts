@@ -30,6 +30,8 @@ public final class ModuleClasspath {
         "libs/ord-reporting/build/classes/java/main",
         "libs/analytics/build/classes/java/main",
         "libs/grabber/build/classes/java/main",
+        "libs/social-inbound/build/classes/java/main",
+        "libs/antispam/build/classes/java/main",
         "libs/yookassa/build/classes/java/main",
         "apps/api/build/classes/java/main",
         "apps/scheduler/build/classes/java/main",

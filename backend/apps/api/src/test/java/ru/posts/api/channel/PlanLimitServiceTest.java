@@ -18,6 +18,7 @@ import ru.posts.api.error.ProblemCodes;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.InvitationRepository;
@@ -54,6 +55,9 @@ class PlanLimitServiceTest {
     @Mock
     AutomationRuleRepository automationRuleRepository;
 
+    @Mock
+    AntispamRuleRepository antispamRuleRepository;
+
     PlanLimitService service;
     UUID workspaceId;
     UUID planId;
@@ -68,7 +72,8 @@ class PlanLimitServiceTest {
                 usageCounterRepository,
                 workspaceMemberRepository,
                 invitationRepository,
-                automationRuleRepository);
+                automationRuleRepository,
+                antispamRuleRepository);
         workspaceId = UuidV7.generate();
         planId = UuidV7.generate();
     }

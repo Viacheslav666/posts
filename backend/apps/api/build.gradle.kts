@@ -21,6 +21,8 @@ dependencies {
     implementation(project(":libs:analytics"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:social-inbound"))
+    implementation(project(":libs:antispam"))
+    implementation(project(":libs:social-api"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
     implementation(project(":libs:social-telegram"))

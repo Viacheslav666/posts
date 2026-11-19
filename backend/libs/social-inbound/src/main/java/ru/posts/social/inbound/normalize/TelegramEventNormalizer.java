@@ -29,8 +29,15 @@ public final class TelegramEventNormalizer {
         if (message != null) {
             remoteIds.put("chat_id", message.path("chat").path("id").asText());
             remoteIds.put("message_id", message.path("message_id").asText());
+            remoteIds.put("chat_type", message.path("chat").path("type").asText(""));
             if (message.has("media_group_id")) {
                 remoteIds.put("media_group_id", message.path("media_group_id").asText());
+            }
+            if (message.path("is_automatic_forward").asBoolean(false)) {
+                remoteIds.put("is_automatic_forward", "true");
+            }
+            if (message.has("sender_chat") && !message.path("sender_chat").isNull()) {
+                remoteIds.put("sender_chat_id", message.path("sender_chat").path("id").asText());
             }
         }
         SocialInboundAuthor author = authorFrom(message);

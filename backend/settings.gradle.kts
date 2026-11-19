@@ -39,6 +39,7 @@ include(
     "libs:social-ok",
     "libs:social-max",
     "libs:social-inbound",
+    "libs:antispam",
     "libs:ord-api",
     "libs:ord-vk",
     "libs:ord-yandex",

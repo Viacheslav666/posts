@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.2.0 |
-| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**) |
-| Дата проверки | **2026-11-18** |
+| Версия | 1.3.0 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; антиспам **BE-35**) |
+| Дата проверки | **2026-11-19** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
 | Валидация | `python3 docs/api/fixtures/validate-network-capabilities.py` |
@@ -253,10 +253,24 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ---
 
+## 11. Антиспам (BE-35, проверка 2026-11-19)
+
+| Сеть | Удаление | Восстановление | Бан | Ручная проверка последних 100 | Примечание |
+|---|---|---|---|---|---|
+| VK | wall/photo/video/market/board deleteComment | `wall.restoreComment` (срок не документирован VK → по ответу API; vposter ~5 ч) | `groups.ban` (user token) | `wall.get` + `wall.getComments` | разделы сообщений сообщества — P2 |
+| Telegram | `deleteMessage` &lt; 48 ч; нужны `can_delete_messages` / `can_restrict_members` | **нет** | `banChatMember` | **нет** (у ботов нет history API) | `is_automatic_forward` не трогать; боты не видят сообщения других ботов |
+| Max | `DELETE …/comments` | **нет** | удаление участника чата | ограниченно | бот-админ: `read_all_message`, `edit`, `write`, `delete`; события `comment_created` / `comment_edited` |
+| OK | — | — | — | — | вне объёма (как у vposter) |
+
+Feature flag: `automation.antispam`. Idempotency: `antispam:{channelId}:{section}:{remoteCommentKey}:{action}`.
+
+---
+
 ## История изменений
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.3.0 | 2026-11-19 | BE-35: секция антиспама (VK/TG/Max capabilities) |
 | 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |
 | 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

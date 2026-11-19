@@ -47,7 +47,10 @@ class FlywayMigrationIntegrationTest {
             "ledger_entries",
             "usage_counters",
             "analytics_posts_monthly",
-            "analytics_posts_job_state");
+            "analytics_posts_job_state",
+            "antispam_rules",
+            "antispam_word_lists",
+            "antispam_log");
 
     @Container
     @ServiceConnection

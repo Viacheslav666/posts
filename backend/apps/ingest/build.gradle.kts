@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":libs:messaging"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:social-inbound"))
+    implementation(project(":libs:antispam"))
     implementation(project(":libs:social-vk"))
 
     implementation(libs.spring.boot.starter.web)
