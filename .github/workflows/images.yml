@@ -56,10 +56,18 @@ jobs:
       - name: Build media base (ffmpeg + JRE 21)
         if: matrix.service == 'media'
         run: |
-          docker build \
-            -t "${{ env.MEDIA_BASE_NAME }}:${{ env.MEDIA_BASE_TAG }}" \
-            -t "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MEDIA_BASE_NAME }}:${{ env.MEDIA_BASE_TAG }}" \
-            infra/docker/java21-ffmpeg
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if docker build \
+              -t "${{ env.MEDIA_BASE_NAME }}:${{ env.MEDIA_BASE_TAG }}" \
+              -t "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MEDIA_BASE_NAME }}:${{ env.MEDIA_BASE_TAG }}" \
+              infra/docker/java21-ffmpeg; then
+              exit 0
+            fi
+            echo "media base docker build attempt ${attempt} failed" >&2
+            sleep $((attempt * 20))
+          done
+          exit 1
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'

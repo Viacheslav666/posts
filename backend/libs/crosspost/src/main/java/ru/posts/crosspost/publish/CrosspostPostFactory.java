@@ -175,6 +175,9 @@ public class CrosspostPostFactory {
             Map<String, Object> content = new LinkedHashMap<>();
             content.put("text", transformed.text());
             content.put("mediaIds", List.of());
+            if (!transformed.attachments().isEmpty()) {
+                content.put("crosspostAttachments", transformed.attachments());
+            }
             if (transformed.overflowText() != null
                     && !transformed.overflowText().isBlank()) {
                 content.put("followUpText", transformed.overflowText());

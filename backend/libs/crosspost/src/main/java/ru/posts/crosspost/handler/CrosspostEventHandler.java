@@ -9,12 +9,14 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.content.hash.ContentFingerprint;
 import ru.posts.content.hash.SimHasher;
 import ru.posts.crosspost.config.CrosspostProperties;
+import ru.posts.crosspost.loop.CrosspostLineageResolver;
 import ru.posts.crosspost.loop.LoopGuard;
 import ru.posts.crosspost.metrics.CrosspostMetrics;
 import ru.posts.crosspost.model.CrosspostCandidate;
@@ -48,6 +50,7 @@ public class CrosspostEventHandler implements SocialEventHandler {
     private final LoopGuard loopGuard;
     private final CrosspostProperties properties;
     private final CrosspostMetrics metrics;
+    private final RemotePostRegistryJdbc registryJdbc;
 
     public CrosspostEventHandler(
             CrosspostRuleRepository ruleRepository,
@@ -60,6 +63,7 @@ public class CrosspostEventHandler implements SocialEventHandler {
         this.itemRepository = itemRepository;
         this.channelRepository = channelRepository;
         this.loopGuard = new LoopGuard(registryJdbc, properties);
+        this.registryJdbc = registryJdbc;
         this.properties = properties;
         this.metrics = metrics;
     }
@@ -156,6 +160,12 @@ public class CrosspostEventHandler implements SocialEventHandler {
                     event.receivedAt() == null
                             ? Instant.now().toString()
                             : event.receivedAt().toString());
+            itemRepository.findProducersForTargetChannel(event.channelId(), fingerprint, PageRequest.of(0, 1)).stream()
+                    .findFirst()
+                    .ifPresent(producer -> payload.putAll(CrosspostLineageResolver.outboundLineage(
+                            producer, producer.getRuleId(), producer.getPayload())));
+            item.setPayload(payload);
+            CrosspostLineageResolver.applyResolved(payload, CrosspostLineageResolver.resolve(item, registryJdbc));
             item.setPayload(payload);
             item.setCreatedAt(Instant.now());
             item.setUpdatedAt(Instant.now());

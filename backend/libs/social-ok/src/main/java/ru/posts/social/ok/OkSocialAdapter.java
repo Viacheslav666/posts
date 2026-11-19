@@ -433,6 +433,9 @@ public class OkSocialAdapter implements SocialAdapter {
             if (status >= 500) {
                 return ErrorClass.RETRYABLE;
             }
+            if (status == 499) {
+                return ErrorClass.UNKNOWN_OUTCOME;
+            }
             ErrorClass fromBody = classifyOkBody(http.getResponseBodyAsString());
             return fromBody != null ? fromBody : ErrorClass.PERMANENT;
         }
@@ -690,6 +693,9 @@ public class OkSocialAdapter implements SocialAdapter {
         }
         if (status == 401 || status == 403) {
             return new SocialApiException(ErrorClass.AUTH, "OK auth failed", status, null, ex);
+        }
+        if (status == 499) {
+            return new SocialApiException(ErrorClass.UNKNOWN_OUTCOME, "OK response lost", status, null, ex);
         }
         ErrorClass fromBody = classifyOkBody(ex.getResponseBodyAsString());
         if (fromBody != null) {
