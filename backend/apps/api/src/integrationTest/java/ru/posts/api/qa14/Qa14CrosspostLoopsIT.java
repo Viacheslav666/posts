@@ -288,7 +288,7 @@ class Qa14CrosspostLoopsIT {
     }
 
     @Test
-    @DisplayName("TC-XP-triangle: B and C each get one copy; echo on C blocked by own-registry (0 back to A)")
+    @DisplayName("TC-XP-triangle L3: B and C each get one copy; C→A blocked by visited/root (0 back to A)")
     void triangleSingleCopies() {
         UUID ruleAb = activeRule(channelA, "A→B").getId();
         saveTarget(ruleAb, channelB);
@@ -302,31 +302,21 @@ class Qa14CrosspostLoopsIT {
         assertThat(countPublicationsToChannel(channelB)).isEqualTo(1);
 
         String text = "triangle post";
-        String fp = ContentFingerprint.fingerprint(text, List.of());
         postNew(channelB, "tri-b", text);
         processItem(ruleBc, "tri-b");
         assertThat(countPublicationsToChannel(channelC)).isEqualTo(1);
-        registry.upsert(
-                workspaceId,
-                "vk",
-                channelC,
-                "tri-c",
-                "crosspost",
-                null,
-                null,
-                rootOrigin(channelA, "tri-1"),
-                (short) 2,
-                fp);
 
         postNew(channelC, "tri-c", text);
         var itemCa =
                 itemRepository.findByRuleIdAndSourceRemoteId(ruleCa, "tri-c").orElseThrow();
+        assertThat(itemCa.getPayload()).containsKey("visited_channel_ids");
+        assertThat(itemCa.getPayload().get("root_origin")).isNotNull();
         itemCa.setProcessAfter(Instant.now());
         itemRepository.save(itemCa);
         itemProcessor.processDue(itemCa);
         itemCa = itemRepository.findById(itemCa.getId()).orElseThrow();
-        assertThat(itemCa.getStatus()).isEqualTo("skipped_own");
-        assertThat(itemCa.getReasons()).contains("own_crosspost");
+        assertThat(itemCa.getStatus()).isEqualTo("skipped_loop");
+        assertThat(itemCa.getReasons()).contains("visited_or_root");
         assertThat(countPublicationsToChannel(channelA)).isZero();
     }
 

@@ -104,12 +104,31 @@ class LoopGuardAndGraphTest {
     }
 
     @Test
-    void l3BlocksHopCopiesAsSource() {
+    void l3AllowsHopWhenTargetNotVisited() {
         UUID source = UUID.randomUUID();
         UUID target = UUID.randomUUID();
-        var d = guard.checkLineage(target, source, Map.of(), (short) 1);
+        UUID root = UUID.randomUUID();
+        Map<String, Object> ref = Map.of(
+                "root_origin",
+                Map.of("channel_id", root.toString()),
+                "visited_channel_ids",
+                List.of(source.toString(), root.toString()));
+        var d = guard.checkLineage(target, source, ref, (short) 2);
+        assertThat(d.block()).isFalse();
+    }
+
+    @Test
+    void l3BlocksReturnToRootWithHop() {
+        UUID source = UUID.randomUUID();
+        UUID root = UUID.randomUUID();
+        Map<String, Object> ref = Map.of(
+                "root_origin",
+                Map.of("channel_id", root.toString()),
+                "visited_channel_ids",
+                List.of(source.toString()));
+        var d = guard.checkLineage(root, source, ref, (short) 2);
         assertThat(d.block()).isTrue();
-        assertThat(d.reason()).isEqualTo("hop_copy_not_source");
+        assertThat(d.reason()).isEqualTo("visited_or_root");
     }
 
     @Test

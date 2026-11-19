@@ -70,4 +70,18 @@ public interface CrosspostItemRepository extends JpaRepository<CrosspostItemEnti
             @Param("statuses") Collection<String> statuses,
             @Param("since") Instant since,
             Pageable pageable);
+
+    @Query(
+            """
+            SELECT i FROM CrosspostItemEntity i
+            JOIN CrosspostRuleTargetEntity t ON t.ruleId = i.ruleId
+            WHERE t.targetChannelId = :targetChannelId
+              AND i.contentFingerprint = :fingerprint
+              AND i.status IN ('queued', 'published', 'partially_published')
+            ORDER BY i.updatedAt DESC
+            """)
+    List<CrosspostItemEntity> findProducersForTargetChannel(
+            @Param("targetChannelId") UUID targetChannelId,
+            @Param("fingerprint") String fingerprint,
+            Pageable pageable);
 }

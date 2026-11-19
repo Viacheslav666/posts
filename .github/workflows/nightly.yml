@@ -201,15 +201,21 @@ jobs:
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :libs:ratelimit:test --tests 'ru.posts.ratelimit.Qa14RedisDegradeTest' \
             :apps:api:integrationTest --tests 'ru.posts.api.qa14.Qa14CrosspostLoopsIT' \
+            --tests 'ru.posts.api.qa14.Qa14CrosspostPairsIT' \
+            --tests 'ru.posts.api.qa14.Qa14AntispamIT' \
+            --tests 'ru.posts.api.qa14.Qa14SuggestBulkIdorIT' \
             --tests 'ru.posts.api.inbound.SocialInboundIT' \
             --tests 'ru.posts.api.suggest.SuggestVkIT' \
-            --tests 'ru.posts.api.antispam.AntispamProcessorIT'
+            --tests 'ru.posts.api.antispam.AntispamProcessorIT' \
+            :apps:publisher:integrationTest --tests 'ru.posts.publisher.pipeline.Qa14CrosspostReconcileIT'
 
       - name: P2 automations IT nightly (chaos)
         working-directory: backend
         run: |
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
-          ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.qa14.Qa14InboundChaosIT'
+          ./gradlew :apps:api:integrationTest -PincludeNightly=true \
+            --tests 'ru.posts.api.qa14.Qa14InboundChaosIT' \
+            --tests 'ru.posts.api.qa14.Qa14IngestRestartIT'
 
       - name: P2 automations k6 harness (smoke rates)
         env:

@@ -17,6 +17,7 @@ import ru.posts.content.hash.SimHasher;
 import ru.posts.crosspost.config.CrosspostProperties;
 import ru.posts.crosspost.filter.CrosspostFilterEngine;
 import ru.posts.crosspost.loop.CircuitBreaker;
+import ru.posts.crosspost.loop.CrosspostLineageResolver;
 import ru.posts.crosspost.loop.LoopGuard;
 import ru.posts.crosspost.metrics.CrosspostMetrics;
 import ru.posts.crosspost.model.CrosspostCandidate;
@@ -52,6 +53,7 @@ public class CrosspostItemProcessor {
     private final CrosspostMetrics metrics;
     private final CrosspostProperties properties;
     private final OutboxRepository outboxRepository;
+    private final RemotePostRegistryJdbc registryJdbc;
     private final String localBotApiUrl;
 
     public CrosspostItemProcessor(
@@ -76,6 +78,7 @@ public class CrosspostItemProcessor {
         this.metrics = metrics;
         this.properties = properties;
         this.outboxRepository = outboxRepository;
+        this.registryJdbc = registryJdbc;
         this.localBotApiUrl = localBotApiUrl == null ? "" : localBotApiUrl.trim();
     }
 
@@ -109,15 +112,6 @@ public class CrosspostItemProcessor {
             return;
         }
 
-        // Copies (hop≥1) never become sources — check payload hop
-        Object hopObj = item.getPayload() == null ? null : item.getPayload().get("hop");
-        if (hopObj instanceof Number n && n.intValue() >= 1) {
-            LoopGuard.Decision hop =
-                    LoopGuard.Decision.block("skipped_loop", "hop_copy_not_source", LoopGuard.Layer.L3_LINEAGE);
-            finishSkip(item, rule, hop);
-            return;
-        }
-
         List<String> filterReasons = CrosspostFilterEngine.evaluate(candidate, rule.getConfig());
         if (!filterReasons.isEmpty()) {
             mark(item, "filtered_out", filterReasons);
@@ -144,21 +138,14 @@ public class CrosspostItemProcessor {
         }
 
         Map<UUID, LoopGuard.Decision> decisions = new HashMap<>();
-        Map<String, Object> lineageRef = Map.of(
-                "root_origin",
-                Map.of(
-                        "network", item.getSourceNetwork(),
-                        "channel_id", item.getSourceChannelId().toString(),
-                        "remote_id", item.getSourceRemoteId()),
-                "hop",
-                0,
-                "visited_channel_ids",
-                List.of(item.getSourceChannelId().toString()));
+        CrosspostLineageResolver.Resolved lineageState = CrosspostLineageResolver.resolve(item, registryJdbc);
+        Map<String, Object> lineageRef = lineageState.sourceRef();
+        short lineageHop = lineageState.hop();
         long sim = item.getSimhash() == null ? SimHasher.fingerprint(candidate.text()) : item.getSimhash();
         boolean anyLoop = false;
         for (CrosspostRuleTargetEntity t : targets) {
             LoopGuard.Decision lineage =
-                    loopGuard.checkLineage(t.getTargetChannelId(), item.getSourceChannelId(), lineageRef, (short) 0);
+                    loopGuard.checkLineage(t.getTargetChannelId(), item.getSourceChannelId(), lineageRef, lineageHop);
             if (lineage.block()) {
                 decisions.put(t.getTargetChannelId(), lineage);
                 metrics.loopBlocked(lineage.layer().name());
@@ -210,6 +197,8 @@ public class CrosspostItemProcessor {
         }
 
         item.setConsecutiveLoopSkips(0);
+        Map<String, Object> outbound = CrosspostLineageResolver.outboundLineage(item, rule.getId(), item.getPayload());
+        item.setPayload(CrosspostLineageResolver.mergePayload(item.getPayload(), outbound));
         mark(item, "queued", reasons);
         metrics.itemStatus("queued", skipped > 0 ? "partial_targets" : "ok");
         metrics.recordLag(candidate.publishedAt());

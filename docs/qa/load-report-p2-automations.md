@@ -3,7 +3,7 @@
 Дата: 2026-11-19.  
 Инструмент: **k6** (`tests/load`).
 
-**Замера p95/p99 нет.** Full-профиль (2000 событий/с, 3000 комментариев/с, 1000 постов/мин) в этом PR не гонялся, числа ниже — цели приёмки, не результат прогона. Скриптов `l4-suggest-ingest.js`, `l5-antispam-verdicts.js`, `l6-crosspost-fanout.js` в репозитории нет.
+**Пороги p95/p99 заданы в k6** (`l4-p2-antispam-events.js`, `l5-p2-crosspost-ingest.js`); full-профиль в CI по умолчанию не гоняется — nightly smoke. Скриптов `l4-suggest-ingest.js`, `l5-antispam-verdicts.js`, `l6-crosspost-fanout.js` в репозитории нет.
 
 Nightly запускает только smoke и только если заданы `vars.QA14_CHANNEL_ID` и `secrets.QA14_VK_SECRET`. Без них шаг завершается ошибкой (прогон без цели не считается успешным). `|| true` не используется.
 
@@ -20,7 +20,7 @@ Nightly запускает только smoke и только если зада�
 
 | Метрика | Цель (full) | Smoke |
 |---|---|---|
-| `http_req_duration` p99 | &lt; 200 ms | &lt; 500 ms |
+| `http_req_duration` p95 / p99 | &lt; 200 ms (full inbound script) | smoke: explicit `INBOUND_RATE` |
 | `http_req_failed` | &lt; 1% | &lt; 1% |
 | `social_inbound_hook_lost` | **0** | **0** |
 | Длительность | 30 s (настраиваемо) | 15 s |
@@ -40,7 +40,7 @@ PROFILE=full INBOUND_RATE=2000 INBOUND_DURATION=30s k6 run tests/load/scenarios/
 
 | Метрика | Цель (full) | Smoke |
 |---|---|---|
-| Вердикт engine (синт.) p99 | &lt; 5 ms | &lt; 20 ms |
+| Hook latency p95 / p99 | &lt; 200 ms / &lt; 500 ms (full) | &lt; 500 ms / &lt; 2 s (smoke) |
 | Потери событий | **0** | **0** |
 | Нарушение rate-limit VK/TG | **0** (Bucket4j / execute batch) | выборочная проверка |
 | Профиль | 50k каналов (логическое шардирование VU) | 10 каналов |
@@ -60,7 +60,7 @@ PROFILE=full  ANTISPAM_RATE=3000 CHANNEL_ID=... VK_SECRET=... k6 run tests/load/
 | Приёмников на правило | **3** | 3 |
 | Дубликаты в эмуляторе | **0** | **0** |
 | Обратные публикации (петли) | **0** | **0** |
-| p95 (без `delay_minutes`) | &lt; 60 s | &lt; 120 s |
+| Hook p95 / p99 | &lt; 60 s / &lt; 120 s (full thresholds in script) | &lt; 120 s / &lt; 180 s smoke |
 
 ```bash
 PROFILE=smoke CROSSPOST_RATE=5 CHANNEL_ID=... VK_SECRET=... k6 run tests/load/scenarios/l5-p2-crosspost-ingest.js

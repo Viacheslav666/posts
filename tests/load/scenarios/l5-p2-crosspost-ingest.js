@@ -23,6 +23,10 @@ export const options = {
   },
   thresholds: {
     http_req_failed: ['rate<0.02'],
+    'http_req_duration{scenario:crosspost}': [
+      `p(95)<${Number(__ENV.CROSSPOST_P95_MS || (__ENV.PROFILE === 'full' ? 60000 : 120000))}`,
+      `p(99)<${Number(__ENV.CROSSPOST_P99_MS || (__ENV.PROFILE === 'full' ? 120000 : 180000))}`,
+    ],
     crosspost_hook_lost: ['count==0'],
   },
 };

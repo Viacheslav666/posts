@@ -22,6 +22,10 @@ export const options = {
   },
   thresholds: {
     http_req_failed: ['rate<0.02'],
+    'http_req_duration{scenario:antispam}': [
+      `p(95)<${Number(__ENV.ANTISPAM_P95_MS || (__ENV.PROFILE === 'full' ? 200 : 500))}`,
+      `p(99)<${Number(__ENV.ANTISPAM_P99_MS || (__ENV.PROFILE === 'full' ? 500 : 2000))}`,
+    ],
     antispam_hook_lost: ['count==0'],
   },
 };
