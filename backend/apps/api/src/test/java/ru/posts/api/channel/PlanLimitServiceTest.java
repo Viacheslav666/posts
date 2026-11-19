@@ -18,8 +18,10 @@ import ru.posts.api.error.ProblemCodes;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.PlanEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.InvitationRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -55,7 +57,10 @@ class PlanLimitServiceTest {
     AutomationRuleRepository automationRuleRepository;
 
     @Mock
-    ru.posts.persistence.repository.CrosspostRuleRepository crosspostRuleRepository;
+    AntispamRuleRepository antispamRuleRepository;
+
+    @Mock
+    CrosspostRuleRepository crosspostRuleRepository;
 
     PlanLimitService service;
     UUID workspaceId;
@@ -72,6 +77,7 @@ class PlanLimitServiceTest {
                 workspaceMemberRepository,
                 invitationRepository,
                 automationRuleRepository,
+                antispamRuleRepository,
                 crosspostRuleRepository);
         workspaceId = UuidV7.generate();
         planId = UuidV7.generate();

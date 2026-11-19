@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":libs:automation-suggest"))
     implementation(project(":libs:crosspost"))
     implementation(project(":libs:social-inbound"))
+    implementation(project(":libs:antispam"))
     implementation(project(":libs:social-vk"))
 
     implementation(libs.spring.boot.starter.web)

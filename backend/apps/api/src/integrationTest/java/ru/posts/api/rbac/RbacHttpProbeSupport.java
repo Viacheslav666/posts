@@ -28,6 +28,8 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.crosspost.config.CrosspostConfigSupport;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.persistence.entity.AntispamRuleEntity;
+import ru.posts.persistence.entity.AntispamWordListEntity;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
@@ -45,6 +47,9 @@ import ru.posts.persistence.entity.SuggestBulkJobEntity;
 import ru.posts.persistence.entity.SuggestItemEntity;
 import ru.posts.persistence.entity.SuggestSettingsEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.jdbc.AntispamLogJdbc;
+import ru.posts.persistence.repository.AntispamRuleRepository;
+import ru.posts.persistence.repository.AntispamWordListRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
@@ -95,6 +100,9 @@ final class RbacHttpProbeSupport {
     private final SuggestBulkJobRepository suggestBulkJobRepository;
     private final InvoiceRepository invoiceRepository;
     private final OrdInvoiceRepository ordInvoiceRepository;
+    private final AntispamRuleRepository antispamRuleRepository;
+    private final AntispamWordListRepository antispamWordListRepository;
+    private final AntispamLogJdbc antispamLogJdbc;
 
     private UUID suggestSettingsId;
     private UUID suggestItemId;
@@ -120,7 +128,10 @@ final class RbacHttpProbeSupport {
             SuggestItemRepository suggestItemRepository,
             SuggestBulkJobRepository suggestBulkJobRepository,
             InvoiceRepository invoiceRepository,
-            OrdInvoiceRepository ordInvoiceRepository) {
+            OrdInvoiceRepository ordInvoiceRepository,
+            AntispamRuleRepository antispamRuleRepository,
+            AntispamWordListRepository antispamWordListRepository,
+            AntispamLogJdbc antispamLogJdbc) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -141,6 +152,9 @@ final class RbacHttpProbeSupport {
         this.suggestBulkJobRepository = suggestBulkJobRepository;
         this.invoiceRepository = invoiceRepository;
         this.ordInvoiceRepository = ordInvoiceRepository;
+        this.antispamRuleRepository = antispamRuleRepository;
+        this.antispamWordListRepository = antispamWordListRepository;
+        this.antispamLogJdbc = antispamLogJdbc;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -278,6 +292,12 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "antispamWordListsDelete" -> {
+                UUID disposable = insertAntispamWordList(ids.workspaceId(), "RBAC disposable list");
+                yield statusOf(delete("/api/v1/antispam/word-lists/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             default -> performRaw(accessToken, withoutDestructive(endpoint), ids, Scope.OWN);
         };
     }
@@ -347,6 +367,8 @@ final class RbacHttpProbeSupport {
         path = path.replace("{itemId}", values.get("{itemId}"));
         path = path.replace("{settingsId}", values.getOrDefault("{settingsId}", randomUuid()));
         path = path.replace("{jobId}", values.getOrDefault("{jobId}", randomUuid()));
+        path = path.replace("{listId}", values.get("{antispamListId}"));
+        path = path.replace("{logId}", values.get("{antispamLogId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
         if ("channelsConnectConfirm".equals(endpoint.operationId())) {
             path = path.replace("{network}", "tg");
@@ -403,6 +425,9 @@ final class RbacHttpProbeSupport {
             values.put("{itemId}", randomUuid());
             values.put("{settingsId}", randomUuid());
             values.put("{jobId}", randomUuid());
+            values.put("{antispamRuleId}", randomUuid());
+            values.put("{antispamListId}", randomUuid());
+            values.put("{antispamLogId}", randomUuid());
         } else {
             values.put("{workspaceId}", ids.workspaceId().toString());
             values.put("{projectId}", ids.projectAlpha().toString());
@@ -436,12 +461,35 @@ final class RbacHttpProbeSupport {
                             ? randomUuid()
                             : ids.publicationId().toString());
             boolean crosspost = endpoint != null && endpoint.path().contains("/crosspost/");
-            UUID ruleId = crosspost ? ids.crosspostRuleId() : ids.ruleId();
+            boolean antispam = endpoint != null && endpoint.path().contains("/antispam/");
+            UUID ruleId;
+            if (antispam) {
+                ruleId = ids.antispamRuleId();
+            } else if (crosspost) {
+                ruleId = ids.crosspostRuleId();
+            } else {
+                ruleId = ids.ruleId();
+            }
             UUID itemId = crosspost ? ids.crosspostItemId() : ids.itemId();
             values.put("{ruleId}", ruleId == null ? randomUuid() : ruleId.toString());
             values.put("{itemId}", itemId == null ? randomUuid() : itemId.toString());
             values.put("{settingsId}", suggestSettingsId == null ? randomUuid() : suggestSettingsId.toString());
             values.put("{jobId}", suggestBulkJobId == null ? randomUuid() : suggestBulkJobId.toString());
+            values.put(
+                    "{antispamRuleId}",
+                    ids.antispamRuleId() == null
+                            ? randomUuid()
+                            : ids.antispamRuleId().toString());
+            values.put(
+                    "{antispamListId}",
+                    ids.antispamListId() == null
+                            ? randomUuid()
+                            : ids.antispamListId().toString());
+            values.put(
+                    "{antispamLogId}",
+                    ids.antispamLogId() == null
+                            ? randomUuid()
+                            : ids.antispamLogId().toString());
         }
         values.put("{botId}", randomUuid());
         if (scope == Scope.FOREIGN) {
@@ -831,6 +879,43 @@ final class RbacHttpProbeSupport {
                 idsArr.add(suggestItemId == null ? UUID.randomUUID().toString() : suggestItemId.toString());
                 yield node.toString();
             }
+            case "antispamRulesCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("channelId", channelId.toString());
+                node.put("name", "RBAC Antispam " + UUID.randomUUID());
+                node.put("priority", 100);
+                node.putArray("sections").add("wall_comment");
+                node.put("dryRun", true);
+                yield node.toString();
+            }
+            case "antispamRulesPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Antispam Patched");
+                if (ids.antispamRuleVersion() > 0) {
+                    node.put("version", ids.antispamRuleVersion());
+                }
+                yield node.toString();
+            }
+            case "antispamWordListsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Words " + UUID.randomUUID());
+                node.putArray("words").add("spam").add("реклама");
+                node.put("mode", "black");
+                yield node.toString();
+            }
+            case "antispamWordListsPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Words Patched");
+                if (ids.antispamListVersion() > 0) {
+                    node.put("version", ids.antispamListVersion());
+                }
+                yield node.toString();
+            }
+            case "antispamLogRestore" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("unban", false);
+                yield node.toString();
+            }
             default -> "{}";
         };
     }
@@ -891,6 +976,7 @@ final class RbacHttpProbeSupport {
         this.suggestSettingsId = seededSuggest.settingsId();
         this.suggestItemId = seededSuggest.itemId();
         this.suggestBulkJobId = seededSuggest.jobId();
+        SeededAntispam seededAntispam = insertAntispam(workspaceId, projectAlpha, channelId, ownerUserId);
         UUID invoiceId = insertInvoice(workspaceId);
         UUID ordInvoiceId = insertOrdInvoice(workspaceId);
 
@@ -915,6 +1001,11 @@ final class RbacHttpProbeSupport {
                 seededCrosspost.ruleId(),
                 seededCrosspost.itemId(),
                 seededCrosspost.ruleVersion(),
+                seededAntispam.ruleId(),
+                seededAntispam.ruleVersion(),
+                seededAntispam.listId(),
+                seededAntispam.listVersion(),
+                seededAntispam.logId(),
                 invoiceId,
                 ordInvoiceId,
                 ownerToken,
@@ -1082,6 +1173,74 @@ final class RbacHttpProbeSupport {
         suggestBulkJobRepository.save(job);
 
         return new SeededSuggest(settings.getId(), item.getId(), job.getId());
+    }
+
+    private SeededAntispam insertAntispam(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
+        Instant now = Instant.now();
+        AntispamRuleEntity rule = new AntispamRuleEntity();
+        rule.setId(UuidV7.generate());
+        rule.setWorkspaceId(workspaceId);
+        rule.setProjectId(projectId);
+        rule.setChannelId(channelId);
+        rule.setName("RBAC fixture antispam");
+        rule.setStatus("draft");
+        rule.setPriority(100);
+        rule.setSections(List.of("wall_comment"));
+        rule.setConfig(Map.of(
+                "filters", Map.of("keywords", Map.of("black", List.of("spam"))),
+                "actions", Map.of("delete", true)));
+        rule.setConfigVersion(1);
+        rule.setDryRun(true);
+        rule.setCreatedBy(ownerId);
+        rule.setCreatedAt(now);
+        rule.setUpdatedAt(now);
+        antispamRuleRepository.save(rule);
+
+        AntispamWordListEntity list = new AntispamWordListEntity();
+        list.setId(UuidV7.generate());
+        list.setWorkspaceId(workspaceId);
+        list.setName("RBAC fixture words");
+        list.setWords(List.of("spam", "реклама"));
+        list.setMode("black");
+        list.setCreatedAt(now);
+        list.setUpdatedAt(now);
+        antispamWordListRepository.save(list);
+
+        UUID logId = UuidV7.generate();
+        antispamLogJdbc.insert(new AntispamLogJdbc.AntispamLogRow(
+                logId,
+                workspaceId,
+                channelId,
+                rule.getId(),
+                "wall_comment",
+                "rbac-fixture-" + logId,
+                "{\"owner_id\":-1,\"post_id\":1,\"comment_id\":1,\"comment_type\":\"wall\"}",
+                "42",
+                "rbac spam snapshot",
+                null,
+                List.of("keyword"),
+                "deleted",
+                "done",
+                true,
+                List.of(),
+                now,
+                null,
+                null));
+
+        return new SeededAntispam(rule.getId(), rule.getVersion(), list.getId(), list.getVersion(), logId);
+    }
+
+    private UUID insertAntispamWordList(UUID workspaceId, String name) {
+        Instant now = Instant.now();
+        AntispamWordListEntity list = new AntispamWordListEntity();
+        list.setId(UuidV7.generate());
+        list.setWorkspaceId(workspaceId);
+        list.setName(name);
+        list.setWords(List.of("disposable"));
+        list.setMode("black");
+        list.setCreatedAt(now);
+        list.setUpdatedAt(now);
+        return antispamWordListRepository.save(list).getId();
     }
 
     private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
@@ -1320,6 +1479,8 @@ final class RbacHttpProbeSupport {
 
     record SeededSuggest(UUID settingsId, UUID itemId, UUID jobId) {}
 
+    record SeededAntispam(UUID ruleId, int ruleVersion, UUID listId, int listVersion, UUID logId) {}
+
     record EndpointIds(
             UUID workspaceId,
             UUID projectAlpha,
@@ -1341,6 +1502,11 @@ final class RbacHttpProbeSupport {
             UUID crosspostRuleId,
             UUID crosspostItemId,
             int crosspostRuleVersion,
+            UUID antispamRuleId,
+            int antispamRuleVersion,
+            UUID antispamListId,
+            int antispamListVersion,
+            UUID antispamLogId,
             UUID invoiceId,
             UUID ordInvoiceId,
             String ownerToken,

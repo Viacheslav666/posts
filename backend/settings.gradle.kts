@@ -40,6 +40,7 @@ include(
     "libs:social-ok",
     "libs:social-max",
     "libs:social-inbound",
+    "libs:antispam",
     "libs:crosspost",
     "libs:ord-api",
     "libs:ord-vk",

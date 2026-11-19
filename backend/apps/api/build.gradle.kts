@@ -23,6 +23,8 @@ dependencies {
     implementation(project(":libs:automation-suggest"))
     implementation(project(":libs:crosspost"))
     implementation(project(":libs:social-inbound"))
+    implementation(project(":libs:antispam"))
+    implementation(project(":libs:social-api"))
     implementation(project(":libs:social-vk"))
     implementation(project(":libs:social-ok"))
     implementation(project(":libs:social-telegram"))

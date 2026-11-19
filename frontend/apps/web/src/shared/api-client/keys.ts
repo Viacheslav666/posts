@@ -191,4 +191,15 @@ export const queryKeys = {
     bulkJob: (workspaceId: string, jobId: string) =>
       [...queryKeys.suggest.all(workspaceId), 'bulk-job', jobId] as const,
   },
+
+  crosspost: {
+    all: (workspaceId: string) =>
+      [...queryKeys.workspaces.detail(workspaceId), 'crosspost'] as const,
+    rules: (workspaceId: string, projectId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.crosspost.all(workspaceId), 'rules', projectId, filters ?? {}] as const,
+    rule: (workspaceId: string, ruleId: string) =>
+      [...queryKeys.crosspost.all(workspaceId), 'rule', ruleId] as const,
+    items: (workspaceId: string, ruleId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.crosspost.rule(workspaceId, ruleId), 'items', filters ?? {}] as const,
+  },
 } as const;

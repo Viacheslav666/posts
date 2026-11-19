@@ -137,7 +137,7 @@ export type GrabberBulkModerationResponse = components['schemas']['GrabberBulkMo
 export type IngestPreviewRequest = components['schemas']['IngestPreviewRequest'];
 export type IngestPreviewResponse = components['schemas']['IngestPreviewResponse'];
 
-/** VK Suggest automation (BE-34 / FE-22) */
+/** VK Suggest automation (BE-34 / FE-22) — BulkJob/Sync/CopyResult after springdoc @ApiResponse */
 export type SuggestSettings = components['schemas']['SuggestSettings'];
 export type SuggestSettingsPage = components['schemas']['SuggestSettingsPage'];
 export type SuggestSettingsCreate = components['schemas']['SuggestSettingsCreate'];
@@ -154,6 +154,21 @@ export type SuggestBulkJob = components['schemas']['SuggestBulkJob'];
 export type SuggestSyncResult = components['schemas']['SuggestSyncResult'];
 export type SuggestMode = NonNullable<SuggestSettings['mode']>;
 export type SuggestSettingsStatus = NonNullable<SuggestSettings['status']>;
+
+export type CrosspostRule = components['schemas']['CrosspostRule'];
+export type CrosspostRuleCreate = components['schemas']['CrosspostRuleCreate'];
+export type CrosspostRulePatch = components['schemas']['CrosspostRulePatch'];
+export type CrosspostRuleList = components['schemas']['CrosspostRuleList'];
+export type CrosspostTarget = components['schemas']['CrosspostTarget'];
+export type CrosspostTargetRequest = components['schemas']['CrosspostTargetRequest'];
+export type CrosspostWarning = components['schemas']['CrosspostWarning'];
+export type CrosspostItem = components['schemas']['CrosspostItem'];
+export type CrosspostItemPage = components['schemas']['CrosspostItemPage'];
+/** Status enum is inlined on CrosspostItem by springdoc (no separate schema). */
+export type CrosspostItemStatus = NonNullable<CrosspostItem['status']>;
+export type CrosspostPreviewRequest = components['schemas']['CrosspostPreviewRequest'];
+export type CrosspostPreviewResponse = components['schemas']['CrosspostPreviewResponse'];
+export type CrosspostPreviewTarget = components['schemas']['CrosspostPreviewTarget'];
 
 export type Notification = components['schemas']['Notification'];
 export type NotificationPage = components['schemas']['NotificationPage'];
