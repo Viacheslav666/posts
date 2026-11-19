@@ -39,7 +39,7 @@ test.describe('Automations shell (FE-21)', () => {
 
     await page.goto(`/app/${demoWorkspace}/automations`);
     await page.getByTestId('automations-card-crosspost').click();
-    await expect(page.getByTestId('automations-crosspost-stub')).toBeVisible();
+    await expect(page.getByTestId('crosspost-page')).toBeVisible();
   });
 
   test('repairs failed channel event subscription to connected', async ({ page }) => {

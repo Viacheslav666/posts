@@ -3728,6 +3728,47 @@ export interface components {
             code?: string;
             message?: string;
         };
+        CrosspostRuleList: {
+            items?: components["schemas"]["CrosspostRule"][];
+        };
+        /** @enum {string} */
+        CrosspostItemStatus: "received" | "filtered_out" | "skipped_own" | "skipped_loop" | "skipped_duplicate" | "skipped_unsupported_media" | "queued" | "published" | "partially_published" | "failed";
+        CrosspostItem: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            ruleId?: string;
+            /** Format: uuid */
+            sourceChannelId?: string;
+            sourceRemoteId?: string;
+            sourceNetwork?: string;
+            status?: components["schemas"]["CrosspostItemStatus"];
+            reasons?: string[];
+            /** Format: uuid */
+            postId?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        CrosspostItemPage: {
+            items?: components["schemas"]["CrosspostItem"][];
+            nextCursor?: string | null;
+        };
+        CrosspostPreviewTarget: {
+            /** Format: uuid */
+            targetChannelId?: string;
+            network?: string;
+            status?: string;
+            reason?: string;
+            variant?: {
+                [key: string]: Record<string, never>;
+            };
+        };
+        CrosspostPreviewResponse: {
+            filterReasons?: string[];
+            targets?: components["schemas"]["CrosspostPreviewTarget"][];
+        };
         DictionaryKktuItem: {
             active?: boolean;
             code?: string;
@@ -11943,6 +11984,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostItem"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12019,6 +12069,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12099,6 +12158,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12175,6 +12243,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12255,6 +12332,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostItemPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12331,6 +12417,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -12411,6 +12506,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostPreviewResponse"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21244,6 +21348,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrosspostRuleList"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -21312,7 +21425,9 @@ export interface operations {
     crosspostRulesCreate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 workspaceId: string;
                 projectId: string;

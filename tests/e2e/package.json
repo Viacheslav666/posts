@@ -18,6 +18,7 @@
     "test:billing": "playwright test billing.spec.ts",
     "test:analytics": "playwright test analytics.spec.ts",
     "test:automations-shell": "playwright test automations-shell.spec.ts",
+    "test:automations-crosspost": "playwright test automations-crosspost.spec.ts",
     "test:p0": "playwright test smoke.spec.ts grabber-moderation.spec.ts notifications-dashboard.spec.ts",
     "test:report": "playwright show-report playwright-report"
   },
