@@ -257,7 +257,7 @@ class Qa14CrosspostLoopsIT {
                 workspaceId,
                 SocialEventKind.POST_NEW,
                 "dedup-" + remoteId,
-                Map.of("id", remoteId, "owner_id", externalId(channelId)),
+                Map.of("post_id", remoteId, "owner_id", externalId(channelId)),
                 new SocialInboundAuthor("1", false, false),
                 text,
                 null,
