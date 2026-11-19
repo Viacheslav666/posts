@@ -22,6 +22,7 @@ import ru.posts.antispam.service.PinnedPostCache;
 import ru.posts.antispam.service.RemoteRefFactory;
 import ru.posts.antispam.service.RepeatDetector;
 import ru.posts.antispam.service.SectionResolver;
+import ru.posts.persistence.config.PersistenceAutoConfiguration;
 import ru.posts.persistence.jdbc.AntispamLogJdbc;
 import ru.posts.persistence.jdbc.OutboxJdbc;
 import ru.posts.persistence.repository.AntispamRuleRepository;
@@ -30,7 +31,7 @@ import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.service.RemoteActionService;
 import ru.posts.social.inbound.SocialEventHandler;
 
-@AutoConfiguration
+@AutoConfiguration(after = PersistenceAutoConfiguration.class)
 @Profile("!openapi")
 @ConditionalOnClass(SocialEventHandler.class)
 public class AntispamAutoConfiguration {
@@ -102,9 +103,13 @@ public class AntispamAutoConfiguration {
                 remoteRefFactory);
     }
 
+    /**
+     * Do not gate on JPA repository types via {@code @ConditionalOnBean}: repositories are
+     * registered late and the condition often fails, leaving the processor absent at runtime.
+     */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean({AntispamRuleRepository.class, AntispamActionApplier.class})
+    @ConditionalOnBean(AntispamActionApplier.class)
     AntispamEventProcessor antispamEventProcessor(
             AntispamRuleRepository ruleRepository,
             AntispamWordListRepository wordListRepository,

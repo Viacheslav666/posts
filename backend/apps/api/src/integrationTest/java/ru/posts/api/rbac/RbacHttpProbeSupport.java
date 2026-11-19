@@ -27,6 +27,8 @@ import ru.posts.api.auth.mail.LoggingAuthMailSender;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.persistence.entity.AntispamRuleEntity;
+import ru.posts.persistence.entity.AntispamWordListEntity;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.ChannelSetEntity;
@@ -39,6 +41,9 @@ import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.jdbc.AntispamLogJdbc;
+import ru.posts.persistence.repository.AntispamRuleRepository;
+import ru.posts.persistence.repository.AntispamWordListRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
@@ -78,6 +83,9 @@ final class RbacHttpProbeSupport {
     private final GrabberItemRepository grabberItemRepository;
     private final InvoiceRepository invoiceRepository;
     private final OrdInvoiceRepository ordInvoiceRepository;
+    private final AntispamRuleRepository antispamRuleRepository;
+    private final AntispamWordListRepository antispamWordListRepository;
+    private final AntispamLogJdbc antispamLogJdbc;
 
     RbacHttpProbeSupport(
             MockMvc mockMvc,
@@ -94,7 +102,10 @@ final class RbacHttpProbeSupport {
             AutomationRuleRepository automationRuleRepository,
             GrabberItemRepository grabberItemRepository,
             InvoiceRepository invoiceRepository,
-            OrdInvoiceRepository ordInvoiceRepository) {
+            OrdInvoiceRepository ordInvoiceRepository,
+            AntispamRuleRepository antispamRuleRepository,
+            AntispamWordListRepository antispamWordListRepository,
+            AntispamLogJdbc antispamLogJdbc) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
         this.mailSender = mailSender;
@@ -110,6 +121,9 @@ final class RbacHttpProbeSupport {
         this.grabberItemRepository = grabberItemRepository;
         this.invoiceRepository = invoiceRepository;
         this.ordInvoiceRepository = ordInvoiceRepository;
+        this.antispamRuleRepository = antispamRuleRepository;
+        this.antispamWordListRepository = antispamWordListRepository;
+        this.antispamLogJdbc = antispamLogJdbc;
     }
 
     static boolean isAllowed(String role, String action) {
@@ -247,6 +261,12 @@ final class RbacHttpProbeSupport {
                         .with(csrf())
                         .header("Authorization", bearer(accessToken)));
             }
+            case "antispamWordListsDelete" -> {
+                UUID disposable = insertAntispamWordList(ids.workspaceId(), "RBAC disposable list");
+                yield statusOf(delete("/api/v1/antispam/word-lists/" + disposable)
+                        .with(csrf())
+                        .header("Authorization", bearer(accessToken)));
+            }
             default -> performRaw(accessToken, withoutDestructive(endpoint), ids, Scope.OWN);
         };
     }
@@ -314,6 +334,8 @@ final class RbacHttpProbeSupport {
         path = path.replace("{invoiceId}", values.get("{invoiceId}"));
         path = path.replace("{ruleId}", values.get("{ruleId}"));
         path = path.replace("{itemId}", values.get("{itemId}"));
+        path = path.replace("{listId}", values.get("{antispamListId}"));
+        path = path.replace("{logId}", values.get("{antispamLogId}"));
         // confirm is tg/max-only; use tg so authz is reached after body validation
         if ("channelsConnectConfirm".equals(endpoint.operationId())) {
             path = path.replace("{network}", "tg");
@@ -368,6 +390,9 @@ final class RbacHttpProbeSupport {
                             : ids.foreignMediaId().toString());
             values.put("{ruleId}", randomUuid());
             values.put("{itemId}", randomUuid());
+            values.put("{antispamRuleId}", randomUuid());
+            values.put("{antispamListId}", randomUuid());
+            values.put("{antispamLogId}", randomUuid());
         } else {
             values.put("{workspaceId}", ids.workspaceId().toString());
             values.put("{projectId}", ids.projectAlpha().toString());
@@ -406,6 +431,21 @@ final class RbacHttpProbeSupport {
             values.put(
                     "{itemId}",
                     ids.itemId() == null ? randomUuid() : ids.itemId().toString());
+            values.put(
+                    "{antispamRuleId}",
+                    ids.antispamRuleId() == null
+                            ? randomUuid()
+                            : ids.antispamRuleId().toString());
+            values.put(
+                    "{antispamListId}",
+                    ids.antispamListId() == null
+                            ? randomUuid()
+                            : ids.antispamListId().toString());
+            values.put(
+                    "{antispamLogId}",
+                    ids.antispamLogId() == null
+                            ? randomUuid()
+                            : ids.antispamLogId().toString());
         }
         values.put("{botId}", randomUuid());
         if (scope == Scope.FOREIGN) {
@@ -737,6 +777,43 @@ final class RbacHttpProbeSupport {
                 node.put("limit", 1);
                 yield node.toString();
             }
+            case "antispamRulesCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("channelId", channelId.toString());
+                node.put("name", "RBAC Antispam " + UUID.randomUUID());
+                node.put("priority", 100);
+                node.putArray("sections").add("wall_comment");
+                node.put("dryRun", true);
+                yield node.toString();
+            }
+            case "antispamRulesPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Antispam Patched");
+                if (ids.antispamRuleVersion() > 0) {
+                    node.put("version", ids.antispamRuleVersion());
+                }
+                yield node.toString();
+            }
+            case "antispamWordListsCreate" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Words " + UUID.randomUUID());
+                node.putArray("words").add("spam").add("реклама");
+                node.put("mode", "black");
+                yield node.toString();
+            }
+            case "antispamWordListsPatch" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("name", "RBAC Words Patched");
+                if (ids.antispamListVersion() > 0) {
+                    node.put("version", ids.antispamListVersion());
+                }
+                yield node.toString();
+            }
+            case "antispamLogRestore" -> {
+                var node = objectMapper.createObjectNode();
+                node.put("unban", false);
+                yield node.toString();
+            }
             default -> "{}";
         };
     }
@@ -792,6 +869,7 @@ final class RbacHttpProbeSupport {
         UUID foreignMediaId = insertMedia(foreignWs, foreignOwnerId);
         SeededPost seededPost = insertPost(workspaceId, projectAlpha, channelId, ownerUserId);
         SeededGrabber seededGrabber = insertGrabber(workspaceId, projectAlpha, channelId, ownerUserId);
+        SeededAntispam seededAntispam = insertAntispam(workspaceId, projectAlpha, channelId, ownerUserId);
         UUID invoiceId = insertInvoice(workspaceId);
         UUID ordInvoiceId = insertOrdInvoice(workspaceId);
 
@@ -813,6 +891,11 @@ final class RbacHttpProbeSupport {
                 seededGrabber.ruleId(),
                 seededGrabber.itemId(),
                 seededGrabber.ruleVersion(),
+                seededAntispam.ruleId(),
+                seededAntispam.ruleVersion(),
+                seededAntispam.listId(),
+                seededAntispam.listVersion(),
+                seededAntispam.logId(),
                 invoiceId,
                 ordInvoiceId,
                 ownerToken,
@@ -898,6 +981,74 @@ final class RbacHttpProbeSupport {
         grabberItemRepository.save(item);
 
         return new SeededGrabber(rule.getId(), item.getId(), rule.getVersion());
+    }
+
+    private SeededAntispam insertAntispam(UUID workspaceId, UUID projectId, UUID channelId, UUID ownerId) {
+        Instant now = Instant.now();
+        AntispamRuleEntity rule = new AntispamRuleEntity();
+        rule.setId(UuidV7.generate());
+        rule.setWorkspaceId(workspaceId);
+        rule.setProjectId(projectId);
+        rule.setChannelId(channelId);
+        rule.setName("RBAC fixture antispam");
+        rule.setStatus("draft");
+        rule.setPriority(100);
+        rule.setSections(List.of("wall_comment"));
+        rule.setConfig(Map.of(
+                "filters", Map.of("keywords", Map.of("black", List.of("spam"))),
+                "actions", Map.of("delete", true)));
+        rule.setConfigVersion(1);
+        rule.setDryRun(true);
+        rule.setCreatedBy(ownerId);
+        rule.setCreatedAt(now);
+        rule.setUpdatedAt(now);
+        antispamRuleRepository.save(rule);
+
+        AntispamWordListEntity list = new AntispamWordListEntity();
+        list.setId(UuidV7.generate());
+        list.setWorkspaceId(workspaceId);
+        list.setName("RBAC fixture words");
+        list.setWords(List.of("spam", "реклама"));
+        list.setMode("black");
+        list.setCreatedAt(now);
+        list.setUpdatedAt(now);
+        antispamWordListRepository.save(list);
+
+        UUID logId = UuidV7.generate();
+        antispamLogJdbc.insert(new AntispamLogJdbc.AntispamLogRow(
+                logId,
+                workspaceId,
+                channelId,
+                rule.getId(),
+                "wall_comment",
+                "rbac-fixture-" + logId,
+                "{\"owner_id\":-1,\"post_id\":1,\"comment_id\":1,\"comment_type\":\"wall\"}",
+                "42",
+                "rbac spam snapshot",
+                null,
+                List.of("keyword"),
+                "deleted",
+                "done",
+                true,
+                List.of(),
+                now,
+                null,
+                null));
+
+        return new SeededAntispam(rule.getId(), rule.getVersion(), list.getId(), list.getVersion(), logId);
+    }
+
+    private UUID insertAntispamWordList(UUID workspaceId, String name) {
+        Instant now = Instant.now();
+        AntispamWordListEntity list = new AntispamWordListEntity();
+        list.setId(UuidV7.generate());
+        list.setWorkspaceId(workspaceId);
+        list.setName(name);
+        list.setWords(List.of("disposable"));
+        list.setMode("black");
+        list.setCreatedAt(now);
+        list.setUpdatedAt(now);
+        return antispamWordListRepository.save(list).getId();
     }
 
     private SeededPost insertPost(UUID workspaceId, UUID projectId, UUID channelId, UUID authorId) {
@@ -1132,6 +1283,8 @@ final class RbacHttpProbeSupport {
 
     record SeededGrabber(UUID ruleId, UUID itemId, int ruleVersion) {}
 
+    record SeededAntispam(UUID ruleId, int ruleVersion, UUID listId, int listVersion, UUID logId) {}
+
     record EndpointIds(
             UUID workspaceId,
             UUID projectAlpha,
@@ -1150,6 +1303,11 @@ final class RbacHttpProbeSupport {
             UUID ruleId,
             UUID itemId,
             int ruleVersion,
+            UUID antispamRuleId,
+            int antispamRuleVersion,
+            UUID antispamListId,
+            int antispamListVersion,
+            UUID antispamLogId,
             UUID invoiceId,
             UUID ordInvoiceId,
             String ownerToken,

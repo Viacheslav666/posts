@@ -98,6 +98,15 @@ class RbacIdorMatrixIT {
     @Autowired
     private ru.posts.persistence.repository.OrdInvoiceRepository ordInvoiceRepository;
 
+    @Autowired
+    private ru.posts.persistence.repository.AntispamRuleRepository antispamRuleRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.AntispamWordListRepository antispamWordListRepository;
+
+    @Autowired
+    private ru.posts.persistence.jdbc.AntispamLogJdbc antispamLogJdbc;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -119,7 +128,10 @@ class RbacIdorMatrixIT {
                     automationRuleRepository,
                     grabberItemRepository,
                     invoiceRepository,
-                    ordInvoiceRepository);
+                    ordInvoiceRepository,
+                    antispamRuleRepository,
+                    antispamWordListRepository,
+                    antispamLogJdbc);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
@@ -147,6 +159,8 @@ class RbacIdorMatrixIT {
                 || endpoint.path().contains("{ruleId}")
                 || endpoint.path().contains("{itemId}")
                 || endpoint.path().contains("{invoiceId}")
+                || endpoint.path().contains("{listId}")
+                || endpoint.path().contains("{logId}")
                 // Tenant in JSON body (not path/query).
                 || "ordEridCheck".equals(endpoint.operationId())
                 || "ordReportsRun".equals(endpoint.operationId());
