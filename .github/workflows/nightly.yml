@@ -190,6 +190,37 @@ jobs:
           echo 'api.version=1.44' > "$HOME/.docker-java.properties"
           ./gradlew :apps:publisher:integrationTest --tests 'ru.posts.publisher.pipeline.Story*'
 
+      # QA-14: P2 automations regression (inbound, suggest, antispam, crosspost loops; no live social APIs).
+      - name: SocialLiveApiGuard (unit)
+        working-directory: backend
+        run: ./gradlew :libs:social-api:test --tests 'ru.posts.social.api.SocialLiveApiGuardTest'
+
+      - name: P2 automations IT (QA-14, CI subset)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :libs:ratelimit:test --tests 'ru.posts.ratelimit.Qa14RedisDegradeTest' \
+            :apps:api:integrationTest --tests 'ru.posts.api.qa14.Qa14CrosspostLoopsIT' \
+            --tests 'ru.posts.api.inbound.SocialInboundIT' \
+            --tests 'ru.posts.api.suggest.SuggestVkIT' \
+            --tests 'ru.posts.api.antispam.AntispamProcessorIT'
+
+      - name: P2 automations IT nightly (chaos)
+        working-directory: backend
+        run: |
+          echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+          ./gradlew :apps:api:integrationTest -PincludeNightly=true --tests 'ru.posts.api.qa14.Qa14InboundChaosIT'
+
+      - name: P2 automations k6 harness (smoke rates)
+        run: |
+          mkdir -p tests/load/reports
+          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-inbound-smoke.json \
+            tests/load/scenarios/l3-social-inbound-hooks.js || true
+          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-antispam-smoke.json \
+            tests/load/scenarios/l4-p2-antispam-events.js || true
+          PROFILE=smoke k6 run --out json=tests/load/reports/k6-p2-crosspost-smoke.json \
+            tests/load/scenarios/l5-p2-crosspost-ingest.js || true
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -201,6 +232,7 @@ jobs:
             tests/e2e/reports/
             tests/e2e/test-results/
             tests/load/reports/
+            docs/qa/load-report-p2-automations.md
             backend/apps/publisher/build/reports/tests/integrationTest/
             backend/apps/api/build/reports/tests/integrationTest/
           if-no-files-found: warn
