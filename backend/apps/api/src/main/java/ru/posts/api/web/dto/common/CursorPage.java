@@ -14,6 +14,7 @@ import ru.posts.api.web.dto.notification.NotificationDtos;
 import ru.posts.api.web.dto.ord.OrdDtos;
 import ru.posts.api.web.dto.post.PostDtos;
 import ru.posts.api.web.dto.project.ProjectDtos;
+import ru.posts.api.web.dto.suggest.SuggestDtos;
 import ru.posts.api.web.dto.workspace.WorkspaceDtos;
 
 /**
@@ -105,6 +106,12 @@ public final class CursorPage {
 
     @Schema(name = "GrabberItemPage")
     public record GrabberItemPage(List<IngestDtos.GrabberItem> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "SuggestSettingsPage")
+    public record SuggestSettingsPage(List<SuggestDtos.SuggestSettings> items, String nextCursor, boolean hasMore) {}
+
+    @Schema(name = "SuggestItemPage")
+    public record SuggestItemPage(List<SuggestDtos.SuggestItem> items, String nextCursor, boolean hasMore) {}
 
     @Schema(name = "AdminUserPage")
     public record AdminUserPage(List<AdminDtos.UserSummary> items, String nextCursor, boolean hasMore) {}

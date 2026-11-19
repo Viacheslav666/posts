@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://posts.local/schemas/suggest-config.schema.json",
+  "title": "SuggestSettingsConfig",
+  "description": "BE-34 suggest_settings.config jsonb",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "config_version": { "type": "integer", "const": 1 },
+    "filters": {
+      "type": "object",
+      "properties": {
+        "keyword_include": { "type": "array", "items": { "type": "string" } },
+        "keyword_exclude": { "type": "array", "items": { "type": "string" } },
+        "stop_words": { "type": "array", "items": { "type": "string" } },
+        "keyword_match": { "type": "string", "enum": ["contains", "whole_word"] },
+        "require_text": { "type": "boolean" },
+        "require_image": { "type": "boolean" },
+        "forbid_attachments": { "type": "array", "items": { "type": "string" } },
+        "require_messages_allowed": { "type": "boolean" },
+        "forbid_closed_profile": { "type": "boolean" },
+        "author_blacklist": { "type": "array", "items": { "type": "string" } },
+        "author_whitelist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "per_author": {
+          "type": "object",
+          "properties": {
+            "hour": { "type": "integer", "minimum": 0 },
+            "day": { "type": "integer", "minimum": 0 },
+            "week": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "global": {
+          "type": "object",
+          "properties": {
+            "hour": { "type": "integer", "minimum": 0 },
+            "day": { "type": "integer", "minimum": 0 },
+            "week": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "timezone": { "type": "string" },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "days_of_week": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1, "maximum": 7 }
+              },
+              "from": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+              "to": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" }
+            }
+          }
+        },
+        "min_interval_minutes": { "type": "integer", "minimum": 0 },
+        "pause_after_ads_minutes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "dedup": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "lookback_days": { "type": "integer", "minimum": 1 },
+        "similarity_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "reject_policy": { "type": "string", "enum": ["delete", "keep", "delete_after"] },
+    "delete_after_hours": { "type": "integer", "minimum": 0 },
+    "notify_author": { "type": "boolean" },
+    "first_comment": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "text": { "type": "string" }
+      }
+    },
+    "signed": { "type": "boolean" },
+    "publish_edit_mode": {
+      "type": "string",
+      "enum": ["wall_post_edit", "fallback_new_post"]
+    },
+    "enrichment": {
+      "type": "object",
+      "properties": {
+        "hashtags": { "type": "array", "items": { "type": "string" } },
+        "append_text": { "type": "string" },
+        "media_asset_ids": { "type": "array", "items": { "type": "string" } },
+        "keyword_signatures": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "ads_pause": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "detect_marked_as_ads": { "type": "boolean" },
+        "detect_erid": { "type": "boolean" }
+      }
+    }
+  }
+}

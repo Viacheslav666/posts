@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.2.0 |
-| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**) |
-| Дата проверки | **2026-11-18** |
+| Версия | 1.2.1 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**) |
+| Дата проверки | **2026-11-19** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
 | Валидация | `python3 docs/api/fixtures/validate-network-capabilities.py` |
@@ -191,7 +191,7 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Действие | Метод(ы) | Ключ | Примечание |
 |---|---|---|---|
-| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества |
+| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества; **`post_id` принимает `message`/`attachments`** (правка текста при одобрении) — проверено по [wall.post](https://dev.vk.ru/ru/method/wall.post) **2026-11-19** (BE-34) |
 | `delete_post` | `wall.delete` | **user** | |
 | `delete_comment` / `restore_comment` | `wall` / `photos` / `video` / `market` / `board` `.deleteComment` + `.restoreComment` | **user** | board/discussion — `group_id` + `topic_id` |
 | `ban_user` / `unban_user` | `groups.ban` / `groups.unban` | **user** | права администратора группы |
