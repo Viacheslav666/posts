@@ -15,6 +15,10 @@ export class SuggestPage {
     return this.page.getByTestId('suggest-page');
   }
 
+  detail(): Locator {
+    return this.page.getByTestId('suggest-settings-detail');
+  }
+
   heading(): Locator {
     return this.page.getByRole('heading', { name: 'Предложка' });
   }

@@ -24,8 +24,8 @@ test.describe('Automations suggest (FE-22)', () => {
     const suggest = new SuggestPage(page);
     await suggest.gotoSettings(demoWorkspace, settingsId);
 
-    const form = suggest.settingsForm().or(page.getByRole('heading', { name: 'Вход' }));
-    await form.first().waitFor({ state: 'visible', timeout: 20_000 });
+    const detail = suggest.detail().or(page.getByRole('heading', { name: 'Вход' }));
+    await detail.first().waitFor({ state: 'visible', timeout: 20_000 });
     if (await page.getByRole('heading', { name: 'Вход' }).isVisible().catch(() => false)) {
       test.skip(true, 'Auth session unavailable in this environment');
     }
