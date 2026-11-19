@@ -142,6 +142,95 @@ endpoints:
   implementedHint: false
   rbac: matrix
   action: analytics.view
+- operationId: antispamLogRestore
+  method: POST
+  path: /api/v1/antispam/log/{logId}/restore
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    logId: '{antispamLogId}'
+- operationId: antispamRulesGet
+  method: GET
+  path: /api/v1/antispam/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesPatch
+  method: PATCH
+  path: /api/v1/antispam/rules/{ruleId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesActivate
+  method: POST
+  path: /api/v1/antispam/rules/{ruleId}/activate
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesArchive
+  method: POST
+  path: /api/v1/antispam/rules/{ruleId}/archive
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesPause
+  method: POST
+  path: /api/v1/antispam/rules/{ruleId}/pause
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesResume
+  method: POST
+  path: /api/v1/antispam/rules/{ruleId}/resume
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesScan
+  method: POST
+  path: /api/v1/antispam/rules/{ruleId}/scan
+  implementedHint: true
+  rbac: matrix
+  action: automations.moderate
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamRulesStats
+  method: GET
+  path: /api/v1/antispam/rules/{ruleId}/stats
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    ruleId: '{antispamRuleId}'
+- operationId: antispamWordListsDelete
+  method: DELETE
+  path: /api/v1/antispam/word-lists/{listId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    listId: '{antispamListId}'
+  destructive: true
+- operationId: antispamWordListsPatch
+  method: PATCH
+  path: /api/v1/antispam/word-lists/{listId}
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    listId: '{antispamListId}'
 - operationId: auth2faConfirm
   method: POST
   path: /api/v1/auth/2fa/confirm
@@ -1255,6 +1344,30 @@ endpoints:
   action: workspace.update
   pathParams:
     workspaceId: '{workspaceId}'
+- operationId: antispamLogList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/antispam/log
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: antispamWordListsList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/antispam/word-lists
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+- operationId: antispamWordListsCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/antispam/word-lists
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
 - operationId: workspacesListAudit
   method: GET
   path: /api/v1/workspaces/{workspaceId}/audit
@@ -1414,6 +1527,24 @@ endpoints:
   action: projects.manage
   pathParams:
     workspaceId: '{workspaceId}'
+- operationId: antispamRulesList
+  method: GET
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/antispam/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.view
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
+- operationId: antispamRulesCreate
+  method: POST
+  path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/antispam/rules
+  implementedHint: true
+  rbac: matrix
+  action: automations.manage
+  pathParams:
+    workspaceId: '{workspaceId}'
+    projectId: '{projectId}'
 - operationId: crosspostRulesList
   method: GET
   path: /api/v1/workspaces/{workspaceId}/projects/{projectId}/crosspost/rules

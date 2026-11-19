@@ -169,13 +169,13 @@ actions:
     description: Настройка собственных уведомлений
   - id: automations.view
     resource: automations
-    description: Просмотр правил граббера/RSS и очереди items
+    description: Просмотр правил граббера/RSS/антиспама, словарей и истории
   - id: automations.manage
     resource: automations
-    description: Создание и управление правилами Ingest, ручной run
+    description: Создание и управление правилами Ingest/антиспама, словари, активация
   - id: automations.moderate
     resource: automations
-    description: Модерация очереди граббера (approve/reject)
+    description: Модерация очереди граббера; восстановление и ручная проверка антиспама
 
   - id: ord.connection.manage
     resource: ord

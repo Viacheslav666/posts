@@ -178,6 +178,23 @@ ACTION: dict[str, str | None] = {
     "ingestItemsExport": "automations.view",
     "ingestRulesCloneConfig": "automations.manage",
     "ingestPreview": "automations.view",
+    # BE-35 antispam
+    "antispamRulesList": "automations.view",
+    "antispamRulesCreate": "automations.manage",
+    "antispamRulesGet": "automations.view",
+    "antispamRulesPatch": "automations.manage",
+    "antispamRulesActivate": "automations.manage",
+    "antispamRulesPause": "automations.manage",
+    "antispamRulesResume": "automations.manage",
+    "antispamRulesArchive": "automations.manage",
+    "antispamRulesScan": "automations.moderate",
+    "antispamRulesStats": "automations.view",
+    "antispamWordListsList": "automations.view",
+    "antispamWordListsCreate": "automations.manage",
+    "antispamWordListsPatch": "automations.manage",
+    "antispamWordListsDelete": "automations.manage",
+    "antispamLogList": "automations.view",
+    "antispamLogRestore": "automations.moderate",
     # BE-34 VK suggests
     "suggestSettingsList": "automations.view",
     "suggestSettingsCreate": "automations.manage",
@@ -377,6 +394,22 @@ IMPLEMENTED = {
     "ingestItemsExport",
     "ingestRulesCloneConfig",
     "ingestPreview",
+    "antispamRulesList",
+    "antispamRulesCreate",
+    "antispamRulesGet",
+    "antispamRulesPatch",
+    "antispamRulesActivate",
+    "antispamRulesPause",
+    "antispamRulesResume",
+    "antispamRulesArchive",
+    "antispamRulesScan",
+    "antispamRulesStats",
+    "antispamWordListsList",
+    "antispamWordListsCreate",
+    "antispamWordListsPatch",
+    "antispamWordListsDelete",
+    "antispamLogList",
+    "antispamLogRestore",
     "suggestSettingsList",
     "suggestSettingsCreate",
     "suggestSettingsGet",
@@ -451,6 +484,7 @@ DESTRUCTIVE = {
     "mediaDelete",
     "ordInvoicesDelete",
     "billingDeletePaymentMethod",
+    "antispamWordListsDelete",
 }
 
 WORKSPACE_QUERY_OPS = {
@@ -546,6 +580,8 @@ def placeholders(path: str) -> dict[str, str]:
         "{itemId}": ("itemId", "{itemId}"),
         "{settingsId}": ("settingsId", "{settingsId}"),
         "{jobId}": ("jobId", "{jobId}"),
+        "{listId}": ("listId", "{antispamListId}"),
+        "{logId}": ("logId", "{antispamLogId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
@@ -557,6 +593,9 @@ def placeholders(path: str) -> dict[str, str]:
     for token, (key, value) in mapping.items():
         if token in path:
             ph[key] = value
+    # Antispam rule IDs must not collide with grabber/crosspost {ruleId} fixtures.
+    if "/antispam/" in path and "ruleId" in ph:
+        ph["ruleId"] = "{antispamRuleId}"
     return ph
 
 

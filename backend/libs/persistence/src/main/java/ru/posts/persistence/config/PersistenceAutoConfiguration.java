@@ -10,8 +10,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.posts.persistence.jdbc.AnalyticsPostsAggJdbc;
+import ru.posts.persistence.jdbc.AntispamLogJdbc;
 import ru.posts.persistence.jdbc.AutomationRuleClaimJdbc;
 import ru.posts.persistence.jdbc.ChannelMediaCacheJdbc;
 import ru.posts.persistence.jdbc.DailyBillingJdbc;
@@ -131,5 +133,11 @@ public class PersistenceAutoConfiguration {
     @ConditionalOnMissingBean(RemoteActionService.class)
     RemoteActionService remoteActionService(SocialRemoteActionLifecycleJdbc socialRemoteActionLifecycleJdbc) {
         return new RemoteActionService(socialRemoteActionLifecycleJdbc);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AntispamLogJdbc.class)
+    AntispamLogJdbc antispamLogJdbc(JdbcTemplate jdbcTemplate, ObjectProvider<ObjectMapper> objectMapper) {
+        return new AntispamLogJdbc(jdbcTemplate, objectMapper.getIfAvailable(ObjectMapper::new));
     }
 }

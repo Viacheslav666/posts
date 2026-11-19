@@ -121,6 +121,8 @@ tags:
   name: Auth
 - description: Lightweight content calendar queries and drag-and-drop moves
   name: Calendar
+- description: "Antispam rules, word lists, history and restore (BE-35)"
+  name: Antispam
 - description: Connected social channels and connect flows
   name: Channels
 - description: "Grabber / RSS / website automation rules, runs, moderation queue (BE-17/BE-17b/BE-27)"
@@ -1864,6 +1866,650 @@ paths:
       summary: Monthly post analytics for a workspace/year
       tags:
       - Analytics
+  /api/v1/antispam/log/{logId}/restore:
+    post:
+      operationId: antispamLogRestore
+      parameters:
+      - in: path
+        name: logId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AntispamRestoreRequest"
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Restore deleted VK comment from antispam log
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}:
+    get:
+      operationId: antispamRulesGet
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Get antispam rule
+      tags:
+      - Antispam
+    patch:
+      operationId: antispamRulesPatch
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AntispamRulePatch"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update antispam rule
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/activate:
+    post:
+      operationId: antispamRulesActivate
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Activate antispam rule and ensure event subscription
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/archive:
+    post:
+      operationId: antispamRulesArchive
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Archive antispam rule
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/pause:
+    post:
+      operationId: antispamRulesPause
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Pause antispam rule
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/resume:
+    post:
+      operationId: antispamRulesResume
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Resume paused antispam rule
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/scan:
+    post:
+      operationId: antispamRulesScan
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Manual scan of last 100 VK wall comments
+      tags:
+      - Antispam
+  /api/v1/antispam/rules/{ruleId}/stats:
+    get:
+      operationId: antispamRulesStats
+      parameters:
+      - in: path
+        name: ruleId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Per-rule hit statistics
+      tags:
+      - Antispam
+  /api/v1/antispam/word-lists/{listId}:
+    delete:
+      operationId: antispamWordListsDelete
+      parameters:
+      - in: path
+        name: listId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Delete word list
+      tags:
+      - Antispam
+    patch:
+      operationId: antispamWordListsPatch
+      parameters:
+      - in: path
+        name: listId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AntispamWordListPatch"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Update word list
+      tags:
+      - Antispam
   /api/v1/auth/2fa/confirm:
     post:
       operationId: auth2faConfirm
@@ -12072,6 +12718,266 @@ paths:
       summary: Rename workspace
       tags:
       - Workspaces
+  /api/v1/workspaces/{workspaceId}/antispam/log:
+    get:
+      operationId: antispamLogList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: channelId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: section
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: ruleId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: action
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Antispam action history
+      tags:
+      - Antispam
+  /api/v1/workspaces/{workspaceId}/antispam/word-lists:
+    get:
+      operationId: antispamWordListsList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List workspace antispam word lists
+      tags:
+      - Antispam
+    post:
+      operationId: antispamWordListsCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AntispamWordListCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntispamWordList"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create workspace word list
+      tags:
+      - Antispam
   /api/v1/workspaces/{workspaceId}/audit:
     get:
       description: Owner/Admin only (`audit.view`). Foreign workspace → 404 (IDOR).
@@ -13522,6 +14428,165 @@ paths:
       summary: Create a project
       tags:
       - Projects
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/antispam/rules:
+    get:
+      operationId: antispamRulesList
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: Opaque cursor from a previous response `nextCursor`
+        example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+          description: Opaque cursor from a previous response `nextCursor`
+          example: eyJpZCI6IjAxOWEwMDAwLTAwMDAtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9
+      - description: Page size
+        example: 20
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          description: Page size
+          example: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List antispam rules in a project
+      tags:
+      - Antispam
+    post:
+      operationId: antispamRulesCreate
+      parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AntispamRuleCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntispamRule"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Create an antispam rule
+      tags:
+      - Antispam
   /api/v1/workspaces/{workspaceId}/projects/{projectId}/crosspost/rules:
     get:
       operationId: crosspostRulesList
@@ -15008,6 +16073,160 @@ components:
           type: string
         title:
           type: string
+    AntispamRestoreRequest:
+      type: object
+      properties:
+        unban:
+          type: boolean
+    AntispamRule:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        config:
+          type: object
+          additionalProperties:
+            type: object
+        configVersion:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        dryRun:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        priority:
+          type: integer
+          format: int32
+        projectId:
+          type: string
+          format: uuid
+        sections:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+        workspaceId:
+          type: string
+          format: uuid
+    AntispamRuleCreate:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        config:
+          type: object
+          additionalProperties:
+            type: object
+        dryRun:
+          type: boolean
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        priority:
+          type: integer
+          format: int32
+        sections:
+          type: array
+          items:
+            type: string
+      required:
+      - channelId
+      - name
+    AntispamRulePatch:
+      type: object
+      properties:
+        config:
+          type: object
+          additionalProperties:
+            type: object
+        dryRun:
+          type: boolean
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        priority:
+          type: integer
+          format: int32
+        sections:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+          format: int32
+    AntispamWordList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mode:
+          type: string
+        name:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+        words:
+          type: array
+          items:
+            type: string
+        workspaceId:
+          type: string
+          format: uuid
+    AntispamWordListCreate:
+      type: object
+      properties:
+        mode:
+          type: string
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        words:
+          type: array
+          items:
+            type: string
+      required:
+      - mode
+      - name
+      - words
+    AntispamWordListPatch:
+      type: object
+      properties:
+        mode:
+          type: string
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        version:
+          type: integer
+          format: int32
+        words:
+          type: array
+          items:
+            type: string
     ApplyPromoRequest:
       type: object
       properties:

@@ -30,11 +30,43 @@ public final class VkEventNormalizer {
         Map<String, String> remoteIds = new HashMap<>();
         remoteIds.put("event_id", eventId);
         remoteIds.put("group_id", text(body, "group_id"));
-        if (object.has("id")) {
-            remoteIds.put("post_id", object.path("id").asText());
-        }
-        if (object.has("post_id")) {
-            remoteIds.put("post_id", object.path("post_id").asText());
+        boolean commentEvent = type != null
+                && (type.contains("comment") || type.startsWith("board_post_") || type.startsWith("wall_reply_"));
+        if (commentEvent) {
+            if (object.has("id")) {
+                remoteIds.put("comment_id", object.path("id").asText());
+            }
+            if (object.has("post_id")) {
+                remoteIds.put("post_id", object.path("post_id").asText());
+            } else if (object.has("photo_id")) {
+                remoteIds.put("post_id", object.path("photo_id").asText());
+            } else if (object.has("video_id")) {
+                remoteIds.put("post_id", object.path("video_id").asText());
+            } else if (object.has("item_id")) {
+                remoteIds.put("post_id", object.path("item_id").asText());
+            } else if (object.has("topic_id")) {
+                remoteIds.put("post_id", object.path("topic_id").asText());
+            }
+            if (object.has("owner_id")) {
+                remoteIds.put("owner_id", object.path("owner_id").asText());
+            }
+            if (object.path("marked_as_ads").asInt(0) == 1
+                    || object.path("post").path("marked_as_ads").asInt(0) == 1) {
+                remoteIds.put("marked_as_ads", "1");
+            }
+        } else {
+            if (object.has("id")) {
+                remoteIds.put("post_id", object.path("id").asText());
+            }
+            if (object.has("post_id")) {
+                remoteIds.put("post_id", object.path("post_id").asText());
+            }
+            if (object.has("owner_id")) {
+                remoteIds.put("owner_id", object.path("owner_id").asText());
+            }
+            if (object.path("marked_as_ads").asInt(0) == 1) {
+                remoteIds.put("marked_as_ads", "1");
+            }
         }
         SocialInboundAuthor author = authorFrom(object);
         String text = firstText(object, "text", "message");

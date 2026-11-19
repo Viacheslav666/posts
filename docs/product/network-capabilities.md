@@ -2,8 +2,8 @@
 
 | Поле | Значение |
 |---|---|
-| Версия | 1.3.1 |
-| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**; кросспостинг **BE-36**) |
+| Версия | 1.3.2 |
+| Статус | Готово к использованию бэком (задача **AN-2**; inbound **BE-32**; модерация **BE-33**; предложка **BE-34**; антиспам **BE-35**; кросспостинг **BE-36**) |
 | Дата проверки | **2026-11-19** |
 | Машиночитаемый источник | [`docs/api/fixtures/network-capabilities.yaml`](../api/fixtures/network-capabilities.yaml) |
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
@@ -272,10 +272,24 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ---
 
+## 12. Антиспам (BE-35, проверка 2026-11-19)
+
+| Сеть | Удаление | Восстановление | Бан | Ручная проверка последних 100 | Примечание |
+|---|---|---|---|---|---|
+| VK | wall/photo/video/market/board deleteComment | `wall.restoreComment` (срок не документирован VK → по ответу API; vposter ~5 ч) | `groups.ban` (user token) | `wall.get` + `wall.getComments` | разделы сообщений сообщества — P2 |
+| Telegram | `deleteMessage` &lt; 48 ч; нужны `can_delete_messages` / `can_restrict_members` | **нет** | `banChatMember` | **нет** (у ботов нет history API) | `is_automatic_forward` не трогать; боты не видят сообщения других ботов |
+| Max | `DELETE …/comments` | **нет** | удаление участника чата | ограниченно | бот-админ: `read_all_message`, `edit`, `write`, `delete`; события `comment_created` / `comment_edited` |
+| OK | — | — | — | — | вне объёма (как у vposter) |
+
+Feature flag: `automation.antispam`. Idempotency: `antispam:{channelId}:{section}:{remoteCommentKey}:{action}`.
+
+---
+
 ## История изменений
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.3.2 | 2026-11-19 | BE-35: секция антиспама (VK/TG/Max capabilities) §12; merge с BE-34/BE-36 |
 | 1.3.1 | 2026-11-19 | BE-34: предложка VK — `publish_suggested` / wall.post `post_id` (правка текста); merge с BE-36 |
 | 1.3.0 | 2026-11-19 | BE-36: кросспостинг — лимиты медиа TG/VK/Max, soft-cap Max 100 МБ, §11 |
 | 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |

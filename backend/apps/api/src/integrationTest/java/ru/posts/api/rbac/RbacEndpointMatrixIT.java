@@ -118,6 +118,15 @@ class RbacEndpointMatrixIT {
     @Autowired
     private ru.posts.persistence.repository.OrdInvoiceRepository ordInvoiceRepository;
 
+    @Autowired
+    private ru.posts.persistence.repository.AntispamRuleRepository antispamRuleRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.AntispamWordListRepository antispamWordListRepository;
+
+    @Autowired
+    private ru.posts.persistence.jdbc.AntispamLogJdbc antispamLogJdbc;
+
     private RbacHttpProbeSupport probes;
     private EndpointIds ids;
 
@@ -144,7 +153,10 @@ class RbacEndpointMatrixIT {
                     suggestItemRepository,
                     suggestBulkJobRepository,
                     invoiceRepository,
-                    ordInvoiceRepository);
+                    ordInvoiceRepository,
+                    antispamRuleRepository,
+                    antispamWordListRepository,
+                    antispamLogJdbc);
         }
         if (ids == null) {
             ids = probes.seedTeamFixture();
