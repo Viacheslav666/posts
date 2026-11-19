@@ -152,6 +152,20 @@ export type CrosspostPreviewRequest = components['schemas']['CrosspostPreviewReq
 export type CrosspostPreviewResponse = components['schemas']['CrosspostPreviewResponse'];
 export type CrosspostPreviewTarget = components['schemas']['CrosspostPreviewTarget'];
 
+export type AntispamRule = components['schemas']['AntispamRule'];
+export type AntispamRuleCreate = components['schemas']['AntispamRuleCreate'];
+export type AntispamRulePatch = components['schemas']['AntispamRulePatch'];
+export type AntispamRulePage = components['schemas']['AntispamRulePage'];
+export type AntispamWordList = components['schemas']['AntispamWordList'];
+export type AntispamWordListCreate = components['schemas']['AntispamWordListCreate'];
+export type AntispamWordListPatch = components['schemas']['AntispamWordListPatch'];
+export type AntispamWordListPage = components['schemas']['AntispamWordListPage'];
+export type AntispamLogEntry = components['schemas']['AntispamLogEntry'];
+export type AntispamLogPage = components['schemas']['AntispamLogPage'];
+export type AntispamRestoreRequest = components['schemas']['AntispamRestoreRequest'];
+export type AntispamScanResponse = components['schemas']['AntispamScanResponse'];
+export type AntispamRuleStats = components['schemas']['AntispamRuleStats'];
+
 export type Notification = components['schemas']['Notification'];
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type NotificationSettings = components['schemas']['NotificationSettings'];

@@ -187,4 +187,19 @@ export const queryKeys = {
     items: (workspaceId: string, ruleId: string, filters?: Record<string, unknown>) =>
       [...queryKeys.crosspost.rule(workspaceId, ruleId), 'items', filters ?? {}] as const,
   },
+
+  antispam: {
+    all: (workspaceId: string) =>
+      [...queryKeys.workspaces.detail(workspaceId), 'antispam'] as const,
+    rules: (workspaceId: string, projectId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.antispam.all(workspaceId), 'rules', projectId, filters ?? {}] as const,
+    rule: (workspaceId: string, ruleId: string) =>
+      [...queryKeys.antispam.all(workspaceId), 'rule', ruleId] as const,
+    stats: (workspaceId: string, ruleId: string) =>
+      [...queryKeys.antispam.rule(workspaceId, ruleId), 'stats'] as const,
+    wordLists: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.antispam.all(workspaceId), 'wordLists', filters ?? {}] as const,
+    log: (workspaceId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.antispam.all(workspaceId), 'log', filters ?? {}] as const,
+  },
 } as const;

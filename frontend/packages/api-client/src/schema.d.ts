@@ -3622,6 +3622,39 @@ export interface components {
             severity?: string;
             title?: string;
         };
+        AntispamLogEntry: {
+            action?: string;
+            attachmentsSummary?: string;
+            authorRef?: string;
+            /** Format: uuid */
+            channelId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            reasons?: string[];
+            remoteActionIds?: string[];
+            remoteRef?: {
+                [key: string]: Record<string, never>;
+            };
+            restorable?: boolean;
+            /** Format: date-time */
+            restoredAt?: string;
+            /** Format: uuid */
+            restoredBy?: string;
+            /** Format: uuid */
+            ruleId?: string;
+            section?: string;
+            state?: string;
+            textSnapshot?: string;
+            /** Format: uuid */
+            workspaceId?: string;
+        };
+        AntispamLogPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AntispamLogEntry"][];
+            nextCursor?: string;
+        };
         AntispamRestoreRequest: {
             unban?: boolean;
         };
@@ -3664,6 +3697,11 @@ export interface components {
             priority?: number;
             sections?: string[];
         };
+        AntispamRulePage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AntispamRule"][];
+            nextCursor?: string;
+        };
         AntispamRulePatch: {
             config?: {
                 [key: string]: Record<string, never>;
@@ -3675,6 +3713,25 @@ export interface components {
             sections?: string[];
             /** Format: int32 */
             version?: number;
+        };
+        AntispamRuleStats: {
+            byReason?: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            hits?: number;
+            /** Format: int64 */
+            hits24h?: number;
+            /** Format: int64 */
+            hits7d?: number;
+            /** Format: uuid */
+            ruleId?: string;
+        };
+        AntispamScanResponse: {
+            /** Format: uuid */
+            jobId?: string;
+            message?: string;
+            status?: string;
         };
         AntispamWordList: {
             /** Format: uuid */
@@ -3693,6 +3750,11 @@ export interface components {
             mode: string;
             name: string;
             words: string[];
+        };
+        AntispamWordListPage: {
+            hasMore?: boolean;
+            items?: components["schemas"]["AntispamWordList"][];
+            nextCursor?: string;
         };
         AntispamWordListPatch: {
             mode?: string;
@@ -8357,6 +8419,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamLogEntry"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8433,6 +8504,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8513,6 +8593,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8589,6 +8678,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8665,6 +8763,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8741,6 +8848,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8817,6 +8933,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRule"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8893,6 +9018,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamScanResponse"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -8969,6 +9103,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRuleStats"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -9132,6 +9275,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamWordList"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -22160,6 +22312,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamLogPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -22247,6 +22408,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamWordListPage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
@@ -24136,6 +24306,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AntispamRulePage"];
+                };
+            };
             /** @description Validation failed (`validation_failed`) */
             400: {
                 headers: {
