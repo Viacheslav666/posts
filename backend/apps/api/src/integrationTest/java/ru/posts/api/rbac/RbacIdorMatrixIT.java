@@ -26,6 +26,8 @@ import ru.posts.api.rbac.RbacHttpProbeSupport.Scope;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.ChannelSetRepository;
+import ru.posts.persistence.repository.CrosspostItemRepository;
+import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.MediaAssetRepository;
 import ru.posts.persistence.repository.PlanRepository;
@@ -93,6 +95,21 @@ class RbacIdorMatrixIT {
     private GrabberItemRepository grabberItemRepository;
 
     @Autowired
+    private CrosspostRuleRepository crosspostRuleRepository;
+
+    @Autowired
+    private CrosspostItemRepository crosspostItemRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestSettingsRepository suggestSettingsRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestItemRepository suggestItemRepository;
+
+    @Autowired
+    private ru.posts.persistence.repository.SuggestBulkJobRepository suggestBulkJobRepository;
+
+    @Autowired
     private ru.posts.persistence.repository.InvoiceRepository invoiceRepository;
 
     @Autowired
@@ -127,6 +144,11 @@ class RbacIdorMatrixIT {
                     publicationRepository,
                     automationRuleRepository,
                     grabberItemRepository,
+                    crosspostRuleRepository,
+                    crosspostItemRepository,
+                    suggestSettingsRepository,
+                    suggestItemRepository,
+                    suggestBulkJobRepository,
                     invoiceRepository,
                     ordInvoiceRepository,
                     antispamRuleRepository,
@@ -161,6 +183,8 @@ class RbacIdorMatrixIT {
                 || endpoint.path().contains("{invoiceId}")
                 || endpoint.path().contains("{listId}")
                 || endpoint.path().contains("{logId}")
+                || endpoint.path().contains("{settingsId}")
+                || endpoint.path().contains("{jobId}")
                 // Tenant in JSON body (not path/query).
                 || "ordEridCheck".equals(endpoint.operationId())
                 || "ordReportsRun".equals(endpoint.operationId());

@@ -18,6 +18,7 @@ import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.InvitationRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -41,6 +42,7 @@ public class PlanLimitService {
     private final InvitationRepository invitationRepository;
     private final AutomationRuleRepository automationRuleRepository;
     private final AntispamRuleRepository antispamRuleRepository;
+    private final CrosspostRuleRepository crosspostRuleRepository;
 
     public PlanLimitService(
             WorkspaceRepository workspaceRepository,
@@ -51,7 +53,8 @@ public class PlanLimitService {
             WorkspaceMemberRepository workspaceMemberRepository,
             InvitationRepository invitationRepository,
             AutomationRuleRepository automationRuleRepository,
-            AntispamRuleRepository antispamRuleRepository) {
+            AntispamRuleRepository antispamRuleRepository,
+            CrosspostRuleRepository crosspostRuleRepository) {
         this.workspaceRepository = workspaceRepository;
         this.planRepository = planRepository;
         this.channelRepository = channelRepository;
@@ -61,6 +64,7 @@ public class PlanLimitService {
         this.invitationRepository = invitationRepository;
         this.automationRuleRepository = automationRuleRepository;
         this.antispamRuleRepository = antispamRuleRepository;
+        this.crosspostRuleRepository = crosspostRuleRepository;
     }
 
     public void ensureNotFrozen(UUID workspaceId) {
@@ -136,6 +140,24 @@ public class PlanLimitService {
                     ProblemCodes.PLAN_LIMIT_EXCEEDED,
                     "Workspace antispam rule limit reached",
                     Map.of("limit", "antispam_rules", "antispam_rules", limit, "current", current));
+        }
+    }
+
+    public void ensureCanCreateCrosspostRule(UUID workspaceId) {
+        ensureNotFrozen(workspaceId);
+        WorkspaceEntity workspace = requireWorkspace(workspaceId);
+        Integer limit = nullableIntLimit(workspace, "crosspost_rules");
+        if (limit == null) {
+            return;
+        }
+        long current = crosspostRuleRepository.countByWorkspaceIdAndStatusIn(
+                workspaceId, List.of("draft", "active", "paused", "auto_paused"));
+        if (current >= limit) {
+            throw new ApiException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    ProblemCodes.PLAN_LIMIT_EXCEEDED,
+                    "Workspace crosspost rule limit reached",
+                    Map.of("limit", "crosspost_rules", "crosspost_rules", limit, "current", current));
         }
     }
 

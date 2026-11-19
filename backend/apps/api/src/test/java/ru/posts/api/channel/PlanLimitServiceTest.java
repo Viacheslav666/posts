@@ -21,6 +21,7 @@ import ru.posts.persistence.entity.WorkspaceEntity;
 import ru.posts.persistence.repository.AntispamRuleRepository;
 import ru.posts.persistence.repository.AutomationRuleRepository;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.CrosspostRuleRepository;
 import ru.posts.persistence.repository.InvitationRepository;
 import ru.posts.persistence.repository.PlanRepository;
 import ru.posts.persistence.repository.PostRepository;
@@ -58,6 +59,9 @@ class PlanLimitServiceTest {
     @Mock
     AntispamRuleRepository antispamRuleRepository;
 
+    @Mock
+    CrosspostRuleRepository crosspostRuleRepository;
+
     PlanLimitService service;
     UUID workspaceId;
     UUID planId;
@@ -73,7 +77,8 @@ class PlanLimitServiceTest {
                 workspaceMemberRepository,
                 invitationRepository,
                 automationRuleRepository,
-                antispamRuleRepository);
+                antispamRuleRepository,
+                crosspostRuleRepository);
         workspaceId = UuidV7.generate();
         planId = UuidV7.generate();
     }

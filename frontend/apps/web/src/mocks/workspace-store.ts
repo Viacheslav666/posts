@@ -168,6 +168,13 @@ function createInitialState(): WorkspaceStoreState {
     locale: 'ru',
     totpEnabled: false,
     memberships: [...memberships],
+    features: {
+      'grabber.enabled': true,
+      'stories.enabled': true,
+      'automation.suggest': true,
+      'automation.antispam': true,
+      'automation.crosspost': true,
+    },
   };
 
   const sessions: SessionDto[] = [

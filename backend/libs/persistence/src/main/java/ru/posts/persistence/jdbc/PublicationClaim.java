@@ -58,4 +58,6 @@ public record PublicationClaim(
          * BE-25 placement mode from ad_payload.placement or legacy markingType (0..5 / enum name).
          * Null → AdMarker defaults to text_start.
          */
-        String markingPlacement) {}
+        String markingPlacement,
+        /** posts.source_ref JSON (BE-36 crosspost lineage). */
+        String sourceRefJson) {}

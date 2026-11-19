@@ -195,6 +195,32 @@ ACTION: dict[str, str | None] = {
     "antispamWordListsDelete": "automations.manage",
     "antispamLogList": "automations.view",
     "antispamLogRestore": "automations.moderate",
+    # BE-34 VK suggests
+    "suggestSettingsList": "automations.view",
+    "suggestSettingsCreate": "automations.manage",
+    "suggestSettingsGet": "automations.view",
+    "suggestSettingsPatch": "automations.manage",
+    "suggestSettingsActivate": "automations.manage",
+    "suggestSettingsPause": "automations.manage",
+    "suggestSettingsResume": "automations.manage",
+    "suggestSettingsCopy": "automations.manage",
+    "suggestSettingsSync": "automations.manage",
+    "suggestItemsList": "automations.view",
+    "suggestItemsGet": "automations.view",
+    "suggestItemsApprove": "automations.moderate",
+    "suggestItemsReject": "automations.moderate",
+    "suggestItemsBulk": "automations.moderate",
+    "suggestBulkJobGet": "automations.moderate",
+    # BE-36 crosspost
+    "crosspostRulesList": "automations.view",
+    "crosspostRulesCreate": "automations.manage",
+    "crosspostRulesGet": "automations.view",
+    "crosspostRulesPatch": "automations.manage",
+    "crosspostRulesActivate": "automations.manage",
+    "crosspostRulesPause": "automations.manage",
+    "crosspostRulesPreview": "automations.view",
+    "crosspostItemsList": "automations.view",
+    "crosspostItemsRetry": "automations.moderate",
     # BE-13 platform admin (users.platform_admin) — вне workspace RBAC
     "adminUsersSearch": None,
     "adminUsersGet": None,
@@ -384,6 +410,30 @@ IMPLEMENTED = {
     "antispamWordListsDelete",
     "antispamLogList",
     "antispamLogRestore",
+    "suggestSettingsList",
+    "suggestSettingsCreate",
+    "suggestSettingsGet",
+    "suggestSettingsPatch",
+    "suggestSettingsActivate",
+    "suggestSettingsPause",
+    "suggestSettingsResume",
+    "suggestSettingsCopy",
+    "suggestSettingsSync",
+    "suggestItemsList",
+    "suggestItemsGet",
+    "suggestItemsApprove",
+    "suggestItemsReject",
+    "suggestItemsBulk",
+    "suggestBulkJobGet",
+    "crosspostRulesList",
+    "crosspostRulesCreate",
+    "crosspostRulesGet",
+    "crosspostRulesPatch",
+    "crosspostRulesActivate",
+    "crosspostRulesPause",
+    "crosspostRulesPreview",
+    "crosspostItemsList",
+    "crosspostItemsRetry",
     "billingChangePlan",
     "billingDeletePaymentMethod",
     "billingGetAutopay",
@@ -434,6 +484,7 @@ DESTRUCTIVE = {
     "mediaDelete",
     "ordInvoicesDelete",
     "billingDeletePaymentMethod",
+    "antispamWordListsDelete",
 }
 
 WORKSPACE_QUERY_OPS = {
@@ -527,6 +578,10 @@ def placeholders(path: str) -> dict[str, str]:
         "{sessionId}": ("sessionId", "{sessionId}"),
         "{ruleId}": ("ruleId", "{ruleId}"),
         "{itemId}": ("itemId", "{itemId}"),
+        "{settingsId}": ("settingsId", "{settingsId}"),
+        "{jobId}": ("jobId", "{jobId}"),
+        "{listId}": ("listId", "{antispamListId}"),
+        "{logId}": ("logId", "{antispamLogId}"),
         "{network}": ("network", "vk"),
         "{provider}": ("provider", "vk_ord"),
         "{contractorId}": ("contractorId", "{contractorId}"),
@@ -538,6 +593,9 @@ def placeholders(path: str) -> dict[str, str]:
     for token, (key, value) in mapping.items():
         if token in path:
             ph[key] = value
+    # Antispam rule IDs must not collide with grabber/crosspost {ruleId} fixtures.
+    if "/antispam/" in path and "ruleId" in ph:
+        ph["ruleId"] = "{antispamRuleId}"
     return ph
 
 

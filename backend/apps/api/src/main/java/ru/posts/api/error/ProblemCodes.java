@@ -34,6 +34,9 @@ public final class ProblemCodes {
     public static final String INGEST_VALIDATION_FAILED = "ingest_validation_failed";
     public static final String INGEST_DEDUP_CONFLICT = "ingest_dedup_conflict";
 
+    public static final String VK_USER_TOKEN_WALL_SCOPE_REQUIRED = "vk_user_token_wall_scope_required";
+    public static final String SUGGEST_FEATURE_DISABLED = "suggest_feature_disabled";
+
     public static final String ORD_NOT_CONFIGURED = "ord_not_configured";
     public static final String ORD_VALIDATION_FAILED = "ord_validation_failed";
     public static final String ORD_PROVIDER_UNAVAILABLE = "ord_provider_unavailable";
@@ -117,6 +120,8 @@ public final class ProblemCodes {
             - ingest_auto_paused — rule auto-paused after errors
             - ingest_validation_failed — item failed network capability checks
             - ingest_dedup_conflict — duplicate content detected
+            - vk_user_token_wall_scope_required — VK user token lacks wall scope for publishSuggested (BE-34)
+            - suggest_feature_disabled — feature flag automation.suggest is off for workspace
             """;
 
     private ProblemCodes() {}

@@ -63,7 +63,8 @@ public class PublicationLifecycleJdbc {
                      p.base_content -> 'stringAttachments',
                      '[]'::jsonb
                    )::text AS string_attachments_json,
-                   coalesce(p.ad_payload ->> 'placement', p.ad_payload ->> 'markingType') AS marking_placement
+                   coalesce(p.ad_payload ->> 'placement', p.ad_payload ->> 'markingType') AS marking_placement,
+                   coalesce(p.source_ref::text, '{}') AS source_ref_json
             FROM publications pub
             JOIN channels c ON c.id = pub.channel_id
             JOIN posts p ON p.id = pub.post_id
@@ -116,7 +117,8 @@ public class PublicationLifecycleJdbc {
                         "Europe/Moscow",
                         "",
                         "[]",
-                        null))
+                        null,
+                        "{}"))
                 .list();
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -163,7 +165,8 @@ public class PublicationLifecycleJdbc {
                             rs.getString("timezone"),
                             rs.getString("channel_title"),
                             rs.getString("string_attachments_json"),
-                            rs.getString("marking_placement"));
+                            rs.getString("marking_placement"),
+                            rs.getString("source_ref_json"));
                 })
                 .optional()
                 .orElse(base);

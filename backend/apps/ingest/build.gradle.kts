@@ -8,6 +8,8 @@ dependencies {
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
     implementation(project(":libs:grabber"))
+    implementation(project(":libs:automation-suggest"))
+    implementation(project(":libs:crosspost"))
     implementation(project(":libs:social-inbound"))
     implementation(project(":libs:antispam"))
     implementation(project(":libs:social-vk"))
