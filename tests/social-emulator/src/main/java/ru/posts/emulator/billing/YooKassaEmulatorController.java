@@ -23,7 +23,7 @@ public class YooKassaEmulatorController {
             path = "/payments",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-  @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> createPayment(@RequestBody(required = false) Map<String, Object> body) {
         String id = UUID.randomUUID().toString();
         Map<String, Object> payment = new LinkedHashMap<>();
@@ -54,7 +54,7 @@ public class YooKassaEmulatorController {
         return Map.of("id", paymentId, "status", "succeeded", "paid", true);
     }
 
-  @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked")
     private static String extractReturnUrl(Map<String, Object> body) {
         if (body == null) {
             return "http://localhost:3000/billing/return";
@@ -69,7 +69,7 @@ public class YooKassaEmulatorController {
         return "http://localhost:3000/billing/return";
     }
 
-  @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked")
     private static String metadataValue(Map<String, Object> body, String key) {
         if (body == null) {
             return null;

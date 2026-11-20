@@ -200,8 +200,7 @@ public class ConnectApiController {
 
     private static String jsString(String value) {
         return "'"
-                + value
-                        .replace("\\", "\\\\")
+                + value.replace("\\", "\\\\")
                         .replace("'", "\\'")
                         .replace("\n", "\\n")
                         .replace("\r", "\\r")
