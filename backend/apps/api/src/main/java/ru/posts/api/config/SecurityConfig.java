@@ -22,7 +22,8 @@ public class SecurityConfig {
             throws Exception {
         CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName("_csrf");
+        // Eager CSRF cookie on every request (deferred "_csrf" attribute breaks SPA/MockMvc ping → POST).
+        requestHandler.setCsrfRequestAttributeName(null);
 
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
