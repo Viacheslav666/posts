@@ -103,7 +103,9 @@ public class ChannelProperties {
         if ("ok".equals(network) && okRedirectUri != null && !okRedirectUri.isBlank()) {
             return okRedirectUri;
         }
-        String base = appBaseUrl().endsWith("/") ? appBaseUrl().substring(0, appBaseUrl().length() - 1) : appBaseUrl();
+        String base = appBaseUrl().endsWith("/")
+                ? appBaseUrl().substring(0, appBaseUrl().length() - 1)
+                : appBaseUrl();
         return base + "/app/" + workspaceId + "/channels/connect/" + network + "/callback";
     }
 

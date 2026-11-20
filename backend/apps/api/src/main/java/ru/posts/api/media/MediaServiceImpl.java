@@ -661,7 +661,7 @@ public class MediaServiceImpl implements MediaService {
         return ApiEnums.MediaKind.doc;
     }
 
-  /** Drop abandoned multipart sessions so storage quota and idempotency stay usable. */
+    /** Drop abandoned multipart sessions so storage quota and idempotency stay usable. */
     private void purgeStaleUploadingAssets(UUID workspaceId) {
         Instant cutoff = Instant.now().minus(s3Properties.getPresignTtl().multipliedBy(2));
         jdbcClient
