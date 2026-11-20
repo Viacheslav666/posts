@@ -6,45 +6,74 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.ord.OrdDtos;
-import ru.posts.api.web.dto.post.PostDtos;
 import ru.posts.ord.api.AdMarkingDefaults;
 
 class PostAdOptionsEnricherTest {
 
     @Test
-    void fillsDeleteAfterFromPublishAtPlusDisplayPeriod() {
+    void resolveDefaultUsesDisplayPeriodFromMarking() {
         Instant publishAt = Instant.parse("2026-06-01T10:00:00Z");
-        OrdDtos.AdMarking marking = markingWithPeriod(AdMarkingDefaults.DEFAULT_DISPLAY_PERIOD_DAYS);
-        var variant = new PostDtos.PostVariantUpsert(null, UUID.randomUUID(), ApiEnums.Network.vk, null, null);
-
-        List<PostDtos.PostVariantUpsert> enriched =
-                PostAdOptionsEnricher.enrichDeleteAfter(true, marking, publishAt, List.of(variant));
-
-        Instant expected = publishAt.plusSeconds(
-                AdMarkingDefaults.DEFAULT_DISPLAY_PERIOD_DAYS * AdMarkingDefaults.SECONDS_PER_DAY);
-        assertThat(enriched.getFirst().options().deleteAfter()).isEqualTo(expected);
+        OrdDtos.AdMarking marking = markingWithPeriod(14);
+        Instant result = PostAdOptionsEnricher.resolveDefaultDeleteAfter(marking, publishAt);
+        assertThat(result).isEqualTo(publishAt.plusSeconds(14 * AdMarkingDefaults.SECONDS_PER_DAY));
     }
 
     @Test
-    void doesNotOverwriteExistingDeleteAfter() {
+    void resolveDefaultFallsBackTo30WhenDisplayPeriodMissingOnMarking() {
         Instant publishAt = Instant.parse("2026-06-01T10:00:00Z");
-        Instant manual = Instant.parse("2026-07-01T10:00:00Z");
-        OrdDtos.AdMarking marking = markingWithPeriod(30);
-        var options = new PostDtos.PostVariantOptions(
-                null, null, manual, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-        var variant = new PostDtos.PostVariantUpsert(null, UUID.randomUUID(), ApiEnums.Network.vk, null, options);
-
-        List<PostDtos.PostVariantUpsert> enriched =
-                PostAdOptionsEnricher.enrichDeleteAfter(true, marking, publishAt, List.of(variant));
-
-        assertThat(enriched.getFirst().options().deleteAfter()).isEqualTo(manual);
+        OrdDtos.AdMarking marking = markingWithPeriod(null);
+        Instant result = PostAdOptionsEnricher.resolveDefaultDeleteAfter(marking, publishAt);
+        assertThat(result)
+                .isEqualTo(publishAt.plusSeconds(
+                        AdMarkingDefaults.DEFAULT_DISPLAY_PERIOD_DAYS * AdMarkingDefaults.SECONDS_PER_DAY));
     }
 
-    private static OrdDtos.AdMarking markingWithPeriod(int days) {
+    @Test
+    void resolveDefaultNullWhenAutoDeleteDisabled() {
+        OrdDtos.AdMarking marking = markingWithPeriod(30);
+        OrdDtos.AdMarking off = new OrdDtos.AdMarking(
+                marking.advertiserName(),
+                marking.inn(),
+                marking.kpp(),
+                marking.orgType(),
+                marking.amount(),
+                marking.contractAmount(),
+                marking.contractDate(),
+                marking.contractDateEnd(),
+                marking.contractSerial(),
+                marking.kktuCodes(),
+                marking.oksmCountry(),
+                marking.vatRate(),
+                marking.roles(),
+                marking.isForeign(),
+                marking.foreignInn(),
+                marking.foreignRegNumber(),
+                marking.foreignEpayment(),
+                marking.phone(),
+                marking.address(),
+                marking.description(),
+                marking.markingType(),
+                marking.placement(),
+                marking.selfPromo(),
+                marking.socialAd(),
+                marking.socialAdQuota(),
+                marking.executor(),
+                marking.customerRole(),
+                marking.provider(),
+                marking.displayPeriodDays(),
+                false,
+                marking.contractorId(),
+                marking.erid(),
+                marking.amountVat(),
+                marking.contractAmountVat(),
+                marking.warnings());
+        assertThat(PostAdOptionsEnricher.resolveDefaultDeleteAfter(off, Instant.now()))
+                .isNull();
+    }
+
+    private static OrdDtos.AdMarking markingWithPeriod(Integer days) {
         return new OrdDtos.AdMarking(
                 "ООО Тест",
                 "7707083893",

@@ -44,6 +44,38 @@ class ScheduledActionsFactoryTest {
     }
 
     @Test
+    void doesNotScheduleAdDeleteWhenAutoDeleteDisabled() {
+        UUID publicationId = UUID.randomUUID();
+        Instant runAt = Instant.parse("2026-06-01T10:00:00Z");
+        PublicationClaim claim = claim(publicationId, runAt, "{}", true, 30, false);
+
+        factory.createAfterSuccess(claim, "remote-off");
+
+        verify(actionsJdbc, never()).insertAction(any(), any(), any(), eq("delete"), any(), any());
+    }
+
+    @Test
+    void deleteAfterComputedPerPublicationRunAt() {
+        UUID pub1 = UUID.randomUUID();
+        UUID pub2 = UUID.randomUUID();
+        Instant run1 = Instant.parse("2026-06-01T10:00:00Z");
+        Instant run2 = Instant.parse("2026-06-15T10:00:00Z");
+        PublicationClaim claim1 = claim(pub1, run1, "{}", true, 7, true);
+        PublicationClaim claim2 = claim(pub2, run2, "{}", true, 7, true);
+
+        factory.createAfterSuccess(claim1, "r1");
+        factory.createAfterSuccess(claim2, "r2");
+
+        ArgumentCaptor<Instant> c1 = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Instant> c2 = ArgumentCaptor.forClass(Instant.class);
+        verify(actionsJdbc).insertAction(eq(pub1), eq(run1), any(), eq("delete"), c1.capture(), any());
+        verify(actionsJdbc).insertAction(eq(pub2), eq(run2), any(), eq("delete"), c2.capture(), any());
+
+        assertThat(c1.getValue()).isEqualTo(run1.plusSeconds(7 * AdMarkingDefaults.SECONDS_PER_DAY));
+        assertThat(c2.getValue()).isEqualTo(run2.plusSeconds(7 * AdMarkingDefaults.SECONDS_PER_DAY));
+    }
+
+    @Test
     void defaultAdDeleteAfterUsesPublishTimePlusPeriod() {
         UUID publicationId = UUID.randomUUID();
         Instant runAt = Instant.parse("2026-06-01T10:00:00Z");

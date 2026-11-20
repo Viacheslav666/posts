@@ -5,6 +5,7 @@ import type { NetworkId } from '@posts/domain';
 import { Input } from '@posts/ui';
 import { useTranslations } from 'next-intl';
 
+import { displayPeriodDays } from '../lib/ad-delete-after';
 import type { EditorPostOptions, PublishMode } from '../model/types';
 import { isOptionSupported } from '../model/option-support';
 import {
@@ -22,7 +23,6 @@ type PostOptionsPanelProps = {
   onChange: (next: EditorPostOptions) => void;
   isAd?: boolean;
   adAutoDeleteEnabled?: boolean;
-  deleteAfterManual?: boolean;
   onDeleteAfterManualChange?: (manual: boolean) => void;
   unpinAtError?: string;
 };
@@ -62,7 +62,6 @@ export function PostOptionsPanel({
   onChange,
   isAd = false,
   adAutoDeleteEnabled = true,
-  deleteAfterManual = false,
   onDeleteAfterManualChange,
   unpinAtError,
 }: PostOptionsPanelProps) {
@@ -573,8 +572,10 @@ export function PostOptionsPanel({
                 });
               }}
             />
-            {isAd && adAutoDeleteEnabled ? (
-              <span className="text-xs text-muted-foreground">{t('deleteAfterAdHint')}</span>
+            {isAd && adAutoDeleteEnabled && !options.variant.deleteAfter ? (
+              <span className="text-xs text-muted-foreground">
+                {t('deleteAfterAdHint', { days: displayPeriodDays(options.ad) })}
+              </span>
             ) : null}
           </label>
         </OptionField>

@@ -211,6 +211,7 @@ public class PostServiceImpl implements PostService {
             validateMedia(request.workspaceId(), PostContentMapper.mediaIds(v.content()));
             validateStringAttachments(v.content());
             AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
+            PostVariantOptionsValidator.validateUnpinAt(request.scheduledAt(), v.options());
         }
         validateContentAgainstNetworks(request.baseContent(), variants);
         Map<String, Object> adPayload = resolveAdPayload(request.ad(), request.adMarking(), request.adPayload());
@@ -262,10 +263,8 @@ public class PostServiceImpl implements PostService {
             }
         }
         postRepository.save(post);
-        List<PostVariantEntity> savedVariants = saveVariants(
-                post.getId(),
-                enrichVariantsForSchedule(
-                        post, variants, request.story(), request.ad(), request.adMarking(), request.scheduledAt()));
+        List<PostVariantEntity> savedVariants =
+                saveVariants(post.getId(), enrichVariantsForStory(post, variants, request.story()));
 
         if (scheduleNow) {
             if (post.isAd()) {
@@ -351,26 +350,15 @@ public class PostServiceImpl implements PostService {
         List<PostVariantEntity> variants;
         if (request.variants() != null) {
             validateVariants(post.getWorkspaceId(), request.variants());
+            Instant scheduleAt = request.scheduledAt() != null ? request.scheduledAt() : post.getScheduledAt();
             for (PostDtos.PostVariantUpsert v : request.variants()) {
                 validateMedia(post.getWorkspaceId(), PostContentMapper.mediaIds(v.content()));
                 validateStringAttachments(v.content());
                 AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
+                PostVariantOptionsValidator.validateUnpinAt(scheduleAt, v.options());
             }
             deleteVariants(post.getId());
-            OrdDtos.AdMarking markingForEnrich = request.adMarking();
-            if (markingForEnrich == null && post.isAd() && post.getAdPayload() != null) {
-                markingForEnrich = objectMapper.convertValue(post.getAdPayload(), OrdDtos.AdMarking.class);
-            }
-            boolean adFlag = request.ad() != null ? request.ad() : post.isAd();
-            variants = saveVariants(
-                    post.getId(),
-                    enrichVariantsForSchedule(
-                            post,
-                            request.variants(),
-                            request.story(),
-                            adFlag,
-                            markingForEnrich,
-                            post.getScheduledAt()));
+            variants = saveVariants(post.getId(), enrichVariantsForStory(post, request.variants(), request.story()));
         } else {
             variants = postVariantRepository.findByPostId(post.getId());
         }
@@ -1453,20 +1441,6 @@ public class PostServiceImpl implements PostService {
                 StorySupport.toDto(
                         post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions()),
                 networks);
-    }
-
-    private List<PostDtos.PostVariantUpsert> enrichVariantsForSchedule(
-            PostEntity post,
-            List<PostDtos.PostVariantUpsert> variants,
-            PostDtos.StoryOptions story,
-            boolean ad,
-            OrdDtos.AdMarking adMarking,
-            Instant publishAt) {
-        List<PostDtos.PostVariantUpsert> enriched = enrichVariantsForStory(post, variants, story);
-        if (!StorySupport.isStory(post.getContentKind()) && ad) {
-            enriched = PostAdOptionsEnricher.enrichDeleteAfter(ad, adMarking, publishAt, enriched);
-        }
-        return enriched;
     }
 
     private List<PostDtos.PostVariantUpsert> enrichVariantsForStory(

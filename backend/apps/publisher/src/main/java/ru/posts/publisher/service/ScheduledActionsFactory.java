@@ -12,7 +12,9 @@ import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
 
 /**
  * Materializes {@code scheduled_actions} after a successful publish (02-backend.md §5.3/§5.5): pin,
- * unpin, auto-delete, first comment. Story delete uses kind {@code delete_story} (BE-16).
+ * unpin, auto-delete, first comment. Story delete uses kind {@code delete_story} (BE-16). ORD
+ * auto-delete when variant {@code deleteAfter} is absent: {@code runAt +
+ * AdMarkingDefaults.DEFAULT_DISPLAY_PERIOD_DAYS} (or creative {@code display_period_days}).
  */
 @Component
 public class ScheduledActionsFactory {

@@ -69,7 +69,9 @@ describe('PostOptionsPanel (TC-AD-01)', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByText('Рекламные посты автоматически удаляются через 30 дней')).toBeInTheDocument();
+    expect(
+      screen.getByText('Если поле пусто, каждый слот удалится через 30 дн. после своей публикации'),
+    ).toBeInTheDocument();
   });
 
   it('renders recurrence presets', () => {
