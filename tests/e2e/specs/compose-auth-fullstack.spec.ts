@@ -73,14 +73,17 @@ test.describe('Compose auth full stack', () => {
       buffer: png,
     });
 
-    await expect(page.getByText(uploadName)).toBeVisible({ timeout: 90_000 });
+    const gridCard = page
+      .getByTestId('media-grid')
+      .locator('[data-testid^="media-card-"]', { hasText: uploadName });
+    await expect(gridCard).toBeVisible({ timeout: 90_000 });
 
-    const card = page.locator('[data-testid^="media-card-"]').filter({ hasText: uploadName });
-    await card.dblclick();
+    await gridCard.dblclick();
     await expect(page.getByTestId('media-details')).toBeVisible();
     await page.getByTestId('media-details').getByRole('button', { name: 'Удалить' }).click();
     await expect(page.getByTestId('media-delete-dialog')).toBeVisible();
     await page.getByTestId('media-delete-confirm').click();
-    await expect(page.getByText(uploadName)).not.toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('media-delete-dialog')).not.toBeVisible({ timeout: 30_000 });
+    await expect(gridCard).toHaveCount(0, { timeout: 30_000 });
   });
 });
