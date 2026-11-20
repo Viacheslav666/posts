@@ -398,10 +398,10 @@ services:
       start_period: 20s
 
   # Same-origin entrypoint: / → web, /api/* and /ws → api (browser only talks to :3000).
-  # CI guard: apps cannot reach production APIs (internal default network + env points at emulator).
+  # CI guard (not started by `up --profile full`; run via profile `compose-guard` after wait-full).
   compose-full-egress-guard:
     image: alpine:3.20
-    profiles: ["full"]
+    profiles: ["compose-guard"]
     depends_on:
       social-emulator:
         condition: service_started

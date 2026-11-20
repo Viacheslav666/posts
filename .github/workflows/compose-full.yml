@@ -60,7 +60,7 @@ jobs:
           set -euo pipefail
           chmod +x tests/compose/assert-full-profile-external-urls.sh
           tests/compose/assert-full-profile-external-urls.sh
-          docker compose -f "${COMPOSE_FILE}" --profile full run --rm --no-deps compose-full-egress-guard
+          docker compose -f "${COMPOSE_FILE}" --profile full --profile compose-guard run --rm --no-deps compose-full-egress-guard
 
       - name: Assert no exited containers
         run: |
