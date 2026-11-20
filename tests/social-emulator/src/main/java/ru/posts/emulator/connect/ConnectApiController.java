@@ -32,6 +32,9 @@ public class ConnectApiController {
         if (redirectUri == null || redirectUri.isBlank()) {
             return ResponseEntity.badRequest().body("missing redirect_uri");
         }
+        if (!isAllowedChannelRedirect(redirectUri)) {
+            return ResponseEntity.badRequest().body("redirect_uri not allowed");
+        }
 
         String defaultCode = request.getRequestURI().contains("/oauth/ok/") ? "ok-admin" : "vk-admin";
         String code = first(params, "fixture_code");
@@ -178,5 +181,23 @@ public class ConnectApiController {
     private static String first(MultiValueMap<String, String> params, String key) {
         List<String> values = params.get(key);
         return values == null || values.isEmpty() ? null : values.getFirst();
+    }
+
+    /** Emulator-only: reject open redirects; allow Posts channel OAuth callback paths only. */
+    static boolean isAllowedChannelRedirect(String redirectUri) {
+        try {
+            URI uri = URI.create(redirectUri);
+            String scheme = uri.getScheme();
+            if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                return false;
+            }
+            String path = uri.getPath();
+            if (path == null || path.isBlank()) {
+                return false;
+            }
+            return path.matches(".*/app/[^/]+/channels/connect/(vk|ok)/callback/?");
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }
