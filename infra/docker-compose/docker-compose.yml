@@ -400,6 +400,15 @@ services:
   compose-full-egress-guard:
     image: alpine:3.20
     profiles: ["compose-guard"]
+    extra_hosts:
+      - "api.vk.com:127.0.0.1"
+      - "id.vk.ru:127.0.0.1"
+      - "api.telegram.org:127.0.0.1"
+      - "platform-api.max.ru:127.0.0.1"
+      - "api.ok.ru:127.0.0.1"
+      - "api.ord.vk.com:127.0.0.1"
+      - "api.yookassa.ru:127.0.0.1"
+      - "oauth.yandex.ru:127.0.0.1"
     depends_on:
       social-emulator:
         condition: service_started

@@ -64,15 +64,19 @@ for svc in "${services[@]}"; do
   done
 done
 
-echo "==> JVM full services declare production-host sinkhole extra_hosts"
-for svc in api scheduler publisher-vk; do
-  has_sinkhole="$("${COMPOSE[@]}" config --format json | jq -r --arg svc "$svc" '
-    .services[$svc].extra_hosts // {} |
-    if type == "array" then (index("api.vk.com:127.0.0.1") != null)
-    else (.["api.vk.com"] == "127.0.0.1" or .["api.vk.com:127.0.0.1"] != null) end
-  ')"
-  if [ "$has_sinkhole" != "true" ]; then
-    echo "$svc: missing extra_hosts sinkhole for api.vk.com" >&2
+echo "==> compose file wires JVM full services + production-host sinkhole"
+COMPOSE_ON_DISK="${COMPOSE_FILE}"
+if ! grep -q 'x-jvm-full-service' "$COMPOSE_ON_DISK"; then
+  echo "missing x-jvm-full-service anchor in ${COMPOSE_ON_DISK}" >&2
+  exit 1
+fi
+if ! grep -A25 'x-jvm-full-service' "$COMPOSE_ON_DISK" | grep -q 'api.vk.com:127.0.0.1'; then
+  echo "x-jvm-full-service must sinkhole api.vk.com" >&2
+  exit 1
+fi
+for svc in api scheduler ingest notifications publisher-vk; do
+  if ! awk "/^  ${svc}:/,/^  [a-z]/ {print}" "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
+    echo "${svc}: expected <<: *jvm-full-service" >&2
     exit 1
   fi
 done
