@@ -1,22 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldResetDeleteAfterManual } from './ad-delete-after-manual';
+import { shouldClearDeleteAfterOnAdAutoOff } from './ad-delete-after-manual';
 
-describe('shouldResetDeleteAfterManual', () => {
-  const enabled30 = { enabled: true, displayPeriodDays: 30 };
-  const disabled30 = { enabled: false, displayPeriodDays: 30 };
-
-  it('does not reset when only other ad fields change', () => {
-    expect(shouldResetDeleteAfterManual(enabled30, enabled30)).toBe(false);
+describe('shouldClearDeleteAfterOnAdAutoOff', () => {
+  it('clears only on transition from ad auto on to off without manual date', () => {
+    expect(shouldClearDeleteAfterOnAdAutoOff(true, false, false, true)).toBe(true);
   });
 
-  it('resets when auto-delete is re-enabled', () => {
-    expect(shouldResetDeleteAfterManual(disabled30, enabled30)).toBe(true);
+  it('keeps manual deleteAfter when ad auto turns off', () => {
+    expect(shouldClearDeleteAfterOnAdAutoOff(true, false, true, true)).toBe(false);
   });
 
-  it('resets when display period changes', () => {
-    expect(shouldResetDeleteAfterManual(enabled30, { enabled: true, displayPeriodDays: 14 })).toBe(
-      true,
-    );
+  it('keeps deleteAfter on non-ad posts when editing other options', () => {
+    expect(shouldClearDeleteAfterOnAdAutoOff(false, false, true, true)).toBe(false);
   });
 });

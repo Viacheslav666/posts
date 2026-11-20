@@ -38,6 +38,30 @@ class PostVariantOptionsValidatorTest {
     }
 
     @Test
+    void allowsUnpinAtWhenScheduledAtNull() {
+        var options = new PostDtos.PostVariantOptions(
+                true,
+                Instant.parse("2026-06-02T10:00:00Z"),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+        assertThatCode(() -> PostVariantOptionsValidator.validateUnpinAt(null, options))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void rejectsUnpinBeforeOrEqualScheduledAt() {
         Instant scheduled = Instant.parse("2026-06-01T10:00:00Z");
         var options = new PostDtos.PostVariantOptions(

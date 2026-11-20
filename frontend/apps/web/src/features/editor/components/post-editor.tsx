@@ -31,9 +31,9 @@ import { useCan } from '@/shared/hooks/use-can';
 import { createPost, registerPostOrd } from '../api/posts-api';
 import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network-capabilities';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
-import { shouldResetDeleteAfterManual } from '../lib/ad-delete-after-manual';
-import { AD_DEFAULT_DISPLAY_PERIOD_DAYS, displayPeriodDays } from '../lib/ad-delete-after';
+import { shouldClearDeleteAfterOnAdAutoOff } from '../lib/ad-delete-after-manual';
 import {
+  publishAtForUnpinCheck,
   resolvePublishAtIso,
   sanitizeVariantOptions,
   validateUnpinAt,
@@ -195,10 +195,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const [adFieldErrors, setAdFieldErrors] = useState<AdFieldErrors>({});
   const [showPaywall, setShowPaywall] = useState(false);
   const deleteAfterManualRef = useRef(false);
-  const adAutoDeleteSnapshotRef = useRef({
-    enabled: false,
-    displayPeriodDays: AD_DEFAULT_DISPLAY_PERIOD_DAYS,
-  });
+  const prevAdAutoRef = useRef(false);
   const [, startTransition] = useTransition();
   const capabilitiesQuery = useNetworkCapabilities();
   const { channels, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
@@ -209,8 +206,14 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   useEffect(() => {
     if (!draft) return;
     const adAuto = draft.options.isAd && draft.options.ad.autoDeleteAfterPeriod !== false;
-    if (adAuto || deleteAfterManualRef.current) return;
-    if (!draft.options.variant.deleteAfter) return;
+    const shouldClear = shouldClearDeleteAfterOnAdAutoOff(
+      prevAdAutoRef.current,
+      adAuto,
+      deleteAfterManualRef.current,
+      Boolean(draft.options.variant.deleteAfter),
+    );
+    prevAdAutoRef.current = adAuto;
+    if (!shouldClear) return;
     setDraft((current) =>
       current
         ? {
@@ -412,8 +415,13 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       });
       return;
     }
-    const publishAt = resolvePublishAtIso(draft.options.publishMode, draft.options.scheduledAt);
+    const publishAt = publishAtForUnpinCheck(
+      mode,
+      draft.options.publishMode,
+      draft.options.scheduledAt,
+    );
     if (
+      publishAt &&
       draft.options.variant.pin &&
       draft.options.variant.unpinAt &&
       !validateUnpinAt(draft.options.variant.unpinAt, publishAt)
@@ -747,16 +755,13 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             onDeleteAfterManualChange={(manual) => {
               deleteAfterManualRef.current = manual;
             }}
-            onChange={(options) => {
-              if (!options.isAd) {
-                deleteAfterManualRef.current = false;
-              }
+            onChange={(options) =>
               setDraft((current) =>
                 current
                   ? { ...current, options, updatedAt: new Date().toISOString() }
                   : current,
-              );
-            }}
+              )
+            }
           />
 
           <AdMarkingForm
@@ -770,14 +775,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             registering={registering}
             fieldErrors={adFieldErrors}
             previewBody={stripTags(draft.baseHtml || '') || 'Текст поста https://example.com/offer'}
-            onEnabledChange={(isAd) => {
-              if (isAd) {
-                deleteAfterManualRef.current = false;
-              }
-              adAutoDeleteSnapshotRef.current = {
-                enabled: isAd && draft.options.ad.autoDeleteAfterPeriod !== false,
-                displayPeriodDays: displayPeriodDays(draft.options.ad),
-              };
+            onEnabledChange={(isAd) =>
               setDraft((current) =>
                 current
                   ? {
@@ -786,21 +784,10 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
                       updatedAt: new Date().toISOString(),
                     }
                   : current,
-              );
-            }}
+              )
+            }
             onAdChange={(ad) => {
               setAdFieldErrors({});
-              const prev = adAutoDeleteSnapshotRef.current;
-              const autoEnabled = ad.autoDeleteAfterPeriod !== false;
-              const days = displayPeriodDays(ad);
-              const nextSnapshot = {
-                enabled: draft.options.isAd && autoEnabled,
-                displayPeriodDays: days,
-              };
-              if (shouldResetDeleteAfterManual(prev, nextSnapshot)) {
-                deleteAfterManualRef.current = false;
-              }
-              adAutoDeleteSnapshotRef.current = nextSnapshot;
               setDraft((current) =>
                 current
                   ? {

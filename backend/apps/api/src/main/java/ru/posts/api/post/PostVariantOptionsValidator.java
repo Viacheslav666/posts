@@ -23,8 +23,7 @@ public final class PostVariantOptionsValidator {
             return;
         }
         if (scheduledAt == null) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "unpinAt requires scheduledAt on the post");
+            return;
         }
         if (!options.unpinAt().isAfter(scheduledAt)) {
             throw new ApiException(

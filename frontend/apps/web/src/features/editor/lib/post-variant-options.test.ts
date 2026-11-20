@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { sanitizeVariantOptions, validateUnpinAt } from './post-variant-options';
+import {
+  publishAtForUnpinCheck,
+  sanitizeVariantOptions,
+  validateUnpinAt,
+} from './post-variant-options';
 
 describe('post-variant-options', () => {
   it('strips unpinAt when pin is off', () => {
@@ -16,6 +20,13 @@ describe('post-variant-options', () => {
     const iso = '2026-12-01T12:00:00.000Z';
     const out = sanitizeVariantOptions({ pin: true, unpinAt: iso });
     expect(out.unpinAt).toBe(iso);
+  });
+
+  it('uses submit moment for publish now, not the scheduled slot', () => {
+    const scheduled = '2099-01-01T12:00:00.000Z';
+    const now = new Date('2026-06-01T10:00:00.000Z');
+    expect(publishAtForUnpinCheck('now', 'schedule', scheduled, now)).toBe(now.toISOString());
+    expect(publishAtForUnpinCheck('draft', 'schedule', scheduled, now)).toBeNull();
   });
 
   it('validates unpin after publish time', () => {

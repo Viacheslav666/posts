@@ -17,6 +17,21 @@ export function sanitizeVariantOptions(variant: PostVariantOptions): PostVariant
   return variant;
 }
 
+export function publishAtForUnpinCheck(
+  submitMode: 'draft' | 'schedule' | 'now',
+  publishMode: 'schedule' | 'now',
+  scheduledAt: string,
+  now = new Date(),
+): string | null {
+  if (submitMode === 'draft') {
+    return null;
+  }
+  if (submitMode === 'now' || publishMode === 'now') {
+    return now.toISOString();
+  }
+  return scheduledAt || null;
+}
+
 export function validateUnpinAt(unpinAt: string | undefined, publishAtIso: string): boolean {
   if (!unpinAt) {
     return true;

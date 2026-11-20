@@ -430,6 +430,7 @@ public class PostServiceImpl implements PostService {
                     post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions());
             applyStoryDeleteAfterToVariants(variants, story, request.scheduledAt());
         }
+        validateUnpinAtForVariants(request.scheduledAt(), variants);
         ensureCanScheduleAd(membership, post);
         planLimitService.ensureCanCreatePost(post.getWorkspaceId());
         if (post.isAd()) {
@@ -914,6 +915,16 @@ public class PostServiceImpl implements PostService {
     private void deleteVariants(UUID postId) {
         for (PostVariantEntity v : postVariantRepository.findByPostId(postId)) {
             postVariantRepository.delete(v);
+        }
+    }
+
+    private void validateUnpinAtForVariants(Instant scheduledAt, List<PostVariantEntity> variants) {
+        if (scheduledAt == null || variants == null) {
+            return;
+        }
+        for (PostVariantEntity variant : variants) {
+            PostDtos.PostVariantOptions options = PostContentMapper.mapToOptions(variant.getOptions(), objectMapper);
+            PostVariantOptionsValidator.validateUnpinAt(scheduledAt, options);
         }
     }
 

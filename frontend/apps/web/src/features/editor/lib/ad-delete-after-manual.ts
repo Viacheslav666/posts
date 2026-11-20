@@ -1,12 +1,9 @@
-export type AdAutoDeleteSnapshot = {
-  enabled: boolean;
-  displayPeriodDays: number;
-};
-
-/** Reset manual {@code deleteAfter} only when auto-delete is re-enabled or display period changes. */
-export function shouldResetDeleteAfterManual(
-  prev: AdAutoDeleteSnapshot,
-  next: AdAutoDeleteSnapshot,
+/** Clear stored {@code deleteAfter} when ORD auto-delete transitions from on to off (draft only). */
+export function shouldClearDeleteAfterOnAdAutoOff(
+  prevAdAuto: boolean,
+  nextAdAuto: boolean,
+  manual: boolean,
+  hasDeleteAfter: boolean,
 ): boolean {
-  return (!prev.enabled && next.enabled) || prev.displayPeriodDays !== next.displayPeriodDays;
+  return prevAdAuto && !nextAdAuto && !manual && hasDeleteAfter;
 }
