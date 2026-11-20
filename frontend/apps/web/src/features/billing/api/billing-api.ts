@@ -13,7 +13,7 @@ import type {
   Wallet,
 } from '@posts/api-client';
 
-import { getAccessToken, getApiBaseUrl, getApiClient, unwrapApi } from '@/shared/api-client';
+import { apiFetch, getAccessToken, getApiBaseUrl, getApiClient, unwrapApi } from '@/shared/api-client';
 import { toApiProblemError } from '@/shared/lib/errors';
 
 export async function listBillingPlans(): Promise<Plan[]> {
@@ -209,15 +209,9 @@ export async function completeMockPayment(
   paymentId: string,
   outcome: 'succeeded' | 'canceled' | 'pending' = 'succeeded',
 ): Promise<{ id?: string; status?: string }> {
-  const headers = new Headers({ 'Content-Type': 'application/json' });
-  const token = getAccessToken();
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/billing/mock/complete-payment`, {
+  const response = await apiFetch('/api/v1/billing/mock/complete-payment', {
     method: 'POST',
-    headers,
-    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paymentId, outcome }),
   });
   if (!response.ok) {

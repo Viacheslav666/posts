@@ -25,17 +25,20 @@ make wait-full
 
 Остановка: `make down`.
 
-## Конфиг публикатора → эмулятор
+## Внешние API → social-emulator (profile `full`)
 
-Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` используют один образ `posts-publisher` и различаются env:
+Якорь compose `x-full-external-emulator-deps` подмешивается в `x-spring-local-deps`: все JVM-сервисы в profile `full` ходят в `http://social-emulator:8090`, а не в продакшен-хосты. Дополнительно `x-jvm-full-service` задаёт `extra_hosts` (например `api.vk.com` → `127.0.0.1`), чтобы случайный egress не ушёл в интернет.
 
-| Переменная | Значение в compose |
+| Переменная | Назначение |
 |---|---|
-| `POSTS_PUBLISHER_NETWORK` | `vk` / `tg` / `ok` / `max` |
-| `POSTS_SOCIAL_BASE_URL` | `http://social-emulator:8090` |
-| `SOCIAL_EMULATOR_URL` | `http://social-emulator:8090` |
+| `POSTS_SOCIAL_EMULATOR_URL` | эмулятор для publisher/ingest |
+| `POSTS_SOCIAL_BASE_URL` / `POSTS_SOCIAL_*_BASE_URL` | API соцсетей |
+| `POSTS_VK_API_BASE_URL`, `POSTS_VK_ID_BASE_URL` | VK API и VK ID |
+| `POSTS_YANDEX_OAUTH_*` | Yandex OAuth |
+| `POSTS_YOOKASSA_BASE_URL` | YooKassa |
+| `POSTS_ORD_VK_BASE_URL` | ОРД VK |
 
-Код `apps/scheduler` и `apps/publisher` в DEV-4 не меняется (реализация — BE-4).
+Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` — один образ `posts-publisher`, у каждого свой `POSTS_PUBLISHER_NETWORK` (`vk` / `tg` / `ok` / `max`).
 
 ## Порты приложений
 

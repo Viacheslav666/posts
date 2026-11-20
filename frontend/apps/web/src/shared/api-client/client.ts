@@ -58,6 +58,18 @@ export function applyTokenResponse(tokens: TokenResponse): void {
 
 let csrfPrime: Promise<void> | null = null;
 
+export function resetCsrfPrimeForTests(): void {
+  csrfPrime = null;
+}
+
+function resolveApiUrl(input: string): string {
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    return input;
+  }
+  const base = getApiBaseUrl().replace(/\/$/, '');
+  return input.startsWith('/') ? `${base}${input}` : `${base}/${input}`;
+}
+
 async function ensureCsrfCookiePrimed(baseUrl: string): Promise<void> {
   if (readXsrfTokenFromDocumentCookie()) {
     return;
@@ -161,6 +173,33 @@ export function getApiClient(): PostsApiClient {
 export function resetApiClient(): void {
   clientSingleton = null;
   refreshInFlight = null;
+  resetCsrfPrimeForTests();
+}
+
+/**
+ * Same-origin `fetch` with cookie credentials, bearer auth, and CSRF headers on mutating methods.
+ * Use when an endpoint is absent from OpenAPI (binary downloads, mock helpers, extra query params).
+ */
+export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const method = init.method ?? 'GET';
+  const url = resolveApiUrl(input);
+  if (isMutatingHttpMethod(method)) {
+    await ensureCsrfCookiePrimed(getApiBaseUrl());
+  }
+  const headers = new Headers(init.headers);
+  if (!isPublicAuthApiPath(url)) {
+    const token = getAccessToken();
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  if (isMutatingHttpMethod(method)) {
+    const xsrf = readXsrfTokenFromDocumentCookie();
+    if (xsrf) {
+      headers.set('X-XSRF-TOKEN', xsrf);
+    }
+  }
+  return fetch(url, { ...init, headers, credentials: 'include' });
 }
 
 type OpenApiResult<T> = {
