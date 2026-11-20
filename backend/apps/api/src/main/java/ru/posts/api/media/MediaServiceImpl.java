@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -673,7 +674,7 @@ public class MediaServiceImpl implements MediaService {
                           AND created_at < :cutoff
                         """)
                 .param("ws", workspaceId)
-                .param("cutoff", cutoff)
+                .param("cutoff", Timestamp.from(cutoff))
                 .update();
     }
 

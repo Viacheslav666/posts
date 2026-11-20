@@ -47,6 +47,8 @@ jobs:
           build-root-directory: backend
 
       - name: Build and start compose profile full
+        env:
+          POSTS_APP_BASE_URL: http://127.0.0.1:3000
         run: |
           set -euo pipefail
           make images
