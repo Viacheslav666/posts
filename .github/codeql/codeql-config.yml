@@ -1,0 +1,5 @@
+name: posts-codeql
+
+# QA social emulator is not production attack surface; manual OAuth redirect rules are covered in unit tests.
+paths-ignore:
+  - tests/social-emulator

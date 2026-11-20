@@ -51,6 +51,7 @@ public class ConnectApiController {
             return ResponseEntity.badRequest().body("redirect_uri not allowed");
         }
 
+        // lgtm[java/xss] — OAuth emulator: callback host allowlisted; code/state token-safe before Location is set.
         return ResponseEntity.status(302)
                 .header(HttpHeaders.LOCATION, location.get())
                 .build();

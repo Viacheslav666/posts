@@ -14,6 +14,7 @@ final class OAuthCallbackRedirect {
 
     private static final Pattern CALLBACK_PATH =
             Pattern.compile("^/app/([a-zA-Z0-9\\-]+)/channels/connect/(vk|ok)/callback/?$");
+    private static final Pattern SAFE_TOKEN = Pattern.compile("^[A-Za-z0-9._\\-]+$");
 
     private OAuthCallbackRedirect() {}
 
@@ -39,7 +40,12 @@ final class OAuthCallbackRedirect {
         }
         String workspaceId = pathMatcher.group(1);
         String network = pathMatcher.group(2);
-        String query = "code=" + enc(code) + "&state=" + enc(state == null ? "" : state);
+        String safeCode = sanitizeToken(code, 128);
+        String safeState = sanitizeToken(state, 256);
+        if (safeCode.isEmpty()) {
+            return Optional.empty();
+        }
+        String query = "code=" + enc(safeCode) + "&state=" + enc(safeState);
         return Optional.of(matchedBase + "/app/" + workspaceId + "/channels/connect/" + network + "/callback?" + query);
     }
 
@@ -66,5 +72,16 @@ final class OAuthCallbackRedirect {
 
     private static String enc(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static String sanitizeToken(String value, int maxLen) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > maxLen || !SAFE_TOKEN.matcher(trimmed).matches()) {
+            return "";
+        }
+        return trimmed;
     }
 }
