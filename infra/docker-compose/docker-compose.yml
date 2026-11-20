@@ -209,6 +209,7 @@ services:
       - "8090:8090"
     environment:
       SERVER_PORT: "8090"
+      POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
     healthcheck:
       test: ["CMD", "/usr/bin/java", "-version"]
       interval: 30s

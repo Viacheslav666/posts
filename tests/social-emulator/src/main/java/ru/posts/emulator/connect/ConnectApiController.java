@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ConnectApiController {
 
     private final ConnectFixtureStore store;
+    private final EmulatorConnectProperties connectProperties;
 
-    public ConnectApiController(ConnectFixtureStore store) {
+    public ConnectApiController(ConnectFixtureStore store, EmulatorConnectProperties connectProperties) {
         this.store = store;
+        this.connectProperties = connectProperties;
     }
 
     @GetMapping({"/oauth/vk/authorize", "/oauth/ok/authorize"})
@@ -42,12 +45,15 @@ public class ConnectApiController {
             code = defaultCode;
         }
 
-        Optional<URI> target = OAuthCallbackRedirect.toCallback(redirectUri, code, state);
-        if (target.isEmpty()) {
+        Optional<String> location =
+                OAuthCallbackRedirect.locationHeader(connectProperties.allowedAppBaseUrls(), redirectUri, code, state);
+        if (location.isEmpty()) {
             return ResponseEntity.badRequest().body("redirect_uri not allowed");
         }
 
-        return ResponseEntity.status(302).location(target.get()).build();
+        return ResponseEntity.status(302)
+                .header(HttpHeaders.LOCATION, location.get())
+                .build();
     }
 
     @PostMapping(
