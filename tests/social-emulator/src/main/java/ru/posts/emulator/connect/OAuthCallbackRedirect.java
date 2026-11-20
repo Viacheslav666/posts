@@ -4,7 +4,6 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +33,7 @@ final class OAuthCallbackRedirect {
         if (!pathMatcher.matches()) {
             return Optional.empty();
         }
-        String matchedBase = matchAllowedBase(allowedAppBaseUrls, src);
+        String matchedBase = matchConfiguredBase(allowedAppBaseUrls, redirectUri.trim());
         if (matchedBase == null) {
             return Optional.empty();
         }
@@ -49,25 +48,14 @@ final class OAuthCallbackRedirect {
         return Optional.of(matchedBase + "/app/" + workspaceId + "/channels/connect/" + network + "/callback?" + query);
     }
 
-    private static String matchAllowedBase(List<String> allowedBases, URI redirect) {
-        String redirectPrefix = basePrefix(redirect);
+    private static String matchConfiguredBase(List<String> allowedBases, String redirectUri) {
         for (String base : allowedBases) {
-            if (redirectPrefix.equals(basePrefix(URI.create(base)))) {
+            if (redirectUri.regionMatches(true, 0, base, 0, base.length())
+                    && redirectUri.regionMatches(false, base.length(), "/app/", 0, 5)) {
                 return base;
             }
         }
         return null;
-    }
-
-    private static String basePrefix(URI uri) {
-        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
-        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
-        int port = uri.getPort();
-        if (port < 0) {
-            port = "https".equals(scheme) ? 443 : 80;
-        }
-        boolean defaultPort = ("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443);
-        return scheme + "://" + host + (defaultPort ? "" : ":" + port);
     }
 
     private static String enc(String value) {
