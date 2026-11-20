@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 public class ConnectApiController {
@@ -42,13 +42,12 @@ public class ConnectApiController {
             code = defaultCode;
         }
 
-        URI target = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("code", code)
-                .queryParam("state", state == null ? "" : state)
-                .build(true)
-                .toUri();
+        Optional<URI> target = OAuthCallbackRedirect.toCallback(redirectUri, code, state);
+        if (target.isEmpty()) {
+            return ResponseEntity.badRequest().body("redirect_uri not allowed");
+        }
 
-        return ResponseEntity.status(302).location(target).build();
+        return ResponseEntity.status(302).location(target.get()).build();
     }
 
     @PostMapping(
