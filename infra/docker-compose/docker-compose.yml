@@ -25,19 +25,6 @@ x-full-external-emulator-deps: &full-external-emulator-deps
   POSTS_YOOKASSA_BASE_URL: http://social-emulator:8090/yookassa/v3
   POSTS_ORD_VK_BASE_URL: http://social-emulator:8090/ord
 
-x-production-host-sinkhole: &production-host-sinkhole
-  extra_hosts:
-    - "api.vk.com:127.0.0.1"
-    - "id.vk.ru:127.0.0.1"
-    - "api.telegram.org:127.0.0.1"
-    - "platform-api.max.ru:127.0.0.1"
-    - "platform-api2.max.ru:127.0.0.1"
-    - "api.ok.ru:127.0.0.1"
-    - "api.ord.vk.com:127.0.0.1"
-    - "api.yookassa.ru:127.0.0.1"
-    - "oauth.yandex.ru:127.0.0.1"
-    - "login.yandex.ru:127.0.0.1"
-
 x-spring-local-deps: &spring-local-deps
   POSTS_DB_HOST: postgres
   POSTS_DB_PORT: "5432"
@@ -73,7 +60,18 @@ x-publisher-env: &publisher-env
   POSTS_RATELIMIT_REDIS_URI: redis://redis:6379
 
 x-jvm-full-service: &jvm-full-service
-  <<: [*jvm-distroless-health, *production-host-sinkhole]
+  <<: *jvm-distroless-health
+  extra_hosts:
+    - "api.vk.com:127.0.0.1"
+    - "id.vk.ru:127.0.0.1"
+    - "api.telegram.org:127.0.0.1"
+    - "platform-api.max.ru:127.0.0.1"
+    - "platform-api2.max.ru:127.0.0.1"
+    - "api.ok.ru:127.0.0.1"
+    - "api.ord.vk.com:127.0.0.1"
+    - "api.yookassa.ru:127.0.0.1"
+    - "oauth.yandex.ru:127.0.0.1"
+    - "login.yandex.ru:127.0.0.1"
 
 x-publisher-base: &publisher-base
   <<: *jvm-full-service
