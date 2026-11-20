@@ -119,28 +119,34 @@ posts:
       vk:
         client-id: ${POSTS_OAUTH_VK_CLIENT_ID:local-vk-client}
         client-secret: ${POSTS_OAUTH_VK_CLIENT_SECRET:local-vk-secret}
-        authorization-uri: https://id.vk.ru/authorize
-        token-uri: https://id.vk.ru/oauth2/auth
-        user-info-uri: https://id.vk.ru/oauth2/user_info
+        authorization-uri: ${POSTS_VK_ID_BASE_URL:https://id.vk.ru}/authorize
+        token-uri: ${POSTS_VK_ID_BASE_URL:https://id.vk.ru}/oauth2/auth
+        user-info-uri: ${POSTS_VK_ID_BASE_URL:https://id.vk.ru}/oauth2/user_info
         redirect-uri: ${POSTS_OAUTH_VK_REDIRECT_URI:http://localhost:3000/auth/callback/vk}
         scopes: email
       yandex:
         client-id: ${POSTS_OAUTH_YANDEX_CLIENT_ID:local-yandex-client}
         client-secret: ${POSTS_OAUTH_YANDEX_CLIENT_SECRET:local-yandex-secret}
-        authorization-uri: https://oauth.yandex.ru/authorize
-        token-uri: https://oauth.yandex.ru/token
-        user-info-uri: https://login.yandex.ru/info
+        authorization-uri: ${POSTS_YANDEX_OAUTH_BASE_URL:https://oauth.yandex.ru}/authorize
+        token-uri: ${POSTS_YANDEX_OAUTH_BASE_URL:https://oauth.yandex.ru}/token
+        user-info-uri: ${POSTS_YANDEX_OAUTH_USER_INFO_URL:${POSTS_YANDEX_OAUTH_BASE_URL:https://oauth.yandex.ru}/info}
         redirect-uri: ${POSTS_OAUTH_YANDEX_REDIRECT_URI:http://localhost:3000/auth/callback/yandex}
         scopes: login:email login:info
 
   grabber:
     website-enabled: true
+    vk:
+      base-url: ${POSTS_VK_API_BASE_URL:https://api.vk.com}
+      api-version: "5.199"
     ssrf:
       connect-timeout-ms: 3000
       read-timeout-ms: 10000
       max-bytes: 2097152
       max-redirects: 5
 
+  ord:
+    vk:
+      base-url: ${POSTS_ORD_VK_BASE_URL:https://api-sandbox.ord.vk.com}
   billing:
     model: balance
     grace-days: 3

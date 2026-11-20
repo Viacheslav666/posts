@@ -55,6 +55,13 @@ jobs:
       - name: Wait for healthy full stack
         run: make wait-full
 
+      - name: External URL and egress guard (full profile)
+        run: |
+          set -euo pipefail
+          chmod +x tests/compose/assert-full-profile-external-urls.sh
+          tests/compose/assert-full-profile-external-urls.sh
+          docker compose -f "${COMPOSE_FILE}" --profile full run --rm --no-deps compose-full-egress-guard
+
       - name: Assert no exited containers
         run: |
           set -euo pipefail
@@ -76,6 +83,14 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
           pnpm test:compose-auth
+
+      - name: Assert no exited containers after Playwright
+        run: |
+          set -euo pipefail
+          if [ "$(docker compose -f "${COMPOSE_FILE}" --profile full ps --status exited -q | wc -l | tr -d ' ')" != "0" ]; then
+            docker compose -f "${COMPOSE_FILE}" --profile full ps -a
+            exit 1
+          fi
 
       - name: Dump compose logs on failure
         if: failure()

@@ -9,6 +9,35 @@ x-jvm-distroless-health: &jvm-distroless-health
     retries: 3
     start_period: 40s
 
+# Production social / OAuth / billing hosts must not be used in profile `full` — point at social-emulator.
+x-full-external-emulator-deps: &full-external-emulator-deps
+  POSTS_SOCIAL_EMULATOR_URL: http://social-emulator:8090
+  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+  POSTS_VK_API_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_VK_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_OK_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_MAX_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_TELEGRAM_BASE_URL: http://social-emulator:8090
+  POSTS_TG_NOTIFY_API_BASE_URL: http://social-emulator:8090
+  POSTS_VK_ID_BASE_URL: http://social-emulator:8090
+  POSTS_YANDEX_OAUTH_BASE_URL: http://social-emulator:8090/yandex
+  POSTS_YANDEX_OAUTH_USER_INFO_URL: http://social-emulator:8090/yandex/info
+  POSTS_YOOKASSA_BASE_URL: http://social-emulator:8090/yookassa/v3
+  POSTS_ORD_VK_BASE_URL: http://social-emulator:8090/ord
+
+x-production-host-sinkhole: &production-host-sinkhole
+  extra_hosts:
+    - "api.vk.com:127.0.0.1"
+    - "id.vk.ru:127.0.0.1"
+    - "api.telegram.org:127.0.0.1"
+    - "platform-api.max.ru:127.0.0.1"
+    - "platform-api2.max.ru:127.0.0.1"
+    - "api.ok.ru:127.0.0.1"
+    - "api.ord.vk.com:127.0.0.1"
+    - "api.yookassa.ru:127.0.0.1"
+    - "oauth.yandex.ru:127.0.0.1"
+    - "login.yandex.ru:127.0.0.1"
+
 x-spring-local-deps: &spring-local-deps
   POSTS_DB_HOST: postgres
   POSTS_DB_PORT: "5432"
@@ -33,12 +62,7 @@ x-spring-local-deps: &spring-local-deps
   POSTS_CRYPTO_KEK: local-dev-posts-kek
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
   POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
-  SOCIAL_EMULATOR_URL: http://social-emulator:8090
-  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
-
-x-emulator-api-deps: &emulator-api-deps
-  POSTS_VK_API_BASE_URL: http://social-emulator:8090
-  POSTS_TG_NOTIFY_API_BASE_URL: http://social-emulator:8090
+  <<: *full-external-emulator-deps
 
 # Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
 x-publisher-env: &publisher-env
@@ -47,12 +71,12 @@ x-publisher-env: &publisher-env
   SPRING_APPLICATION_NAME: posts-publisher
   POSTS_RATELIMIT_ENABLED: "true"
   POSTS_RATELIMIT_REDIS_URI: redis://redis:6379
-  # Point social adapters at the in-compose emulator (BE-4 will read these).
-  SOCIAL_EMULATOR_URL: http://social-emulator:8090
-  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+
+x-jvm-full-service: &jvm-full-service
+  <<: [*jvm-distroless-health, *production-host-sinkhole]
 
 x-publisher-base: &publisher-base
-  <<: *jvm-distroless-health
+  <<: *jvm-full-service
   image: ghcr.io/viacheslav666/posts-publisher:latest
   profiles: ["full"]
   depends_on:
@@ -196,7 +220,7 @@ services:
   # -------------------------------------------------------------------------
 
   api:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-api:latest
     profiles: ["full"]
     ports:
@@ -225,7 +249,7 @@ services:
         condition: service_started
 
   scheduler:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-scheduler:latest
     profiles: ["full"]
     ports:
@@ -241,6 +265,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      social-emulator:
+        condition: service_started
 
   # One image posts-publisher, one container per network (BE-4 will consume these env vars).
   publisher-vk:
@@ -310,13 +336,13 @@ services:
       start_period: 40s
 
   ingest:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-ingest:latest
     profiles: ["full"]
     ports:
       - "8087:8080"
     environment:
-      <<: [*spring-local-deps, *emulator-api-deps]
+      <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-ingest
     depends_on:
@@ -328,13 +354,13 @@ services:
         condition: service_started
 
   notifications:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-notifications:latest
     profiles: ["full"]
     ports:
       - "8088:8080"
     environment:
-      <<: [*spring-local-deps, *emulator-api-deps]
+      <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-notifications
       POSTS_SMTP_HOST: mailpit
@@ -372,6 +398,26 @@ services:
       start_period: 20s
 
   # Same-origin entrypoint: / → web, /api/* and /ws → api (browser only talks to :3000).
+  # CI guard: apps cannot reach production APIs (internal default network + env points at emulator).
+  compose-full-egress-guard:
+    image: alpine:3.20
+    profiles: ["full"]
+    depends_on:
+      social-emulator:
+        condition: service_started
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        wget -q -O- http://social-emulator:8090/_control/health
+        if wget -q --timeout=3 -O /dev/null https://api.vk.com 2>/dev/null; then
+          echo "egress guard: unexpected reachability of api.vk.com" >&2
+          exit 1
+        fi
+        echo "egress guard ok"
+
   gateway:
     image: nginx:1.27-alpine
     profiles: ["full"]
@@ -390,6 +436,10 @@ services:
       timeout: 5s
       retries: 10
       start_period: 25s
+
+networks:
+  default:
+    internal: true
 
 volumes:
   posts_pg:

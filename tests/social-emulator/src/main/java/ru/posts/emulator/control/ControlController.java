@@ -33,6 +33,7 @@ public class ControlController {
     private final ru.posts.emulator.vk.VkCallbackServerStore callbackServerStore;
     private final ru.posts.emulator.telegram.TelegramWebhookStore webhookStore;
     private final ru.posts.emulator.max.MaxSubscriptionStore subscriptionStore;
+    private final HttpHitCounter httpHitCounter;
 
     public ControlController(
             ScenarioService scenarioService,
@@ -43,7 +44,8 @@ public class ControlController {
             VkUploadSessionStore uploadSessionStore,
             ru.posts.emulator.vk.VkCallbackServerStore callbackServerStore,
             ru.posts.emulator.telegram.TelegramWebhookStore webhookStore,
-            ru.posts.emulator.max.MaxSubscriptionStore subscriptionStore) {
+            ru.posts.emulator.max.MaxSubscriptionStore subscriptionStore,
+            HttpHitCounter httpHitCounter) {
         this.scenarioService = scenarioService;
         this.postStore = postStore;
         this.moderationStore = moderationStore;
@@ -53,6 +55,7 @@ public class ControlController {
         this.callbackServerStore = callbackServerStore;
         this.webhookStore = webhookStore;
         this.subscriptionStore = subscriptionStore;
+        this.httpHitCounter = httpHitCounter;
     }
 
     @GetMapping("/health")
@@ -80,6 +83,7 @@ public class ControlController {
         callbackServerStore.reset();
         webhookStore.reset();
         subscriptionStore.reset();
+        httpHitCounter.reset();
         if (resetScenario) {
             scenarioService.reset();
         }
@@ -258,6 +262,11 @@ public class ControlController {
     @GetMapping("/verify")
     public PostStore.VerificationReport verify() {
         return postStore.verify();
+    }
+
+    @GetMapping("/http-hits")
+    public Map<String, Object> httpHits() {
+        return httpHitCounter.snapshot();
     }
 
     @GetMapping("/stats")
