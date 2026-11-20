@@ -74,12 +74,16 @@ if ! grep -A25 'x-jvm-full-service' "$COMPOSE_ON_DISK" | grep -q 'api.vk.com:127
   echo "x-jvm-full-service must sinkhole api.vk.com" >&2
   exit 1
 fi
-for svc in api scheduler ingest notifications publisher-vk; do
-  if ! awk "/^  ${svc}:/,/^  [a-z]/ {print}" "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
+for svc in api scheduler ingest notifications; do
+  if ! awk "/^  ${svc}:/,/^  [a-zA-Z0-9_-]+:/" "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
     echo "${svc}: expected <<: *jvm-full-service" >&2
     exit 1
   fi
 done
+if ! awk '/^x-publisher-base:/,/^x-[a-z]/' "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
+  echo "x-publisher-base: expected <<: *jvm-full-service" >&2
+  exit 1
+fi
 
 echo "==> emulator accepts VK API traffic"
 hits_before="$(curl -sf http://127.0.0.1:8090/_control/http-hits | jq -r '.total // 0')"
