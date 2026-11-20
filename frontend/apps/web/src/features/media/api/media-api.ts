@@ -7,8 +7,7 @@ import type {
   MessageResponse,
 } from '@posts/api-client';
 
-import { getAccessToken } from '@/shared/api-client/session';
-import { getApiClient, unwrapApi } from '@/shared/api-client';
+import { apiFetch, getApiClient, unwrapApi } from '@/shared/api-client';
 import { toApiProblemError } from '@/shared/lib/errors';
 
 import type {
@@ -17,11 +16,6 @@ import type {
   MediaListFilters,
   MediaQuota,
 } from '../model/types';
-
-function authHeaders(): HeadersInit {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 async function unwrapFetch<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -62,7 +56,7 @@ export async function listMedia(filters: MediaListFilters): Promise<MediaPage & 
     if (filters.tag) params.set('tag', filters.tag);
     if (filters.cursor) params.set('cursor', filters.cursor);
     if (filters.limit) params.set('limit', String(filters.limit));
-    return unwrapFetch(await fetch(`/api/v1/media?${params}`, { headers: authHeaders() }));
+    return unwrapFetch(await apiFetch(`/api/v1/media?${params}`));
   }
   return unwrapApi(result) as MediaPage & { items?: MediaLibraryItem[] };
 }
@@ -97,40 +91,38 @@ export async function completeUpload(
   );
 }
 
-/** MSW / BE-8 extension — not yet in frozen OpenAPI paths. */
 export async function deleteMedia(mediaId: string): Promise<MessageResponse> {
-  return unwrapFetch(
-    await fetch(`/api/v1/media/${mediaId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
+  const client = getApiClient();
+  return unwrapApi(
+    await client.DELETE('/api/v1/media/{mediaId}', {
+      params: { path: { mediaId } },
     }),
   );
 }
 
-/** MSW / BE-8 extension — POST /media/import-url. */
 export async function importMediaUrl(input: {
   workspaceId: string;
   url: string;
   filename?: string;
 }): Promise<MediaLibraryItem> {
-  return unwrapFetch(
-    await fetch('/api/v1/media/import-url', {
-      method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
+  const client = getApiClient();
+  return unwrapApi(
+    await client.POST('/api/v1/media/import-url', {
+      body: input,
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
     }),
-  );
+  ) as MediaLibraryItem;
 }
 
 export async function getMediaQuota(workspaceId: string): Promise<MediaQuota> {
   const params = new URLSearchParams({ workspaceId });
-  return unwrapFetch(await fetch(`/api/v1/media/quota?${params}`, { headers: authHeaders() }));
+  return unwrapFetch(await apiFetch(`/api/v1/media/quota?${params}`));
 }
 
 export async function listMediaFolders(workspaceId: string): Promise<MediaFolder[]> {
   const params = new URLSearchParams({ workspaceId });
   const data = await unwrapFetch<{ items: MediaFolder[] }>(
-    await fetch(`/api/v1/media/folders?${params}`, { headers: authHeaders() }),
+    await apiFetch(`/api/v1/media/folders?${params}`),
   );
   return data.items ?? [];
 }

@@ -54,5 +54,33 @@ test.describe('Compose auth full stack', () => {
     await page.getByTestId('login-submit').click();
 
     await page.waitForURL(/\/app\/[0-9a-f-]+/i, { timeout: 30_000 });
+
+    const workspaceMatch = page.url().match(/\/app\/([^/]+)/i);
+    expect(workspaceMatch).toBeTruthy();
+    const workspaceId = workspaceMatch![1];
+
+    await page.goto(`/app/${workspaceId}/media`);
+    await expect(page.getByTestId('media-library-page')).toBeVisible({ timeout: 30_000 });
+
+    const uploadName = `e2e-upload-${Date.now()}.png`;
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    await page.getByTestId('file-dropzone').locator('input[type="file"]').setInputFiles({
+      name: uploadName,
+      mimeType: 'image/png',
+      buffer: png,
+    });
+
+    await expect(page.getByText(uploadName)).toBeVisible({ timeout: 90_000 });
+
+    const card = page.locator('[data-testid^="media-card-"]').filter({ hasText: uploadName });
+    await card.dblclick();
+    await expect(page.getByTestId('media-details')).toBeVisible();
+    await page.getByTestId('media-details').getByRole('button', { name: 'Удалить' }).click();
+    await expect(page.getByTestId('media-delete-dialog')).toBeVisible();
+    await page.getByTestId('media-delete-confirm').click();
+    await expect(page.getByText(uploadName)).not.toBeVisible({ timeout: 30_000 });
   });
 });

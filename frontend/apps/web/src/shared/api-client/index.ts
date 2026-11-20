@@ -6,10 +6,12 @@ export {
   XSRF_COOKIE_NAME,
 } from './csrf';
 export {
+  apiFetch,
   applyTokenResponse,
   createAppApiClient,
   getApiClient,
   resetApiClient,
+  resetCsrfPrimeForTests,
   unwrapApi,
 } from './client';
 export { queryKeys } from './keys';
