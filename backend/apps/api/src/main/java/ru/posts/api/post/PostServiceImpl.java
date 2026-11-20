@@ -262,8 +262,10 @@ public class PostServiceImpl implements PostService {
             }
         }
         postRepository.save(post);
-        List<PostVariantEntity> savedVariants =
-                saveVariants(post.getId(), enrichVariantsForStory(post, variants, request.story()));
+        List<PostVariantEntity> savedVariants = saveVariants(
+                post.getId(),
+                enrichVariantsForSchedule(
+                        post, variants, request.story(), request.ad(), request.adMarking(), request.scheduledAt()));
 
         if (scheduleNow) {
             if (post.isAd()) {
@@ -355,7 +357,20 @@ public class PostServiceImpl implements PostService {
                 AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
             }
             deleteVariants(post.getId());
-            variants = saveVariants(post.getId(), enrichVariantsForStory(post, request.variants(), request.story()));
+            OrdDtos.AdMarking markingForEnrich = request.adMarking();
+            if (markingForEnrich == null && post.isAd() && post.getAdPayload() != null) {
+                markingForEnrich = objectMapper.convertValue(post.getAdPayload(), OrdDtos.AdMarking.class);
+            }
+            boolean adFlag = request.ad() != null ? request.ad() : post.isAd();
+            variants = saveVariants(
+                    post.getId(),
+                    enrichVariantsForSchedule(
+                            post,
+                            request.variants(),
+                            request.story(),
+                            adFlag,
+                            markingForEnrich,
+                            post.getScheduledAt()));
         } else {
             variants = postVariantRepository.findByPostId(post.getId());
         }
@@ -899,7 +914,8 @@ public class PostServiceImpl implements PostService {
                     upsert.content() == null
                             ? Map.of()
                             : PostContentMapper.contentToMap(upsert.content(), objectMapper));
-            entity.setOptions(PostContentMapper.optionsToMap(upsert.options(), objectMapper));
+            entity.setOptions(PostContentMapper.optionsToMap(
+                    PostVariantOptionsSanitizer.stripUnpinWithoutPin(upsert.options()), objectMapper));
             entity.setCreatedAt(now);
             entity.setUpdatedAt(now);
             saved.add(postVariantRepository.save(entity));
@@ -1437,6 +1453,20 @@ public class PostServiceImpl implements PostService {
                 StorySupport.toDto(
                         post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions()),
                 networks);
+    }
+
+    private List<PostDtos.PostVariantUpsert> enrichVariantsForSchedule(
+            PostEntity post,
+            List<PostDtos.PostVariantUpsert> variants,
+            PostDtos.StoryOptions story,
+            boolean ad,
+            OrdDtos.AdMarking adMarking,
+            Instant publishAt) {
+        List<PostDtos.PostVariantUpsert> enriched = enrichVariantsForStory(post, variants, story);
+        if (!StorySupport.isStory(post.getContentKind()) && ad) {
+            enriched = PostAdOptionsEnricher.enrichDeleteAfter(ad, adMarking, publishAt, enriched);
+        }
+        return enriched;
     }
 
     private List<PostDtos.PostVariantUpsert> enrichVariantsForStory(

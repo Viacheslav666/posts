@@ -6,6 +6,7 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import ru.posts.ord.api.AdMarkingDefaults;
 import ru.posts.persistence.jdbc.PublicationClaim;
 import ru.posts.persistence.jdbc.ScheduledActionLifecycleJdbc;
 
@@ -38,26 +39,25 @@ public class ScheduledActionsFactory {
                     "pin",
                     now,
                     "{\"remotePostId\":\"" + escape(remotePostId) + "\"}");
-        }
-
-        Instant unpinAt = parseInstant(options, "unpinAt");
-        if (unpinAt != null) {
-            actionsJdbc.insertAction(
-                    claim.id(),
-                    claim.runAt(),
-                    claim.workspaceId(),
-                    "unpin",
-                    unpinAt,
-                    "{\"remotePostId\":\"" + escape(remotePostId) + "\"}");
+            Instant unpinAt = parseInstant(options, "unpinAt");
+            if (unpinAt != null) {
+                actionsJdbc.insertAction(
+                        claim.id(),
+                        claim.runAt(),
+                        claim.workspaceId(),
+                        "unpin",
+                        unpinAt,
+                        "{\"remotePostId\":\"" + escape(remotePostId) + "\"}");
+            }
         }
 
         Instant deleteAfter = parseInstant(options, "deleteAfter");
-        if (deleteAfter == null
-                && claim.ad()
-                && claim.adAutoDeleteAfterPeriod()
-                && claim.adDisplayPeriodDays() != null
-                && claim.adDisplayPeriodDays() > 0) {
-            deleteAfter = now.plusSeconds(claim.adDisplayPeriodDays() * 86_400L);
+        if (deleteAfter == null && claim.ad() && claim.adAutoDeleteAfterPeriod()) {
+            int days = claim.adDisplayPeriodDays() != null && claim.adDisplayPeriodDays() > 0
+                    ? claim.adDisplayPeriodDays()
+                    : AdMarkingDefaults.DEFAULT_DISPLAY_PERIOD_DAYS;
+            Instant publishAt = claim.runAt() != null ? claim.runAt() : now;
+            deleteAfter = publishAt.plusSeconds(days * AdMarkingDefaults.SECONDS_PER_DAY);
         }
         if (deleteAfter != null) {
             String kind = "story".equals(claim.contentKind()) ? "delete_story" : "delete";

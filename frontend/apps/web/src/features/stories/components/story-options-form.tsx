@@ -5,16 +5,24 @@ import { useTranslations } from 'next-intl';
 
 import type { StoryTtl } from '@posts/api-client';
 
+import { FieldLabelTooltip } from '@/features/editor/components/field-label-tooltip';
+
 import { STORY_LINK_TEXTS, STORY_TTL_OPTIONS } from '../model/link-texts';
 import type { StoryDraft } from '../model/types';
 
 type StoryOptionsFormProps = {
   draft: StoryDraft;
   showOkTtlWarning: boolean;
+  showVkTipsOption?: boolean;
   onChange: (patch: Partial<StoryDraft>) => void;
 };
 
-export function StoryOptionsForm({ draft, showOkTtlWarning, onChange }: StoryOptionsFormProps) {
+export function StoryOptionsForm({
+  draft,
+  showOkTtlWarning,
+  showVkTipsOption = false,
+  onChange,
+}: StoryOptionsFormProps) {
   const t = useTranslations('stories.options');
 
   return (
@@ -106,6 +114,21 @@ export function StoryOptionsForm({ draft, showOkTtlWarning, onChange }: StoryOpt
           <span className="text-xs text-muted-foreground">{t('linkUrlHint')}</span>
         </label>
       </div>
+
+      {showVkTipsOption ? (
+        <label className="flex items-center gap-2 text-sm" data-testid="story-add-to-news">
+          <input
+            type="checkbox"
+            checked={draft.story.addToNews !== false}
+            onChange={(event) =>
+              onChange({
+                story: { ...draft.story, addToNews: event.target.checked },
+              })
+            }
+          />
+          <FieldLabelTooltip label={t('addToNews')} tooltip={t('addToNewsTooltip')} />
+        </label>
+      ) : null}
 
       <label className="flex items-center gap-2 text-sm">
         <input

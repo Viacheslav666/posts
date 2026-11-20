@@ -120,6 +120,10 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
     [draft, channels],
   );
   const showOkTtlWarning = selectedNetworksIncludeOk(draft.selectedChannelIds, channels);
+  const showVkTipsOption = draft.selectedChannelIds.some((id) => {
+    const channel = channels.find((item) => item.id === id);
+    return channel?.network === 'vk';
+  });
   const adsSupported = selectedNetworksSupportAds(draft.selectedChannelIds, channels);
 
   const hasOrdConnection = Boolean(
@@ -334,6 +338,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
           <StoryOptionsForm
             draft={draft}
             showOkTtlWarning={showOkTtlWarning}
+            showVkTipsOption={showVkTipsOption}
             onChange={patchDraft}
           />
 

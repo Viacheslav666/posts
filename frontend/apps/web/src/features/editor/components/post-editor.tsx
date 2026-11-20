@@ -10,7 +10,7 @@ import {
   type TiptapNode,
 } from '@posts/domain';
 import { Button, toast } from '@posts/ui';
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -31,6 +31,12 @@ import { useCan } from '@/shared/hooks/use-can';
 import { createPost, registerPostOrd } from '../api/posts-api';
 import { toTextCapabilities, useNetworkCapabilities } from '../hooks/use-network-capabilities';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
+import { defaultAdDeleteAfterIso } from '../lib/ad-delete-after';
+import {
+  resolvePublishAtIso,
+  sanitizeVariantOptions,
+  validateUnpinAt,
+} from '../lib/post-variant-options';
 import { validateRecurrenceTimes } from '../lib/recurrence-times';
 import { invalidVkStringAttachments } from '../lib/vk-string-attachments';
 import { createDefaultPostOptions } from '../model/defaults';
@@ -122,6 +128,8 @@ function buildCreateRequest(
         ? new Date().toISOString()
         : draft.options.scheduledAt;
 
+  const variantOptions = sanitizeVariantOptions(draft.options.variant);
+
   const variants = draft.selectedChannelIds
     .map((channelId) => {
       const channel = channels.find((item) => item.id === channelId);
@@ -144,7 +152,7 @@ function buildCreateRequest(
           mediaIds,
           stringAttachments,
         },
-        options: draft.options.variant,
+        options: variantOptions,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null);
@@ -185,12 +193,46 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
   const [registering, setRegistering] = useState(false);
   const [adFieldErrors, setAdFieldErrors] = useState<AdFieldErrors>({});
   const [showPaywall, setShowPaywall] = useState(false);
+  const deleteAfterManualRef = useRef(false);
   const [, startTransition] = useTransition();
   const capabilitiesQuery = useNetworkCapabilities();
   const { channels, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
   const ordConnections = useOrdConnections(workspaceId, true);
   const canSchedule = useCan('posts.schedule', workspaceId);
   const canScheduleAd = useCan('posts.ad.schedule', workspaceId);
+
+  useEffect(() => {
+    if (!draft) return;
+    if (!draft.options.isAd || draft.options.ad.autoDeleteAfterPeriod === false) {
+      return;
+    }
+    if (deleteAfterManualRef.current) {
+      return;
+    }
+    const publishAt = resolvePublishAtIso(draft.options.publishMode, draft.options.scheduledAt);
+    const nextDeleteAfter = defaultAdDeleteAfterIso(publishAt, draft.options.ad);
+    if (!nextDeleteAfter || draft.options.variant.deleteAfter === nextDeleteAfter) {
+      return;
+    }
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            options: {
+              ...current.options,
+              variant: { ...current.options.variant, deleteAfter: nextDeleteAfter },
+            },
+          }
+        : current,
+    );
+  }, [
+    draft?.options.isAd,
+    draft?.options.ad.autoDeleteAfterPeriod,
+    draft?.options.ad.displayPeriodDays,
+    draft?.options.scheduledAt,
+    draft?.options.publishMode,
+    draft?.options.variant.deleteAfter,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -380,6 +422,19 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       });
       return;
     }
+    const publishAt = resolvePublishAtIso(draft.options.publishMode, draft.options.scheduledAt);
+    if (
+      draft.options.variant.pin &&
+      draft.options.variant.unpinAt &&
+      !validateUnpinAt(draft.options.variant.unpinAt, publishAt)
+    ) {
+      toast({
+        title: t('actions.blockedTitle'),
+        description: t('options.unpinAtInvalid'),
+        variant: 'destructive',
+      });
+      return;
+    }
     if (selectedNetworks.includes('vk')) {
       const bad = invalidVkStringAttachments(draft.stringAttachments);
       if (bad.length) {
@@ -466,6 +521,14 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       : undefined;
 
   const scheduleDisabled = Boolean(publishBlockedReason) || submitting || !canSchedule;
+
+  const publishAtForOptions = resolvePublishAtIso(draft.options.publishMode, draft.options.scheduledAt);
+  const unpinAtError =
+    draft.options.variant.pin &&
+    draft.options.variant.unpinAt &&
+    !validateUnpinAt(draft.options.variant.unpinAt, publishAtForOptions)
+      ? t('options.unpinAtInvalid')
+      : undefined;
 
   return (
     <div className="flex h-full min-h-[70vh] flex-col gap-4" data-testid="post-editor">
@@ -688,13 +751,23 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
           <PostOptionsPanel
             options={draft.options}
             networks={selectedNetworks}
-            onChange={(options) =>
+            isAd={draft.options.isAd}
+            adAutoDeleteEnabled={draft.options.ad.autoDeleteAfterPeriod !== false}
+            deleteAfterManual={deleteAfterManualRef.current}
+            unpinAtError={unpinAtError}
+            onDeleteAfterManualChange={(manual) => {
+              deleteAfterManualRef.current = manual;
+            }}
+            onChange={(options) => {
+              if (!options.isAd) {
+                deleteAfterManualRef.current = false;
+              }
               setDraft((current) =>
                 current
                   ? { ...current, options, updatedAt: new Date().toISOString() }
                   : current,
-              )
-            }
+              );
+            }}
           />
 
           <AdMarkingForm
@@ -708,7 +781,10 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             registering={registering}
             fieldErrors={adFieldErrors}
             previewBody={stripTags(draft.baseHtml || '') || 'Текст поста https://example.com/offer'}
-            onEnabledChange={(isAd) =>
+            onEnabledChange={(isAd) => {
+              if (isAd) {
+                deleteAfterManualRef.current = false;
+              }
               setDraft((current) =>
                 current
                   ? {
@@ -717,10 +793,11 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
                       updatedAt: new Date().toISOString(),
                     }
                   : current,
-              )
-            }
+              );
+            }}
             onAdChange={(ad) => {
               setAdFieldErrors({});
+              deleteAfterManualRef.current = false;
               setDraft((current) =>
                 current
                   ? {

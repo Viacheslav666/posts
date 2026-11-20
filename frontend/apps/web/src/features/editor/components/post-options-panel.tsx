@@ -12,6 +12,7 @@ import {
   recurrenceFromPreset,
   type RecurrencePresetId,
 } from '../model/recurrence';
+import { FieldLabelTooltip } from './field-label-tooltip';
 import { OptionField } from './option-field';
 import { RecurrenceTimesField } from './recurrence-times-field';
 
@@ -19,6 +20,11 @@ type PostOptionsPanelProps = {
   options: EditorPostOptions;
   networks: NetworkId[];
   onChange: (next: EditorPostOptions) => void;
+  isAd?: boolean;
+  adAutoDeleteEnabled?: boolean;
+  deleteAfterManual?: boolean;
+  onDeleteAfterManualChange?: (manual: boolean) => void;
+  unpinAtError?: string;
 };
 
 const PRESETS: RecurrencePresetId[] = [
@@ -50,7 +56,16 @@ function fromLocalInputValue(value: string): string {
   return Number.isNaN(d.getTime()) ? value : d.toISOString();
 }
 
-export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPanelProps) {
+export function PostOptionsPanel({
+  options,
+  networks,
+  onChange,
+  isAd = false,
+  adAutoDeleteEnabled = true,
+  deleteAfterManual = false,
+  onDeleteAfterManualChange,
+  unpinAtError,
+}: PostOptionsPanelProps) {
   const t = useTranslations('editor.options');
   const preset = presetFromRecurrence(options.recurrence);
 
@@ -215,15 +230,49 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
           </label>
         </OptionField>
 
-        <OptionField supported={isOptionSupported('pin', networks)} unsupportedHint={unsupported}>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(options.variant.pin)}
-              onChange={(event) => patchVariant({ pin: event.target.checked })}
-            />
-            {t('pin')}
-          </label>
+        <OptionField
+          className="sm:col-span-2"
+          supported={isOptionSupported('pin', networks)}
+          unsupportedHint={unsupported}
+        >
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(options.variant.pin)}
+                data-testid="option-pin"
+                onChange={(event) => {
+                  const pin = event.target.checked;
+                  patchVariant(pin ? { pin: true } : { pin: false, unpinAt: undefined });
+                }}
+              />
+              {t('pin')}
+            </label>
+            {options.variant.pin && isOptionSupported('unpinAt', networks) ? (
+              <label className="flex flex-col gap-1 text-sm pl-6" data-testid="option-unpin-at">
+                <span>{t('unpinAtLabel')}</span>
+                <Input
+                  type="datetime-local"
+                  value={toLocalInputValue(options.variant.unpinAt ?? '')}
+                  aria-label={t('unpinAtLabel')}
+                  aria-invalid={Boolean(unpinAtError) || undefined}
+                  onChange={(event) =>
+                    patchVariant({
+                      unpinAt: event.target.value
+                        ? fromLocalInputValue(event.target.value)
+                        : undefined,
+                    })
+                  }
+                />
+                <span className="text-xs text-muted-foreground">{t('unpinAtHint')}</span>
+                {unpinAtError ? (
+                  <span className="text-xs text-destructive" role="alert">
+                    {unpinAtError}
+                  </span>
+                ) : null}
+              </label>
+            ) : null}
+          </div>
         </OptionField>
 
         <label className="flex items-center gap-2 text-sm">
@@ -241,7 +290,7 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
       <div className="grid gap-3 sm:grid-cols-2">
         <OptionField supported={isOptionSupported('donutDays', networks)} unsupportedHint={unsupported}>
           <label className="flex flex-col gap-1 text-sm">
-            <span>{t('donutDays')}</span>
+            <FieldLabelTooltip label={t('donutDays')} tooltip={t('donutDaysTooltip')} />
             <Input
               type="number"
               min={0}
@@ -514,33 +563,19 @@ export function PostOptionsPanel({ options, networks, onChange }: PostOptionsPan
               type="datetime-local"
               value={toLocalInputValue(options.variant.deleteAfter ?? '')}
               aria-label={t('deleteAfter')}
-              onChange={(event) =>
+              data-testid="option-delete-after"
+              onChange={(event) => {
+                onDeleteAfterManualChange?.(true);
                 patchVariant({
                   deleteAfter: event.target.value
                     ? fromLocalInputValue(event.target.value)
                     : undefined,
-                })
-              }
+                });
+              }}
             />
-          </label>
-        </OptionField>
-
-        <OptionField supported={isOptionSupported('unpinAt', networks)} unsupportedHint={unsupported}>
-          <label className="flex flex-col gap-1 text-sm">
-            <span>{t('unpinAt')}</span>
-            <Input
-              type="datetime-local"
-              value={toLocalInputValue(options.variant.unpinAt ?? '')}
-              aria-label={t('unpinAt')}
-              disabled={!options.variant.pin}
-              onChange={(event) =>
-                patchVariant({
-                  unpinAt: event.target.value
-                    ? fromLocalInputValue(event.target.value)
-                    : undefined,
-                })
-              }
-            />
+            {isAd && adAutoDeleteEnabled ? (
+              <span className="text-xs text-muted-foreground">{t('deleteAfterAdHint')}</span>
+            ) : null}
           </label>
         </OptionField>
 
