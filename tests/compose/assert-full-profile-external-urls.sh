@@ -64,12 +64,14 @@ for svc in "${services[@]}"; do
   done
 done
 
-echo "==> internal default network"
-internal="$("${COMPOSE[@]}" config --format json | jq -r '.networks.default.internal // false')"
-if [ "$internal" != "true" ]; then
-  echo "expected networks.default.internal=true, got ${internal}" >&2
-  exit 1
-fi
+echo "==> JVM full services declare production-host sinkhole extra_hosts"
+for svc in api scheduler publisher-vk; do
+  hosts="$("${COMPOSE[@]}" config --format json | jq -r --arg svc "$svc" '.services[$svc].extra_hosts // [] | .[]')"
+  if ! echo "$hosts" | grep -q 'api.vk.com:127.0.0.1'; then
+    echo "$svc: missing extra_hosts sinkhole for api.vk.com" >&2
+    exit 1
+  fi
+done
 
 echo "==> emulator accepts VK API traffic"
 hits_before="$(curl -sf http://127.0.0.1:8090/_control/http-hits | jq -r '.total // 0')"

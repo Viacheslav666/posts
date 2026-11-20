@@ -437,10 +437,6 @@ services:
       retries: 10
       start_period: 25s
 
-networks:
-  default:
-    internal: true
-
 volumes:
   posts_pg:
   posts_redis:
