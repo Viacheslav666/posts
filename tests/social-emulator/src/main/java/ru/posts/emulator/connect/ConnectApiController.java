@@ -1,10 +1,10 @@
 package ru.posts.emulator.connect;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -39,27 +39,13 @@ public class ConnectApiController {
             code = defaultCode;
         }
 
-        String target = UriComponentsBuilder.fromUriString(redirectUri)
+        URI target = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("code", code)
                 .queryParam("state", state == null ? "" : state)
                 .build(true)
-                .toUriString();
+                .toUri();
 
-        String html =
-                """
-                <!DOCTYPE html>
-                <html lang="ru"><head><meta charset="utf-8"/><title>Posts emulator — OAuth</title></head>
-                <body>
-                <p>Подключение канала (эмулятор). Перенаправление…</p>
-                <p><a href="%s">Продолжить</a></p>
-                <script>location.replace(%s);</script>
-                </body></html>
-                """
-                        .formatted(escapeHtml(target), jsString(target));
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
-                .body(html);
+        return ResponseEntity.status(302).location(target).build();
     }
 
     @PostMapping(
@@ -192,18 +178,5 @@ public class ConnectApiController {
     private static String first(MultiValueMap<String, String> params, String key) {
         List<String> values = params.get(key);
         return values == null || values.isEmpty() ? null : values.getFirst();
-    }
-
-    private static String escapeHtml(String value) {
-        return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;");
-    }
-
-    private static String jsString(String value) {
-        return "'"
-                + value.replace("\\", "\\\\")
-                        .replace("'", "\\'")
-                        .replace("\n", "\\n")
-                        .replace("\r", "\\r")
-                + "'";
     }
 }
