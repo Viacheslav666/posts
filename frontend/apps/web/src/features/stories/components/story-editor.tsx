@@ -115,7 +115,10 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
     }));
   }, []);
 
-  const issues = useMemo(() => validateStoryDraft(draft, channels), [draft, channels]);
+  const issues = useMemo(
+    () => validateStoryDraft(draft, channels, { requireChannels: true }),
+    [draft, channels],
+  );
   const showOkTtlWarning = selectedNetworksIncludeOk(draft.selectedChannelIds, channels);
   const adsSupported = selectedNetworksSupportAds(draft.selectedChannelIds, channels);
 

@@ -14,6 +14,8 @@ public class S3Properties {
     private String secretKey = "postsposts";
     private boolean pathStyleAccess = true;
     private Duration presignTtl = Duration.ofMinutes(15);
+    /** Browser-reachable base for presigned PUT URLs (e.g. gateway {@code /s3}). */
+    private String presignPublicBaseUrl;
 
     public S3Settings toSettings() {
         return new S3Settings(endpoint, region, bucket, accessKey, secretKey, pathStyleAccess, presignTtl);
@@ -73,5 +75,13 @@ public class S3Properties {
 
     public void setPresignTtl(Duration presignTtl) {
         this.presignTtl = presignTtl;
+    }
+
+    public String getPresignPublicBaseUrl() {
+        return presignPublicBaseUrl;
+    }
+
+    public void setPresignPublicBaseUrl(String presignPublicBaseUrl) {
+        this.presignPublicBaseUrl = presignPublicBaseUrl;
     }
 }

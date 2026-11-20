@@ -393,7 +393,7 @@ function tokenResponse(overrides?: Partial<TokenResponse>): TokenResponse {
 }
 
 function refreshCookieHeader(): string {
-  return 'refresh_token=msw.refresh.token; Path=/api/v1/auth; HttpOnly; SameSite=Lax';
+  return 'posts_refresh=msw.refresh.token; Path=/; HttpOnly; SameSite=Lax';
 }
 
 function requireBearer(request: Request) {
@@ -596,7 +596,7 @@ export const handlers = [
       { message: 'ok' },
       {
         headers: {
-          'Set-Cookie': 'refresh_token=; Path=/api/v1/auth; Max-Age=0; HttpOnly; SameSite=Lax',
+          'Set-Cookie': 'posts_refresh=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax',
         },
       },
     ),

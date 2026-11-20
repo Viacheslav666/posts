@@ -402,14 +402,15 @@ public class ChannelServiceImpl implements ChannelService {
         row.setNetwork(network);
         row.setUserId(userId);
         row.setCodeVerifier(verifier);
-        row.setRedirectUri(network.equals("vk") ? properties.vkRedirectUri() : properties.okRedirectUri());
+        String redirectUri = properties.channelConnectRedirectUri(network, workspaceId);
+        row.setRedirectUri(redirectUri);
         row.setCreatedAt(Instant.now());
         row.setExpiresAt(Instant.now().plus(15, ChronoUnit.MINUTES));
         connectStateRepository.save(row);
         String url = network.equals("vk")
                 ? connectClient.buildVkAuthorizeUrl(
-                        state, verifier == null ? "" : Pkce.codeChallengeS256(verifier), properties.vkRedirectUri())
-                : connectClient.buildOkAuthorizeUrl(state, properties.okRedirectUri());
+                        state, verifier == null ? "" : Pkce.codeChallengeS256(verifier), redirectUri)
+                : connectClient.buildOkAuthorizeUrl(state, redirectUri);
         return new ChannelDtos.ChannelConnectStartResponse(url, state, null);
     }
 

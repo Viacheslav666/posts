@@ -27,14 +27,16 @@ export type StoryValidationIssue = {
 export function validateStoryDraft(
   draft: StoryDraft,
   channels: EditorChannelOption[],
+  options?: { requireChannels?: boolean },
 ): StoryValidationIssue[] {
   const issues: StoryValidationIssue[] = [];
+  const requireChannels = options?.requireChannels ?? true;
 
   if (!draft.media) {
     issues.push({ code: 'story_media_invalid', messageKey: 'validation.mediaRequired' });
   }
 
-  if (draft.selectedChannelIds.length === 0) {
+  if (requireChannels && draft.selectedChannelIds.length === 0) {
     issues.push({ code: 'channels', messageKey: 'validation.channelsRequired' });
   }
 

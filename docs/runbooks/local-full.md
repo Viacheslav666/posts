@@ -37,6 +37,12 @@ make wait-full
 | `POSTS_YANDEX_OAUTH_*` | Yandex OAuth |
 | `POSTS_YOOKASSA_BASE_URL` | YooKassa |
 | `POSTS_ORD_VK_BASE_URL` | ОРД VK |
+| `POSTS_S3_ENDPOINT` | внутренний S3 (в compose: `http://minio:9090`) |
+| `POSTS_S3_PRESIGN_PUBLIC_BASE_URL` | публичная база presigned URL для браузера (`{POSTS_APP_BASE_URL}/s3` через gateway) |
+| `POSTS_SOCIAL_PUBLIC_BASE_URL` | публичная база OAuth-эмулятора (`{POSTS_APP_BASE_URL}/emulator` через gateway) |
+| `POSTS_APP_BASE_URL` | origin веб-приложения для ссылок и OAuth `redirect_uri` |
+
+Через nginx gateway на `:3000` проксируются также `/s3/` → MinIO/s3mock и `/emulator/` → social-emulator.
 
 Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` — один образ `posts-publisher`, у каждого свой `POSTS_PUBLISHER_NETWORK` (`vk` / `tg` / `ok` / `max`).
 

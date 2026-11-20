@@ -166,7 +166,7 @@ public class BillingServiceImpl implements BillingService {
                 ? null
                 : planRepository.findById(workspace.getPlanId()).orElse(null);
         long priceDay = plan == null ? 0L : plan.getPriceDayKopecks();
-        Integer days = priceDay > 0 ? (int) (wallet.balanceKopecks() / priceDay) : null;
+        Integer days = resolveDaysRemaining(workspace, wallet.balanceKopecks(), priceDay);
         ApiEnums.BillingStatus status;
         try {
             status = ApiEnums.BillingStatus.valueOf(workspace.getBillingStatus());
@@ -389,10 +389,13 @@ public class BillingServiceImpl implements BillingService {
         payment.setPlanId(planId);
         payment.setBillingPeriod(period);
         payment.setPromoCode(promoCode);
-        payment.setConfirmationUrl(
-                yooPayment.confirmation() == null
-                        ? null
-                        : yooPayment.confirmation().confirmationUrl());
+        String confirmationUrl = yooPayment.confirmation() == null
+                ? null
+                : yooPayment.confirmation().confirmationUrl();
+        if (confirmationUrl == null || confirmationUrl.isBlank()) {
+            confirmationUrl = fallbackConfirmationUrl(paymentId, workspaceId);
+        }
+        payment.setConfirmationUrl(confirmationUrl);
         payment.setMetadata(new HashMap<>(metadata));
         payment.setIdempotenceKey(yooIdempotenceKey);
         payment.setCreatedAt(Instant.now());
@@ -405,6 +408,26 @@ public class BillingServiceImpl implements BillingService {
             return new BillingDtos.CheckoutResponse(raced.getId(), raced.getConfirmationUrl(), PROVIDER);
         }
         return new BillingDtos.CheckoutResponse(payment.getId(), payment.getConfirmationUrl(), PROVIDER);
+    }
+
+    private String fallbackConfirmationUrl(UUID paymentId, UUID workspaceId) {
+        String base = yooKassaProperties.returnUrl();
+        if (base == null || base.isBlank()) {
+            return null;
+        }
+        String separator = base.contains("?") ? "&" : "?";
+        return base + separator + "paymentId=" + paymentId + "&workspaceId=" + workspaceId;
+    }
+
+    static Integer resolveDaysRemaining(WorkspaceEntity workspace, long balanceKopecks, long priceDayKopecks) {
+        if ("trial".equals(workspace.getBillingStatus()) && workspace.getTrialEndsAt() != null) {
+            long days = ChronoUnit.DAYS.between(Instant.now(), workspace.getTrialEndsAt());
+            return (int) Math.max(0, days);
+        }
+        if (priceDayKopecks > 0) {
+            return (int) (balanceKopecks / priceDayKopecks);
+        }
+        return null;
     }
 
     @Override

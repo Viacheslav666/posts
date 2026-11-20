@@ -1,8 +1,13 @@
 package ru.posts.emulator.connect;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -15,15 +20,46 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ConnectApiController {
 
-    private final ConnectFixtureStore store;
+    private static final Set<String> KNOWN_FIXTURE_CODES = Set.of("vk-admin", "vk-no-admin", "ok-admin", "ok-no-admin");
 
-    public ConnectApiController(ConnectFixtureStore store) {
+    private final ConnectFixtureStore store;
+    private final EmulatorConnectProperties connectProperties;
+
+    public ConnectApiController(ConnectFixtureStore store, EmulatorConnectProperties connectProperties) {
         this.store = store;
+        this.connectProperties = connectProperties;
     }
 
     @GetMapping({"/oauth/vk/authorize", "/oauth/ok/authorize"})
-    public Map<String, Object> authorize(@RequestParam MultiValueMap<String, String> params) {
-        return Map.of("ok", true, "params", params.toSingleValueMap());
+    public ResponseEntity<?> authorize(HttpServletRequest request, @RequestParam MultiValueMap<String, String> params) {
+        String redirectUri = first(params, "redirect_uri");
+        String state = first(params, "state");
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return oauthError(HttpStatus.BAD_REQUEST, "missing_redirect_uri");
+        }
+        if (!isAllowedChannelRedirect(redirectUri)) {
+            return oauthError(HttpStatus.BAD_REQUEST, "redirect_uri_not_allowed");
+        }
+
+        String defaultCode = request.getRequestURI().contains("/oauth/ok/") ? "ok-admin" : "vk-admin";
+        String code = first(params, "fixture_code");
+        if (code == null || code.isBlank() || !KNOWN_FIXTURE_CODES.contains(code)) {
+            code = defaultCode;
+        }
+
+        Optional<URI> target =
+                OAuthCallbackRedirect.callbackUri(connectProperties.allowedAppBaseUrls(), redirectUri, code, state);
+        if (target.isEmpty()) {
+            return oauthError(HttpStatus.BAD_REQUEST, "redirect_uri_not_allowed");
+        }
+
+        return ResponseEntity.status(HttpStatus.FOUND).location(target.get()).build();
+    }
+
+    private static ResponseEntity<Map<String, String>> oauthError(HttpStatus status, String error) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("error", error));
     }
 
     @PostMapping(
@@ -156,5 +192,23 @@ public class ConnectApiController {
     private static String first(MultiValueMap<String, String> params, String key) {
         List<String> values = params.get(key);
         return values == null || values.isEmpty() ? null : values.getFirst();
+    }
+
+    /** Emulator-only: reject open redirects; allow Posts channel OAuth callback paths only. */
+    static boolean isAllowedChannelRedirect(String redirectUri) {
+        try {
+            URI uri = URI.create(redirectUri);
+            String scheme = uri.getScheme();
+            if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                return false;
+            }
+            String path = uri.getPath();
+            if (path == null || path.isBlank()) {
+                return false;
+            }
+            return path.matches(".*/app/[^/]+/channels/connect/(vk|ok)/callback/?");
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }

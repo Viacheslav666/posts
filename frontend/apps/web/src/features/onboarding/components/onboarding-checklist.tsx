@@ -19,7 +19,7 @@ function stepHref(workspaceId: string, id: OnboardingStepId): string {
     case 'workspace':
       return `/app/${workspaceId}/settings/workspace`;
     case 'channel':
-      return `/app/${workspaceId}/channels/connect`;
+      return `/app/${workspaceId}/channels`;
     case 'post':
       return `/app/${workspaceId}/posts/new`;
     default:

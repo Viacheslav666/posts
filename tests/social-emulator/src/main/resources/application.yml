@@ -23,3 +23,7 @@ logging:
   level:
     root: INFO
     ru.posts.emulator: INFO
+
+posts:
+  emulator:
+    allowed-app-base-urls: ${POSTS_APP_BASE_URL:http://localhost:3000},http://127.0.0.1:3000

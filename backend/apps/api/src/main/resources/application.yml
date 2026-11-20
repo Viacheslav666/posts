@@ -74,6 +74,7 @@ posts:
     in-flight-poll: 50ms
   s3:
     endpoint: ${POSTS_S3_ENDPOINT:http://127.0.0.1:9000}
+    presign-public-base-url: ${POSTS_S3_PRESIGN_PUBLIC_BASE_URL:}
     region: ${POSTS_S3_REGION:us-east-1}
     bucket: ${POSTS_S3_BUCKET:posts-media}
     access-key: ${POSTS_S3_ACCESS_KEY:posts}
@@ -90,12 +91,14 @@ posts:
     unsubscribe-token-ttl-days: 30
   channels:
     social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+    social-public-base-url: ${POSTS_SOCIAL_PUBLIC_BASE_URL:}
+    app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}
     vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:local-vk-channels}
     vk-client-secret: ${POSTS_CHANNELS_VK_CLIENT_SECRET:local-vk-channels-secret}
-    vk-redirect-uri: ${POSTS_CHANNELS_VK_REDIRECT_URI:http://localhost:3000/channels/callback/vk}
+    vk-redirect-uri: ${POSTS_CHANNELS_VK_REDIRECT_URI:}
     ok-client-id: ${POSTS_CHANNELS_OK_CLIENT_ID:local-ok-channels}
     ok-client-secret: ${POSTS_CHANNELS_OK_CLIENT_SECRET:local-ok-channels-secret}
-    ok-redirect-uri: ${POSTS_CHANNELS_OK_REDIRECT_URI:http://localhost:3000/channels/callback/ok}
+    ok-redirect-uri: ${POSTS_CHANNELS_OK_REDIRECT_URI:}
     tg-bot-username: ${POSTS_TG_BOT_USERNAME:posts_local_bot}
     tg-bot-token: ${POSTS_TG_BOT_TOKEN:emulator-token}
     max-bot-token: ${POSTS_MAX_BOT_TOKEN:emulator-max-token}
