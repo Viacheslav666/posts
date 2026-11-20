@@ -14,6 +14,7 @@
     "test:posts": "playwright test scheduled-posts.spec.ts",
     "test:grabber": "playwright test grabber-moderation.spec.ts",
     "test:grabber-fullstack": "playwright test grabber-fullstack.spec.ts",
+    "test:compose-auth": "playwright test compose-auth-fullstack.spec.ts",
     "test:notifications": "playwright test notifications-dashboard.spec.ts",
     "test:billing": "playwright test billing.spec.ts",
     "test:analytics": "playwright test analytics.spec.ts",

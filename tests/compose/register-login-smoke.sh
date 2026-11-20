@@ -9,11 +9,22 @@ PASSWORD="${COMPOSE_SMOKE_PASSWORD:-SmokeTest1!SmokeTest1!}"
 COOKIE_JAR="$(mktemp)"
 trap 'rm -f "${COOKIE_JAR}"' EXIT
 
+echo "==> bootstrap CSRF cookie via ${WEB_BASE}/api/v1/ping"
+curl -sf -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" "${WEB_BASE}/api/v1/ping" >/dev/null
+XSRF="$(
+  grep -i 'XSRF-TOKEN' "${COOKIE_JAR}" 2>/dev/null | awk '{print $NF}' | tail -1 || true
+)"
+if [ -z "${XSRF}" ]; then
+  echo "No XSRF-TOKEN after ping" >&2
+  exit 1
+fi
+
 api_post() {
   local path="$1"
   local body="$2"
   curl -sf -X POST "${WEB_BASE}${path}" \
     -H 'Content-Type: application/json' \
+    -H "X-XSRF-TOKEN: ${XSRF}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}" \
     -d "${body}"

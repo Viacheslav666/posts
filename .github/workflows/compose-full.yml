@@ -63,11 +63,19 @@ jobs:
             exit 1
           fi
 
-      - name: Register → verify → login via gateway :3000
+      - name: Register → verify → login via gateway :3000 (Playwright, no MSW)
+        working-directory: tests/e2e
+        env:
+          COMPOSE_AUTH_E2E: "1"
+          PLAYWRIGHT_SKIP_WEBSERVER: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          MAILPIT_API_URL: http://127.0.0.1:8025
+          CI: "true"
         run: |
           set -euo pipefail
-          chmod +x tests/compose/register-login-smoke.sh
-          ./tests/compose/register-login-smoke.sh
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:compose-auth
 
       - name: Dump compose logs on failure
         if: failure()
