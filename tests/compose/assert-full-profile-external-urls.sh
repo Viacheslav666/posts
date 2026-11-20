@@ -75,12 +75,12 @@ if ! grep -A25 'x-jvm-full-service' "$COMPOSE_ON_DISK" | grep -q 'api.vk.com:127
   exit 1
 fi
 for svc in api scheduler ingest notifications; do
-  if ! awk "/^  ${svc}:/,/^  [a-zA-Z0-9_-]+:/" "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
+  if ! grep -A3 "^  ${svc}:" "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
     echo "${svc}: expected <<: *jvm-full-service" >&2
     exit 1
   fi
 done
-if ! awk '/^x-publisher-base:/,/^x-[a-z]/' "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
+if ! grep -A3 '^x-publisher-base:' "$COMPOSE_ON_DISK" | grep -q 'jvm-full-service'; then
   echo "x-publisher-base: expected <<: *jvm-full-service" >&2
   exit 1
 fi
