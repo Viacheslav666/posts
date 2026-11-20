@@ -66,8 +66,12 @@ done
 
 echo "==> JVM full services declare production-host sinkhole extra_hosts"
 for svc in api scheduler publisher-vk; do
-  hosts="$("${COMPOSE[@]}" config --format json | jq -r --arg svc "$svc" '.services[$svc].extra_hosts // [] | .[]')"
-  if ! echo "$hosts" | grep -q 'api.vk.com:127.0.0.1'; then
+  has_sinkhole="$("${COMPOSE[@]}" config --format json | jq -r --arg svc "$svc" '
+    .services[$svc].extra_hosts // {} |
+    if type == "array" then (index("api.vk.com:127.0.0.1") != null)
+    else (.["api.vk.com"] == "127.0.0.1" or .["api.vk.com:127.0.0.1"] != null) end
+  ')"
+  if [ "$has_sinkhole" != "true" ]; then
     echo "$svc: missing extra_hosts sinkhole for api.vk.com" >&2
     exit 1
   fi
