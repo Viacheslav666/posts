@@ -131,7 +131,7 @@ public class InvitationServiceImpl implements InvitationService {
         invitation.setInvitedBy(userId);
         invitation = invitationRepository.save(invitation);
 
-        String link = authProperties.getAppBaseUrl() + "/invitations/accept?token=" + rawToken;
+        String link = authProperties.getAppBaseUrl() + "/invite?token=" + rawToken;
         mailSender.send(
                 email,
                 "Приглашение в workspace Posts",

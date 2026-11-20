@@ -16,7 +16,7 @@ public final class AuthCookies {
                 .httpOnly(true)
                 .secure(properties.isRefreshCookieSecure())
                 .sameSite(properties.getRefreshCookieSameSite())
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(maxAgeSeconds)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -27,7 +27,7 @@ public final class AuthCookies {
                 .httpOnly(true)
                 .secure(properties.isRefreshCookieSecure())
                 .sameSite(properties.getRefreshCookieSameSite())
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(0)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());

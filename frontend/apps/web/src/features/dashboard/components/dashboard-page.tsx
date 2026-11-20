@@ -203,7 +203,7 @@ export function DashboardPage({ workspaceId }: DashboardPageProps) {
           ) : null}
           {canManageChannels ? (
             <Button asChild size="sm" variant="secondary">
-              <Link href={`/app/${workspaceId}/channels/connect`}>
+              <Link href={`/app/${workspaceId}/channels`}>
                 <Radio aria-hidden />
                 {t('quickActions.connectChannel')}
               </Link>

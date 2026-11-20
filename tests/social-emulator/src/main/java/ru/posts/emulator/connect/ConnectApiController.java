@@ -1,8 +1,10 @@
 package ru.posts.emulator.connect;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 public class ConnectApiController {
@@ -22,8 +25,41 @@ public class ConnectApiController {
     }
 
     @GetMapping({"/oauth/vk/authorize", "/oauth/ok/authorize"})
-    public Map<String, Object> authorize(@RequestParam MultiValueMap<String, String> params) {
-        return Map.of("ok", true, "params", params.toSingleValueMap());
+    public ResponseEntity<String> authorize(
+            HttpServletRequest request, @RequestParam MultiValueMap<String, String> params) {
+        String redirectUri = first(params, "redirect_uri");
+        String state = first(params, "state");
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return ResponseEntity.badRequest().body("missing redirect_uri");
+        }
+
+        String defaultCode = request.getRequestURI().contains("/oauth/ok/") ? "ok-admin" : "vk-admin";
+        String code = first(params, "fixture_code");
+        if (code == null || code.isBlank()) {
+            code = defaultCode;
+        }
+
+        String target = UriComponentsBuilder.fromUriString(redirectUri)
+                .queryParam("code", code)
+                .queryParam("state", state == null ? "" : state)
+                .build(true)
+                .toUriString();
+
+        String html =
+                """
+                <!DOCTYPE html>
+                <html lang="ru"><head><meta charset="utf-8"/><title>Posts emulator — OAuth</title></head>
+                <body>
+                <p>Подключение канала (эмулятор). Перенаправление…</p>
+                <p><a href="%s">Продолжить</a></p>
+                <script>location.replace(%s);</script>
+                </body></html>
+                """
+                        .formatted(escapeHtml(target), jsString(target));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
+                .body(html);
     }
 
     @PostMapping(
@@ -156,5 +192,19 @@ public class ConnectApiController {
     private static String first(MultiValueMap<String, String> params, String key) {
         List<String> values = params.get(key);
         return values == null || values.isEmpty() ? null : values.getFirst();
+    }
+
+    private static String escapeHtml(String value) {
+        return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;");
+    }
+
+    private static String jsString(String value) {
+        return "'"
+                + value
+                        .replace("\\", "\\\\")
+                        .replace("'", "\\'")
+                        .replace("\n", "\\n")
+                        .replace("\r", "\\r")
+                + "'";
     }
 }

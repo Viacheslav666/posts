@@ -55,6 +55,20 @@ describe('validateStoryDraft', () => {
     expect(issues.some((issue) => issue.messageKey === 'validation.channelsRequired')).toBe(true);
   });
 
+  it('allows draft validation without channels when requireChannels is false', () => {
+    const draft = createStoryDraft('ws');
+    draft.selectedChannelIds = [];
+    draft.media = {
+      id: 'm1',
+      mediaId: 'asset-1',
+      kind: 'image',
+      mime: 'image/jpeg',
+      filename: 'story.jpg',
+    };
+    const issues = validateStoryDraft(draft, [vkReady], { requireChannels: false });
+    expect(issues.some((issue) => issue.messageKey === 'validation.channelsRequired')).toBe(false);
+  });
+
   it('blocks VK without story connect', () => {
     const draft = createStoryDraft('ws');
     draft.selectedChannelIds = [vkMissing.id];

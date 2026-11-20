@@ -1,8 +1,6 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
   Button,
   Sheet,
   SheetContent,
@@ -20,6 +18,7 @@ import { useMe } from '@/shared/hooks/use-me';
 
 import { AppSidebar } from './app-sidebar';
 import { ThemeToggle } from './theme-toggle';
+import { UserAccountMenu } from './user-account-menu';
 
 type AppHeaderProps = {
   workspaceId: string;
@@ -28,7 +27,6 @@ type AppHeaderProps = {
 export function AppHeader({ workspaceId }: AppHeaderProps) {
   const t = useTranslations('common');
   const { data: me } = useMe();
-  const initials = (me?.name?.trim()?.charAt(0) || 'П').toUpperCase();
   const showAdmin = Boolean(me?.platformAdmin) && !me?.impersonation?.active;
 
   return (
@@ -74,15 +72,7 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
         </Button>
         <NotificationsBell workspaceId={workspaceId} />
         <ThemeToggle />
-        <Link
-          href={`/app/${workspaceId}/settings/profile`}
-          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={t('profile')}
-        >
-          <Avatar className="h-9 w-9">
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-        </Link>
+        <UserAccountMenu workspaceId={workspaceId} />
       </div>
     </header>
   );

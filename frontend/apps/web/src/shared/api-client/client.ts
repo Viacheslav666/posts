@@ -7,6 +7,7 @@ import {
   type TokenResponse,
 } from '@posts/api-client';
 
+import { redirectToLogin } from '@/shared/lib/auth-redirect';
 import { toApiProblemError } from '@/shared/lib/errors';
 
 import {
@@ -39,6 +40,7 @@ async function refreshAccessToken(client: PostsApiClient): Promise<boolean> {
     });
     if (error || !response.ok || !data?.accessToken) {
       clearAccessToken();
+      redirectToLogin('refresh_failed');
       return false;
     }
     applyTokenResponse(data);
@@ -131,6 +133,7 @@ function createAuthMiddleware(client: PostsApiClient): Middleware {
 
       const refreshed = await refreshAccessToken(client);
       if (!refreshed) {
+        redirectToLogin('unauthorized');
         return response;
       }
 

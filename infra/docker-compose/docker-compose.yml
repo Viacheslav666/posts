@@ -49,6 +49,10 @@ x-spring-local-deps: &spring-local-deps
   POSTS_CRYPTO_KEK: local-dev-posts-kek
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
   POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
+  POSTS_S3_ENDPOINT: http://minio:9090
+  POSTS_S3_PRESIGN_PUBLIC_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}/s3
+  POSTS_SOCIAL_PUBLIC_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}/emulator
+  POSTS_YOOKASSA_RETURN_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}/billing/return
   <<: *full-external-emulator-deps
 
 # Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
@@ -240,6 +244,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
       mailpit:
         condition: service_healthy

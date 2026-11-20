@@ -272,7 +272,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       ? 'ready'
       : 'missing';
 
-  const scheduleBlockedReason = useMemo(() => {
+  const publishBlockedReason = useMemo(() => {
     if (!draft) return null;
     if (blocked) return t('actions.blockedValidation');
     if (draft.selectedChannelIds.length === 0) return t('actions.blockedChannels');
@@ -353,10 +353,10 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
 
   const submit = async (mode: 'draft' | 'schedule' | 'now') => {
     if (!draft) return;
-    if (mode !== 'draft' && scheduleBlockedReason) {
+    if (mode !== 'draft' && publishBlockedReason) {
       toast({
         title: t('actions.blockedTitle'),
-        description: scheduleBlockedReason,
+        description: publishBlockedReason,
         variant: 'destructive',
       });
       return;
@@ -465,7 +465,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       ? draft.variants.find((item) => item.network === draft.activeVariant)
       : undefined;
 
-  const scheduleDisabled = Boolean(scheduleBlockedReason) || submitting || !canSchedule;
+  const scheduleDisabled = Boolean(publishBlockedReason) || submitting || !canSchedule;
 
   return (
     <div className="flex h-full min-h-[70vh] flex-col gap-4" data-testid="post-editor">
@@ -490,7 +490,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
             type="button"
             variant="secondary"
             disabled={scheduleDisabled}
-            title={scheduleBlockedReason ?? undefined}
+            title={publishBlockedReason ?? undefined}
             data-testid="editor-schedule"
             onClick={() => void submit('schedule')}
           >
@@ -499,7 +499,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
           <Button
             type="button"
             disabled={scheduleDisabled}
-            title={scheduleBlockedReason ?? undefined}
+            title={publishBlockedReason ?? undefined}
             data-testid="editor-publish"
             onClick={() => void submit('now')}
           >
@@ -508,13 +508,13 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
         </div>
       </header>
 
-      {scheduleBlockedReason && draft.options.isAd ? (
+      {publishBlockedReason && draft.options.isAd ? (
         <p
           className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
           role="status"
           data-testid="ad-schedule-block"
         >
-          {scheduleBlockedReason}
+          {publishBlockedReason}
         </p>
       ) : null}
 

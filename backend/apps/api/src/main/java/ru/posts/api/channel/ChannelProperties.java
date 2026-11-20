@@ -1,21 +1,24 @@
 package ru.posts.api.channel;
 
+import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "posts.channels")
 public class ChannelProperties {
 
     private String socialBaseUrl = "http://127.0.0.1:8090";
+    private String socialPublicBaseUrl;
+    private String appBaseUrl = "http://localhost:3000";
     private String vkAuthorizationUri;
     private String vkTokenUri;
     private String vkClientId = "local-vk-channels";
     private String vkClientSecret = "local-vk-channels-secret";
-    private String vkRedirectUri = "http://localhost:3000/channels/callback/vk";
+    private String vkRedirectUri;
     private String okAuthorizationUri;
     private String okTokenUri;
     private String okClientId = "local-ok-channels";
     private String okClientSecret = "local-ok-channels-secret";
-    private String okRedirectUri = "http://localhost:3000/channels/callback/ok";
+    private String okRedirectUri;
     private String okPublicKey = "local-ok-public";
     private String okApplicationKey = "local-ok-app";
     private String tgBotUsername = "posts_local_bot";
@@ -33,8 +36,24 @@ public class ChannelProperties {
         this.socialBaseUrl = socialBaseUrl;
     }
 
+    public String socialPublicBaseUrl() {
+        return firstNonBlank(socialPublicBaseUrl, socialBaseUrl);
+    }
+
+    public void setSocialPublicBaseUrl(String socialPublicBaseUrl) {
+        this.socialPublicBaseUrl = socialPublicBaseUrl;
+    }
+
+    public String appBaseUrl() {
+        return appBaseUrl;
+    }
+
+    public void setAppBaseUrl(String appBaseUrl) {
+        this.appBaseUrl = appBaseUrl;
+    }
+
     public String vkAuthorizationUri() {
-        return firstNonBlank(vkAuthorizationUri, socialBaseUrl + "/oauth/vk/authorize");
+        return firstNonBlank(vkAuthorizationUri, socialPublicBaseUrl() + "/oauth/vk/authorize");
     }
 
     public void setVkAuthorizationUri(String vkAuthorizationUri) {
@@ -74,7 +93,18 @@ public class ChannelProperties {
     }
 
     public String okAuthorizationUri() {
-        return firstNonBlank(okAuthorizationUri, socialBaseUrl + "/oauth/ok/authorize");
+        return firstNonBlank(okAuthorizationUri, socialPublicBaseUrl() + "/oauth/ok/authorize");
+    }
+
+    public String channelConnectRedirectUri(String network, UUID workspaceId) {
+        if ("vk".equals(network) && vkRedirectUri != null && !vkRedirectUri.isBlank()) {
+            return vkRedirectUri;
+        }
+        if ("ok".equals(network) && okRedirectUri != null && !okRedirectUri.isBlank()) {
+            return okRedirectUri;
+        }
+        String base = appBaseUrl().endsWith("/") ? appBaseUrl().substring(0, appBaseUrl().length() - 1) : appBaseUrl();
+        return base + "/app/" + workspaceId + "/channels/connect/" + network + "/callback";
     }
 
     public void setOkAuthorizationUri(String okAuthorizationUri) {

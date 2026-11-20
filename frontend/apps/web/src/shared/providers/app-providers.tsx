@@ -7,6 +7,7 @@ import { ImpersonationBannerHost } from '@/features/admin/components/impersonati
 
 import { MswProvider } from './msw-provider';
 import { QueryProvider } from './query-provider';
+import { SessionBootstrap } from './session-bootstrap';
 import { ThemeProvider } from './theme-provider';
 
 type AppProvidersProps = {
@@ -18,11 +19,13 @@ export function AppProviders({ children }: AppProvidersProps) {
     <ThemeProvider>
       <MswProvider>
         <QueryProvider>
-          <TooltipProvider delayDuration={200}>
-            <ImpersonationBannerHost />
-            {children}
-            <Toaster />
-          </TooltipProvider>
+          <SessionBootstrap>
+            <TooltipProvider delayDuration={200}>
+              <ImpersonationBannerHost />
+              {children}
+              <Toaster />
+            </TooltipProvider>
+          </SessionBootstrap>
         </QueryProvider>
       </MswProvider>
     </ThemeProvider>

@@ -39,6 +39,7 @@ import ru.posts.api.web.dto.media.MediaDtos;
 import ru.posts.api.web.support.CursorPages;
 import ru.posts.api.workspace.AuditRecorder;
 import ru.posts.api.workspace.WorkspaceAccessService;
+import ru.posts.common.s3.S3PresignUrls;
 import ru.posts.messaging.media.MediaProcessCommand;
 import ru.posts.messaging.topology.MediaTopology;
 import ru.posts.persistence.entity.MediaAssetEntity;
@@ -167,6 +168,7 @@ public class MediaServiceImpl implements MediaService {
     private MediaDtos.CreateUploadResponse createUploadOnce(
             UUID userId, MediaDtos.CreateUploadRequest request, ClientRequestContext ctx) {
         access.requirePermission(request.workspaceId(), userId, "media.manage");
+        purgeStaleUploadingAssets(request.workspaceId());
         ensureStorageQuota(request.workspaceId(), request.sizeBytes());
 
         String filename = sanitizeFilename(request.filename(), request.kind(), request.mime());
@@ -234,6 +236,7 @@ public class MediaServiceImpl implements MediaService {
             throw new ApiException(
                     HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
         }
+        uploadUrl = S3PresignUrls.toPublicUrl(uploadUrl, s3Properties.getPresignPublicBaseUrl());
 
         auditRecorder.record(
                 request.workspaceId(),
@@ -656,6 +659,22 @@ public class MediaServiceImpl implements MediaService {
             return ApiEnums.MediaKind.audio;
         }
         return ApiEnums.MediaKind.doc;
+    }
+
+  /** Drop abandoned multipart sessions so storage quota and idempotency stay usable. */
+    private void purgeStaleUploadingAssets(UUID workspaceId) {
+        Instant cutoff = Instant.now().minus(s3Properties.getPresignTtl().multipliedBy(2));
+        jdbcClient
+                .sql(
+                        """
+                        DELETE FROM media_assets
+                        WHERE workspace_id = :ws
+                          AND status = 'uploading'
+                          AND created_at < :cutoff
+                        """)
+                .param("ws", workspaceId)
+                .param("cutoff", cutoff)
+                .update();
     }
 
     private static String blankToNull(String value) {
