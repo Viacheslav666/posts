@@ -9,6 +9,11 @@ import {
 
 import { toApiProblemError } from '@/shared/lib/errors';
 
+import {
+  isMutatingHttpMethod,
+  isPublicAuthApiPath,
+  readXsrfTokenFromDocumentCookie,
+} from './csrf';
 import { getApiBaseUrl } from './config';
 import { clearAccessToken, getAccessToken, setAccessToken } from './session';
 
@@ -51,10 +56,51 @@ export function applyTokenResponse(tokens: TokenResponse): void {
   }
 }
 
+let csrfPrime: Promise<void> | null = null;
+
+async function ensureCsrfCookiePrimed(baseUrl: string): Promise<void> {
+  if (readXsrfTokenFromDocumentCookie()) {
+    return;
+  }
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (!csrfPrime) {
+    const pingUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/ping`;
+    csrfPrime = fetch(pingUrl, { credentials: 'include' })
+      .then(() => undefined)
+      .finally(() => {
+        csrfPrime = null;
+      });
+  }
+  await csrfPrime;
+}
+
+function createCsrfMiddleware(getBaseUrl: () => string): Middleware {
+  return {
+    async onRequest({ request }) {
+      if (!isMutatingHttpMethod(request.method)) {
+        return request;
+      }
+      await ensureCsrfCookiePrimed(getBaseUrl());
+      const xsrf = readXsrfTokenFromDocumentCookie();
+      if (xsrf) {
+        request.headers.set('X-XSRF-TOKEN', xsrf);
+      }
+      return request;
+    },
+  };
+}
+
 function createAuthMiddleware(client: PostsApiClient): Middleware {
   return {
     async onRequest({ request }) {
       const token = getAccessToken();
+      const publicAuth = isPublicAuthApiPath(request.url);
+      if (publicAuth) {
+        request.headers.delete('Authorization');
+        return request;
+      }
       if (token && !request.headers.has('Authorization')) {
         request.headers.set('Authorization', `Bearer ${token}`);
       }
@@ -94,10 +140,12 @@ function createAuthMiddleware(client: PostsApiClient): Middleware {
 }
 
 export function createAppApiClient(): PostsApiClient {
+  const baseUrl = getApiBaseUrl();
   const client = createPostsApiClient({
-    baseUrl: getApiBaseUrl(),
+    baseUrl,
     credentials: 'include',
   });
+  client.use(createCsrfMiddleware(() => baseUrl));
   client.use(createAuthMiddleware(client));
   return client;
 }

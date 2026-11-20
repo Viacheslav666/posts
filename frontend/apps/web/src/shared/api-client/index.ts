@@ -1,5 +1,11 @@
 export { getApiBaseUrl } from './config';
 export {
+  isMutatingHttpMethod,
+  isPublicAuthApiPath,
+  readXsrfTokenFromDocumentCookie,
+  XSRF_COOKIE_NAME,
+} from './csrf';
+export {
   applyTokenResponse,
   createAppApiClient,
   getApiClient,

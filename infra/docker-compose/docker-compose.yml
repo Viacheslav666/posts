@@ -9,34 +9,72 @@ x-jvm-distroless-health: &jvm-distroless-health
     retries: 3
     start_period: 40s
 
-x-spring-local-deps: &spring-local-deps
-  SPRING_DATASOURCE_USERNAME: posts
-  SPRING_DATASOURCE_PASSWORD: posts
-  SPRING_RABBITMQ_USERNAME: posts
-  SPRING_RABBITMQ_PASSWORD: posts
-  SPRING_RABBITMQ_PORT: "5672"
-  SPRING_DATA_REDIS_PORT: "6379"
+# Production social / OAuth / billing hosts must not be used in profile `full` — point at social-emulator.
+x-full-external-emulator-deps: &full-external-emulator-deps
+  POSTS_SOCIAL_EMULATOR_URL: http://social-emulator:8090
+  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+  POSTS_VK_API_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_VK_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_OK_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_MAX_BASE_URL: http://social-emulator:8090
+  POSTS_SOCIAL_TELEGRAM_BASE_URL: http://social-emulator:8090
+  POSTS_TG_NOTIFY_API_BASE_URL: http://social-emulator:8090
+  POSTS_VK_ID_BASE_URL: http://social-emulator:8090
+  POSTS_YANDEX_OAUTH_BASE_URL: http://social-emulator:8090/yandex
+  POSTS_YANDEX_OAUTH_USER_INFO_URL: http://social-emulator:8090/yandex/info
+  POSTS_YOOKASSA_BASE_URL: http://social-emulator:8090/yookassa/v3
+  POSTS_ORD_VK_BASE_URL: http://social-emulator:8090/ord
 
-# Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
-x-publisher-env: &publisher-env
-  SERVER_PORT: "8080"
-  SPRING_APPLICATION_NAME: posts-publisher
+x-spring-local-deps: &spring-local-deps
+  POSTS_DB_HOST: postgres
+  POSTS_DB_PORT: "5432"
+  POSTS_DB_NAME: posts
+  POSTS_DB_USER: posts
+  POSTS_DB_PASSWORD: posts
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
   SPRING_DATASOURCE_USERNAME: posts
   SPRING_DATASOURCE_PASSWORD: posts
+  POSTS_REDIS_HOST: redis
+  POSTS_REDIS_PORT: "6379"
   SPRING_DATA_REDIS_HOST: redis
   SPRING_DATA_REDIS_PORT: "6379"
+  POSTS_RABBIT_HOST: rabbitmq
+  POSTS_RABBIT_USER: posts
+  POSTS_RABBIT_PASSWORD: posts
   SPRING_RABBITMQ_HOST: rabbitmq
-  SPRING_RABBITMQ_PORT: "5672"
   SPRING_RABBITMQ_USERNAME: posts
   SPRING_RABBITMQ_PASSWORD: posts
+  SPRING_RABBITMQ_PORT: "5672"
+  POSTS_RATELIMIT_ENABLED: "false"
+  POSTS_CRYPTO_KEK: local-dev-posts-kek
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
-  # Point social adapters at the in-compose emulator (BE-4 will read these).
-  SOCIAL_EMULATOR_URL: http://social-emulator:8090
-  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+  POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
+  <<: *full-external-emulator-deps
+
+# Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
+x-publisher-env: &publisher-env
+  <<: *spring-local-deps
+  SERVER_PORT: "8080"
+  SPRING_APPLICATION_NAME: posts-publisher
+  POSTS_RATELIMIT_ENABLED: "true"
+  POSTS_RATELIMIT_REDIS_URI: redis://redis:6379
+
+x-jvm-full-service: &jvm-full-service
+  <<: *jvm-distroless-health
+  extra_hosts:
+    - "api.vk.com:127.0.0.1"
+    - "id.vk.ru:127.0.0.1"
+    - "api.telegram.org:127.0.0.1"
+    - "platform-api.max.ru:127.0.0.1"
+    - "platform-api2.max.ru:127.0.0.1"
+    - "api.ok.ru:127.0.0.1"
+    - "api.ord.vk.com:127.0.0.1"
+    - "api.yookassa.ru:127.0.0.1"
+    - "oauth.yandex.ru:127.0.0.1"
+    - "login.yandex.ru:127.0.0.1"
 
 x-publisher-base: &publisher-base
-  <<: *jvm-distroless-health
+  <<: *jvm-full-service
   image: ghcr.io/viacheslav666/posts-publisher:latest
   profiles: ["full"]
   depends_on:
@@ -126,7 +164,7 @@ services:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- 'http://posts:posts@localhost:8123/ping' | grep -q Ok"]
+      test: ["CMD-SHELL", "wget -qO- 'http://posts:posts@127.0.0.1:8123/ping' | grep -q Ok"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -180,7 +218,7 @@ services:
   # -------------------------------------------------------------------------
 
   api:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-api:latest
     profiles: ["full"]
     ports:
@@ -191,12 +229,33 @@ services:
       SPRING_APPLICATION_NAME: posts-api
       # Override localhost from application-local.yml for in-network hosts.
       SPRING_PROFILES_ACTIVE: local
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+      POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
+      MAILPIT_SMTP_HOST: mailpit
+      MAILPIT_SMTP_PORT: "1025"
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: "1025"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+      social-emulator:
+        condition: service_started
+
+  scheduler:
+    <<: *jvm-full-service
+    image: ghcr.io/viacheslav666/posts-scheduler:latest
+    profiles: ["full"]
+    ports:
+      - "8081:8080"
+    environment:
+      <<: *spring-local-deps
+      SERVER_PORT: "8080"
+      SPRING_APPLICATION_NAME: posts-scheduler
     depends_on:
       postgres:
         condition: service_healthy
@@ -206,28 +265,6 @@ services:
         condition: service_healthy
       social-emulator:
         condition: service_started
-
-  scheduler:
-    <<: *jvm-distroless-health
-    image: ghcr.io/viacheslav666/posts-scheduler:latest
-    profiles: ["full"]
-    ports:
-      - "8081:8080"
-    environment:
-      <<: *spring-local-deps
-      SERVER_PORT: "8080"
-      SPRING_APPLICATION_NAME: posts-scheduler
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
 
   # One image posts-publisher, one container per network (BE-4 will consume these env vars).
   publisher-vk:
@@ -276,14 +313,15 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-media
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_RABBITMQ_HOST: rabbitmq
-      S3_ENDPOINT: http://minio:9090
-      S3_ACCESS_KEY: posts
-      S3_SECRET_KEY: postsposts
-      S3_BUCKET: posts-media
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      POSTS_S3_ENDPOINT: http://minio:9090
+      POSTS_S3_ACCESS_KEY: posts
+      POSTS_S3_SECRET_KEY: postsposts
+      POSTS_S3_BUCKET: posts-media
     depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       minio:
         condition: service_healthy
       rabbitmq:
@@ -296,7 +334,7 @@ services:
       start_period: 40s
 
   ingest:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-ingest:latest
     profiles: ["full"]
     ports:
@@ -305,16 +343,16 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-ingest
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      social-emulator:
+        condition: service_started
 
   notifications:
-    <<: *jvm-distroless-health
+    <<: *jvm-full-service
     image: ghcr.io/viacheslav666/posts-notifications:latest
     profiles: ["full"]
     ports:
@@ -323,13 +361,16 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-notifications
-      SPRING_RABBITMQ_HOST: rabbitmq
-      MAILPIT_SMTP_HOST: mailpit
-      MAILPIT_SMTP_PORT: "1025"
+      POSTS_SMTP_HOST: mailpit
+      POSTS_SMTP_PORT: "1025"
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: "1025"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      POSTS_TG_NOTIFY_BOT_TOKEN: ${POSTS_TG_NOTIFY_BOT_TOKEN:-emulator-token}
     depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       mailpit:
@@ -338,14 +379,11 @@ services:
   web:
     image: posts-web:local
     profiles: ["full"]
-    ports:
-      - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
-      # Browser calls host-mapped API; MSW off in the full stack image.
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      # Same-origin via gateway on :3000 (no MSW in full stack).
       NEXT_PUBLIC_API_MOCKING: "false"
     depends_on:
       api:
@@ -356,6 +394,55 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Same-origin entrypoint: / → web, /api/* and /ws → api (browser only talks to :3000).
+  # CI guard (not started by `up --profile full`; run via profile `compose-guard` after wait-full).
+  compose-full-egress-guard:
+    image: alpine:3.20
+    profiles: ["compose-guard"]
+    extra_hosts:
+      - "api.vk.com:127.0.0.1"
+      - "id.vk.ru:127.0.0.1"
+      - "api.telegram.org:127.0.0.1"
+      - "platform-api.max.ru:127.0.0.1"
+      - "api.ok.ru:127.0.0.1"
+      - "api.ord.vk.com:127.0.0.1"
+      - "api.yookassa.ru:127.0.0.1"
+      - "oauth.yandex.ru:127.0.0.1"
+    depends_on:
+      social-emulator:
+        condition: service_started
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        wget -q -O- http://social-emulator:8090/_control/health
+        if wget -q --timeout=3 -O /dev/null https://api.vk.com 2>/dev/null; then
+          echo "egress guard: unexpected reachability of api.vk.com" >&2
+          exit 1
+        fi
+        echo "egress guard ok"
+
+  gateway:
+    image: nginx:1.27-alpine
+    profiles: ["full"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nginx/full-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
 
 volumes:
   posts_pg:

@@ -43,6 +43,14 @@ jobs:
               - 'tests/social-emulator/**'
               - 'infra/docker-compose/docker-compose.yml'
               - '.github/workflows/ci.yml'
+            compose_full:
+              - 'infra/docker-compose/**'
+              - 'Makefile'
+              - '.env.example'
+              - 'backend/apps/**'
+              - 'frontend/apps/web/Dockerfile'
+              - 'tests/social-emulator/**'
+              - '.github/workflows/compose-full.yml'
             qa_harness:
               - 'tests/e2e/**'
               - 'tests/contract/**'

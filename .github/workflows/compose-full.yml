@@ -1,0 +1,103 @@
+name: Compose full stack
+
+# Smoke-test docker-compose profile `full` on a fresh checkout (catches missing env / bean clashes in images).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: compose-full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: infra/docker-compose/docker-compose.yml
+
+jobs:
+  compose-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Local env from example
+        run: cp .env.example .env
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Docker API compatibility for Jib
+        run: echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend
+
+      - name: Build and start compose profile full
+        run: |
+          set -euo pipefail
+          make images
+          docker compose -f "${COMPOSE_FILE}" --profile full up -d
+
+      - name: Wait for healthy full stack
+        run: make wait-full
+
+      - name: External URL and egress guard (full profile)
+        run: |
+          set -euo pipefail
+          chmod +x tests/compose/assert-full-profile-external-urls.sh
+          tests/compose/assert-full-profile-external-urls.sh
+          docker compose -f "${COMPOSE_FILE}" --profile full --profile compose-guard run --rm --no-deps compose-full-egress-guard
+
+      - name: Assert no exited containers
+        run: |
+          set -euo pipefail
+          if [ "$(docker compose -f "${COMPOSE_FILE}" --profile full ps --status exited -q | wc -l | tr -d ' ')" != "0" ]; then
+            docker compose -f "${COMPOSE_FILE}" --profile full ps -a
+            exit 1
+          fi
+
+      - name: Register → verify → login via gateway :3000 (Playwright, no MSW)
+        working-directory: tests/e2e
+        env:
+          COMPOSE_AUTH_E2E: "1"
+          PLAYWRIGHT_SKIP_WEBSERVER: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          MAILPIT_API_URL: http://127.0.0.1:8025
+          CI: "true"
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:compose-auth
+
+      - name: Assert no exited containers after Playwright
+        run: |
+          set -euo pipefail
+          if [ "$(docker compose -f "${COMPOSE_FILE}" --profile full ps --status exited -q | wc -l | tr -d ' ')" != "0" ]; then
+            docker compose -f "${COMPOSE_FILE}" --profile full ps -a
+            exit 1
+          fi
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f "${COMPOSE_FILE}" --profile full ps -a || true
+          docker compose -f "${COMPOSE_FILE}" --profile full logs --tail=300 || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile full --profile emulator down -v || true

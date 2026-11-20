@@ -53,6 +53,15 @@ management:
         enabled: true
 
 posts:
+  social:
+    vk:
+      base-url: ${POSTS_SOCIAL_VK_BASE_URL:${POSTS_VK_API_BASE_URL:${POSTS_SOCIAL_BASE_URL:https://api.vk.com}}}
+      api-version: "5.199"
+  social-inbound:
+    social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+  ord:
+    vk:
+      base-url: ${POSTS_ORD_VK_BASE_URL:https://api-sandbox.ord.vk.com}
   scheduler:
     batch-size: 500
     lock-ttl: 10m

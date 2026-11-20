@@ -14,7 +14,7 @@ make up-full
 
 1. Собирает образы (`make images`: Jib apps + Dockerfile web + social-emulator).
 2. Поднимает `docker compose --profile full`.
-3. Ждёт `GET /api/v1/ping`, `GET /health` (web) и health эмулятора.
+3. Ждёт `GET /api/v1/ping`, `GET /health` (через nginx `gateway` на :3000) и health эмулятора.
 
 Повтор без пересборки:
 
@@ -50,7 +50,8 @@ make wait-full
 | media | 8086 |
 | ingest | 8087 |
 | notifications | 8088 |
-| web | 3000 |
+| web (внутренний) | — (только из compose-сети) |
+| gateway (браузер: web + `/api`, `/ws`) | 3000 |
 | social-emulator | 8090 |
 
 ## Troubleshooting

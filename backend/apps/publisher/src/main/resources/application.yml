@@ -67,7 +67,7 @@ posts:
         enabled: false
   social:
     telegram:
-      base-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}
+      base-url: ${POSTS_SOCIAL_TELEGRAM_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
       read-timeout: 15s
     vk:
       base-url: ${POSTS_SOCIAL_VK_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
@@ -81,6 +81,9 @@ posts:
       reconciliation-mode: ${POSTS_SOCIAL_OK_RECONCILIATION:emulator}
       application-key: ${POSTS_OK_APPLICATION_KEY:}
       application-secret: ${POSTS_OK_APPLICATION_SECRET:}
+    max:
+      base-url: ${POSTS_SOCIAL_MAX_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
+      read-timeout: 15s
   s3:
     enabled: ${POSTS_S3_ENABLED:false}
     endpoint: ${POSTS_S3_ENDPOINT:http://localhost:9000}
