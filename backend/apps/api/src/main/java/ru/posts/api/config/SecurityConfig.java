@@ -23,7 +23,11 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
-                        .ignoringRequestMatchers("/hooks/**", "/webhooks/**"))
+                        .ignoringRequestMatchers(
+                                "/hooks/**",
+                                "/webhooks/**",
+                                // Public auth + refresh-cookie login (SPA same-origin via gateway).
+                                "/api/v1/auth/**"))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(

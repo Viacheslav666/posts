@@ -6,11 +6,21 @@ WEB_BASE="${COMPOSE_WEB_BASE_URL:-http://127.0.0.1:3000}"
 MAILPIT_API="${MAILPIT_API_URL:-http://127.0.0.1:8025}"
 EMAIL="${COMPOSE_SMOKE_EMAIL:-smoke-$(date +%s)@example.com}"
 PASSWORD="${COMPOSE_SMOKE_PASSWORD:-SmokeTest1!SmokeTest1!}"
+COOKIE_JAR="$(mktemp)"
+trap 'rm -f "${COOKIE_JAR}"' EXIT
+
+api_post() {
+  local path="$1"
+  local body="$2"
+  curl -sf -X POST "${WEB_BASE}${path}" \
+    -H 'Content-Type: application/json' \
+    -b "${COOKIE_JAR}" \
+    -c "${COOKIE_JAR}" \
+    -d "${body}"
+}
 
 echo "==> register via ${WEB_BASE}/api/v1/auth/register (${EMAIL})"
-curl -sf -X POST "${WEB_BASE}/api/v1/auth/register" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"name\":\"Compose Smoke\"}" \
+api_post '/api/v1/auth/register' "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"name\":\"Compose Smoke\"}" \
   | tee /tmp/posts-compose-register.json
 echo
 
@@ -49,16 +59,11 @@ print(m.group(1))
 )"
 
 echo "==> verify email via gateway"
-curl -sf -X POST "${WEB_BASE}/api/v1/auth/email/verify" \
-  -H 'Content-Type: application/json' \
-  -d "{\"token\":\"${token}\"}" \
-  | tee /tmp/posts-compose-verify.json
+api_post '/api/v1/auth/email/verify' "{\"token\":\"${token}\"}" | tee /tmp/posts-compose-verify.json
 echo
 
 echo "==> login via gateway"
-curl -sf -X POST "${WEB_BASE}/api/v1/auth/login" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}" \
+api_post '/api/v1/auth/login' "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}" \
   | tee /tmp/posts-compose-login.json
 echo
 
