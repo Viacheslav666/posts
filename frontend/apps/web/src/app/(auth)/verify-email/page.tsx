@@ -14,12 +14,17 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
   const params = await searchParams;
   const email = params.email?.trim() || 'demo@posts.app';
   const token = params.token?.trim() || '';
+  const apiMocking = process.env.NEXT_PUBLIC_API_MOCKING === 'true';
 
   return (
     <AuthShell
       brand={common('brand')}
       title={t('verify.title')}
-      description={t('verify.description', { email })}
+      description={
+        apiMocking
+            ? t('verify.descriptionMock', { email })
+            : t('verify.description', { email })
+      }
       footer={
         <p>
           <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">

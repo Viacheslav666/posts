@@ -6,7 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.http.HttpHeaders;
+import java.util.Set;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ConnectApiController {
 
+    private static final Set<String> KNOWN_FIXTURE_CODES = Set.of("vk-admin", "vk-no-admin", "ok-admin", "ok-no-admin");
+
     private final ConnectFixtureStore store;
     private final EmulatorConnectProperties connectProperties;
 
@@ -28,32 +31,35 @@ public class ConnectApiController {
     }
 
     @GetMapping({"/oauth/vk/authorize", "/oauth/ok/authorize"})
-    public ResponseEntity<String> authorize(
-            HttpServletRequest request, @RequestParam MultiValueMap<String, String> params) {
+    public ResponseEntity<?> authorize(HttpServletRequest request, @RequestParam MultiValueMap<String, String> params) {
         String redirectUri = first(params, "redirect_uri");
         String state = first(params, "state");
         if (redirectUri == null || redirectUri.isBlank()) {
-            return ResponseEntity.badRequest().body("missing redirect_uri");
+            return oauthError(HttpStatus.BAD_REQUEST, "missing_redirect_uri");
         }
         if (!isAllowedChannelRedirect(redirectUri)) {
-            return ResponseEntity.badRequest().body("redirect_uri not allowed");
+            return oauthError(HttpStatus.BAD_REQUEST, "redirect_uri_not_allowed");
         }
 
         String defaultCode = request.getRequestURI().contains("/oauth/ok/") ? "ok-admin" : "vk-admin";
         String code = first(params, "fixture_code");
-        if (code == null || code.isBlank()) {
+        if (code == null || code.isBlank() || !KNOWN_FIXTURE_CODES.contains(code)) {
             code = defaultCode;
         }
 
-        Optional<String> location =
-                OAuthCallbackRedirect.locationHeader(connectProperties.allowedAppBaseUrls(), redirectUri, code, state);
-        if (location.isEmpty()) {
-            return ResponseEntity.badRequest().body("redirect_uri not allowed");
+        Optional<URI> target =
+                OAuthCallbackRedirect.callbackUri(connectProperties.allowedAppBaseUrls(), redirectUri, code, state);
+        if (target.isEmpty()) {
+            return oauthError(HttpStatus.BAD_REQUEST, "redirect_uri_not_allowed");
         }
 
-        return ResponseEntity.status(302)
-                .header(HttpHeaders.LOCATION, location.get())
-                .build();
+        return ResponseEntity.status(HttpStatus.FOUND).location(target.get()).build();
+    }
+
+    private static ResponseEntity<Map<String, String>> oauthError(HttpStatus status, String error) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("error", error));
     }
 
     @PostMapping(

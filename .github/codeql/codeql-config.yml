@@ -1,6 +1,0 @@
-name: posts-codeql
-
-# Analyze production apps only; QA social-emulator OAuth stubs are unit-tested, not deployed code.
-paths:
-  - backend
-  - frontend

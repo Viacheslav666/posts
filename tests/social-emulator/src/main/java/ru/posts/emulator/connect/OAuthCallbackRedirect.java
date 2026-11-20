@@ -1,12 +1,11 @@
 package ru.posts.emulator.connect;
 
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /** Builds OAuth authorize redirects for allowlisted Posts channel callback URLs only. */
 final class OAuthCallbackRedirect {
@@ -17,8 +16,7 @@ final class OAuthCallbackRedirect {
 
     private OAuthCallbackRedirect() {}
 
-    static Optional<String> locationHeader(
-            List<String> allowedAppBaseUrls, String redirectUri, String code, String state) {
+    static Optional<URI> callbackUri(List<String> allowedAppBaseUrls, String redirectUri, String code, String state) {
         if (!ConnectApiController.isAllowedChannelRedirect(redirectUri)) {
             return Optional.empty();
         }
@@ -44,8 +42,18 @@ final class OAuthCallbackRedirect {
         if (safeCode.isEmpty()) {
             return Optional.empty();
         }
-        String query = "code=" + enc(safeCode) + "&state=" + enc(safeState);
-        return Optional.of(matchedBase + "/app/" + workspaceId + "/channels/connect/" + network + "/callback?" + query);
+        URI base = URI.create(matchedBase);
+        URI target = UriComponentsBuilder.newInstance()
+                .scheme(base.getScheme())
+                .host(base.getHost())
+                .port(base.getPort())
+                .path("/app/" + workspaceId + "/channels/connect/" + network + "/callback")
+                .queryParam("code", safeCode)
+                .queryParam("state", safeState)
+                .encode()
+                .build()
+                .toUri();
+        return Optional.of(target);
     }
 
     private static String matchConfiguredBase(List<String> allowedBases, String redirectUri) {
@@ -56,10 +64,6 @@ final class OAuthCallbackRedirect {
             }
         }
         return null;
-    }
-
-    private static String enc(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String sanitizeToken(String value, int maxLen) {

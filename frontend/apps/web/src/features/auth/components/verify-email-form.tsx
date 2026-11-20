@@ -23,6 +23,7 @@ export function VerifyEmailForm({ initialToken = '' }: VerifyEmailFormProps) {
   const tErrors = useTranslations('auth.validation');
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const apiMocking = process.env.NEXT_PUBLIC_API_MOCKING === 'true';
 
   const {
     register,
@@ -55,7 +56,7 @@ export function VerifyEmailForm({ initialToken = '' }: VerifyEmailFormProps) {
       <FormField
         label={t('fields.code')}
         autoComplete="one-time-code"
-        hint={t('verify.codeHint')}
+        hint={apiMocking ? t('verify.codeHintMock') : t('verify.codeHint')}
         error={errors.token ? tErrors(errors.token.message as 'codeRequired') : undefined}
         {...register('token')}
       />
