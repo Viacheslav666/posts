@@ -32,6 +32,13 @@ x-spring-local-deps: &spring-local-deps
   POSTS_RATELIMIT_ENABLED: "false"
   POSTS_CRYPTO_KEK: local-dev-posts-kek
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+  POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
+  SOCIAL_EMULATOR_URL: http://social-emulator:8090
+  POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+
+x-emulator-api-deps: &emulator-api-deps
+  POSTS_VK_API_BASE_URL: http://social-emulator:8090
+  POSTS_TG_NOTIFY_API_BASE_URL: http://social-emulator:8090
 
 # Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
 x-publisher-env: &publisher-env
@@ -135,7 +142,7 @@ services:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- 'http://posts:posts@localhost:8123/ping' | grep -q Ok"]
+      test: ["CMD-SHELL", "wget -qO- 'http://posts:posts@127.0.0.1:8123/ping' | grep -q Ok"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -200,14 +207,19 @@ services:
       SPRING_APPLICATION_NAME: posts-api
       # Override localhost from application-local.yml for in-network hosts.
       SPRING_PROFILES_ACTIVE: local
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
+      POSTS_APP_BASE_URL: ${POSTS_APP_BASE_URL:-http://localhost:3000}
+      MAILPIT_SMTP_HOST: mailpit
+      MAILPIT_SMTP_PORT: "1025"
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: "1025"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
       social-emulator:
         condition: service_started
@@ -222,8 +234,6 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-scheduler
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
       postgres:
         condition: service_healthy
@@ -306,16 +316,16 @@ services:
     ports:
       - "8087:8080"
     environment:
-      <<: *spring-local-deps
+      <<: [*spring-local-deps, *emulator-api-deps]
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-ingest
-      SOCIAL_EMULATOR_URL: http://social-emulator:8090
-      POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      social-emulator:
+        condition: service_started
 
   notifications:
     <<: *jvm-distroless-health
@@ -324,13 +334,14 @@ services:
     ports:
       - "8088:8080"
     environment:
-      <<: *spring-local-deps
+      <<: [*spring-local-deps, *emulator-api-deps]
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-notifications
       POSTS_SMTP_HOST: mailpit
       POSTS_SMTP_PORT: "1025"
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: "1025"
+      POSTS_TG_NOTIFY_BOT_TOKEN: ${POSTS_TG_NOTIFY_BOT_TOKEN:-emulator-token}
     depends_on:
       postgres:
         condition: service_healthy
@@ -344,14 +355,11 @@ services:
   web:
     image: posts-web:local
     profiles: ["full"]
-    ports:
-      - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
-      # Browser calls host-mapped API; MSW off in the full stack image.
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      # Same-origin via gateway on :3000 (no MSW in full stack).
       NEXT_PUBLIC_API_MOCKING: "false"
     depends_on:
       api:
@@ -362,6 +370,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Same-origin entrypoint: / → web, /api/* and /ws → api (browser only talks to :3000).
+  gateway:
+    image: nginx:1.27-alpine
+    profiles: ["full"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nginx/full-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
 
 volumes:
   posts_pg:

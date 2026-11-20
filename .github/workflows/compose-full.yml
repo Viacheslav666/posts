@@ -63,6 +63,12 @@ jobs:
             exit 1
           fi
 
+      - name: Register → verify → login via gateway :3000
+        run: |
+          set -euo pipefail
+          chmod +x tests/compose/register-login-smoke.sh
+          ./tests/compose/register-login-smoke.sh
+
       - name: Dump compose logs on failure
         if: failure()
         run: |
