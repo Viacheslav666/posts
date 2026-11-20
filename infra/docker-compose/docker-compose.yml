@@ -10,27 +10,36 @@ x-jvm-distroless-health: &jvm-distroless-health
     start_period: 40s
 
 x-spring-local-deps: &spring-local-deps
-  SPRING_DATASOURCE_USERNAME: posts
-  SPRING_DATASOURCE_PASSWORD: posts
-  SPRING_RABBITMQ_USERNAME: posts
-  SPRING_RABBITMQ_PASSWORD: posts
-  SPRING_RABBITMQ_PORT: "5672"
-  SPRING_DATA_REDIS_PORT: "6379"
-
-# Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
-x-publisher-env: &publisher-env
-  SERVER_PORT: "8080"
-  SPRING_APPLICATION_NAME: posts-publisher
+  POSTS_DB_HOST: postgres
+  POSTS_DB_PORT: "5432"
+  POSTS_DB_NAME: posts
+  POSTS_DB_USER: posts
+  POSTS_DB_PASSWORD: posts
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
   SPRING_DATASOURCE_USERNAME: posts
   SPRING_DATASOURCE_PASSWORD: posts
+  POSTS_REDIS_HOST: redis
+  POSTS_REDIS_PORT: "6379"
   SPRING_DATA_REDIS_HOST: redis
   SPRING_DATA_REDIS_PORT: "6379"
+  POSTS_RABBIT_HOST: rabbitmq
+  POSTS_RABBIT_USER: posts
+  POSTS_RABBIT_PASSWORD: posts
   SPRING_RABBITMQ_HOST: rabbitmq
-  SPRING_RABBITMQ_PORT: "5672"
   SPRING_RABBITMQ_USERNAME: posts
   SPRING_RABBITMQ_PASSWORD: posts
+  SPRING_RABBITMQ_PORT: "5672"
+  POSTS_RATELIMIT_ENABLED: "false"
+  POSTS_CRYPTO_KEK: local-dev-posts-kek
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+
+# Publisher env without POSTS_PUBLISHER_NETWORK (set per service).
+x-publisher-env: &publisher-env
+  <<: *spring-local-deps
+  SERVER_PORT: "8080"
+  SPRING_APPLICATION_NAME: posts-publisher
+  POSTS_RATELIMIT_ENABLED: "true"
+  POSTS_RATELIMIT_REDIS_URI: redis://redis:6379
   # Point social adapters at the in-compose emulator (BE-4 will read these).
   SOCIAL_EMULATOR_URL: http://social-emulator:8090
   POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
@@ -191,10 +200,6 @@ services:
       SPRING_APPLICATION_NAME: posts-api
       # Override localhost from application-local.yml for in-network hosts.
       SPRING_PROFILES_ACTIVE: local
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       SOCIAL_EMULATOR_URL: http://social-emulator:8090
       POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
@@ -217,14 +222,12 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-scheduler
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       SOCIAL_EMULATOR_URL: http://social-emulator:8090
       POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -276,14 +279,15 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-media
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/posts
-      SPRING_RABBITMQ_HOST: rabbitmq
-      S3_ENDPOINT: http://minio:9090
-      S3_ACCESS_KEY: posts
-      S3_SECRET_KEY: postsposts
-      S3_BUCKET: posts-media
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      POSTS_S3_ENDPOINT: http://minio:9090
+      POSTS_S3_ACCESS_KEY: posts
+      POSTS_S3_SECRET_KEY: postsposts
+      POSTS_S3_BUCKET: posts-media
     depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       minio:
         condition: service_healthy
       rabbitmq:
@@ -305,11 +309,11 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-ingest
-      SPRING_RABBITMQ_HOST: rabbitmq
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       SOCIAL_EMULATOR_URL: http://social-emulator:8090
       POSTS_SOCIAL_BASE_URL: http://social-emulator:8090
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -323,13 +327,15 @@ services:
       <<: *spring-local-deps
       SERVER_PORT: "8080"
       SPRING_APPLICATION_NAME: posts-notifications
-      SPRING_RABBITMQ_HOST: rabbitmq
-      MAILPIT_SMTP_HOST: mailpit
-      MAILPIT_SMTP_PORT: "1025"
+      POSTS_SMTP_HOST: mailpit
+      POSTS_SMTP_PORT: "1025"
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: "1025"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
     depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       mailpit:

@@ -29,25 +29,39 @@ up-full: images
 
 wait-full:
 	@set -euo pipefail; \
+	fail_if_exited() { \
+		exited=$$($(COMPOSE) --profile full ps --status exited -q 2>/dev/null | wc -l | tr -d ' '); \
+		if [ "$$exited" != "0" ]; then \
+			echo "Found exited containers:"; \
+			$(COMPOSE) --profile full ps -a; \
+			$(COMPOSE) --profile full logs --tail=200; \
+			exit 1; \
+		fi; \
+	}; \
 	echo "==> waiting for API /api/v1/ping"; \
 	ok=0; \
 	for i in $$(seq 1 90); do \
+		fail_if_exited; \
 		if curl -sf http://127.0.0.1:8080/api/v1/ping >/tmp/posts-full-api-ping.json; then ok=1; break; fi; \
 		sleep 2; \
 	done; \
-	if [ "$$ok" != 1 ]; then echo "API ping failed"; docker compose -f $(COMPOSE_FILE) --profile full logs api --tail=80; exit 1; fi; \
+	if [ "$$ok" != 1 ]; then echo "API ping failed"; $(COMPOSE) --profile full logs api --tail=80; exit 1; fi; \
+	grep -q '"status"[[:space:]]*:[[:space:]]*"ok"' /tmp/posts-full-api-ping.json || { cat /tmp/posts-full-api-ping.json; exit 1; }; \
 	cat /tmp/posts-full-api-ping.json; echo; \
 	echo "==> waiting for web /health"; \
 	ok=0; \
 	for i in $$(seq 1 60); do \
-		if curl -sf http://127.0.0.1:3000/health >/dev/null; then ok=1; break; fi; \
+		fail_if_exited; \
+		code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/health || true); \
+		if [ "$$code" = "200" ]; then ok=1; break; fi; \
 		sleep 2; \
 	done; \
-	if [ "$$ok" != 1 ]; then echo "web /health failed"; docker compose -f $(COMPOSE_FILE) --profile full logs web --tail=80; exit 1; fi; \
+	if [ "$$ok" != 1 ]; then echo "web /health failed"; $(COMPOSE) --profile full logs web --tail=80; exit 1; fi; \
 	echo "web /health OK"; \
 	echo "==> social-emulator /_control/health"; \
 	curl -sf http://127.0.0.1:8090/_control/health | tee /tmp/posts-full-emulator-health.json; \
 	echo; \
+	fail_if_exited; \
 	echo "Full stack is up (profile full)"
 
 down:

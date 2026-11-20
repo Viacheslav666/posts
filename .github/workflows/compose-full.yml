@@ -1,0 +1,74 @@
+name: Compose full stack
+
+# Smoke-test docker-compose profile `full` on a fresh checkout (catches missing env / bean clashes in images).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: compose-full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: infra/docker-compose/docker-compose.yml
+
+jobs:
+  compose-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Local env from example
+        run: cp .env.example .env
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Docker API compatibility for Jib
+        run: echo 'api.version=1.44' > "$HOME/.docker-java.properties"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend
+
+      - name: Build and start compose profile full
+        run: |
+          set -euo pipefail
+          make images
+          docker compose -f "${COMPOSE_FILE}" --profile full up -d
+
+      - name: Wait for healthy full stack
+        run: make wait-full
+
+      - name: Assert no exited containers
+        run: |
+          set -euo pipefail
+          if [ "$(docker compose -f "${COMPOSE_FILE}" --profile full ps --status exited -q | wc -l | tr -d ' ')" != "0" ]; then
+            docker compose -f "${COMPOSE_FILE}" --profile full ps -a
+            exit 1
+          fi
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f "${COMPOSE_FILE}" --profile full ps -a || true
+          docker compose -f "${COMPOSE_FILE}" --profile full logs --tail=300 || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile full --profile emulator down -v || true

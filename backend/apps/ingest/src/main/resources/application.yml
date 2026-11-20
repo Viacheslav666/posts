@@ -3,6 +3,10 @@ spring:
     name: posts-ingest
   main:
     web-application-type: servlet
+  datasource:
+    url: jdbc:postgresql://${POSTS_DB_HOST:localhost}:${POSTS_DB_PORT:5432}/${POSTS_DB_NAME:posts}
+    username: ${POSTS_DB_USER:posts}
+    password: ${POSTS_DB_PASSWORD:posts}
   jpa:
     open-in-view: false
     hibernate:
@@ -13,6 +17,7 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+    locations: classpath:db/migration
   rabbitmq:
     listener:
       simple:
