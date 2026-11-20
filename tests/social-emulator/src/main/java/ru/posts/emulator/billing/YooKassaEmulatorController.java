@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/yookassa/v3")
 public class YooKassaEmulatorController {
 
-    @PostMapping(path = "/payments", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(
+            path = "/payments",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> createPayment(@RequestBody(required = false) Map<String, Object> body) {
         String id = UUID.randomUUID().toString();
         Map<String, Object> payment = new LinkedHashMap<>();
