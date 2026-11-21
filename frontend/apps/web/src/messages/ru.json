@@ -956,6 +956,11 @@
       "pin": "Закрепить",
       "removeAfterPublish": "Удалить из Posts после публикации",
       "donutDays": "VK Donut (дней)",
+      "donutDaysTooltip": "Сколько дней пост виден только подписчикам VK Donut. 0 — для всех, максимум 7.",
+      "unpinAtLabel": "Открепить пост: когда",
+      "unpinAtHint": "Укажите дату и время, если нужно открепить пост",
+      "unpinAtInvalid": "Дата открепления должна быть позже времени публикации",
+      "deleteAfterAdHint": "Если поле пусто, каждый слот удалится через {days} дн. после своей публикации",
       "coOwners": "Соавторы VK",
       "firstComment": "Первый комментарий",
       "copyrightUrl": "Источник (copyright)",
@@ -1856,7 +1861,9 @@
       "linkUrlHint": "Для VK — только внутренние ссылки vk.com / vk.ru",
       "deleteAfterPublish": "Удалить задачу из сервиса после публикации",
       "autoDeleteAfter": "Удалить из сети через N минут",
-      "autoDeleteAfterPlaceholder": "например, 120"
+      "autoDeleteAfterPlaceholder": "например, 120",
+      "addToNews": "Советы VK",
+      "addToNewsTooltip": "Параметр VK API stories.add_to_news: при включении история может попадать в блок «Советы» у подписчиков. Снимите галочку, чтобы не предлагать историю в советах."
     },
     "preview": {
       "label": "Предпросмотр истории",

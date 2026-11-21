@@ -10,6 +10,7 @@ export function createDefaultStoryOptions(): StoryOptions {
     ttl: 'ttl_24h',
     deleteAfterPublish: false,
     mediaKind: 'photo',
+    addToNews: true,
   };
 }
 

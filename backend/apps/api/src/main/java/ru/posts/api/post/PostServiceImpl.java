@@ -211,6 +211,7 @@ public class PostServiceImpl implements PostService {
             validateMedia(request.workspaceId(), PostContentMapper.mediaIds(v.content()));
             validateStringAttachments(v.content());
             AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
+            PostVariantOptionsValidator.validateUnpinAt(request.scheduledAt(), v.options());
         }
         validateContentAgainstNetworks(request.baseContent(), variants);
         Map<String, Object> adPayload = resolveAdPayload(request.ad(), request.adMarking(), request.adPayload());
@@ -349,10 +350,12 @@ public class PostServiceImpl implements PostService {
         List<PostVariantEntity> variants;
         if (request.variants() != null) {
             validateVariants(post.getWorkspaceId(), request.variants());
+            Instant scheduleAt = request.scheduledAt() != null ? request.scheduledAt() : post.getScheduledAt();
             for (PostDtos.PostVariantUpsert v : request.variants()) {
                 validateMedia(post.getWorkspaceId(), PostContentMapper.mediaIds(v.content()));
                 validateStringAttachments(v.content());
                 AdMarkingValidator.validateNetworkOptions(v.network(), v.options());
+                PostVariantOptionsValidator.validateUnpinAt(scheduleAt, v.options());
             }
             deleteVariants(post.getId());
             variants = saveVariants(post.getId(), enrichVariantsForStory(post, request.variants(), request.story()));
@@ -427,6 +430,7 @@ public class PostServiceImpl implements PostService {
                     post.getStoryTtl(), post.getStoryLinkText(), post.getStoryLinkUrl(), post.getStoryOptions());
             applyStoryDeleteAfterToVariants(variants, story, request.scheduledAt());
         }
+        validateUnpinAtForVariants(request.scheduledAt(), variants);
         ensureCanScheduleAd(membership, post);
         planLimitService.ensureCanCreatePost(post.getWorkspaceId());
         if (post.isAd()) {
@@ -899,7 +903,8 @@ public class PostServiceImpl implements PostService {
                     upsert.content() == null
                             ? Map.of()
                             : PostContentMapper.contentToMap(upsert.content(), objectMapper));
-            entity.setOptions(PostContentMapper.optionsToMap(upsert.options(), objectMapper));
+            entity.setOptions(PostContentMapper.optionsToMap(
+                    PostVariantOptionsSanitizer.stripUnpinWithoutPin(upsert.options()), objectMapper));
             entity.setCreatedAt(now);
             entity.setUpdatedAt(now);
             saved.add(postVariantRepository.save(entity));
@@ -910,6 +915,16 @@ public class PostServiceImpl implements PostService {
     private void deleteVariants(UUID postId) {
         for (PostVariantEntity v : postVariantRepository.findByPostId(postId)) {
             postVariantRepository.delete(v);
+        }
+    }
+
+    private void validateUnpinAtForVariants(Instant scheduledAt, List<PostVariantEntity> variants) {
+        if (scheduledAt == null || variants == null) {
+            return;
+        }
+        for (PostVariantEntity variant : variants) {
+            PostDtos.PostVariantOptions options = PostContentMapper.mapToOptions(variant.getOptions(), objectMapper);
+            PostVariantOptionsValidator.validateUnpinAt(scheduledAt, options);
         }
     }
 
