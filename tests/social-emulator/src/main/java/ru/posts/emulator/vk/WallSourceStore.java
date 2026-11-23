@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,6 +56,29 @@ public class WallSourceStore {
         response.put("count", items.size());
         response.put("items", slice);
         return Map.of("response", response);
+    }
+
+    /** Seeded attachment payload (e.g. a video for {@code video.get}) by type / owner / id. */
+    @SuppressWarnings("unchecked")
+    public Optional<Map<String, Object>> findAttachment(String type, String ownerId, String itemId) {
+        for (List<Map<String, Object>> items : walls.values()) {
+            for (Map<String, Object> item : items) {
+                if (!(item.get("attachments") instanceof List<?> atts)) {
+                    continue;
+                }
+                for (Object raw : atts) {
+                    if (!(raw instanceof Map<?, ?> att) || !type.equals(String.valueOf(att.get("type")))) {
+                        continue;
+                    }
+                    if (att.get(type) instanceof Map<?, ?> payload
+                            && ownerId.equals(String.valueOf(payload.get("owner_id")))
+                            && itemId.equals(String.valueOf(payload.get("id")))) {
+                        return Optional.of(new LinkedHashMap<>((Map<String, Object>) payload));
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     public Map<String, Object> snapshot() {
