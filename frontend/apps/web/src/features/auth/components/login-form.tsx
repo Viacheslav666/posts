@@ -11,9 +11,7 @@ import { useForm } from 'react-hook-form';
 import { getErrorMessage } from '@/shared/lib/errors';
 
 import { fetchMe, loginRequest } from '../api/auth-api';
-
-/** Fallback when `/me` has no memberships (aligned with MSW demo personal workspace). */
-const FALLBACK_WORKSPACE_ID = '019a0000-0002-7000-8000-000000000002';
+import { appHomePath } from '../lib/app-home-path';
 import { loginSchema, type LoginValues } from '../model/schemas';
 import { AuthDivider } from './auth-divider';
 import { FormField } from './form-field';
@@ -44,8 +42,7 @@ export function LoginForm() {
       }
       toast({ title: t('login.successTitle'), description: t('login.successBody') });
       const me = await fetchMe();
-      const workspaceId = me.memberships?.[0]?.workspaceId ?? FALLBACK_WORKSPACE_ID;
-      router.push(`/app/${workspaceId}`);
+      router.push(appHomePath(me));
     } catch (error) {
       toast({
         variant: 'destructive',

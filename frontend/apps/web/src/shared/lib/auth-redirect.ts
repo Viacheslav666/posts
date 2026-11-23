@@ -10,6 +10,8 @@ const LOGIN_PREFIXES = [
   '/verify-email',
   '/invite',
   '/two-factor',
+  // OAuth provider redirects (VK ID, Yandex ID) land here before any Posts session exists.
+  '/auth/callback',
 ];
 
 export function isPublicAuthRoute(pathname: string): boolean {

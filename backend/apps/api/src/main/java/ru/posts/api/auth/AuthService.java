@@ -21,7 +21,8 @@ public interface AuthService {
 
     AuthDtos.OAuthStartResponse oauthStart(ApiEnums.AuthProvider provider);
 
-    TokenPair oauthCallback(ApiEnums.AuthProvider provider, String code, String state, ClientRequestContext ctx);
+    TokenPair oauthCallback(
+            ApiEnums.AuthProvider provider, String code, String state, String deviceId, ClientRequestContext ctx);
 
     AuthDtos.MessageResponse oauthLink(AuthDtos.OAuthLinkRequest request, UUID userId);
 

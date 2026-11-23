@@ -13,12 +13,9 @@ export function OauthButtons() {
   async function handleOauth(provider: 'vk' | 'yandex') {
     try {
       const data = await startOauth(provider);
-      toast({
-        title: t('stubTitle', { provider: provider === 'vk' ? 'VK ID' : 'Яндекс ID' }),
-        description: t('stubDescription'),
-      });
       if (data.authorizationUrl) {
-        window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
+        // Same tab: the provider redirects back to /auth/callback/{provider}, which finishes the login here.
+        window.location.assign(data.authorizationUrl);
       }
     } catch (error) {
       toast({

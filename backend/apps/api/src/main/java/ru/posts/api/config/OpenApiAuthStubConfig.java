@@ -54,7 +54,11 @@ public class OpenApiAuthStubConfig {
 
             @Override
             public TokenPair oauthCallback(
-                    ApiEnums.AuthProvider provider, String code, String state, ClientRequestContext ctx) {
+                    ApiEnums.AuthProvider provider,
+                    String code,
+                    String state,
+                    String deviceId,
+                    ClientRequestContext ctx) {
                 throw new NotImplementedException("openapi");
             }
 

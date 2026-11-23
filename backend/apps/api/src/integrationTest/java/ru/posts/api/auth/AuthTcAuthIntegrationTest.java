@@ -294,6 +294,69 @@ class AuthTcAuthIntegrationTest {
     }
 
     @Test
+    @DisplayName("VK ID callback passes device_id and state to the provider exchange")
+    void vkIdCallbackPassesDeviceIdAndState() throws Exception {
+        String userId = "vk-dev-" + UUID.randomUUID();
+        String email = "vkdev-" + UUID.randomUUID() + "@example.com";
+        stubOAuthProviderClient.registerCode(
+                "vk-code-device", new OAuthUserProfile("vk", userId, email, true, "Dev VK", Map.of("id", userId)));
+        String state = oauthStartState("vk");
+
+        mockMvc.perform(post("/api/v1/auth/oauth/vk/callback")
+                        .with(csrf())
+                        .param("code", "vk-code-device")
+                        .param("state", state)
+                        .param("device_id", "vk-device-42"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        var exchange = stubOAuthProviderClient.exchangeFor("vk-code-device");
+        assertThat(exchange).isNotNull();
+        assertThat(exchange.deviceId()).isEqualTo("vk-device-42");
+        assertThat(exchange.state()).isEqualTo(state);
+        assertThat(exchange.codeVerifier()).isNotBlank();
+        assertThat(exchange.redirectUri()).endsWith("/auth/callback/vk");
+    }
+
+    @Test
+    @DisplayName("VK ID callback without email creates an account by VK user id")
+    void vkIdCallbackWithoutEmailCreatesAccount() throws Exception {
+        String userId = "vk-noemail-" + UUID.randomUUID();
+        stubOAuthProviderClient.registerCode(
+                "vk-code-noemail", new OAuthUserProfile("vk", userId, null, false, "No Mail", Map.of("id", userId)));
+        String state = oauthStartState("vk");
+
+        MvcResult callback = mockMvc.perform(post("/api/v1/auth/oauth/vk/callback")
+                        .with(csrf())
+                        .param("code", "vk-code-noemail")
+                        .param("state", state)
+                        .param("device_id", "vk-device-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andReturn();
+        String accessToken = objectMapper
+                .readTree(callback.getResponse().getContentAsString())
+                .get("accessToken")
+                .asText();
+
+        mockMvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("vk+" + userId + "@oauth.posts.local"))
+                .andExpect(jsonPath("$.name").value("No Mail"));
+    }
+
+    private String oauthStartState(String provider) throws Exception {
+        MvcResult start = mockMvc.perform(
+                        post("/api/v1/auth/oauth/" + provider + "/start").with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper
+                .readTree(start.getResponse().getContentAsString())
+                .get("state")
+                .asText();
+    }
+
+    @Test
     @DisplayName("sessions list and revoke")
     void sessionsListAndRevoke() throws Exception {
         String email = "sess-" + UUID.randomUUID() + "@example.com";

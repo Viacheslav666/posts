@@ -156,9 +156,13 @@ public class AuthController {
             @PathVariable ApiEnums.AuthProvider provider,
             @RequestParam String code,
             @RequestParam String state,
+            @Parameter(description = "Device id returned by VK ID on the redirect; required for provider vk")
+                    @RequestParam(name = "device_id", required = false)
+                    String deviceId,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        TokenPair pair = authService.oauthCallback(provider, code, state, ClientRequestContexts.from(httpRequest));
+        TokenPair pair =
+                authService.oauthCallback(provider, code, state, deviceId, ClientRequestContexts.from(httpRequest));
         AuthCookies.writeRefreshCookie(
                 httpResponse,
                 authProperties,

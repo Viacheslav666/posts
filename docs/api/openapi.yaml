@@ -3038,6 +3038,13 @@ paths:
         required: true
         schema:
           type: string
+      - description: Device id returned by VK ID on the redirect; required for provider
+          vk
+        in: query
+        name: device_id
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           content:

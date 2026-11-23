@@ -26,7 +26,7 @@ function isAuthRefreshPath(url: string): boolean {
 }
 
 function isAuthLoginPath(url: string): boolean {
-  return url.includes('/api/v1/auth/login');
+  return url.includes('/api/v1/auth/login') || /\/api\/v1\/auth\/oauth\/[^/]+\/callback/.test(url);
 }
 
 async function refreshAccessToken(client: PostsApiClient): Promise<boolean> {

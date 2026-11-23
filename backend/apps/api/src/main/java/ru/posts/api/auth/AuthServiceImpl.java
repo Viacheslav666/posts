@@ -19,6 +19,7 @@ import ru.posts.api.admin.FeatureFlagResolver;
 import ru.posts.api.admin.ImpersonationGuard;
 import ru.posts.api.auth.crypto.SecretBox;
 import ru.posts.api.auth.mail.AuthMailSender;
+import ru.posts.api.auth.oauth.OAuthCodeExchange;
 import ru.posts.api.auth.oauth.OAuthProviderClient;
 import ru.posts.api.auth.oauth.OAuthUserProfile;
 import ru.posts.api.error.ApiException;
@@ -284,7 +285,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenPair oauthCallback(
-            ApiEnums.AuthProvider provider, String code, String state, ClientRequestContext ctx) {
+            ApiEnums.AuthProvider provider, String code, String state, String deviceId, ClientRequestContext ctx) {
         String providerKey = provider.name();
         OauthStateEntity oauthState = oauthStateRepository
                 .findByState(state)
@@ -297,8 +298,9 @@ public class AuthServiceImpl implements AuthService {
         oauthStateRepository.delete(oauthState);
 
         AuthProperties.OAuthProviderProperties cfg = authProperties.getOauth().get(providerKey);
-        OAuthUserProfile profile =
-                oauthProviderClient.exchange(providerKey, code, oauthState.getCodeVerifier(), cfg.getRedirectUri());
+        OAuthUserProfile profile = oauthProviderClient.exchange(
+                providerKey,
+                new OAuthCodeExchange(code, oauthState.getCodeVerifier(), cfg.getRedirectUri(), state, deviceId));
         if (profile.providerUserId() == null || profile.providerUserId().isBlank()) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, ProblemCodes.UNAUTHORIZED, "OAuth profile incomplete");
         }
@@ -313,8 +315,11 @@ public class AuthServiceImpl implements AuthService {
             return issueSession(user, ctx);
         }
 
-        if (profile.email() != null && !profile.email().isBlank()) {
+        boolean hasEmail = profile.email() != null && !profile.email().isBlank();
+        boolean emailTaken = false;
+        if (hasEmail) {
             Optional<UserEntity> byEmail = userRepository.findByEmailIgnoreCase(normalizeEmail(profile.email()));
+            emailTaken = byEmail.isPresent();
             if (byEmail.isPresent() && byEmail.get().getEmailVerifiedAt() != null) {
                 String linkToken = SecureTokens.urlSafe(32);
                 authTxHelper.runInNewTx(() -> {
@@ -335,14 +340,15 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
+        // No email from the provider (VK may omit it), or it belongs to an unverified local account: register by
+        // provider user id under a placeholder address instead of claiming someone else's email.
+        boolean useProviderEmail = hasEmail && !emailTaken;
         UserEntity user = new UserEntity();
-        String email = profile.email() == null || profile.email().isBlank()
-                ? providerKey + "+" + profile.providerUserId() + "@oauth.posts.local"
-                : normalizeEmail(profile.email());
+        String email = useProviderEmail
+                ? normalizeEmail(profile.email())
+                : providerKey + "+" + profile.providerUserId() + "@oauth.posts.local";
         user.setEmail(email);
-        if (profile.emailVerified()
-                && profile.email() != null
-                && !profile.email().isBlank()) {
+        if (useProviderEmail && profile.emailVerified()) {
             user.setEmailVerifiedAt(Instant.now());
         }
         user.setName(profile.name() == null || profile.name().isBlank() ? "User" : profile.name());
