@@ -220,11 +220,11 @@ function assertTargetMode(
   }
   const limits = (config?.limits ?? {}) as Record<string, unknown>;
   const interval = typeof limits.min_interval_minutes === 'number' ? limits.min_interval_minutes : 0;
-  const postponed = mode === 'vk_postponed_post' || mode === 'vk_postponed_repost';
+  const postponed = mode === 'vk_postponed_post';
   if (postponed && interval > 0) {
     return 'Интервал между постами недоступен в отложенных записях VK. Укажите 0 или выберите публикацию сразу на стену';
   }
-  if ((mode === 'wall_repost' || mode === 'vk_postponed_repost') && type && type !== 'grabber') {
+  if (mode === 'wall_repost' && type && type !== 'grabber') {
     return 'Репост доступен только для граббера VK';
   }
   const perDay = limits.rate_limit_per_day;
