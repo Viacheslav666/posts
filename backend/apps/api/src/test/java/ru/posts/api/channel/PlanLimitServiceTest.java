@@ -140,7 +140,7 @@ class PlanLimitServiceTest {
         PlanEntity plan = new PlanEntity();
         plan.setId(UuidV7.generate());
         plan.setCode("free");
-        plan.setName("Free");
+        plan.setName("Попробуй");
         plan.setLimits(limits);
         return plan;
     }

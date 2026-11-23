@@ -31,7 +31,7 @@ const PLAN_DEFS: Array<{
 }> = [
   {
     code: 'free',
-    name: 'Free',
+    name: 'Попробуй',
     priceMonth: 0,
     priceYear: 0,
     priceDayKopecks: 0,
