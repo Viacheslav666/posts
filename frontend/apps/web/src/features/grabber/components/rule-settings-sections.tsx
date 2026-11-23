@@ -1,9 +1,9 @@
 'use client';
 
-import { MacroHints, PendingFeatureNotice, SettingsSection } from '@posts/ui';
+import { MacroHints, SettingsSection } from '@posts/ui';
 import { useTranslations } from 'next-intl';
-import type { Control, UseFormRegister } from 'react-hook-form';
-import { Controller } from 'react-hook-form';
+import type { Control, FieldErrors, UseFormRegister } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 
 import type { GrabberRuleFormValues } from '../model/schemas';
 import {
@@ -18,6 +18,7 @@ import { CheckboxRow } from './checkbox-row';
 type SectionsProps = {
   register: UseFormRegister<GrabberRuleFormValues>;
   control: Control<GrabberRuleFormValues>;
+  errors: FieldErrors<GrabberRuleFormValues>;
   scheduleEnabled: boolean;
   firstCommentEnabled: boolean;
 };
@@ -25,10 +26,17 @@ type SectionsProps = {
 export function RuleSettingsSections({
   register,
   control,
+  errors,
   scheduleEnabled,
   firstCommentEnabled,
 }: SectionsProps) {
   const t = useTranslations('grabber.form');
+  const settingError = (key: keyof GrabberRuleFormValues) => {
+    const code = errors[key]?.message;
+    return code ? t(`errors.${code}`) : undefined;
+  };
+  const deleteAfterEnabled = useWatch({ control, name: 'deleteAfterEnabled' });
+  const aiRewriteEnabled = useWatch({ control, name: 'aiRewriteEnabled' });
 
   return (
     <div className="space-y-4" data-testid="grabber-settings-sections">
@@ -47,11 +55,6 @@ export function RuleSettingsSections({
           <CheckboxRow label={t('filters.skipIfHomoglyphs')} {...register('skipIfHomoglyphs')} />
           <CheckboxRow label={t('filters.skipIfCaps')} {...register('skipIfCaps')} />
           <CheckboxRow label={t('filters.skipIfPhone')} {...register('skipIfPhone')} />
-          <CheckboxRow label={t('filters.requirePhone')} {...register('requirePhone')} />
-          <CheckboxRow
-            label={t('filters.requirePhoneOrSignature')}
-            {...register('requirePhoneOrSignature')}
-          />
           <CheckboxRow label={t('filters.onlyGroupPosts')} {...register('onlyGroupPosts')} />
         </div>
 
@@ -114,7 +117,17 @@ export function RuleSettingsSections({
             placeholder={t('filters.keywordsPlaceholder')}
             {...register('stopWordsText')}
           />
+          <span className="block text-xs text-muted-foreground">{t('filters.stopWordsHint')}</span>
         </label>
+        <div className="space-y-2 rounded-md border border-border p-3" data-testid="grabber-only-these">
+          <p className="text-sm font-medium">{t('filters.onlyThese')}</p>
+          <p className="text-xs text-muted-foreground">{t('filters.onlyTheseHint')}</p>
+          <CheckboxRow label={t('filters.requirePhone')} {...register('requirePhone')} />
+          <CheckboxRow
+            label={t('filters.requirePhoneOrSignature')}
+            {...register('requirePhoneOrSignature')}
+          />
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           <label className="block space-y-1 text-sm">
             <span>{t('filters.keywordInclude')}</span>
@@ -197,6 +210,7 @@ export function RuleSettingsSections({
             data-testid="grabber-remove-keywords"
             {...register('removeKeywordsText')}
           />
+          <span className="block text-xs text-muted-foreground">{t('replacements.removeKeywordsHint')}</span>
         </label>
       </SettingsSection>
 
@@ -335,20 +349,115 @@ export function RuleSettingsSections({
         description={t('sections.firstCommentHint')}
         data-testid="grabber-section-first-comment"
       >
-        <PendingFeatureNotice
-          title={t('firstComment.pendingTitle')}
-          body={t('firstComment.pendingBody')}
-        />
+        <p className="text-xs text-muted-foreground">{t('publish.modeHint')}</p>
         <CheckboxRow label={t('firstComment.enabled')} {...register('firstCommentEnabled')} />
         {firstCommentEnabled ? (
-          <label className="block space-y-1 text-sm">
-            <span>{t('firstComment.text')}</span>
-            <textarea
-              className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              data-testid="grabber-first-comment-text"
-              {...register('firstCommentText')}
-            />
+          <div className="space-y-3">
+            <label className="block space-y-1 text-sm">
+              <span>{t('firstComment.text')}</span>
+              <textarea
+                className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                data-testid="grabber-first-comment-text"
+                {...register('firstCommentText')}
+              />
+              <span className="block text-xs text-muted-foreground">{t('firstComment.textHint')}</span>
+              {settingError('firstCommentText') ? (
+                <span role="alert" className="block text-xs text-destructive">
+                  {settingError('firstCommentText')}
+                </span>
+              ) : null}
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span>{t('firstComment.attachments')}</span>
+              <textarea
+                className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                data-testid="grabber-first-comment-attachments"
+                placeholder={t('firstComment.attachmentsPlaceholder')}
+                {...register('firstCommentAttachments')}
+              />
+              <span className="block text-xs text-muted-foreground">{t('firstComment.attachmentsHint')}</span>
+              {settingError('firstCommentAttachments') ? (
+                <span role="alert" className="block text-xs text-destructive">
+                  {settingError('firstCommentAttachments')}
+                </span>
+              ) : null}
+            </label>
             <MacroHints macros={TEXT_MACROS} label={t('macros.label')} />
+          </div>
+        ) : null}
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('sections.vkPublish')}
+        description={t('sections.vkPublishHint')}
+        data-testid="grabber-section-vk-publish"
+      >
+        <CheckboxRow label={t('publish.closeComments')} {...register('closeComments')} />
+        <CheckboxRow
+          label={t('publish.appendAuthorSignature')}
+          {...register('appendAuthorSignature')}
+        />
+        <p className="text-xs text-muted-foreground">{t('publish.authorSignatureHint')}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-sm">
+            <span>{t('publish.actionButtonTitle')}</span>
+            <input
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              maxLength={40}
+              data-testid="grabber-action-button-title"
+              {...register('actionButtonTitle')}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t('publish.actionButtonUrl')}</span>
+            <input
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              data-testid="grabber-action-button-url"
+              placeholder="https://"
+              {...register('actionButtonUrl')}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground">{t('publish.actionButtonHint')}</p>
+        <CheckboxRow label={t('publish.deleteAfter')} {...register('deleteAfterEnabled')} />
+        {deleteAfterEnabled ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              <span>{t('publish.deleteAfterAmount')}</span>
+              <input
+                type="number"
+                min={1}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                data-testid="grabber-delete-after-amount"
+                {...register('deleteAfterAmount', { valueAsNumber: true })}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span>{t('publish.deleteAfterUnit')}</span>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                data-testid="grabber-delete-after-unit"
+                {...register('deleteAfterUnit')}
+              >
+                <option value="minutes">{t('publish.unitMinutes')}</option>
+                <option value="hours">{t('publish.unitHours')}</option>
+                <option value="days">{t('publish.unitDays')}</option>
+              </select>
+            </label>
+          </div>
+        ) : null}
+        <CheckboxRow label={t('publish.aiRewrite')} {...register('aiRewriteEnabled')} />
+        {aiRewriteEnabled ? (
+          <label className="block space-y-1 text-sm">
+            <span>{t('publish.aiModel')}</span>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              data-testid="grabber-ai-model"
+              {...register('aiModel')}
+            >
+              <option value="stub">{t('publish.aiModelStub')}</option>
+            </select>
+            <span className="block text-xs text-muted-foreground">{t('publish.aiHint')}</span>
           </label>
         ) : null}
       </SettingsSection>
@@ -360,6 +469,7 @@ export function RuleSettingsSections({
       >
         <label className="block space-y-1 text-sm">
           <span>{t('attached.prepend')}</span>
+          <span className="block text-xs text-muted-foreground">{t('attached.prependHint')}</span>
           <textarea
             className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             data-testid="grabber-prepend-text"
@@ -368,6 +478,7 @@ export function RuleSettingsSections({
         </label>
         <label className="block space-y-1 text-sm">
           <span>{t('attached.append')}</span>
+          <span className="block text-xs text-muted-foreground">{t('attached.appendHint')}</span>
           <textarea
             className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             data-testid="grabber-append-text"

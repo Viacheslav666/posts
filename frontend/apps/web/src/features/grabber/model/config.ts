@@ -31,6 +31,21 @@ function asStringList(value: unknown): string[] {
   return value.map((item) => String(item)).filter(Boolean);
 }
 
+function attachmentField(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean).join(', ');
+  return '';
+}
+
+function actionButtonField(value: unknown, key: 'title' | 'url'): string {
+  const button = asRecord(value);
+  return typeof button[key] === 'string' ? button[key] : '';
+}
+
+function deleteAfterUnit(value: unknown): GrabberRuleFormValues['deleteAfterUnit'] {
+  return value === 'minutes' || value === 'days' || value === 'hours' ? value : 'hours';
+}
+
 function asDayList(value: unknown): number[] {
   if (!Array.isArray(value) || value.length === 0) return [1, 2, 3, 4, 5, 6, 7];
   return value
@@ -102,6 +117,20 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
     strip_phones: values.stripPhones,
     word_replacements: wordReplacementsFromText(values.wordReplacementsText),
     remove_keywords: keywordsFromText(values.removeKeywordsText),
+    append_author_signature: values.appendAuthorSignature,
+    close_comments: values.closeComments,
+    delete_after_enabled: values.deleteAfterEnabled,
+    delete_after_amount: values.deleteAfterAmount,
+    delete_after_unit: values.deleteAfterUnit,
+    action_button:
+      values.actionButtonTitle.trim() || values.actionButtonUrl.trim()
+        ? {
+            type: 'open_url',
+            title: values.actionButtonTitle.trim(),
+            url: values.actionButtonUrl.trim(),
+          }
+        : {},
+    ai_model: values.aiModel.trim() || 'stub',
     attach_when_no_attachments: values.attachWhenNoAttachments,
     attachments_mode: values.attachmentsMode,
     link_to_source: values.linkToSource,
@@ -147,11 +176,11 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
     firstComment: {
       enabled: values.firstCommentEnabled,
       text: values.firstCommentText,
-      attachments: [],
-      pending_be23: true,
+      attachments: values.firstCommentAttachments,
+      pending_be23: false,
     } as unknown as GrabberConfig['firstComment'],
     macros: {} as unknown as GrabberConfig['macros'],
-    aiRewriteEnabled: false,
+    aiRewriteEnabled: values.aiRewriteEnabled,
   };
 
   if (values.type === 'grabber') {
@@ -266,6 +295,16 @@ export function formValuesFromRule(rule: GrabberRule): GrabberRuleFormValues {
 
     firstCommentEnabled: asBool(firstComment.enabled, false),
     firstCommentText: typeof firstComment.text === 'string' ? firstComment.text : '',
+    firstCommentAttachments: attachmentField(firstComment.attachments),
+    closeComments: asBool(transform.close_comments, false),
+    actionButtonTitle: actionButtonField(transform.action_button, 'title'),
+    actionButtonUrl: actionButtonField(transform.action_button, 'url'),
+    deleteAfterEnabled: asBool(transform.delete_after_enabled, false),
+    deleteAfterAmount: asNumber(transform.delete_after_amount, 24),
+    deleteAfterUnit: deleteAfterUnit(transform.delete_after_unit),
+    appendAuthorSignature: asBool(transform.append_author_signature, true),
+    aiRewriteEnabled: asBool(config.aiRewriteEnabled, false),
+    aiModel: typeof transform.ai_model === 'string' && transform.ai_model ? transform.ai_model : 'stub',
 
     prependText: typeof transform.prepend_text === 'string' ? transform.prepend_text : '',
     appendText: typeof transform.append_text === 'string' ? transform.append_text : '',
@@ -372,6 +411,16 @@ export function defaultFormValues(channelId?: string): GrabberRuleFormValues {
 
     firstCommentEnabled: false,
     firstCommentText: '',
+    firstCommentAttachments: '',
+    closeComments: false,
+    actionButtonTitle: '',
+    actionButtonUrl: '',
+    deleteAfterEnabled: false,
+    deleteAfterAmount: 24,
+    deleteAfterUnit: 'hours',
+    appendAuthorSignature: true,
+    aiRewriteEnabled: false,
+    aiModel: 'stub',
 
     prependText: '',
     appendText: '',

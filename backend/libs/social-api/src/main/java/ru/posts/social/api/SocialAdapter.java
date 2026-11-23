@@ -58,6 +58,10 @@ public interface SocialAdapter {
         // no-op by default
     }
 
+    default void comment(ChannelContext ctx, String remotePostId, String text, java.util.List<String> attachments) {
+        comment(ctx, remotePostId, text);
+    }
+
     default Optional<TokenSet> refreshToken(TokenRefreshRequest request) {
         return Optional.empty();
     }

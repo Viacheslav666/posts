@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -50,6 +52,7 @@ import ru.posts.social.vk.emulator.VkEmulatorReconciliation;
  */
 public class VkSocialAdapter implements SocialAdapter {
 
+    private static final Logger log = LoggerFactory.getLogger(VkSocialAdapter.class);
     private static final long PHOTO_MAX_BYTES = 50L * 1024 * 1024;
     private static final int MAX_ATTACHMENTS = 10;
 
@@ -110,9 +113,9 @@ public class VkSocialAdapter implements SocialAdapter {
         features.put("poll", true);
         features.put("carousel", true);
         features.put("grid", true);
-        // VK wall.post has no co-owners / action-button params (vposter uses separate UX).
+        // VK wall.post has no co-owners param. Action button is sent as action_button JSON.
         features.put("coOwners", false);
-        features.put("actionButton", false);
+        features.put("actionButton", true);
         features.put("clips", true);
         features.putAll(VkSocialModerationAdapter.allModerationFeatures(true));
         return new NetworkCapabilities(Network.VK, true, true, true, Map.copyOf(features));
@@ -145,6 +148,7 @@ public class VkSocialAdapter implements SocialAdapter {
         if (!attachments.isEmpty()) {
             form.add("attachments", String.join(",", attachments));
         }
+        applyActionButton(form, options);
         applyWallPostOptions(form, options);
         form.add("access_token", token(ctx));
         form.add("v", apiVersion);
@@ -156,7 +160,15 @@ public class VkSocialAdapter implements SocialAdapter {
                     .body(form)
                     .retrieve()
                     .body(JsonNode.class);
-            return parseWallPost(body, ctx.externalId());
+            PublishResult result = parseWallPost(body, ctx.externalId());
+            if (truthy(options.get("closeComments"))) {
+                try {
+                    closeComments(ctx, result.remotePostId());
+                } catch (RuntimeException ex) {
+                    log.warn("VK wall.closeComments failed for {}: {}", result.remotePostId(), ex.toString());
+                }
+            }
+            return result;
         } catch (RestClientResponseException ex) {
             throw mapHttpError(ex);
         } catch (ResourceAccessException ex) {
@@ -535,11 +547,19 @@ public class VkSocialAdapter implements SocialAdapter {
 
     @Override
     public void comment(ChannelContext ctx, String remotePostId, String text) {
+        comment(ctx, remotePostId, text, List.of());
+    }
+
+    @Override
+    public void comment(ChannelContext ctx, String remotePostId, String text, List<String> attachments) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());
         form.add("post_id", remotePostId);
         form.add("from_group", stripMinus(ctx.externalId()));
         form.add("message", text == null ? "" : text);
+        if (attachments != null && !attachments.isEmpty()) {
+            form.add("attachments", String.join(",", attachments));
+        }
         form.add("access_token", token(ctx));
         form.add("v", apiVersion);
         try {
@@ -1078,11 +1098,41 @@ public class VkSocialAdapter implements SocialAdapter {
                     ErrorClass.PERMANENT,
                     "VK wall.post does not support co-owners (capability coOwners=false); remove coOwnerIds");
         }
+    }
+
+    private void applyActionButton(MultiValueMap<String, String> form, Map<String, Object> options) {
         Object actionButton = options.get("actionButton");
-        if (actionButton instanceof Map<?, ?> map && !map.isEmpty()) {
+        if (!(actionButton instanceof Map<?, ?> map) || map.isEmpty()) {
+            return;
+        }
+        try {
+            form.add("action_button", objectMapper.writeValueAsString(map));
+        } catch (Exception ex) {
             throw new SocialApiException(
-                    ErrorClass.PERMANENT,
-                    "VK wall.post does not support action buttons (capability actionButton=false)");
+                    ErrorClass.PERMANENT, "VK action_button is not valid JSON: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    private void closeComments(ChannelContext ctx, String remotePostId) {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("owner_id", ctx.externalId());
+        form.add("post_id", remotePostId);
+        form.add("access_token", token(ctx));
+        form.add("v", apiVersion);
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/method/wall.closeComments")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            assertNoVkError(body);
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "VK wall.closeComments failed: " + ex.getMessage(), null, null, ex);
         }
     }
 

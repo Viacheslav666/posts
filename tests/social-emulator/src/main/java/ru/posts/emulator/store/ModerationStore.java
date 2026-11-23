@@ -19,6 +19,7 @@ public class ModerationStore {
 
     private final ConcurrentMap<String, SuggestedPost> suggests = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, EmulatedComment> comments = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Map<String, Object>> commentMeta = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, BannedUser> bans = new ConcurrentHashMap<>();
     private final AtomicLong commentSeq = new AtomicLong();
     private final AtomicLong suggestSeq = new AtomicLong(10_000);
@@ -26,9 +27,32 @@ public class ModerationStore {
     public void reset() {
         suggests.clear();
         comments.clear();
+        commentMeta.clear();
         bans.clear();
         commentSeq.set(0);
         suggestSeq.set(10_000);
+    }
+
+    public void putCommentMeta(String commentId, Map<String, Object> meta) {
+        if (commentId == null) {
+            return;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        if (meta != null) {
+            meta.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    copy.put(key, value);
+                }
+            });
+        }
+        commentMeta.put(commentId, Map.copyOf(copy));
+    }
+
+    public Map<String, Object> commentMeta(String commentId) {
+        if (commentId == null) {
+            return Map.of();
+        }
+        return commentMeta.getOrDefault(commentId, Map.of());
     }
 
     public void clearSuggests() {

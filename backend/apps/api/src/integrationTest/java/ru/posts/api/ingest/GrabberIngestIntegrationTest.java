@@ -41,11 +41,16 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.PlanEntity;
+import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.jdbc.WalletLedgerJdbc;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
+import ru.posts.persistence.repository.LedgerEntryRepository;
+import ru.posts.persistence.repository.NotificationRepository;
 import ru.posts.persistence.repository.PlanRepository;
+import ru.posts.persistence.repository.PostVariantRepository;
 import ru.posts.persistence.repository.PublicationRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 
@@ -74,6 +79,8 @@ class GrabberIngestIntegrationTest {
         registry.add("posts.grabber.vk.base-url", wireMock::baseUrl);
         registry.add("posts.grabber.inline-runs", () -> "true");
         registry.add("posts.grabber.vk.access-token", () -> "test-token");
+        registry.add("posts.grabber.ai.enabled", () -> "true");
+        registry.add("posts.grabber.ai.cost-kopecks", () -> "100");
         // WireMock binds to localhost; production SSRF still blocks 10.x / metadata.
         registry.add("posts.grabber.ssrf.allowed-hosts", () -> "localhost,127.0.0.1");
     }
@@ -101,6 +108,18 @@ class GrabberIngestIntegrationTest {
 
     @Autowired
     WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    PostVariantRepository postVariantRepository;
+
+    @Autowired
+    WalletLedgerJdbc walletLedger;
+
+    @Autowired
+    LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    NotificationRepository notificationRepository;
 
     @BeforeEach
     void setUp() {
@@ -519,6 +538,183 @@ class GrabberIngestIntegrationTest {
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId).header("Authorization", bearer(b.token)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("first comment, action button, delete timer, author and AI debit")
+    void publishOptionsAndNeuralCharge() throws Exception {
+        Fixture fx = bootstrap();
+        walletLedger.credit(fx.workspaceId, 10_000, "payment", false, "topup-" + fx.workspaceId, null, "test");
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":10,"owner_id":-123,"from_id":55,"signer_id":55,"text":"Grabbed post A #юмор","marked_as_ads":0,"attachments":[]}
+                ],"profiles":[{"id":55,"first_name":"Иван","last_name":"Петров"}]}}
+                """);
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Options",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("-123"),
+                                "scanIntervalMinutes",
+                                15,
+                                "aiRewriteEnabled",
+                                true,
+                                "transform",
+                                Map.of(
+                                        "close_comments",
+                                        true,
+                                        "append_author_signature",
+                                        true,
+                                        "delete_after_enabled",
+                                        true,
+                                        "delete_after_amount",
+                                        2,
+                                        "delete_after_unit",
+                                        "hours",
+                                        "ai_model",
+                                        "stub",
+                                        "action_button",
+                                        Map.of("type", "open_url", "title", "Открыть", "url", "https://example.com/a")),
+                                "firstComment",
+                                Map.of(
+                                        "enabled",
+                                        true,
+                                        "text",
+                                        "Коммент [keyText]#юмор,смешно[/keyText]",
+                                        "attachments",
+                                        "photo-123_456"))));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "run-opt-" + UUID.randomUUID()))
+                .andExpect(status().isAccepted());
+        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID itemId = UUID.fromString(items.get("items").get(0).get("id").asText());
+        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + "/approve")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "approve-opt-" + itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID postId = UUID.fromString(approved.get("postId").asText());
+        PostVariantEntity variant = postVariantRepository.findByPostId(postId).getFirst();
+        assertThat(variant.getOptions()).containsEntry("closeComments", true);
+        assertThat(variant.getOptions().get("firstComment").toString()).contains("смешно");
+        assertThat(variant.getOptions()).containsKey("deleteAfter");
+        assertThat(variant.getOptions()).containsKey("actionButton");
+        assertThat(variant.getContent().get("text").toString())
+                .contains("[ai:stub]")
+                .contains("Иван Петров");
+
+        assertThat(ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(fx.workspaceId))
+                .anyMatch(entry -> "neural".equals(entry.getKind())
+                        && entry.getDescription() != null
+                        && entry.getDescription().startsWith("Нейросеть"));
+    }
+
+    @Test
+    @DisplayName("postponed mode skips first comment and notifies once")
+    void postponedModeSkipsFirstComment() throws Exception {
+        Fixture fx = bootstrap();
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Later",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("-123"),
+                                "scanIntervalMinutes",
+                                15,
+                                "schedule",
+                                Map.of("posting_mode", "postponed"),
+                                "firstComment",
+                                Map.of("enabled", true, "text", "не должен уйти"))));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "run-late-" + UUID.randomUUID()))
+                .andExpect(status().isAccepted());
+        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID itemId = UUID.fromString(items.get("items").get(0).get("id").asText());
+        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + "/approve")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "approve-late-" + itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID postId = UUID.fromString(approved.get("postId").asText());
+        PostVariantEntity variant = postVariantRepository.findByPostId(postId).getFirst();
+        assertThat(variant.getOptions()).doesNotContainKey("firstComment");
+        assertThat(notificationRepository.findAll())
+                .anyMatch(note ->
+                        "grabber.setting_error".equals(note.getType()) && fx.workspaceId.equals(note.getWorkspaceId()));
+    }
+
+    @Test
+    @DisplayName("invalid action button is rejected on save")
+    void invalidActionButtonRejected() throws Exception {
+        Fixture fx = bootstrap();
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad button",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        15,
+                                        "transform",
+                                        Map.of(
+                                                "action_button",
+                                                Map.of("type", "open_url", "title", "x", "url", "not-a-url")))))))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     private void stubVkWall(String body) {

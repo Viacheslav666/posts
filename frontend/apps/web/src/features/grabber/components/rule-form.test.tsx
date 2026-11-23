@@ -92,7 +92,7 @@ describe('RuleForm (FE-14)', () => {
     expect(screen.getByTestId('grabber-auto-warning')).toBeInTheDocument();
   });
 
-  it('renders FE-17 settings groups including pending first-comment notice', async () => {
+  it('renders FE-17 settings groups including VK publish options and copyright warning', async () => {
     renderWithProviders(
       <RuleForm
         workspaceId={PERSONAL_WORKSPACE_ID}
@@ -108,8 +108,9 @@ describe('RuleForm (FE-14)', () => {
     expect(screen.getByTestId('grabber-section-limits')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-section-first-comment')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-section-attached')).toBeInTheDocument();
-    expect(screen.getByTestId('pending-feature-notice')).toHaveTextContent(
-      /появится позже/i,
-    );
+    expect(screen.getByTestId('grabber-section-vk-publish')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-only-these')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-copyright-warning')).toHaveTextContent(/авторск/i);
+    expect(screen.queryByTestId('pending-feature-notice')).not.toBeInTheDocument();
   });
 });

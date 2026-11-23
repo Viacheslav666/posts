@@ -8,11 +8,39 @@ public class GrabberProperties {
     /** Feature flag for type=website (BE-17b). When false, API returns 404. */
     private boolean websiteEnabled = true;
 
+    /** Rewrite provider. Disabled until {@code posts.grabber.ai.enabled=true}. No API keys live here. */
+    private final Ai ai = new Ai();
+
     public boolean isWebsiteEnabled() {
         return websiteEnabled;
     }
 
     public void setWebsiteEnabled(boolean websiteEnabled) {
         this.websiteEnabled = websiteEnabled;
+    }
+
+    public Ai getAi() {
+        return ai;
+    }
+
+    public static class Ai {
+        private boolean enabled = false;
+        private long costKopecks = 100L;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public long getCostKopecks() {
+            return costKopecks;
+        }
+
+        public void setCostKopecks(long costKopecks) {
+            this.costKopecks = costKopecks;
+        }
     }
 }

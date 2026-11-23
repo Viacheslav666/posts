@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import ru.posts.grabber.filter.GrabberFilters;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.hash.SimHasher;
 import ru.posts.grabber.publish.GrabberPostFactory;
+import ru.posts.grabber.publish.GrabberSettingNotifier;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
@@ -60,6 +62,7 @@ public class GrabberRunProcessor {
     private final GrabberPostFactory postFactory;
     private final MeterRegistry meterRegistry;
     private final OutboxRepository outboxRepository;
+    private final GrabberSettingNotifier settingNotifier;
 
     public GrabberRunProcessor(
             AutomationRuleRepository ruleRepository,
@@ -72,7 +75,8 @@ public class GrabberRunProcessor {
             GrabberTokenProvider tokenProvider,
             GrabberPostFactory postFactory,
             MeterRegistry meterRegistry,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberSettingNotifier settingNotifier) {
         this.ruleRepository = ruleRepository;
         this.runRepository = runRepository;
         this.itemRepository = itemRepository;
@@ -84,6 +88,7 @@ public class GrabberRunProcessor {
         this.postFactory = postFactory;
         this.meterRegistry = meterRegistry;
         this.outboxRepository = outboxRepository;
+        this.settingNotifier = settingNotifier;
     }
 
     @Transactional
@@ -171,13 +176,17 @@ public class GrabberRunProcessor {
                 }
 
                 MacroExpander.Context macroCtx = MacroExpander.Context.of(
-                        candidate.sourceName(), candidate.sourceId(), candidate.remotePostId());
+                        candidate.sourceName(),
+                        candidate.sourceId(),
+                        candidate.remotePostId(),
+                        candidate.contentText());
                 ContentTransformer.TransformResult transformed = ContentTransformer.transform(
                         candidate.contentText(), candidate.attachments(), rule.getConfig(), macroCtx);
+                String previewText = applyAuthorSignature(rule, candidate, transformed.text());
 
                 GrabberItemEntity item =
                         persistItem(rule, run, candidate, contentHash, simhash, initialStatus(publishMode), null, now);
-                item.setContentText(transformed.text());
+                item.setContentText(previewText);
                 item.setAttachmentsJson(transformed.attachments());
                 itemRepository.save(item);
                 recentSim.add(0, item);
@@ -380,7 +389,7 @@ public class GrabberRunProcessor {
                         : candidate.mediaHashes().toArray(String[]::new));
         item.setStatus(status);
         item.setSkipReason(skipReason);
-        item.setRawPayload(truncateRaw(candidate.rawPayload()));
+        item.setRawPayload(truncateRaw(withSourceMarkers(candidate)));
         item.setDetectedAt(now);
         item.setCreatedAt(now);
         item.setUpdatedAt(now);
@@ -395,6 +404,44 @@ public class GrabberRunProcessor {
         }
     }
 
+    private String applyAuthorSignature(AutomationRuleEntity rule, SourceCandidate candidate, String text) {
+        if (!GrabberConfigSupport.appendAuthorSignature(rule.getConfig())) {
+            return text == null ? "" : text;
+        }
+        String name = signerName(candidate);
+        if (candidate.signed() && name.isBlank()) {
+            settingNotifier.notify(
+                    rule.getCreatedBy(),
+                    rule.getWorkspaceId(),
+                    rule.getId(),
+                    "author_signature",
+                    "signer_missing",
+                    "У поста есть подпись автора, но имя не пришло из VK. Подпись не добавлена.");
+            return text == null ? "" : text;
+        }
+        return ContentTransformer.appendAuthorSignature(text, name);
+    }
+
+    private static String signerName(SourceCandidate candidate) {
+        Map<String, Object> raw = candidate.rawPayload();
+        if (raw == null || raw.get("signer_name") == null) {
+            return "";
+        }
+        return raw.get("signer_name").toString().trim();
+    }
+
+    private static Map<String, Object> withSourceMarkers(SourceCandidate candidate) {
+        Map<String, Object> raw = new LinkedHashMap<>();
+        if (candidate.rawPayload() != null) {
+            raw.putAll(candidate.rawPayload());
+        }
+        if (candidate.contentText() != null) {
+            raw.putIfAbsent("source_text", candidate.contentText());
+        }
+        raw.put("signed", candidate.signed());
+        return raw;
+    }
+
     private Map<String, Object> truncateRaw(Map<String, Object> raw) {
         if (raw == null) {
             return null;
@@ -402,7 +449,15 @@ public class GrabberRunProcessor {
         if (raw.size() <= 32) {
             return raw;
         }
-        return Map.of("truncated", true, "keys", raw.keySet().stream().limit(16).toList());
+        Map<String, Object> kept = new LinkedHashMap<>();
+        for (String key : List.of("source_text", "signer_name", "signed")) {
+            if (raw.containsKey(key)) {
+                kept.put(key, raw.get(key));
+            }
+        }
+        kept.put("truncated", true);
+        kept.put("keys", raw.keySet().stream().limit(16).toList());
+        return kept;
     }
 
     private GrabberRunEntity createRun(AutomationRuleEntity rule, String trigger, String traceId) {

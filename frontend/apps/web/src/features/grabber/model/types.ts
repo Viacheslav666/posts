@@ -71,9 +71,9 @@ export const TEXT_MACROS = [
   '[id_of_the_source]',
   '[post_id_of_the_source]',
   '[rand]вариант1|вариант2[/rand]',
-  '[keyText]',
-  '[keyTextEntry]',
-  '[keyTextEntryNotFound]',
+  '[keyText]#юмор|прикол,приколы[/keyText]',
+  '[keyTextEntry]скидка,акция[/keyTextEntry]',
+  '[keyTextEntryNotFound]реклама,без рекламы[/keyTextEntryNotFound]',
 ] as const;
 
 export function isWebsiteSourceEnabled(): boolean {

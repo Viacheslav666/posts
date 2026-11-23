@@ -759,6 +759,7 @@ public class IngestServiceImpl implements IngestService {
     private void validateConfig(IngestDtos.RuleType type, Map<String, Object> config) {
         try {
             GrabberConfigSupport.scanIntervalMinutes(config);
+            GrabberConfigSupport.validateSettings(config);
         } catch (IllegalArgumentException ex) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }

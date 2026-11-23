@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -115,7 +117,7 @@ public class ActionProcessor {
             case "delete_story" -> socialAdapter.deleteStory(ctx, remotePostId);
             case "pin" -> socialAdapter.pin(ctx, remotePostId, true);
             case "unpin" -> socialAdapter.pin(ctx, remotePostId, false);
-            case "first_comment" -> socialAdapter.comment(ctx, remotePostId, commentText(claim));
+            case "first_comment" -> comment(ctx, remotePostId, claim);
             case "edit" -> log.info("edit action deferred to BE-15+/content edit path for {}", claim.id());
             default -> throw new SocialApiException(ErrorClass.PERMANENT, "unknown action kind: " + kind);
         }
@@ -160,8 +162,23 @@ public class ActionProcessor {
         return claim.remotePostId();
     }
 
-    private String commentText(ScheduledActionClaim claim) {
-        return parse(claim.payloadJson()).path("text").asText("");
+    private void comment(ChannelContext ctx, String remotePostId, ScheduledActionClaim claim) {
+        JsonNode payload = parse(claim.payloadJson());
+        String text = payload.path("text").asText("");
+        List<String> attachments = new ArrayList<>();
+        JsonNode raw = payload.get("attachments");
+        if (raw != null && raw.isArray()) {
+            raw.forEach(item -> {
+                if (item != null && item.isTextual() && !item.asText().isBlank()) {
+                    attachments.add(item.asText());
+                }
+            });
+        }
+        if (attachments.isEmpty()) {
+            socialAdapter.comment(ctx, remotePostId, text);
+        } else {
+            socialAdapter.comment(ctx, remotePostId, text, attachments);
+        }
     }
 
     private JsonNode parse(String json) {

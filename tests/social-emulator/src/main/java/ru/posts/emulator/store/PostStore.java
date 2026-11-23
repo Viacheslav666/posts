@@ -257,6 +257,30 @@ public class PostStore {
         return true;
     }
 
+    public boolean mergeMetadata(Network network, String channelId, String remotePostId, Map<String, Object> extra) {
+        Optional<EmulatedPost> found = findByRemoteId(network, channelId, remotePostId);
+        if (found.isEmpty()) {
+            return false;
+        }
+        EmulatedPost post = found.get();
+        Map<String, Object> meta = new LinkedHashMap<>(post.metadata());
+        if (extra != null) {
+            meta.putAll(extra);
+        }
+        postsById.put(
+                post.id(),
+                new EmulatedPost(
+                        post.id(),
+                        post.network(),
+                        post.channelId(),
+                        post.remotePostId(),
+                        post.idempotencyKey(),
+                        post.text(),
+                        post.createdAt(),
+                        Map.copyOf(meta)));
+        return true;
+    }
+
     public boolean markPinned(Network network, String channelId, String remotePostId, boolean pinned) {
         Optional<EmulatedPost> found = postsById.values().stream()
                 .filter(post -> post.network() == network)

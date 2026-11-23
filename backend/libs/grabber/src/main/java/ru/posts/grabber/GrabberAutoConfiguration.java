@@ -2,9 +2,12 @@ package ru.posts.grabber;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
+import ru.posts.grabber.ai.GrabberRewriteProvider;
+import ru.posts.grabber.ai.StubGrabberRewriteProvider;
 import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.ssrf.HostResolver;
 import ru.posts.grabber.ssrf.SsrfProperties;
@@ -32,5 +35,12 @@ public class GrabberAutoConfiguration {
     @ConditionalOnMissingBean(HostResolver.class)
     HostResolver grabberHostResolver() {
         return HostResolver.SYSTEM;
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "posts.grabber.ai", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean(GrabberRewriteProvider.class)
+    GrabberRewriteProvider grabberRewriteProvider(GrabberProperties properties) {
+        return new StubGrabberRewriteProvider(properties);
     }
 }

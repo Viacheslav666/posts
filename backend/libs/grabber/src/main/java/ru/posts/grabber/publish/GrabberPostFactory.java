@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
@@ -40,18 +41,24 @@ public class GrabberPostFactory {
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
     private final OutboxRepository outboxRepository;
+    private final GrabberAiRewriteService aiRewriteService;
+    private final GrabberSettingNotifier settingNotifier;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberAiRewriteService aiRewriteService,
+            GrabberSettingNotifier settingNotifier) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
         this.outboxRepository = outboxRepository;
+        this.aiRewriteService = aiRewriteService;
+        this.settingNotifier = settingNotifier;
     }
 
     @Transactional
@@ -69,13 +76,21 @@ public class GrabberPostFactory {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
         }
 
+        String sourceText = sourceText(item);
+        String signerName = signerName(item);
         MacroExpander.Context macroCtx =
-                MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId());
-        String baseText = overrideText != null ? overrideText : item.getContentText();
+                MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId(), sourceText);
+        UUID actor = actorId == null ? rule.getCreatedBy() : actorId;
+        String pipelineBase = overrideText != null ? overrideText : item.getContentText();
+        GrabberAiRewriteService.Attempt ai = overrideText != null
+                ? GrabberAiRewriteService.Attempt.unchanged(pipelineBase)
+                : aiRewriteService.prepare(rule, item, sourceText, actor);
+        String baseText = ai.applied() ? ai.text() : pipelineBase;
         ContentTransformer.TransformResult transformed =
                 ContentTransformer.transform(baseText, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
+        String signedText = applyAuthorSignature(rule, item, transformed.text(), signerName, actor);
         String finalText = ContentTransformer.withAttribution(
-                transformed.text(), rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+                signedText, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
 
         // Network text limit (VK ~4096) — fail validation without wall.post
         int maxLen = 4096;
@@ -84,6 +99,19 @@ public class GrabberPostFactory {
             item.setSkipReason("text_too_long");
             item.setUpdatedAt(Instant.now());
             return new PublishResult(null, List.of(), false);
+        }
+        if (ai.applied() && !aiRewriteService.charge(rule, item, ai, actor)) {
+            ContentTransformer.TransformResult plain =
+                    ContentTransformer.transform(pipelineBase, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
+            signedText = applyAuthorSignature(rule, item, plain.text(), signerName, actor);
+            finalText = ContentTransformer.withAttribution(
+                    signedText, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+            if (finalText != null && finalText.length() > maxLen) {
+                item.setStatus("failed_validation");
+                item.setSkipReason("text_too_long");
+                item.setUpdatedAt(Instant.now());
+                return new PublishResult(null, List.of(), false);
+            }
         }
 
         Instant now = Instant.now();
@@ -94,7 +122,7 @@ public class GrabberPostFactory {
         post.setId(UuidV7.generate());
         post.setWorkspaceId(rule.getWorkspaceId());
         post.setProjectId(rule.getProjectId());
-        post.setAuthorId(actorId == null ? rule.getCreatedBy() : actorId);
+        post.setAuthorId(actor);
         post.setTitle(truncate(finalText, 80));
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
@@ -120,23 +148,12 @@ public class GrabberPostFactory {
         post.setUpdatedAt(now);
         postRepository.save(post);
 
-        Map<String, Object> options = new LinkedHashMap<>();
-        Object mode = GrabberConfigSupport.transform(rule.getConfig()).get("attachments_mode");
-        if (mode != null && !mode.toString().isBlank()) {
-            options.put("primaryAttachmentsMode", mode.toString());
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(rule.getConfig(), macroCtx, scheduledAt);
+        for (GrabberPublishOptions.Notice notice : built.notices()) {
+            settingNotifier.notify(
+                    actor, rule.getWorkspaceId(), rule.getId(), notice.setting(), notice.code(), notice.message());
         }
-        // BE-23 stub: do NOT set "firstComment" (that would schedule VK comment via adapters).
-        // Keep draft under grabberFirstComment* until BE-23 wires comment adapters.
-        String firstComment = ContentTransformer.firstCommentDraft(rule.getConfig(), macroCtx);
-        if (firstComment != null && !firstComment.isBlank()) {
-            options.put("grabberFirstComment", firstComment);
-            options.put("grabberFirstCommentPendingBe23", true);
-            Map<String, Object> fc = GrabberConfigSupport.firstComment(rule.getConfig());
-            Object atts = fc.get("attachments");
-            if (atts != null) {
-                options.put("grabberFirstCommentAttachments", atts);
-            }
-        }
+        Map<String, Object> options = new LinkedHashMap<>(built.options());
 
         PostVariantEntity variant = new PostVariantEntity();
         variant.setId(UuidV7.generate());
@@ -180,6 +197,54 @@ public class GrabberPostFactory {
         item.setStatus("scheduled");
         item.setUpdatedAt(now);
         return new PublishResult(post.getId(), List.of(pub.getId()), false);
+    }
+
+    private String applyAuthorSignature(
+            AutomationRuleEntity rule, GrabberItemEntity item, String text, String signerName, UUID actor) {
+        if (!GrabberConfigSupport.appendAuthorSignature(rule.getConfig())) {
+            return text == null ? "" : text;
+        }
+        if (signed(item) && (signerName == null || signerName.isBlank())) {
+            settingNotifier.notify(
+                    actor,
+                    rule.getWorkspaceId(),
+                    rule.getId(),
+                    "author_signature",
+                    "signer_missing",
+                    "У поста есть подпись автора, но имя не пришло из VK. Подпись не добавлена.");
+            return text == null ? "" : text;
+        }
+        return ContentTransformer.appendAuthorSignature(text, signerName);
+    }
+
+    private static String sourceText(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw != null
+                && raw.get("source_text") != null
+                && !raw.get("source_text").toString().isBlank()) {
+            return raw.get("source_text").toString();
+        }
+        return item.getContentText() == null ? "" : item.getContentText();
+    }
+
+    private static String signerName(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw == null || raw.get("signer_name") == null) {
+            return "";
+        }
+        return raw.get("signer_name").toString().trim();
+    }
+
+    private static boolean signed(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw == null || raw.get("signed") == null) {
+            return false;
+        }
+        Object value = raw.get("signed");
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        return Boolean.parseBoolean(value.toString());
     }
 
     private static void ensurePublicationPartition(Instant runAt) {

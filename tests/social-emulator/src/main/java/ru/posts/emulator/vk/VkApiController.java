@@ -135,6 +135,7 @@ public class VkApiController {
             case "wall.delete" -> moderation(rawResponse, () -> wallDelete(params));
             case "wall.pin", "wall.unpin" -> ResponseEntity.ok(Map.of("response", 1));
             case "wall.createComment" -> moderation(rawResponse, () -> wallCreateComment(params));
+            case "wall.closeComments" -> moderation(rawResponse, () -> wallCloseComments(params));
             case "wall.deleteComment" -> moderation(rawResponse, () -> deleteComment("wall", params));
             case "wall.restoreComment" -> moderation(rawResponse, () -> restoreComment("wall", params));
             case "photos.deleteComment" -> moderation(rawResponse, () -> deleteComment("photo", params));
@@ -376,6 +377,7 @@ public class VkApiController {
             metadata.put("signed", first(params, "signed"));
             metadata.put("mute_notifications", first(params, "mute_notifications"));
             metadata.put("close_comments", first(params, "close_comments"));
+            metadata.put("action_button", first(params, "action_button"));
             metadata.put("copyright", first(params, "copyright"));
             metadata.put("lat", first(params, "lat"));
             metadata.put("long", first(params, "long"));
@@ -443,12 +445,29 @@ public class VkApiController {
         return ResponseEntity.ok(Map.of("response", 1));
     }
 
+    private ResponseEntity<?> wallCloseComments(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id");
+        String postId = first(params, "post_id");
+        boolean updated = postStore.mergeMetadata(
+                Network.VK, ownerId, postId, Map.of("close_comments", "1", "comments_closed", true));
+        if (!updated) {
+            return ResponseEntity.ok(Map.of(
+                    "error", Map.of("error_code", 100, "error_msg", "post not found", "request_params", List.of())));
+        }
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
     private ResponseEntity<?> wallCreateComment(MultiValueMap<String, String> params) {
         String ownerId = first(params, "owner_id");
         String text = first(params, "message", "text");
         String replyTo = first(params, "reply_to_comment");
         ModerationStore.EmulatedComment comment =
                 moderationStore.putComment(Network.VK, ownerId, null, "wall", text, null, false);
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("post_id", first(params, "post_id"));
+        meta.put("from_group", first(params, "from_group"));
+        meta.put("attachments", first(params, "attachments"));
+        moderationStore.putCommentMeta(comment.commentId(), meta);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("comment_id", Long.parseLong(comment.commentId()));
         response.put("parents_stack", List.of());
@@ -642,6 +661,7 @@ public class VkApiController {
         return switch (normalized) {
             case "wall.delete" -> wallDelete(params);
             case "wall.createComment" -> wallCreateComment(params);
+            case "wall.closeComments" -> wallCloseComments(params);
             case "wall.deleteComment" -> deleteComment("wall", params);
             case "wall.restoreComment" -> restoreComment("wall", params);
             case "photos.deleteComment" -> deleteComment("photo", params);

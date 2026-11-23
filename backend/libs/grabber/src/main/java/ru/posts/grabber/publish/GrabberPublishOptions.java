@@ -1,0 +1,191 @@
+package ru.posts.grabber.publish;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.transform.ContentTransformer;
+import ru.posts.grabber.transform.MacroExpander;
+
+/**
+ * Builds VK variant options (first comment, attachments, action button, close comments, delete
+ * timer) and the notices to log when a setting is skipped.
+ */
+public final class GrabberPublishOptions {
+
+    public record Notice(String setting, String code, String message) {}
+
+    public record Built(Map<String, Object> options, List<Notice> notices) {}
+
+    private GrabberPublishOptions() {}
+
+    public static Built build(Map<String, Object> config, MacroExpander.Context ctx, Instant scheduledAt) {
+        Map<String, Object> options = new LinkedHashMap<>();
+        List<Notice> notices = new ArrayList<>();
+        Map<String, Object> transform = GrabberConfigSupport.transform(config);
+        Map<String, Object> firstComment = GrabberConfigSupport.firstComment(config);
+        Instant runAt = scheduledAt == null ? Instant.now() : scheduledAt;
+
+        Object mode = transform.get("attachments_mode");
+        if (mode != null && !mode.toString().isBlank()) {
+            options.put("primaryAttachmentsMode", mode.toString());
+        }
+        if (GrabberConfigSupport.bool(transform.get("close_comments"), false)) {
+            options.put("closeComments", true);
+        }
+
+        boolean commentEnabled = GrabberConfigSupport.bool(firstComment.get("enabled"), false);
+        String commentTemplate = string(firstComment.get("text"));
+        String attachmentTemplate = attachmentTemplate(firstComment.get("attachments"));
+        if (commentEnabled && !commentTemplate.isBlank()) {
+            if (GrabberModeGate.allows(GrabberModeGate.Feature.FIRST_COMMENT, config)) {
+                String text = ContentTransformer.firstCommentDraft(config, ctx);
+                if (text != null && !text.isBlank()) {
+                    options.put("firstComment", text);
+                }
+            } else {
+                notices.add(new Notice(
+                        "first_comment",
+                        "mode_postponed",
+                        "Первый комментарий не публикуется в отложенном режиме ("
+                                + GrabberModeGate.postingMode(config)
+                                + ")."));
+            }
+        }
+        if (commentEnabled && !attachmentTemplate.isBlank()) {
+            if (!GrabberModeGate.allows(GrabberModeGate.Feature.COMMENT_ATTACHMENTS, config)) {
+                String why = GrabberModeGate.postponed(config) ? "отложенном режиме" : "режиме с интервалом";
+                notices.add(new Notice(
+                        "comment_attachments",
+                        GrabberModeGate.postponed(config) ? "mode_postponed" : "mode_interval",
+                        "Вложения комментария не отправляются в " + why + " ("
+                                + GrabberModeGate.postingMode(config)
+                                + ")."));
+            } else if (options.containsKey("firstComment") || commentTemplate.isBlank()) {
+                CommentAttachments.ParseResult parsed = CommentAttachments.parse(attachmentTemplate, config, ctx);
+                if (!parsed.invalid().isEmpty()) {
+                    notices.add(new Notice(
+                            "comment_attachments",
+                            "invalid_attachment",
+                            "Пропущены вложения комментария (нужен photo-ID_ID или video-ID_ID): "
+                                    + String.join(", ", parsed.invalid())));
+                }
+                if (!parsed.valid().isEmpty() && options.containsKey("firstComment")) {
+                    options.put("firstCommentAttachments", parsed.valid());
+                } else if (!parsed.valid().isEmpty() && commentTemplate.isBlank()) {
+                    notices.add(new Notice(
+                            "comment_attachments",
+                            "comment_text_required",
+                            "Вложения комментария не отправлены: нужен текст первого комментария."));
+                }
+            }
+        }
+
+        Map<String, Object> button = actionButton(transform.get("action_button"));
+        if (!button.isEmpty()) {
+            if (!GrabberModeGate.allows(GrabberModeGate.Feature.ACTION_BUTTON, config)) {
+                notices.add(new Notice(
+                        "action_button",
+                        "mode_postponed",
+                        "Кнопка действия не ставится в отложенном режиме ("
+                                + GrabberModeGate.postingMode(config)
+                                + ")."));
+            } else {
+                String error = actionButtonError(button);
+                if (error != null) {
+                    notices.add(new Notice("action_button", "invalid_action_button", error));
+                } else {
+                    options.put("actionButton", button);
+                }
+            }
+        }
+
+        if (GrabberConfigSupport.bool(transform.get("delete_after_enabled"), false)) {
+            if (!GrabberModeGate.allows(GrabberModeGate.Feature.SCHEDULED_DELETE, config)) {
+                notices.add(new Notice(
+                        "delete_after",
+                        "mode_postponed",
+                        "Таймер удаления не работает в отложенном режиме ("
+                                + GrabberModeGate.postingMode(config)
+                                + ")."));
+            } else {
+                Duration delay = GrabberConfigSupport.deleteAfter(config);
+                if (delay == null) {
+                    notices.add(new Notice(
+                            "delete_after",
+                            "invalid_delete_after",
+                            "Таймер удаления пропущен: укажите число и единицу minutes, hours или days."));
+                } else {
+                    options.put("deleteAfter", runAt.plus(delay).toString());
+                }
+            }
+        }
+        return new Built(options, List.copyOf(notices));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> actionButton(Object raw) {
+        if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        map.forEach((k, v) -> {
+            if (k != null && v != null) {
+                copy.put(String.valueOf(k), v);
+            }
+        });
+        return copy;
+    }
+
+    public static String actionButtonError(Map<String, Object> button) {
+        if (button == null || button.isEmpty()) {
+            return null;
+        }
+        String type = string(button.get("type"));
+        if (type.isBlank()) {
+            type = "open_url";
+        }
+        if (!"open_url".equalsIgnoreCase(type)) {
+            return "Кнопка действия поддерживает только тип open_url.";
+        }
+        String title = string(button.get("title"));
+        String url = string(button.get("url"));
+        if (title.isBlank() || title.length() > 40) {
+            return "Текст кнопки действия: от 1 до 40 символов.";
+        }
+        if (!url.matches("(?i)https?://\\S+")) {
+            return "Ссылка кнопки действия должна начинаться с http:// или https://.";
+        }
+        return null;
+    }
+
+    private static String attachmentTemplate(Object raw) {
+        if (raw == null) {
+            return "";
+        }
+        if (raw instanceof String s) {
+            return s.trim();
+        }
+        if (raw instanceof List<?> list) {
+            StringBuilder sb = new StringBuilder();
+            for (Object item : list) {
+                if (item == null || item.toString().isBlank()) {
+                    continue;
+                }
+                if (!sb.isEmpty()) {
+                    sb.append(',');
+                }
+                sb.append(item);
+            }
+            return sb.toString();
+        }
+        return raw.toString().trim();
+    }
+
+    private static String string(Object value) {
+        return value == null ? "" : value.toString().trim();
+    }
+}

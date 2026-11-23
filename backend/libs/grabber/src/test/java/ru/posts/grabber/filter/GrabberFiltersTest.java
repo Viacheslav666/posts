@@ -203,6 +203,16 @@ class GrabberFiltersTest {
         }
 
         @Test
+        void requirePhone() {
+            Map<String, Object> config =
+                    filters(Map.of("exclude_ads", false, "exclude_reposts", false, "require_phone", true));
+            assertThat(GrabberFilters.skipReason(candidate("просто текст", false, false), config))
+                    .isEqualTo("require_phone");
+            assertThat(GrabberFilters.skipReason(candidate("тел +79991234567", false, false), config))
+                    .isNull();
+        }
+
+        @Test
         void requirePhoneOrSignature() {
             Map<String, Object> config =
                     filters(Map.of("exclude_ads", false, "exclude_reposts", false, "require_phone_or_signature", true));
