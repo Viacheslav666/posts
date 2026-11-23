@@ -9,7 +9,7 @@ import {
 } from '@/shared/api-client';
 import { ApiProblemError } from '@/shared/lib/errors';
 
-import { loginRequest, registerRequest, verifyEmailRequest } from './auth-api';
+import { completeOauth, loginRequest, registerRequest, verifyEmailRequest } from './auth-api';
 
 describe('auth-api (MSW + typed client)', () => {
   beforeEach(() => {
@@ -47,6 +47,15 @@ describe('auth-api (MSW + typed client)', () => {
         error.message === 'Invalid email or password'
       );
     });
+  });
+
+  it('completeOauth stores tokens after VK callback with device_id', async () => {
+    await completeOauth('vk', {
+      code: 'msw-code-vk',
+      state: 'msw-state-vk',
+      deviceId: 'msw-device',
+    });
+    expect(getAccessToken()).toBe('msw.access.token');
   });
 
   it('registers and verifies email via contract paths', async () => {

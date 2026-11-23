@@ -642,11 +642,39 @@ export const handlers = [
     if (provider !== 'vk' && provider !== 'yandex' && provider !== 'telegram') {
       return problem(400, 'validation_failed', `Unknown OAuth provider: ${provider}`, 'Validation failed');
     }
+    const state = `msw-state-${provider}`;
+    const callback = new URLSearchParams({ code: `msw-code-${provider}`, state });
+    if (provider === 'vk') {
+      callback.set('device_id', 'msw-device');
+    }
     const payload: OAuthStartResponse = {
-      authorizationUrl: `https://oauth.example/${provider}/authorize?client_id=posts-mock`,
-      state: `msw-state-${provider}`,
+      // Simulates the provider consent page redirecting straight back to the web callback route.
+      authorizationUrl: `/auth/callback/${provider}?${callback.toString()}`,
+      state,
     };
     return HttpResponse.json(payload);
+  }),
+
+  http.post('/api/v1/auth/oauth/:provider/callback', ({ params, request }) => {
+    const provider = String(params.provider);
+    const query = new URL(request.url).searchParams;
+    const code = query.get('code');
+    const state = query.get('state');
+    if (!code || !state) {
+      return problem(400, 'validation_failed', 'code and state are required', 'Validation failed');
+    }
+    if (state !== `msw-state-${provider}`) {
+      return problem(401, 'unauthorized', 'Invalid OAuth state', 'Unauthorized');
+    }
+    if (provider === 'vk' && !query.get('device_id')) {
+      return problem(400, 'validation_failed', 'device_id is required for VK ID', 'Validation failed');
+    }
+    if (code === 'msw-link-required') {
+      return problem(409, 'oauth_link_required', 'Account linking confirmation required', 'Conflict');
+    }
+    return HttpResponse.json(tokenResponse(), {
+      headers: { 'Set-Cookie': refreshCookieHeader() },
+    });
   }),
 
   // --- Networks (FE-4 editor) ---

@@ -88,6 +88,33 @@ export async function startOauth(provider: 'vk' | 'yandex' | 'telegram'): Promis
   );
 }
 
+export type OauthLoginProvider = 'vk' | 'yandex';
+
+export type OauthCallbackParams = {
+  code: string;
+  state: string;
+  /** VK ID returns `device_id` on the redirect and requires it for the code exchange. */
+  deviceId?: string;
+};
+
+export async function completeOauth(
+  provider: OauthLoginProvider,
+  { code, state, deviceId }: OauthCallbackParams,
+): Promise<TokenResponse> {
+  const client = getApiClient();
+  const tokens = unwrapApi(
+    await client.POST('/api/v1/auth/oauth/{provider}/callback', {
+      params: {
+        path: { provider },
+        query: { code, state, ...(deviceId ? { device_id: deviceId } : {}) },
+      },
+    }),
+  );
+  applyTokenResponse(tokens);
+  clearPendingLogin();
+  return tokens;
+}
+
 export async function fetchMe(): Promise<UserProfile> {
   const client = getApiClient();
   return unwrapApi(await client.GET('/api/v1/me'));
