@@ -643,40 +643,27 @@ class GrabberIngestIntegrationTest {
     @DisplayName("prepend and append run once for AI off, AI on, edit-approve and low balance")
     void transformMarkersOnceOnEveryPath() throws Exception {
         Fixture fx = bootstrap();
-        stubVkWall(
-                """
-                {"response":{"count":1,"items":[
-                  {"id":11,"owner_id":-123,"text":"foo body","marked_as_ads":0,"attachments":[]}
-                ]}}
-                """);
-
-        String plain = publishText(fx, false, null);
+        String plain = publishText(fx, false, "foo alpha", 21, null);
         assertThat(occurrences(plain, "PRE>")).isEqualTo(1);
         assertThat(occurrences(plain, "<POST")).isEqualTo(1);
         assertThat(occurrences(plain, "BAR")).isEqualTo(1);
         assertThat(plain).doesNotContain("[ai:stub]");
 
         walletLedger.credit(fx.workspaceId, 10_000, "payment", false, "topup-once-" + fx.workspaceId, null, "test");
-        String rewritten = publishText(fx, true, null);
+        String rewritten = publishText(fx, true, "foo beta", 22, null);
         assertThat(occurrences(rewritten, "PRE>")).isEqualTo(1);
         assertThat(occurrences(rewritten, "<POST")).isEqualTo(1);
         assertThat(occurrences(rewritten, "BAR")).isEqualTo(1);
         assertThat(occurrences(rewritten, "[ai:stub]")).isEqualTo(1);
 
-        String edited = publishText(fx, false, "PRE>\nfoo kept\n<POST");
+        String edited = publishText(fx, false, "foo gamma", 23, "PRE>\nfoo kept\n<POST");
         assertThat(occurrences(edited, "PRE>")).isEqualTo(1);
         assertThat(occurrences(edited, "<POST")).isEqualTo(1);
         assertThat(edited).contains("foo kept");
         assertThat(occurrences(edited, "BAR")).isZero();
 
         Fixture broke = bootstrap();
-        stubVkWall(
-                """
-                {"response":{"count":1,"items":[
-                  {"id":12,"owner_id":-123,"text":"foo body","marked_as_ads":0,"attachments":[]}
-                ]}}
-                """);
-        String fallback = publishText(broke, true, null);
+        String fallback = publishText(broke, true, "foo delta", 24, null);
         assertThat(occurrences(fallback, "PRE>")).isEqualTo(1);
         assertThat(occurrences(fallback, "<POST")).isEqualTo(1);
         assertThat(occurrences(fallback, "BAR")).isEqualTo(1);
@@ -770,7 +757,15 @@ class GrabberIngestIntegrationTest {
                 .andExpect(status().isUnprocessableEntity());
     }
 
-    private String publishText(Fixture fx, boolean ai, String editText) throws Exception {
+    private String publishText(Fixture fx, boolean ai, String sourceText, int wallPostId, String editText)
+            throws Exception {
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":%d,"owner_id":-123,"text":"%s","marked_as_ads":0,"attachments":[]}
+                ]}}
+                """
+                        .formatted(wallPostId, sourceText));
         Map<String, Object> transform = new java.util.LinkedHashMap<>();
         transform.put("prepend_text", "PRE>");
         transform.put("append_text", "<POST");
@@ -810,11 +805,14 @@ class GrabberIngestIntegrationTest {
                         .param("status", "pending_moderation"))
                 .andExpect(status().isOk())
                 .andReturn());
-        JsonNode pending = items.get("items").get(0);
+        assertThat(items.path("items").isArray()).as(items.toString()).isTrue();
+        assertThat(items.path("items").size()).as(items.toString()).isPositive();
+        JsonNode pending = items.path("items").get(0);
+        UUID itemId = UUID.fromString(pending.path("id").asText());
+        GrabberItemEntity stored = itemRepository.findById(itemId).orElseThrow();
         if (editText == null) {
-            assertThat(pending.get("contentText").asText()).isEqualTo("foo body");
+            assertThat(stored.getContentText()).isEqualTo(sourceText);
         }
-        UUID itemId = UUID.fromString(pending.get("id").asText());
         String path = editText == null ? "/approve" : "/edit-and-approve";
         String body = editText == null ? "{}" : objectMapper.writeValueAsString(Map.of("contentText", editText));
         JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + path)
