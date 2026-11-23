@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +27,9 @@ import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.filter.GrabberFilters;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.hash.SimHasher;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.grabber.publish.GrabberPostFactory;
+import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
@@ -60,6 +63,7 @@ public class GrabberRunProcessor {
     private final GrabberPostFactory postFactory;
     private final MeterRegistry meterRegistry;
     private final OutboxRepository outboxRepository;
+    private final GrabberSettingReporter settingReporter;
 
     public GrabberRunProcessor(
             AutomationRuleRepository ruleRepository,
@@ -72,7 +76,8 @@ public class GrabberRunProcessor {
             GrabberTokenProvider tokenProvider,
             GrabberPostFactory postFactory,
             MeterRegistry meterRegistry,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberSettingReporter settingReporter) {
         this.ruleRepository = ruleRepository;
         this.runRepository = runRepository;
         this.itemRepository = itemRepository;
@@ -84,6 +89,7 @@ public class GrabberRunProcessor {
         this.postFactory = postFactory;
         this.meterRegistry = meterRegistry;
         this.outboxRepository = outboxRepository;
+        this.settingReporter = settingReporter;
     }
 
     @Transactional
@@ -126,6 +132,9 @@ public class GrabberRunProcessor {
             int itemsPublished = 0;
             String publishMode = GrabberConfigSupport.publishMode(rule.getConfig());
             List<GrabberItemEntity> recentSim = loadRecentSimhash(rule);
+            Map<String, Integer> settingSkips = new LinkedHashMap<>();
+            Instant anchor = GrabberPublishSchedule.spacedBase(rule.getConfig(), now, lastAcceptedAt(rule));
+            int slot = 0;
 
             for (SourceCandidate candidate : candidates) {
                 String skip = GrabberFilters.skipReason(candidate, rule.getConfig(), now);
@@ -160,12 +169,20 @@ public class GrabberRunProcessor {
                 }
 
                 if (skip != null) {
+                    noteSettingSkip(settingSkips, skip);
                     persistItem(rule, run, candidate, contentHash, simhash, "filtered_out", skip, now);
                     continue;
                 }
 
                 String limitReason = quotaSkipReason(rule, candidate, now);
                 if (limitReason != null) {
+                    noteSettingSkip(settingSkips, limitReason);
+                    log.info(
+                            "Grabber limit ruleId={} setting={} sourceId={} remotePostId={}",
+                            rule.getId(),
+                            limitReason,
+                            candidate.sourceId(),
+                            candidate.remotePostId());
                     persistItem(rule, run, candidate, contentHash, simhash, "filtered_out", limitReason, now);
                     continue;
                 }
@@ -204,7 +221,12 @@ public class GrabberRunProcessor {
                 }
                 try {
                     GrabberPostFactory.PublishResult published =
-                            postFactory.publishItem(rule, item, rule.getCreatedBy(), null, now);
+                            postFactory.publishItem(rule, item, rule.getCreatedBy(), null, anchor, slot);
+                    if (published.postId() != null) {
+                        slot++;
+                    } else if (item.getSkipReason() != null) {
+                        noteSettingSkip(settingSkips, item.getSkipReason());
+                    }
                     itemRepository.save(item);
                     itemsNew++;
                     if (published.postId() != null) {
@@ -223,6 +245,8 @@ public class GrabberRunProcessor {
                     itemsDeduped++;
                 }
             }
+
+            reportSettingSkips(rule, settingSkips);
 
             run.setItemsNew(itemsNew);
             run.setItemsDeduped(itemsDeduped);
@@ -313,17 +337,33 @@ public class GrabberRunProcessor {
                 return "rate_limit_per_source_per_day";
             }
         }
-        int minInterval = GrabberConfigSupport.minIntervalMinutes(rule.getConfig());
-        if (minInterval > 0) {
-            Optional<GrabberItemEntity> last = itemRepository.findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
-                    rule.getId(), List.of("scheduled", "published", "approved", "pending_moderation"));
-            if (last.isPresent()
-                    && last.get().getDetectedAt() != null
-                    && last.get().getDetectedAt().isAfter(now.minus(minInterval, ChronoUnit.MINUTES))) {
-                return "min_interval_minutes";
-            }
-        }
         return null;
+    }
+
+    private Instant lastAcceptedAt(AutomationRuleEntity rule) {
+        return itemRepository
+                .findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
+                        rule.getId(), List.of("scheduled", "published", "approved", "pending_moderation"))
+                .map(GrabberItemEntity::getDetectedAt)
+                .orElse(null);
+    }
+
+    private static void noteSettingSkip(Map<String, Integer> skips, String reason) {
+        if (GrabberSettingReporter.settingForReason(reason) == null) {
+            return;
+        }
+        skips.merge(reason, 1, Integer::sum);
+    }
+
+    private void reportSettingSkips(AutomationRuleEntity rule, Map<String, Integer> skips) {
+        for (Map.Entry<String, Integer> entry : skips.entrySet()) {
+            String setting = GrabberSettingReporter.settingForReason(entry.getKey());
+            settingReporter.report(
+                    rule,
+                    setting,
+                    entry.getKey(),
+                    GrabberSettingReporter.detailForReason(entry.getKey(), entry.getValue()));
+        }
     }
 
     private List<SourceCandidate> fetchCandidates(AutomationRuleEntity rule) {

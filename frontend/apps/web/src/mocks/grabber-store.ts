@@ -210,6 +210,31 @@ function findRule(ruleId: string): GrabberRule | undefined {
   return state.rules.find((rule) => rule.id === ruleId);
 }
 
+function assertTargetMode(
+  config: GrabberConfig | undefined,
+  type: GrabberRule['type'],
+): string | null {
+  const mode = config?.targetMode ?? 'wall_now';
+  const limits = (config?.limits ?? {}) as Record<string, unknown>;
+  const interval = typeof limits.min_interval_minutes === 'number' ? limits.min_interval_minutes : 0;
+  const postponed = mode === 'vk_postponed_post' || mode === 'vk_postponed_repost';
+  if (postponed && interval > 0) {
+    return 'Интервал между постами недоступен в отложенных записях VK. Укажите 0 или выберите публикацию сразу на стену';
+  }
+  if ((mode === 'wall_repost' || mode === 'vk_postponed_repost') && type && type !== 'grabber') {
+    return 'Репост доступен только для граббера VK';
+  }
+  const perDay = limits.rate_limit_per_day;
+  const perSource = limits.rate_limit_per_source_per_day;
+  if (typeof perDay === 'number' && (perDay < 0 || perDay > 500)) {
+    return 'Суточный лимит по всем источникам: 0 — не ограничивать, максимум 500';
+  }
+  if (typeof perSource === 'number' && (perSource < 0 || perSource > 500)) {
+    return 'Суточный лимит на источник: 0 — не ограничивать, максимум 500';
+  }
+  return null;
+}
+
 function assertAttribution(config: GrabberConfig | undefined): string | null {
   const attribution = (config?.attribution ?? {}) as Record<string, unknown>;
   if (attribution.enabled === false) {
@@ -240,6 +265,9 @@ function withPublishModeDefault(config: GrabberConfig | undefined): GrabberConfi
   const next = { ...(config ?? {}) };
   if (!next.publishMode) {
     next.publishMode = 'moderate';
+  }
+  if (!next.targetMode) {
+    next.targetMode = 'wall_now';
   }
   if (next.attribution == null) {
     next.attribution = {
@@ -291,6 +319,10 @@ export function createRule(
     };
   }
   const config = withPublishModeDefault(body.config);
+  const modeError = assertTargetMode(config, body.type);
+  if (modeError) {
+    return { status: 422, code: 'validation_failed', detail: modeError };
+  }
   const ssrf = assertSsrf(config, body.type);
   if (ssrf) {
     return { status: 422, code: ssrf, detail: 'URL источника указывает на закрытую сеть (SSRF)' };
@@ -354,6 +386,10 @@ export function patchRule(ruleId: string, body: GrabberRulePatch): GrabberRule |
     return { status: 409, code: 'optimistic_lock_conflict', detail: 'Rule version conflict' };
   }
   const nextConfig = body.config ? withPublishModeDefault(body.config) : rule.config;
+  const modeError = assertTargetMode(nextConfig, rule.type);
+  if (modeError) {
+    return { status: 422, code: 'validation_failed', detail: modeError };
+  }
   if (rule.type === 'website' && !state.websiteEnabled) {
     return { status: 404, code: 'not_found', detail: 'Website grabber is disabled' };
   }

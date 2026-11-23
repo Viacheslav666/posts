@@ -29,6 +29,7 @@ public class EmailTemplateRenderer {
             case "channel.reauth_required" -> "Требуется повторная авторизация канала";
             case "channel.no_permissions" -> "Недостаточно прав у канала";
             case "grabber.moderation_queued" -> "Материал на модерации";
+            case "grabber.setting_error" -> "Ошибка настройки граббера";
             case "ord.error", "ord.erid_failed", "ord.problem" -> "Ошибка ОРД / erid";
             case "ord.expiry_warning" -> "Скоро окончание срока показа рекламы";
             case "ord.display_ended" -> "Рекламный пост снят с показа";

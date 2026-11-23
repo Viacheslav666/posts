@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.fetch.SourceCandidate;
-import ru.posts.grabber.schedule.WorkingWindow;
 import ru.posts.grabber.text.TextSignals;
 
 /**
@@ -28,10 +27,7 @@ public final class GrabberFilters {
         if (candidate == null) {
             return "empty_candidate";
         }
-        String window = WorkingWindow.skipReasonIfClosed(config, now);
-        if (window != null) {
-            return window;
-        }
+        // Working window delays publication (GrabberPublishSchedule); it does not drop the post.
 
         Map<String, Object> filters = GrabberConfigSupport.filters(config);
         String text = candidate.contentText() == null ? "" : candidate.contentText();
@@ -39,8 +35,8 @@ public final class GrabberFilters {
         List<Map<String, Object>> attachments = candidate.attachments() == null ? List.of() : candidate.attachments();
         Set<String> presentTypes = AttachmentTypes.presentTypes(attachments);
 
-        Integer maxAgeDays = intOrNull(filters.get("max_age_days"));
-        if (maxAgeDays != null && maxAgeDays > 0 && candidate.publishedAt() != null) {
+        int maxAgeDays = GrabberConfigSupport.maxAgeDays(config);
+        if (maxAgeDays > 0 && candidate.publishedAt() != null) {
             Instant cutoff = now.minus(maxAgeDays, ChronoUnit.DAYS);
             if (candidate.publishedAt().isBefore(cutoff)) {
                 return "max_age_days";
@@ -216,20 +212,6 @@ public final class GrabberFilters {
             }
         }
         return defaultValue;
-    }
-
-    private static Integer intOrNull(Object value) {
-        if (value instanceof Number n) {
-            return n.intValue();
-        }
-        if (value != null && !value.toString().isBlank()) {
-            try {
-                return Integer.parseInt(value.toString());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     private static double doubleVal(Object value, double defaultValue) {

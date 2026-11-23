@@ -63,6 +63,54 @@ class VkApiTest {
     }
 
     @Test
+    void wallPostStoresPublishDateWithinSevenDays() throws Exception {
+        long publishDate = System.currentTimeMillis() / 1000L + 3600;
+        mockMvc.perform(post("/method/wall.post")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("message", "later")
+                        .param("guid", "later-1")
+                        .param("publish_date", Long.toString(publishDate))
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.post_id").exists());
+
+        long tooFar = System.currentTimeMillis() / 1000L + 8L * 24 * 3600;
+        mockMvc.perform(post("/method/wall.post")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("message", "too far")
+                        .param("guid", "later-2")
+                        .param("publish_date", Long.toString(tooFar)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error.error_code").value(100));
+    }
+
+    @Test
+    void wallRepostCreatesPostOnTargetGroup() throws Exception {
+        mockMvc.perform(post("/method/wall.repost")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("object", "wall-5_9")
+                        .param("group_id", "100")
+                        .param("message", "via grabber")
+                        .param("guid", "repost-1")
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.success").value(1))
+                .andExpect(jsonPath("$.response.post_id").exists());
+
+        mockMvc.perform(post("/method/wall.repost")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("object", "wall-5_9")
+                        .param("group_id", "100")
+                        .param("guid", "repost-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.post_already_exists").value(1));
+
+        assertThat(postStore.counts().get("vk")).isEqualTo(1L);
+    }
+
+    @Test
     void forcedVkError6() throws Exception {
         ScenarioConfig config = ScenarioConfig.defaults();
         config.forNetwork(Network.VK).setForcedError("6");

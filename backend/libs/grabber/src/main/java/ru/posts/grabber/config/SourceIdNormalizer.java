@@ -60,6 +60,10 @@ public final class SourceIdNormalizer {
         if (value.startsWith("@")) {
             value = value.substring(1);
         }
+        value = stripVkUrl(value);
+        if (value.startsWith("@")) {
+            value = value.substring(1);
+        }
         String lower = value.toLowerCase(Locale.ROOT);
         if (lower.startsWith("club") && NUMERIC.matcher(lower.substring(4)).matches()) {
             return "-" + lower.substring(4);
@@ -71,6 +75,38 @@ public final class SourceIdNormalizer {
             return value;
         }
         throw new IllegalArgumentException("Invalid source id: " + raw);
+    }
+
+    /** Strips {@code https://vk.com/} and {@code vk.ru} so {@code club123} / {@code public123} remain. */
+    static String stripVkUrl(String value) {
+        String v = value;
+        if (v.regionMatches(true, 0, "https://", 0, 8)) {
+            v = v.substring(8);
+        } else if (v.regionMatches(true, 0, "http://", 0, 7)) {
+            v = v.substring(7);
+        }
+        if (v.regionMatches(true, 0, "www.", 0, 4)) {
+            v = v.substring(4);
+        }
+        if (v.regionMatches(true, 0, "vk.com/", 0, 7)) {
+            v = v.substring(7);
+        } else if (v.regionMatches(true, 0, "vk.ru/", 0, 6)) {
+            v = v.substring(6);
+        }
+        int cut = v.length();
+        int q = v.indexOf('?');
+        if (q >= 0) {
+            cut = Math.min(cut, q);
+        }
+        int hash = v.indexOf('#');
+        if (hash >= 0) {
+            cut = Math.min(cut, hash);
+        }
+        v = v.substring(0, cut);
+        if (v.endsWith("/")) {
+            v = v.substring(0, v.length() - 1);
+        }
+        return v;
     }
 
     public static List<String> requireValid(List<String> raw, int max) {

@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
@@ -39,6 +41,8 @@ import ru.posts.grabber.publish.GrabberPostFactory;
 import ru.posts.grabber.ssrf.SsrfBlockedException;
 import ru.posts.grabber.ssrf.SsrfGuard;
 import ru.posts.grabber.ssrf.SsrfProperties;
+import ru.posts.grabber.target.GrabberModeRestrictions;
+import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.messaging.ingest.GrabberRunCommand;
 import ru.posts.messaging.topology.IngestTopology;
@@ -55,6 +59,8 @@ import ru.posts.persistence.repository.GrabberRunRepository;
 @Profile("!openapi")
 @Transactional
 public class IngestServiceImpl implements IngestService {
+
+    private static final Logger log = LoggerFactory.getLogger(IngestServiceImpl.class);
 
     static final String IDEMPOTENCY_SCOPE_RULE = "POST /api/v1/ingest/rules";
     static final String IDEMPOTENCY_SCOPE_RUN = "POST /api/v1/ingest/rules/runs";
@@ -565,8 +571,17 @@ public class IngestServiceImpl implements IngestService {
             item.setEditedText(overrideText);
             item.setContentText(overrideText);
         }
-        GrabberPostFactory.PublishResult published =
-                postFactory.publishItem(rule, item, userId, overrideText, scheduledAt == null ? now : scheduledAt);
+        Instant requested = scheduledAt == null ? now : scheduledAt;
+        Instant lastAccepted = itemRepository
+                .findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
+                        rule.getId(), List.of("scheduled", "published", "approved"))
+                .map(GrabberItemEntity::getDetectedAt)
+                .orElse(null);
+        Instant base = GrabberPublishSchedule.spacedBase(rule.getConfig(), now, lastAccepted);
+        if (requested.isAfter(base)) {
+            base = requested;
+        }
+        GrabberPostFactory.PublishResult published = postFactory.publishItem(rule, item, userId, overrideText, base);
         item.setModeratedBy(userId);
         item.setModeratedAt(now);
         item.setStatus(published.postId() == null ? item.getStatus() : "scheduled");
@@ -711,6 +726,9 @@ public class IngestServiceImpl implements IngestService {
             if (dto.publishMode() != null) {
                 raw.put("publish_mode", dto.publishMode().name());
             }
+            if (dto.targetMode() != null) {
+                raw.put("target_mode", dto.targetMode().wire());
+            }
             if (dto.scheduleMode() != null) {
                 raw.put("schedule_mode", dto.scheduleMode());
             }
@@ -762,12 +780,11 @@ public class IngestServiceImpl implements IngestService {
         } catch (IllegalArgumentException ex) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }
-        int minInterval = GrabberConfigSupport.minIntervalMinutes(config);
-        if (minInterval < 0 || minInterval > 120) {
-            throw new ApiException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    ProblemCodes.VALIDATION_FAILED,
-                    "limits.min_interval_minutes must be 0..120");
+        try {
+            GrabberModeRestrictions.validate(config, type == null ? null : type.name());
+        } catch (IllegalArgumentException ex) {
+            log.warn("Grabber config rejected type={} detail={}", type, ex.getMessage());
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }
         if (type == IngestDtos.RuleType.grabber) {
             try {
@@ -868,6 +885,7 @@ public class IngestServiceImpl implements IngestService {
                 GrabberConfigSupport.websiteSelector(c),
                 GrabberConfigSupport.scanIntervalMinutes(c),
                 mode,
+                IngestDtos.TargetMode.fromWire(GrabberConfigSupport.targetMode(c)),
                 String.valueOf(c.getOrDefault("schedule_mode", "immediate")),
                 c.get("publish_delay_minutes") instanceof Number n ? n.intValue() : 0,
                 (Map<String, Object>) c.get("filters"),
@@ -910,7 +928,8 @@ public class IngestServiceImpl implements IngestService {
                 "reliability",
                 "schedule",
                 "first_comment",
-                "macros")) {
+                "macros",
+                "target_mode")) {
             if (sourceCfg.get(key) != null) {
                 targetCfg.put(key, sourceCfg.get(key));
             }

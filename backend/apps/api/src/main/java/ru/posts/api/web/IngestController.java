@@ -7,6 +7,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +31,7 @@ import ru.posts.api.auth.ClientRequestContexts;
 import ru.posts.api.ingest.IngestService;
 import ru.posts.api.web.dto.common.CursorPage;
 import ru.posts.api.web.dto.ingest.IngestDtos;
+import ru.posts.grabber.target.GrabberModeMatrix;
 import ru.posts.security.auth.SecurityAuthSupport;
 
 @RestController
@@ -43,6 +47,44 @@ public class IngestController {
 
     public IngestController(IngestService ingestService) {
         this.ingestService = ingestService;
+    }
+
+    @GetMapping("/api/v1/ingest/mode-matrix")
+    @Operation(
+            operationId = "ingestModeMatrix",
+            summary = "Матрица возможностей режимов публикации граббера",
+            description = "Единый источник ограничений: в отложенных режимах VK недоступны кнопка, первый комментарий,"
+                    + " вложения комментария, отложенное удаление и интервал. Вложения комментария также"
+                    + " недоступны при интервале между постами больше 0.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Capability matrix",
+            content = @Content(schema = @Schema(implementation = IngestDtos.GrabberModeMatrixResponse.class)))
+    public IngestDtos.GrabberModeMatrixResponse modeMatrix() {
+        Map<String, Object> described = GrabberModeMatrix.describe();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) described.get("modes");
+        List<IngestDtos.GrabberModeRow> modes = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            modes.add(new IngestDtos.GrabberModeRow(
+                    String.valueOf(row.get("id")),
+                    Boolean.TRUE.equals(row.get("postponed")),
+                    Boolean.TRUE.equals(row.get("repost")),
+                    Boolean.TRUE.equals(row.get("actionButton")),
+                    Boolean.TRUE.equals(row.get("firstComment")),
+                    Boolean.TRUE.equals(row.get("commentAttachments")),
+                    Boolean.TRUE.equals(row.get("scheduledDelete")),
+                    Boolean.TRUE.equals(row.get("interval"))));
+        }
+        @SuppressWarnings("unchecked")
+        List<String> intervalDisables = (List<String>) described.get("intervalDisables");
+        return new IngestDtos.GrabberModeMatrixResponse(
+                modes,
+                intervalDisables,
+                (Integer) described.get("postponedHorizonDays"),
+                (Integer) described.get("maxIntervalMinutes"),
+                (Integer) described.get("maxSources"),
+                (Integer) described.get("defaultMaxAgeDays"));
     }
 
     @GetMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/ingest/rules")

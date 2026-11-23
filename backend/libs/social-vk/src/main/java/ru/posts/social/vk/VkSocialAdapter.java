@@ -121,6 +121,9 @@ public class VkSocialAdapter implements SocialAdapter {
     @Override
     public PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
         Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
+        if (options.get("repost") instanceof Map<?, ?> repost && !repost.isEmpty()) {
+            return publishRepost(ctx, content, idempotencyKey, options, repost);
+        }
         rejectUnsupportedOptions(options);
 
         List<String> attachments =
@@ -1068,7 +1071,83 @@ public class VkSocialAdapter implements SocialAdapter {
                 form.add("primary_attachments_mode", normalized);
             }
         }
-        // publish_date intentionally omitted — our scheduler owns timing (02-backend.md §5.6).
+        // Ordinary scheduled posts stay on the Posts scheduler. Grabber postponed modes opt in
+        // explicitly via options.vkPublishDate (VK native publish_date, at most 7 days ahead).
+        addPublishDate(form, options);
+    }
+
+    private PublishResult publishRepost(
+            ChannelContext ctx,
+            PostVariantContent content,
+            String idempotencyKey,
+            Map<String, Object> options,
+            Map<?, ?> repost) {
+        Object object = repost.get("object");
+        if (object == null
+                || String.valueOf(object).isBlank()
+                || !String.valueOf(object).startsWith("wall")) {
+            throw new SocialApiException(ErrorClass.PERMANENT, "VK wall.repost requires object=wall{ownerId}_{postId}");
+        }
+        Object message = repost.get("message");
+        if (message == null && content != null) {
+            message = content.text();
+        }
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("object", String.valueOf(object));
+        form.add("group_id", stripMinus(ctx.externalId()));
+        if (message != null && !String.valueOf(message).isBlank()) {
+            form.add("message", String.valueOf(message));
+        }
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            form.add("guid", idempotencyKey);
+        }
+        addPublishDate(form, options);
+        form.add("access_token", token(ctx));
+        form.add("v", apiVersion);
+        try {
+            JsonNode body = restClient
+                    .post()
+                    .uri("/method/wall.repost")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            return parseWallPost(body, "-" + stripMinus(ctx.externalId()));
+        } catch (RestClientResponseException ex) {
+            throw mapHttpError(ex);
+        } catch (ResourceAccessException ex) {
+            throw new SocialApiException(
+                    ErrorClass.UNKNOWN_OUTCOME, "VK call interrupted: " + ex.getMessage(), null, null, ex);
+        } catch (RestClientException ex) {
+            throw new SocialApiException(
+                    ErrorClass.RETRYABLE, "VK transport error: " + ex.getMessage(), null, null, ex);
+        }
+    }
+
+    private static void addPublishDate(MultiValueMap<String, String> form, Map<String, Object> options) {
+        Object raw = options.get("vkPublishDate");
+        if (raw == null) {
+            return;
+        }
+        long epoch;
+        if (raw instanceof Number n) {
+            epoch = n.longValue();
+        } else {
+            try {
+                epoch = Long.parseLong(String.valueOf(raw).trim());
+            } catch (NumberFormatException ex) {
+                throw new SocialApiException(ErrorClass.PERMANENT, "vkPublishDate must be a unix timestamp");
+            }
+        }
+        long now = Instant.now().getEpochSecond();
+        long max = now + 7L * 24 * 3600;
+        if (epoch <= now) {
+            throw new SocialApiException(ErrorClass.PERMANENT, "VK publish_date must be in the future");
+        }
+        if (epoch > max) {
+            throw new SocialApiException(ErrorClass.PERMANENT, "VK publish_date must be within 7 days");
+        }
+        form.add("publish_date", String.valueOf(epoch));
     }
 
     private void rejectUnsupportedOptions(Map<String, Object> options) {

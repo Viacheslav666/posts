@@ -125,6 +125,7 @@ public final class PreferenceResolver {
         map.put("channel.reauth_required", all);
         map.put("channel.no_permissions", all);
         map.put("grabber.moderation_queued", grabber);
+        map.put("grabber.setting_error", grabber);
         map.put("ord.error", all);
         map.put("ord.erid_failed", all);
         map.put("ord.problem", all);

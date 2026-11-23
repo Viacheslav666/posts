@@ -38,6 +38,25 @@ public final class IngestDtos {
         draft
     }
 
+    @Schema(name = "GrabberTargetMode", description = "Куда публиковать скопированный пост VK")
+    public enum TargetMode {
+        wall_now,
+        vk_postponed_post,
+        wall_repost,
+        vk_postponed_repost;
+
+        public String wire() {
+            return name();
+        }
+
+        public static TargetMode fromWire(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return wall_now;
+            }
+            return TargetMode.valueOf(raw.trim().toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
     @Schema(name = "GrabberItemStatus")
     public enum ItemStatus {
         discovered,
@@ -61,6 +80,10 @@ public final class IngestDtos {
             @Schema(description = "Optional CSS selector for article body (type=website)") String websiteSelector,
             Integer scanIntervalMinutes,
             PublishMode publishMode,
+            @Schema(
+                            description =
+                                    "wall_now | vk_postponed_post (publish_date, ≤7 дней) | wall_repost | vk_postponed_repost")
+                    TargetMode targetMode,
             String scheduleMode,
             Integer publishDelayMinutes,
             Map<String, Object> filters,
@@ -82,6 +105,27 @@ public final class IngestDtos {
             Boolean aiRewriteEnabled,
             Integer rssMaxItemsPerRun,
             @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer configVersion) {}
+
+    @Schema(name = "GrabberModeMatrixResponse")
+    public record GrabberModeMatrixResponse(
+            @Schema(description = "One row per target mode. Interval interaction is in intervalDisables.")
+                    List<GrabberModeRow> modes,
+            @Schema(description = "Features forced off when min_interval_minutes > 0") List<String> intervalDisables,
+            int postponedHorizonDays,
+            int maxIntervalMinutes,
+            int maxSources,
+            int defaultMaxAgeDays) {}
+
+    @Schema(name = "GrabberModeRow")
+    public record GrabberModeRow(
+            String id,
+            boolean postponed,
+            boolean repost,
+            boolean actionButton,
+            boolean firstComment,
+            boolean commentAttachments,
+            boolean scheduledDelete,
+            boolean interval) {}
 
     @Schema(name = "GrabberCloneConfigRequest")
     public record GrabberCloneConfigRequest(@NotNull UUID sourceRuleId) {}

@@ -521,6 +521,106 @@ class GrabberIngestIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("target mode matrix, postponed interval rejected, club/public sources and zero limits")
+    void targetModeMatrixAndValidation() throws Exception {
+        Fixture fx = bootstrap();
+        mockMvc.perform(get("/api/v1/ingest/mode-matrix").header("Authorization", bearer(fx.token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modes.length()").value(4))
+                .andExpect(jsonPath("$.intervalDisables[0]").value("commentAttachments"))
+                .andExpect(jsonPath("$.postponedHorizonDays").value(7))
+                .andExpect(jsonPath("$.defaultMaxAgeDays").value(60))
+                .andExpect(jsonPath("$.maxIntervalMinutes").value(120))
+                .andExpect(jsonPath("$.modes[1].id").value("vk_postponed_post"))
+                .andExpect(jsonPath("$.modes[1].interval").value(false))
+                .andExpect(jsonPath("$.modes[1].firstComment").value(false))
+                .andExpect(jsonPath("$.modes[1].actionButton").value(false))
+                .andExpect(jsonPath("$.modes[1].scheduledDelete").value(false));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad interval",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "vk_postponed_post",
+                                        "limits",
+                                        Map.of("min_interval_minutes", 10))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Интервал")));
+
+        JsonNode created = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Postponed repost",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("club123", "https://vk.com/public77"),
+                                "scanIntervalMinutes",
+                                60,
+                                "targetMode",
+                                "vk_postponed_repost",
+                                "filters",
+                                Map.of("max_age_days", 0),
+                                "limits",
+                                Map.of(
+                                        "rate_limit_per_day",
+                                        0,
+                                        "rate_limit_per_source_per_day",
+                                        0,
+                                        "min_interval_minutes",
+                                        0))));
+        assertThat(created.get("config").get("targetMode").asText()).isEqualTo("vk_postponed_repost");
+        assertThat(created.get("config").get("filters").get("max_age_days").asInt())
+                .isZero();
+        assertThat(created.get("config").get("limits").get("rate_limit_per_day").asInt())
+                .isZero();
+        assertThat(created.get("config").get("sourceIds").toString())
+                .contains("-123")
+                .contains("-77");
+
+        JsonNode defaults = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Defaults",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "config",
+                        Map.of("sourceIds", List.of("-1"), "scanIntervalMinutes", 60)));
+        assertThat(defaults.get("config").get("targetMode").asText()).isEqualTo("wall_now");
+        assertThat(defaults.get("config").get("filters").get("max_age_days").asInt())
+                .isEqualTo(60);
+    }
+
     private void stubVkWall(String body) {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.get"))
                 .willReturn(aResponse()

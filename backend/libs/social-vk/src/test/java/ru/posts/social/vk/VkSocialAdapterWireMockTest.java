@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import ru.posts.social.api.ChannelContext;
 import ru.posts.social.api.ErrorClass;
 import ru.posts.social.api.Network;
 import ru.posts.social.api.PostVariantContent;
+import ru.posts.social.api.PostVariantMeta;
 import ru.posts.social.api.PublishResult;
 import ru.posts.social.api.SocialApiException;
 import ru.posts.social.api.TokenRefreshRequest;
@@ -57,6 +60,46 @@ class VkSocialAdapterWireMockTest {
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
                 .withRequestBody(containing("guid=guid-1"))
                 .withRequestBody(containing("owner_id=-100")));
+    }
+
+    @Test
+    void publishDateIsSentForPostponedGrabberPosts() {
+        long publishDate = Instant.now().plusSeconds(3600).getEpochSecond();
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.post"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"response\":{\"post_id\":7}}")));
+
+        PostVariantContent content = new PostVariantContent(
+                "later", null, null, null, null, Map.of(PostVariantMeta.OPTIONS, Map.of("vkPublishDate", publishDate)));
+        PublishResult result = adapter.publish(ctx, content, "guid-later");
+
+        assertThat(result.remotePostId()).isEqualTo("7");
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
+                .withRequestBody(containing("publish_date=" + publishDate)));
+    }
+
+    @Test
+    void wallRepostUsesObjectAndGroup() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.repost"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"response\":{\"success\":1,\"post_id\":11}}")));
+
+        PostVariantContent content = new PostVariantContent(
+                "comment",
+                null,
+                null,
+                null,
+                null,
+                Map.of(PostVariantMeta.OPTIONS, Map.of("repost", Map.of("object", "wall-5_9", "message", "comment"))));
+        PublishResult result = adapter.publish(ctx, content, "guid-repost");
+
+        assertThat(result.remotePostId()).isEqualTo("11");
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.repost"))
+                .withRequestBody(containing("object=wall-5_9"))
+                .withRequestBody(containing("group_id=100"))
+                .withRequestBody(containing("message=comment")));
     }
 
     @Test
