@@ -81,6 +81,7 @@ class GrabberIngestIntegrationTest {
         registry.add("posts.grabber.vk.access-token", () -> "test-token");
         registry.add("posts.grabber.ai.enabled", () -> "true");
         registry.add("posts.grabber.ai.cost-kopecks", () -> "100");
+        registry.add("posts.grabber.action-button.enabled", () -> "true");
         // WireMock binds to localhost; production SSRF still blocks 10.x / metadata.
         registry.add("posts.grabber.ssrf.allowed-hosts", () -> "localhost,127.0.0.1");
     }
@@ -586,6 +587,8 @@ class GrabberIngestIntegrationTest {
                                         "hours",
                                         "ai_model",
                                         "stub",
+                                        "ai_cost_kopecks",
+                                        1,
                                         "action_button",
                                         Map.of("type", "open_url", "title", "Открыть", "url", "https://example.com/a")),
                                 "firstComment",
@@ -596,6 +599,7 @@ class GrabberIngestIntegrationTest {
                                         "Коммент [keyText]#юмор,смешно[/keyText]",
                                         "attachments",
                                         "photo-123_456"))));
+        assertThat(rule.toString()).doesNotContain("ai_cost_kopecks");
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
                         .with(csrf())
@@ -628,8 +632,57 @@ class GrabberIngestIntegrationTest {
 
         assertThat(ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(fx.workspaceId))
                 .anyMatch(entry -> "neural".equals(entry.getKind())
+                        && entry.getAmountKopecks() == -100L
                         && entry.getDescription() != null
                         && entry.getDescription().startsWith("Нейросеть"));
+        assertThat(occurrences(variant.getContent().get("text").toString(), "[ai:stub]"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("prepend and append run once for AI off, AI on, edit-approve and low balance")
+    void transformMarkersOnceOnEveryPath() throws Exception {
+        Fixture fx = bootstrap();
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":11,"owner_id":-123,"text":"foo body","marked_as_ads":0,"attachments":[]}
+                ]}}
+                """);
+
+        String plain = publishText(fx, false, null);
+        assertThat(occurrences(plain, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(plain, "<POST")).isEqualTo(1);
+        assertThat(occurrences(plain, "BAR")).isEqualTo(1);
+        assertThat(plain).doesNotContain("[ai:stub]");
+
+        walletLedger.credit(fx.workspaceId, 10_000, "payment", false, "topup-once-" + fx.workspaceId, null, "test");
+        String rewritten = publishText(fx, true, null);
+        assertThat(occurrences(rewritten, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "<POST")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "BAR")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "[ai:stub]")).isEqualTo(1);
+
+        String edited = publishText(fx, false, "PRE>\nfoo kept\n<POST");
+        assertThat(occurrences(edited, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(edited, "<POST")).isEqualTo(1);
+        assertThat(edited).contains("foo kept");
+        assertThat(occurrences(edited, "BAR")).isZero();
+
+        Fixture broke = bootstrap();
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":12,"owner_id":-123,"text":"foo body","marked_as_ads":0,"attachments":[]}
+                ]}}
+                """);
+        String fallback = publishText(broke, true, null);
+        assertThat(occurrences(fallback, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(fallback, "<POST")).isEqualTo(1);
+        assertThat(occurrences(fallback, "BAR")).isEqualTo(1);
+        assertThat(fallback).doesNotContain("[ai:stub]");
+        assertThat(ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(broke.workspaceId))
+                .noneMatch(entry -> "neural".equals(entry.getKind()));
     }
 
     @Test
@@ -715,6 +768,84 @@ class GrabberIngestIntegrationTest {
                                                 "action_button",
                                                 Map.of("type", "open_url", "title", "x", "url", "not-a-url")))))))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    private String publishText(Fixture fx, boolean ai, String editText) throws Exception {
+        Map<String, Object> transform = new java.util.LinkedHashMap<>();
+        transform.put("prepend_text", "PRE>");
+        transform.put("append_text", "<POST");
+        transform.put("word_replacements", Map.of("foo", "BAR"));
+        transform.put("ai_model", "stub");
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Once " + ai + " " + (editText != null),
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("-123"),
+                                "scanIntervalMinutes",
+                                15,
+                                "aiRewriteEnabled",
+                                ai,
+                                "transform",
+                                transform)));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "run-once-" + UUID.randomUUID()))
+                .andExpect(status().isAccepted());
+        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andReturn());
+        JsonNode pending = items.get("items").get(0);
+        if (editText == null) {
+            assertThat(pending.get("contentText").asText()).isEqualTo("foo body");
+        }
+        UUID itemId = UUID.fromString(pending.get("id").asText());
+        String path = editText == null ? "/approve" : "/edit-and-approve";
+        String body = editText == null ? "{}" : objectMapper.writeValueAsString(Map.of("contentText", editText));
+        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + path)
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "once-" + itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID postId = UUID.fromString(approved.get("postId").asText());
+        return postVariantRepository
+                .findByPostId(postId)
+                .getFirst()
+                .getContent()
+                .get("text")
+                .toString();
+    }
+
+    private static int occurrences(String text, String needle) {
+        int count = 0;
+        int from = 0;
+        while (from <= text.length() - needle.length()) {
+            int index = text.indexOf(needle, from);
+            if (index < 0) {
+                break;
+            }
+            count++;
+            from = index + needle.length();
+        }
+        return count;
     }
 
     private void stubVkWall(String body) {

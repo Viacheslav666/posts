@@ -104,7 +104,23 @@ class VkSocialAdapterBe23WireMockTest {
         assertThat(adapter.capabilities().features().get("actionButton")).isTrue();
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
                 .withRequestBody(containing("action_button="))
-                .withRequestBody(containing("open_url")));
+                .withRequestBody(containing("open_url"))
+                .withRequestBody(containing("%22action%22")));
+    }
+
+    @Test
+    void commentSendsScheduledActionIdAsGuid() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.createComment"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"response\":{\"comment_id\":9}}")));
+
+        adapter.comment(ctx, "42", "first", List.of("photo-100_7"), "action-guid-1");
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.createComment"))
+                .withRequestBody(containing("guid=action-guid-1"))
+                .withRequestBody(containing("photo-100_7")));
     }
 
     @Test

@@ -103,7 +103,7 @@ export const grabberRuleFormSchema = z
     firstCommentAttachments: z.string().max(2000),
     closeComments: boolField,
     actionButtonTitle: z.string().max(40),
-    actionButtonUrl: z.string().max(500),
+    actionButtonUrl: z.string().max(2048, 'actionButtonUrl'),
     deleteAfterEnabled: boolField,
     deleteAfterAmount: z.number().int().min(1).max(525600),
     deleteAfterUnit: z.enum(['minutes', 'hours', 'days']),
@@ -210,7 +210,7 @@ export const grabberRuleFormSchema = z
       if (!buttonTitle || buttonTitle.length > 40) {
         ctx.addIssue({ code: 'custom', path: ['actionButtonTitle'], message: 'actionButtonTitle' });
       }
-      if (!/^https?:\/\/\S+$/i.test(buttonUrl)) {
+      if (!/^https?:\/\/\S+$/i.test(buttonUrl) || buttonUrl.length > 2048) {
         ctx.addIssue({ code: 'custom', path: ['actionButtonUrl'], message: 'actionButtonUrl' });
       }
     }

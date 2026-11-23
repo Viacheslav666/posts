@@ -467,6 +467,7 @@ public class VkApiController {
         meta.put("post_id", first(params, "post_id"));
         meta.put("from_group", first(params, "from_group"));
         meta.put("attachments", first(params, "attachments"));
+        meta.put("guid", first(params, "guid"));
         moderationStore.putCommentMeta(comment.commentId(), meta);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("comment_id", Long.parseLong(comment.commentId()));

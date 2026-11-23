@@ -76,6 +76,11 @@ export const TEXT_MACROS = [
   '[keyTextEntryNotFound]реклама,без рекламы[/keyTextEntryNotFound]',
 ] as const;
 
+/** True only when the public flag is exactly "true". The server flag defaults to off. */
+export function isGrabberActionButtonEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_GRABBER_ACTION_BUTTON_ENABLED === 'true';
+}
+
 export function isWebsiteSourceEnabled(): boolean {
   if (process.env.NEXT_PUBLIC_GRABBER_WEBSITE_ENABLED === 'true') {
     return true;

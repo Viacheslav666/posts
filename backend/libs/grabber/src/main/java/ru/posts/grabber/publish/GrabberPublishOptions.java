@@ -22,7 +22,14 @@ public final class GrabberPublishOptions {
 
     private GrabberPublishOptions() {}
 
+    public static final int ACTION_BUTTON_URL_MAX = 2048;
+
     public static Built build(Map<String, Object> config, MacroExpander.Context ctx, Instant scheduledAt) {
+        return build(config, ctx, scheduledAt, false);
+    }
+
+    public static Built build(
+            Map<String, Object> config, MacroExpander.Context ctx, Instant scheduledAt, boolean actionButtonEnabled) {
         Map<String, Object> options = new LinkedHashMap<>();
         List<Notice> notices = new ArrayList<>();
         Map<String, Object> transform = GrabberConfigSupport.transform(config);
@@ -40,11 +47,18 @@ public final class GrabberPublishOptions {
         boolean commentEnabled = GrabberConfigSupport.bool(firstComment.get("enabled"), false);
         String commentTemplate = string(firstComment.get("text"));
         String attachmentTemplate = attachmentTemplate(firstComment.get("attachments"));
+        boolean commentExpandedEmpty = false;
         if (commentEnabled && !commentTemplate.isBlank()) {
             if (GrabberModeGate.allows(GrabberModeGate.Feature.FIRST_COMMENT, config)) {
                 String text = ContentTransformer.firstCommentDraft(config, ctx);
                 if (text != null && !text.isBlank()) {
                     options.put("firstComment", text);
+                } else {
+                    commentExpandedEmpty = true;
+                    notices.add(new Notice(
+                            "first_comment",
+                            "empty_after_macros",
+                            "Первый комментарий после макросов пустой и не отправлен."));
                 }
             } else {
                 notices.add(new Notice(
@@ -81,12 +95,30 @@ public final class GrabberPublishOptions {
                             "comment_text_required",
                             "Вложения комментария не отправлены: нужен текст первого комментария."));
                 }
+            } else if (commentExpandedEmpty) {
+                CommentAttachments.ParseResult parsed = CommentAttachments.parse(attachmentTemplate, config, ctx);
+                if (!parsed.invalid().isEmpty()) {
+                    notices.add(new Notice(
+                            "comment_attachments",
+                            "invalid_attachment",
+                            "Пропущены вложения комментария (нужен photo-ID_ID или video-ID_ID): "
+                                    + String.join(", ", parsed.invalid())));
+                }
+                if (!parsed.valid().isEmpty()) {
+                    notices.add(new Notice(
+                            "comment_attachments",
+                            "empty_after_macros",
+                            "Вложения комментария не отправлены: текст первого комментария после макросов пустой."));
+                }
             }
         }
 
         Map<String, Object> button = actionButton(transform.get("action_button"));
         if (!button.isEmpty()) {
-            if (!GrabberModeGate.allows(GrabberModeGate.Feature.ACTION_BUTTON, config)) {
+            if (!actionButtonEnabled) {
+                notices.add(new Notice(
+                        "action_button", "disabled", "Кнопка действия выключена: требуется проверка на VK."));
+            } else if (!GrabberModeGate.allows(GrabberModeGate.Feature.ACTION_BUTTON, config)) {
                 notices.add(new Notice(
                         "action_button",
                         "mode_postponed",
@@ -145,19 +177,31 @@ public final class GrabberPublishOptions {
             return null;
         }
         String type = string(button.get("type"));
+        String title = string(button.get("title"));
+        String url = string(button.get("url"));
+        Object nested = button.get("action");
+        if (nested instanceof Map<?, ?> action) {
+            if (type.isBlank()) {
+                type = string(action.get("type"));
+            }
+            if (url.isBlank()) {
+                url = string(action.get("url"));
+            }
+        }
         if (type.isBlank()) {
             type = "open_url";
         }
         if (!"open_url".equalsIgnoreCase(type)) {
             return "Кнопка действия поддерживает только тип open_url.";
         }
-        String title = string(button.get("title"));
-        String url = string(button.get("url"));
         if (title.isBlank() || title.length() > 40) {
             return "Текст кнопки действия: от 1 до 40 символов.";
         }
         if (!url.matches("(?i)https?://\\S+")) {
             return "Ссылка кнопки действия должна начинаться с http:// или https://.";
+        }
+        if (url.length() > ACTION_BUTTON_URL_MAX) {
+            return "Ссылка кнопки действия длиннее 2048 символов.";
         }
         return null;
     }

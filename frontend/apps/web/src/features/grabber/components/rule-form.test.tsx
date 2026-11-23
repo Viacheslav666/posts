@@ -111,6 +111,10 @@ describe('RuleForm (FE-14)', () => {
     expect(screen.getByTestId('grabber-section-vk-publish')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-only-these')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-copyright-warning')).toHaveTextContent(/авторск/i);
+    expect(screen.getByTestId('grabber-action-button-title')).toBeDisabled();
+    expect(screen.getByTestId('grabber-action-button-hint')).toHaveTextContent(
+      'Скоро: требует проверки на VK',
+    );
     expect(screen.queryByTestId('pending-feature-notice')).not.toBeInTheDocument();
   });
 });

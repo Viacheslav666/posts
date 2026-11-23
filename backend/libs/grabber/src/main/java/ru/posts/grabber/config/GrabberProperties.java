@@ -11,6 +11,12 @@ public class GrabberProperties {
     /** Rewrite provider. Disabled until {@code posts.grabber.ai.enabled=true}. No API keys live here. */
     private final Ai ai = new Ai();
 
+    /**
+     * wall.post {@code action_button} is not a documented parameter we can verify from CI. Off until
+     * {@code posts.grabber.action-button.enabled=true}.
+     */
+    private final ActionButton actionButton = new ActionButton();
+
     public boolean isWebsiteEnabled() {
         return websiteEnabled;
     }
@@ -21,6 +27,10 @@ public class GrabberProperties {
 
     public Ai getAi() {
         return ai;
+    }
+
+    public ActionButton getActionButton() {
+        return actionButton;
     }
 
     public static class Ai {
@@ -41,6 +51,18 @@ public class GrabberProperties {
 
         public void setCostKopecks(long costKopecks) {
             this.costKopecks = costKopecks;
+        }
+    }
+
+    public static class ActionButton {
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 }

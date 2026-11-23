@@ -66,21 +66,36 @@ class GrabberAiRewriteServiceTest {
         assertThat(attempt.text()).isEqualTo("[ai:stub] исходный");
         assertThat(attempt.costKopecks()).isEqualTo(100);
 
+        when(ledger.tryDebit(any(), anyLong(), any(), any(), any(), any()))
+                .thenReturn(WalletLedgerJdbc.DebitOutcome.charged(
+                        new WalletLedgerJdbc.LedgerResult(UUID.randomUUID(), -100L, false)));
         assertThat(service.charge(rule, item, attempt, rule.getCreatedBy())).isTrue();
         verify(ledger)
-                .debit(
+                .tryDebit(
                         eq(rule.getWorkspaceId()),
                         eq(100L),
                         eq("neural"),
                         eq("neural:grabber:" + item.getId()),
                         eq(item.getId()),
                         eq("Нейросеть: stub"));
+        verify(ledger, never()).debit(any(), anyLong(), any(), any(), any(), any());
+    }
+
+    @Test
+    void clientPriceDoesNotChangeTheCharge() {
+        Map<String, Object> transform = new HashMap<>();
+        transform.put("ai_model", "stub");
+        transform.put("ai_cost_kopecks", 1L);
+        rule.getConfig().put("transform", transform);
+
+        GrabberAiRewriteService.Attempt attempt = service.prepare(rule, item, "исходный", rule.getCreatedBy());
+        assertThat(attempt.costKopecks()).isEqualTo(100);
     }
 
     @Test
     void insufficientFundsKeepsOriginal() {
-        when(ledger.debit(any(), anyLong(), any(), any(), any(), any()))
-                .thenThrow(new WalletLedgerJdbc.InsufficientFundsException(rule.getWorkspaceId(), 0, 100));
+        when(ledger.tryDebit(any(), anyLong(), any(), any(), any(), any()))
+                .thenReturn(WalletLedgerJdbc.DebitOutcome.insufficient(rule.getWorkspaceId(), 0, 100));
         GrabberAiRewriteService.Attempt attempt = service.prepare(rule, item, "исходный", rule.getCreatedBy());
         assertThat(service.charge(rule, item, attempt, rule.getCreatedBy())).isFalse();
         verify(notifier).notify(any(), any(), eq(rule.getId()), eq("ai_rewrite"), eq("insufficient_funds"), any());
@@ -92,7 +107,7 @@ class GrabberAiRewriteServiceTest {
         GrabberAiRewriteService.Attempt attempt = service.prepare(rule, item, "исходный", rule.getCreatedBy());
         assertThat(attempt.applied()).isFalse();
         assertThat(attempt.text()).isEqualTo("исходный");
-        verify(ledger, never()).debit(any(), anyLong(), any(), any(), any(), any());
+        verify(ledger, never()).tryDebit(any(), anyLong(), any(), any(), any(), any());
         verify(notifier).notify(any(), any(), eq(rule.getId()), eq("ai_rewrite"), eq("unknown_model"), any());
     }
 

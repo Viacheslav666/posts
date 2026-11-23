@@ -16,8 +16,8 @@ class GrabberPublishOptionsTest {
     void buildsCommentButtonAndDeleteTimer() {
         Map<String, Object> config = config(Map.of(), "immediate");
         Instant at = Instant.parse("2026-06-01T10:00:00Z");
-        GrabberPublishOptions.Built built =
-                GrabberPublishOptions.build(config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"), at);
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(
+                config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"), at, true);
 
         assertThat(built.options()).containsEntry("firstComment", "коммент wall-5_1");
         assertThat(built.options()).containsEntry("firstCommentAttachments", List.of("photo-1_2"));
@@ -33,7 +33,8 @@ class GrabberPublishOptionsTest {
         GrabberPublishOptions.Built built = GrabberPublishOptions.build(
                 config,
                 MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"),
-                Instant.parse("2026-06-01T10:00:00Z"));
+                Instant.parse("2026-06-01T10:00:00Z"),
+                true);
 
         assertThat(built.options()).doesNotContainKey("firstComment");
         assertThat(built.options()).doesNotContainKey("actionButton");
@@ -51,7 +52,7 @@ class GrabberPublishOptionsTest {
         Map<String, Object> config = config(Map.of(), "immediate");
         config.put("schedule", schedule);
         GrabberPublishOptions.Built built = GrabberPublishOptions.build(
-                config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"), Instant.now());
+                config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"), Instant.now(), true);
 
         assertThat(GrabberModeGate.postingMode(config)).isEqualTo("interval");
         assertThat(GrabberModeGate.MATRIX_NOTE).contains("matrix");
@@ -68,6 +69,53 @@ class GrabberPublishOptionsTest {
                 .isTrue();
         assertThat(GrabberModeGate.allows(GrabberModeGate.Feature.SCHEDULED_DELETE, Map.of("schedule_mode", "slot")))
                 .isTrue();
+    }
+
+    @Test
+    void actionButtonStaysOffUntilTheFlagIsOn() {
+        Map<String, Object> config = config(Map.of(), "immediate");
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(
+                config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст"), Instant.now(), false);
+
+        assertThat(built.options()).doesNotContainKey("actionButton");
+        assertThat(built.notices())
+                .extracting(GrabberPublishOptions.Notice::code)
+                .contains("disabled");
+    }
+
+    @Test
+    void emptyExpandedCommentReportsDroppedAttachments() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(
+                "first_comment",
+                Map.of("enabled", true, "text", "[keyText]absent,hello[/keyText]", "attachments", "photo-1_2"));
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(
+                config, MacroExpander.Context.of("Клуб", "-5", "wall-5_1", "текст без слова"), Instant.now(), true);
+
+        assertThat(built.options()).doesNotContainKey("firstComment");
+        assertThat(built.options()).doesNotContainKey("firstCommentAttachments");
+        assertThat(built.notices())
+                .extracting(GrabberPublishOptions.Notice::setting)
+                .contains("first_comment", "comment_attachments");
+        assertThat(built.notices())
+                .extracting(GrabberPublishOptions.Notice::code)
+                .contains("empty_after_macros");
+    }
+
+    @Test
+    void stripsClientAiPriceAndRejectsLongButtonUrl() {
+        Map<String, Object> transform = new HashMap<>();
+        transform.put("ai_model", "stub");
+        transform.put("ai_cost_kopecks", 1);
+        Map<String, Object> config = new HashMap<>();
+        config.put("transform", transform);
+        GrabberConfigSupport.validateSettings(config);
+        assertThat(GrabberConfigSupport.transform(config)).doesNotContainKey("ai_cost_kopecks");
+
+        String url = "https://example.com/" + "a".repeat(2040);
+        assertThat(url).hasSizeGreaterThan(GrabberPublishOptions.ACTION_BUTTON_URL_MAX);
+        assertThat(GrabberPublishOptions.actionButtonError(Map.of("type", "open_url", "title", "Открыть", "url", url)))
+                .contains("2048");
     }
 
     @Test

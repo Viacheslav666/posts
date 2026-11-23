@@ -347,14 +347,6 @@ public final class GrabberConfigSupport {
         return value.toString().trim();
     }
 
-    public static long aiCostKopecksOverride(Map<String, Object> config) {
-        Object value = transform(config).get("ai_cost_kopecks");
-        if (value instanceof Number n && n.longValue() > 0) {
-            return n.longValue();
-        }
-        return 0L;
-    }
-
     public static boolean appendAuthorSignature(Map<String, Object> config) {
         return bool(transform(config).get("append_author_signature"), true);
     }
@@ -385,6 +377,7 @@ public final class GrabberConfigSupport {
      * publish time and reported as notifications.
      */
     public static void validateSettings(Map<String, Object> config) {
+        stripClientAiPrice(config);
         Map<String, Object> transform = transform(config);
         if (bool(transform.get("delete_after_enabled"), false) && deleteAfter(config) == null) {
             throw new IllegalArgumentException(
@@ -426,6 +419,28 @@ public final class GrabberConfigSupport {
             if (text.isEmpty() && attachmentText.isBlank()) {
                 throw new IllegalArgumentException("Первый комментарий включён, но текст пустой.");
             }
+        }
+    }
+
+    /** The client cannot set the neural price. The charge is {@code posts.grabber.ai.cost-kopecks}. */
+    private static void stripClientAiPrice(Map<String, Object> config) {
+        if (config == null) {
+            return;
+        }
+        Object raw = config.get("transform");
+        if (!(raw instanceof Map<?, ?> transform) || !transform.containsKey("ai_cost_kopecks")) {
+            return;
+        }
+        try {
+            transform.remove("ai_cost_kopecks");
+        } catch (UnsupportedOperationException ex) {
+            Map<String, Object> copy = new java.util.LinkedHashMap<>();
+            transform.forEach((k, v) -> {
+                if (k != null && !"ai_cost_kopecks".equals(String.valueOf(k))) {
+                    copy.put(String.valueOf(k), v);
+                }
+            });
+            config.put("transform", copy);
         }
     }
 

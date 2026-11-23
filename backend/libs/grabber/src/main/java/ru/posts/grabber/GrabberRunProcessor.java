@@ -180,13 +180,14 @@ public class GrabberRunProcessor {
                         candidate.sourceId(),
                         candidate.remotePostId(),
                         candidate.contentText());
+                // Attachment stripping is stored for moderation. The text stays the raw source so
+                // publishItem is the only place that applies prepend, append and word replacement.
                 ContentTransformer.TransformResult transformed = ContentTransformer.transform(
                         candidate.contentText(), candidate.attachments(), rule.getConfig(), macroCtx);
-                String previewText = applyAuthorSignature(rule, candidate, transformed.text());
+                applyAuthorSignature(rule, candidate, candidate.contentText());
 
                 GrabberItemEntity item =
                         persistItem(rule, run, candidate, contentHash, simhash, initialStatus(publishMode), null, now);
-                item.setContentText(previewText);
                 item.setAttachmentsJson(transformed.attachments());
                 itemRepository.save(item);
                 recentSim.add(0, item);

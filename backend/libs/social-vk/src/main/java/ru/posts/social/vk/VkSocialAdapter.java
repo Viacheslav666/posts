@@ -552,6 +552,11 @@ public class VkSocialAdapter implements SocialAdapter {
 
     @Override
     public void comment(ChannelContext ctx, String remotePostId, String text, List<String> attachments) {
+        comment(ctx, remotePostId, text, attachments, null);
+    }
+
+    @Override
+    public void comment(ChannelContext ctx, String remotePostId, String text, List<String> attachments, String guid) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());
         form.add("post_id", remotePostId);
@@ -559,6 +564,9 @@ public class VkSocialAdapter implements SocialAdapter {
         form.add("message", text == null ? "" : text);
         if (attachments != null && !attachments.isEmpty()) {
             form.add("attachments", String.join(",", attachments));
+        }
+        if (guid != null && !guid.isBlank()) {
+            form.add("guid", guid);
         }
         form.add("access_token", token(ctx));
         form.add("v", apiVersion);
@@ -1106,11 +1114,41 @@ public class VkSocialAdapter implements SocialAdapter {
             return;
         }
         try {
-            form.add("action_button", objectMapper.writeValueAsString(map));
+            form.add("action_button", objectMapper.writeValueAsString(documentedActionButton(map)));
         } catch (Exception ex) {
             throw new SocialApiException(
                     ErrorClass.PERMANENT, "VK action_button is not valid JSON: " + ex.getMessage(), null, null, ex);
         }
+    }
+
+    /** Documented open_url button: {@code {title, action:{type, url}}}. Flat editor maps are nested. */
+    private static Map<String, Object> documentedActionButton(Map<?, ?> map) {
+        Object nested = map.get("action");
+        if (nested instanceof Map<?, ?> action) {
+            Map<String, Object> actionOut = new LinkedHashMap<>();
+            action.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    actionOut.put(String.valueOf(key), value);
+                }
+            });
+            Map<String, Object> out = new LinkedHashMap<>();
+            if (map.get("title") != null) {
+                out.put("title", map.get("title"));
+            }
+            out.put("action", actionOut);
+            return out;
+        }
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", map.get("type") == null ? "open_url" : map.get("type"));
+        if (map.get("url") != null) {
+            action.put("url", map.get("url"));
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (map.get("title") != null) {
+            out.put("title", map.get("title"));
+        }
+        out.put("action", action);
+        return out;
     }
 
     private void closeComments(ChannelContext ctx, String remotePostId) {

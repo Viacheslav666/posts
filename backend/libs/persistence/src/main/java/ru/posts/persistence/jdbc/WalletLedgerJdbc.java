@@ -25,6 +25,21 @@ public class WalletLedgerJdbc {
 
     public record LedgerResult(UUID entryId, long amountKopecks, boolean replayed) {}
 
+    /**
+     * Outcome of a debit that must not mark the caller's transaction rollback-only. {@code charged}
+     * is false when the wallet cannot cover the amount.
+     */
+    public record DebitOutcome(
+            boolean charged, LedgerResult result, UUID workspaceId, long balanceKopecks, long requiredKopecks) {
+        public static DebitOutcome charged(LedgerResult result) {
+            return new DebitOutcome(true, result, null, 0L, 0L);
+        }
+
+        public static DebitOutcome insufficient(UUID workspaceId, long balanceKopecks, long requiredKopecks) {
+            return new DebitOutcome(false, null, workspaceId, balanceKopecks, requiredKopecks);
+        }
+    }
+
     private final JdbcClient jdbc;
 
     public WalletLedgerJdbc(JdbcClient jdbcClient) {
@@ -136,27 +151,47 @@ public class WalletLedgerJdbc {
     @Transactional
     public LedgerResult debit(
             UUID workspaceId, long amountKopecks, String kind, String idempotencyKey, UUID refId, String description) {
+        DebitOutcome outcome = applyDebit(workspaceId, amountKopecks, kind, idempotencyKey, refId, description);
+        if (!outcome.charged()) {
+            throw new InsufficientFundsException(
+                    outcome.workspaceId(), outcome.balanceKopecks(), outcome.requiredKopecks());
+        }
+        return outcome.result();
+    }
+
+    /**
+     * Debits when the balance covers the amount. A short balance is returned, not thrown, so a
+     * joined transaction (grabber publish) is not marked rollback-only.
+     */
+    @Transactional
+    public DebitOutcome tryDebit(
+            UUID workspaceId, long amountKopecks, String kind, String idempotencyKey, UUID refId, String description) {
+        return applyDebit(workspaceId, amountKopecks, kind, idempotencyKey, refId, description);
+    }
+
+    private DebitOutcome applyDebit(
+            UUID workspaceId, long amountKopecks, String kind, String idempotencyKey, UUID refId, String description) {
         if (amountKopecks <= 0) {
             throw new IllegalArgumentException("debit amount must be > 0");
         }
         Optional<UUID> replay = findByIdempotency(idempotencyKey);
         if (replay.isPresent()) {
-            return new LedgerResult(replay.get(), -amountKopecks, true);
+            return DebitOutcome.charged(new LedgerResult(replay.get(), -amountKopecks, true));
         }
         WalletSnapshot wallet = lockOrCreate(workspaceId);
         replay = findByIdempotency(idempotencyKey);
         if (replay.isPresent()) {
-            return new LedgerResult(replay.get(), -amountKopecks, true);
+            return DebitOutcome.charged(new LedgerResult(replay.get(), -amountKopecks, true));
         }
         if (wallet.balanceKopecks() < amountKopecks) {
-            throw new InsufficientFundsException(workspaceId, wallet.balanceKopecks(), amountKopecks);
+            return DebitOutcome.insufficient(workspaceId, wallet.balanceKopecks(), amountKopecks);
         }
         long bonusSpend = Math.min(wallet.bonusBalanceKopecks(), amountKopecks);
         UUID entryId = UuidV7.generate();
         try {
             insertLedger(entryId, workspaceId, -amountKopecks, kind, false, idempotencyKey, refId, description);
         } catch (IdempotentReplayException ex) {
-            return new LedgerResult(ex.entryId(), -amountKopecks, true);
+            return DebitOutcome.charged(new LedgerResult(ex.entryId(), -amountKopecks, true));
         }
         jdbc.sql(
                         """
@@ -172,7 +207,7 @@ public class WalletLedgerJdbc {
                 .param("id", workspaceId)
                 .update();
         assertInvariant(workspaceId);
-        return new LedgerResult(entryId, -amountKopecks, false);
+        return DebitOutcome.charged(new LedgerResult(entryId, -amountKopecks, false));
     }
 
     @Transactional(readOnly = true)

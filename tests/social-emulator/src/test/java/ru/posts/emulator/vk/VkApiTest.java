@@ -188,6 +188,7 @@ class VkApiTest {
                         .param("from_group", "100")
                         .param("message", "первый")
                         .param("attachments", "photo-100_7,video-100_8")
+                        .param("guid", "action-guid-1")
                         .param("access_token", "token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response.comment_id").exists())
@@ -196,7 +197,8 @@ class VkApiTest {
         assertThat(moderationStore.commentMeta(commentId))
                 .containsEntry("post_id", postId)
                 .containsEntry("from_group", "100")
-                .containsEntry("attachments", "photo-100_7,video-100_8");
+                .containsEntry("attachments", "photo-100_7,video-100_8")
+                .containsEntry("guid", "action-guid-1");
 
         mockMvc.perform(post("/method/wall.closeComments")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)

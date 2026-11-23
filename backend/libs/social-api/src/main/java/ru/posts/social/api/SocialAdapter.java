@@ -62,6 +62,15 @@ public interface SocialAdapter {
         comment(ctx, remotePostId, text);
     }
 
+    /**
+     * {@code guid} is the scheduled-action id. VK uses it so a retry of wall.createComment does not
+     * add a second comment. Null omits the parameter.
+     */
+    default void comment(
+            ChannelContext ctx, String remotePostId, String text, java.util.List<String> attachments, String guid) {
+        comment(ctx, remotePostId, text, attachments);
+    }
+
     default Optional<TokenSet> refreshToken(TokenRefreshRequest request) {
         return Optional.empty();
     }

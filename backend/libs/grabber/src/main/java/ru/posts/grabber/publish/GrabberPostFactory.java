@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -43,6 +44,7 @@ public class GrabberPostFactory {
     private final OutboxRepository outboxRepository;
     private final GrabberAiRewriteService aiRewriteService;
     private final GrabberSettingNotifier settingNotifier;
+    private final GrabberProperties properties;
 
     public GrabberPostFactory(
             PostRepository postRepository,
@@ -51,7 +53,8 @@ public class GrabberPostFactory {
             ChannelRepository channelRepository,
             OutboxRepository outboxRepository,
             GrabberAiRewriteService aiRewriteService,
-            GrabberSettingNotifier settingNotifier) {
+            GrabberSettingNotifier settingNotifier,
+            GrabberProperties properties) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
@@ -59,6 +62,7 @@ public class GrabberPostFactory {
         this.outboxRepository = outboxRepository;
         this.aiRewriteService = aiRewriteService;
         this.settingNotifier = settingNotifier;
+        this.properties = properties;
     }
 
     @Transactional
@@ -81,32 +85,29 @@ public class GrabberPostFactory {
         MacroExpander.Context macroCtx =
                 MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId(), sourceText);
         UUID actor = actorId == null ? rule.getCreatedBy() : actorId;
-        String pipelineBase = overrideText != null ? overrideText : item.getContentText();
-        GrabberAiRewriteService.Attempt ai = overrideText != null
-                ? GrabberAiRewriteService.Attempt.unchanged(pipelineBase)
-                : aiRewriteService.prepare(rule, item, sourceText, actor);
-        String baseText = ai.applied() ? ai.text() : pipelineBase;
-        ContentTransformer.TransformResult transformed =
-                ContentTransformer.transform(baseText, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
-        String signedText = applyAuthorSignature(rule, item, transformed.text(), signerName, actor);
-        String finalText = ContentTransformer.withAttribution(
-                signedText, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+        GrabberAiRewriteService.Attempt ai;
+        String finalText;
+        if (overrideText != null) {
+            // The moderator already edited the text. Publish that string as final: no second
+            // prepend, append or word replacement.
+            ai = GrabberAiRewriteService.Attempt.unchanged(overrideText);
+            finalText = finish(rule, item, overrideText, signerName, actor);
+        } else {
+            ai = aiRewriteService.prepare(rule, item, sourceText, actor);
+            String body = ai.applied() ? ai.text() : sourceText;
+            finalText = finish(rule, item, transformOnce(rule, item, body, macroCtx), signerName, actor);
+        }
 
-        // Network text limit (VK ~4096) — fail validation without wall.post
         int maxLen = 4096;
-        if (finalText != null && finalText.length() > maxLen) {
+        if (finalText.length() > maxLen) {
             item.setStatus("failed_validation");
             item.setSkipReason("text_too_long");
             item.setUpdatedAt(Instant.now());
             return new PublishResult(null, List.of(), false);
         }
         if (ai.applied() && !aiRewriteService.charge(rule, item, ai, actor)) {
-            ContentTransformer.TransformResult plain =
-                    ContentTransformer.transform(pipelineBase, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
-            signedText = applyAuthorSignature(rule, item, plain.text(), signerName, actor);
-            finalText = ContentTransformer.withAttribution(
-                    signedText, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
-            if (finalText != null && finalText.length() > maxLen) {
+            finalText = finish(rule, item, transformOnce(rule, item, sourceText, macroCtx), signerName, actor);
+            if (finalText.length() > maxLen) {
                 item.setStatus("failed_validation");
                 item.setSkipReason("text_too_long");
                 item.setUpdatedAt(Instant.now());
@@ -148,7 +149,11 @@ public class GrabberPostFactory {
         post.setUpdatedAt(now);
         postRepository.save(post);
 
-        GrabberPublishOptions.Built built = GrabberPublishOptions.build(rule.getConfig(), macroCtx, scheduledAt);
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(
+                rule.getConfig(),
+                macroCtx,
+                scheduledAt,
+                properties.getActionButton().isEnabled());
         for (GrabberPublishOptions.Notice notice : built.notices()) {
             settingNotifier.notify(
                     actor, rule.getWorkspaceId(), rule.getId(), notice.setting(), notice.code(), notice.message());
@@ -197,6 +202,20 @@ public class GrabberPostFactory {
         item.setStatus("scheduled");
         item.setUpdatedAt(now);
         return new PublishResult(post.getId(), List.of(pub.getId()), false);
+    }
+
+    private static String transformOnce(
+            AutomationRuleEntity rule, GrabberItemEntity item, String body, MacroExpander.Context macroCtx) {
+        return ContentTransformer.transform(body, item.getAttachmentsJson(), rule.getConfig(), macroCtx)
+                .text();
+    }
+
+    private String finish(
+            AutomationRuleEntity rule, GrabberItemEntity item, String body, String signerName, UUID actor) {
+        String signed = applyAuthorSignature(rule, item, body, signerName, actor);
+        String text = ContentTransformer.withAttribution(
+                signed, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+        return text == null ? "" : text;
     }
 
     private String applyAuthorSignature(

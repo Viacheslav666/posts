@@ -65,10 +65,12 @@ public class GrabberAiRewriteService {
             return Attempt.unchanged(original);
         }
         try {
-            GrabberRewriteProvider.RewriteResult result = provider.rewrite(new GrabberRewriteProvider.RewriteRequest(
-                    original, model, GrabberConfigSupport.aiCostKopecksOverride(rule.getConfig())));
+            GrabberRewriteProvider.RewriteResult result =
+                    provider.rewrite(new GrabberRewriteProvider.RewriteRequest(original, model, 0L));
             String rewritten = result.text() == null ? original : result.text();
-            return new Attempt(true, rewritten, Math.max(0L, result.costKopecks()), result.model());
+            long cost = Math.max(0L, properties.getAi().getCostKopecks());
+            String chargedModel = result.model() == null || result.model().isBlank() ? model : result.model();
+            return new Attempt(true, rewritten, cost, chargedModel);
         } catch (RuntimeException ex) {
             log.warn(
                     "grabber AI rewrite failed rule={} item={}: {}",
@@ -85,28 +87,27 @@ public class GrabberAiRewriteService {
         if (attempt == null || !attempt.applied() || attempt.costKopecks() <= 0 || item == null || rule == null) {
             return true;
         }
-        try {
-            ledger.debit(
-                    rule.getWorkspaceId(),
-                    attempt.costKopecks(),
-                    "neural",
-                    "neural:grabber:" + item.getId(),
-                    item.getId(),
-                    "Нейросеть: " + attempt.model());
+        WalletLedgerJdbc.DebitOutcome outcome = ledger.tryDebit(
+                rule.getWorkspaceId(),
+                attempt.costKopecks(),
+                "neural",
+                "neural:grabber:" + item.getId(),
+                item.getId(),
+                "Нейросеть: " + attempt.model());
+        if (outcome != null && outcome.charged()) {
             return true;
-        } catch (WalletLedgerJdbc.InsufficientFundsException ex) {
-            log.warn(
-                    "grabber AI insufficient funds workspace={} item={} need={}",
-                    rule.getWorkspaceId(),
-                    item.getId(),
-                    attempt.costKopecks());
-            notify(
-                    rule,
-                    userId,
-                    "insufficient_funds",
-                    "Недостаточно средств для нейросети. Пост опубликован без переписывания.");
-            return false;
         }
+        log.warn(
+                "grabber AI insufficient funds workspace={} item={} need={}",
+                rule.getWorkspaceId(),
+                item.getId(),
+                attempt.costKopecks());
+        notify(
+                rule,
+                userId,
+                "insufficient_funds",
+                "Недостаточно средств для нейросети. Пост опубликован без переписывания.");
+        return false;
     }
 
     private void notify(AutomationRuleEntity rule, UUID userId, String code, String message) {

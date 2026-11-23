@@ -35,9 +35,7 @@ public final class StubGrabberRewriteProvider implements GrabberRewriteProvider 
         if (!models().contains(model)) {
             throw new IllegalArgumentException("unknown model: " + model);
         }
-        long cost = request.costKopecksOverride() > 0
-                ? request.costKopecksOverride()
-                : properties.getAi().getCostKopecks();
+        long cost = properties.getAi().getCostKopecks();
         String body = request.text() == null ? "" : request.text();
         return new RewriteResult("[ai:" + model + "] " + body, Math.max(0L, cost), model);
     }

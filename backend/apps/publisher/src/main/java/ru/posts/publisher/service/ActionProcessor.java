@@ -174,11 +174,8 @@ public class ActionProcessor {
                 }
             });
         }
-        if (attachments.isEmpty()) {
-            socialAdapter.comment(ctx, remotePostId, text);
-        } else {
-            socialAdapter.comment(ctx, remotePostId, text, attachments);
-        }
+        String guid = claim.id() == null ? null : claim.id().toString();
+        socialAdapter.comment(ctx, remotePostId, text, attachments, guid);
     }
 
     private JsonNode parse(String json) {

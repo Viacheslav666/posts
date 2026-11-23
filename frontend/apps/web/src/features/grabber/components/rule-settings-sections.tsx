@@ -8,6 +8,7 @@ import { Controller, useWatch } from 'react-hook-form';
 import type { GrabberRuleFormValues } from '../model/schemas';
 import {
   DAYS_OF_WEEK,
+  isGrabberActionButtonEnabled,
   SKIP_IF_HAS_ATTACHMENT_FLAGS,
   SKIP_IF_NO_ATTACHMENT_FLAGS,
   STRIP_FLAGS,
@@ -37,6 +38,7 @@ export function RuleSettingsSections({
   };
   const deleteAfterEnabled = useWatch({ control, name: 'deleteAfterEnabled' });
   const aiRewriteEnabled = useWatch({ control, name: 'aiRewriteEnabled' });
+  const actionButtonEnabled = isGrabberActionButtonEnabled();
 
   return (
     <div className="space-y-4" data-testid="grabber-settings-sections">
@@ -402,23 +404,28 @@ export function RuleSettingsSections({
           <label className="space-y-1 text-sm">
             <span>{t('publish.actionButtonTitle')}</span>
             <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               maxLength={40}
               data-testid="grabber-action-button-title"
               {...register('actionButtonTitle')}
+              disabled={!actionButtonEnabled}
             />
           </label>
           <label className="space-y-1 text-sm">
             <span>{t('publish.actionButtonUrl')}</span>
             <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              maxLength={2048}
               data-testid="grabber-action-button-url"
               placeholder="https://"
               {...register('actionButtonUrl')}
+              disabled={!actionButtonEnabled}
             />
           </label>
         </div>
-        <p className="text-xs text-muted-foreground">{t('publish.actionButtonHint')}</p>
+        <p className="text-xs text-muted-foreground" data-testid="grabber-action-button-hint">
+          {actionButtonEnabled ? t('publish.actionButtonHint') : t('publish.actionButtonSoon')}
+        </p>
         <CheckboxRow label={t('publish.deleteAfter')} {...register('deleteAfterEnabled')} />
         {deleteAfterEnabled ? (
           <div className="grid gap-3 sm:grid-cols-2">
