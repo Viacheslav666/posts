@@ -10009,6 +10009,8 @@ export interface operations {
             query: {
                 code: string;
                 state: string;
+                /** @description Device id returned by VK ID on the redirect; required for provider vk */
+                device_id?: string;
             };
             header?: never;
             path: {

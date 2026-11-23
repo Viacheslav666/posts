@@ -13,21 +13,29 @@ import ru.posts.api.error.ProblemCodes;
 public class StubOAuthProviderClient implements OAuthProviderClient {
 
     private final ConcurrentHashMap<String, OAuthUserProfile> codes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OAuthCodeExchange> exchanges = new ConcurrentHashMap<>();
 
     public void registerCode(String code, OAuthUserProfile profile) {
         codes.put(code, profile);
     }
 
+    /** Last exchange request seen for {@code code}, or {@code null}. */
+    public OAuthCodeExchange exchangeFor(String code) {
+        return exchanges.get(code);
+    }
+
     public void clear() {
         codes.clear();
+        exchanges.clear();
     }
 
     @Override
-    public OAuthUserProfile exchange(String provider, String code, String codeVerifier, String redirectUri) {
-        OAuthUserProfile profile = codes.get(code);
+    public OAuthUserProfile exchange(String provider, OAuthCodeExchange exchange) {
+        OAuthUserProfile profile = codes.get(exchange.code());
         if (profile == null || !provider.equals(profile.provider())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, ProblemCodes.UNAUTHORIZED, "Invalid OAuth code");
         }
+        exchanges.put(exchange.code(), exchange);
         return new OAuthUserProfile(
                 profile.provider(),
                 profile.providerUserId(),
