@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -122,7 +123,7 @@ public class VkSocialAdapter implements SocialAdapter {
     public PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
         Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
         if (options.get("repost") instanceof Map<?, ?> repost && !repost.isEmpty()) {
-            return publishRepost(ctx, content, idempotencyKey, options, repost);
+            return publishRepost(ctx, content, repost);
         }
         rejectUnsupportedOptions(options);
 
@@ -970,7 +971,18 @@ public class VkSocialAdapter implements SocialAdapter {
 
     private Optional<PublishResult> findOnWall(ChannelContext ctx, String idempotencyKey, PostVariantContent content) {
         String fingerprint = fingerprintOf(idempotencyKey, content);
+        String repostObject = repostObjectOf(content);
         Instant now = Instant.now();
+        return scanWall(
+                ctx, item -> matchesRepost(item, repostObject) || matchesFingerprint(item, content, fingerprint, now));
+    }
+
+    /** wall.repost has no guid. A retry matches the already published item by copy_history. */
+    private Optional<PublishResult> findExistingRepost(ChannelContext ctx, String object) {
+        return scanWall(ctx, item -> matchesRepost(item, object));
+    }
+
+    private Optional<PublishResult> scanWall(ChannelContext ctx, Predicate<JsonNode> match) {
         try {
             for (String filter : List.of("all", "postponed")) {
                 MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
@@ -993,7 +1005,7 @@ public class VkSocialAdapter implements SocialAdapter {
                     continue;
                 }
                 for (JsonNode item : items) {
-                    if (matchesFingerprint(item, content, fingerprint, now)) {
+                    if (match.test(item)) {
                         String postId = item.path("id").asText(null);
                         if (postId != null) {
                             return Optional.of(new PublishResult(postId, remoteUrl(ctx.externalId(), postId)));
@@ -1021,6 +1033,38 @@ public class VkSocialAdapter implements SocialAdapter {
                 return delta <= findExistingTimeWindowSeconds;
             }
             return true;
+        }
+        return false;
+    }
+
+    private static String repostObjectOf(PostVariantContent content) {
+        Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
+        if (options.get("repost") instanceof Map<?, ?> repost) {
+            Object object = repost.get("object");
+            if (object != null && !String.valueOf(object).isBlank()) {
+                return String.valueOf(object);
+            }
+        }
+        return null;
+    }
+
+    private static boolean matchesRepost(JsonNode item, String object) {
+        if (object == null || object.isBlank() || item == null) {
+            return false;
+        }
+        JsonNode history = item.path("copy_history");
+        if (!history.isArray()) {
+            return false;
+        }
+        for (JsonNode entry : history) {
+            if (object.equals(entry.path("object").asText(""))) {
+                return true;
+            }
+            long owner = entry.path("owner_id").asLong(0);
+            long id = entry.path("id").asLong(0);
+            if (id != 0 && object.equals("wall" + owner + "_" + id)) {
+                return true;
+            }
         }
         return false;
     }
@@ -1076,12 +1120,7 @@ public class VkSocialAdapter implements SocialAdapter {
         addPublishDate(form, options);
     }
 
-    private PublishResult publishRepost(
-            ChannelContext ctx,
-            PostVariantContent content,
-            String idempotencyKey,
-            Map<String, Object> options,
-            Map<?, ?> repost) {
+    private PublishResult publishRepost(ChannelContext ctx, PostVariantContent content, Map<?, ?> repost) {
         Object object = repost.get("object");
         if (object == null
                 || String.valueOf(object).isBlank()
@@ -1098,10 +1137,11 @@ public class VkSocialAdapter implements SocialAdapter {
         if (message != null && !String.valueOf(message).isBlank()) {
             form.add("message", String.valueOf(message));
         }
-        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            form.add("guid", idempotencyKey);
+        // guid and publish_date belong to wall.post. wall.repost retries match copy_history.
+        Optional<PublishResult> existing = findExistingRepost(ctx, String.valueOf(object));
+        if (existing.isPresent()) {
+            return existing.get();
         }
-        addPublishDate(form, options);
         form.add("access_token", token(ctx));
         form.add("v", apiVersion);
         try {
@@ -1209,8 +1249,7 @@ public class VkSocialAdapter implements SocialAdapter {
         int code = error.path("error_code").asInt(0);
         String msg = error.path("error_msg").asText("VK error " + code);
         ErrorClass clazz = classifyVkErrorCode(code);
-        Duration retryAfter = clazz == ErrorClass.RATE_LIMITED ? Duration.ofHours(1) : null;
-        throw new SocialApiException(clazz, msg, null, retryAfter, null);
+        throw new SocialApiException(clazz, msg, null, retryAfterFor(code), null);
     }
 
     private void assertNoVkErrorForClips(JsonNode body) {
@@ -1236,8 +1275,7 @@ public class VkSocialAdapter implements SocialAdapter {
                     422);
         }
         ErrorClass clazz = classifyVkErrorCode(code);
-        Duration retryAfter = clazz == ErrorClass.RATE_LIMITED ? Duration.ofHours(1) : null;
-        throw new SocialApiException(clazz, msg, null, retryAfter, null);
+        throw new SocialApiException(clazz, msg, null, retryAfterFor(code), null);
     }
 
     private void assertNoVkErrorForBirthdays(JsonNode body) {
@@ -1261,8 +1299,32 @@ public class VkSocialAdapter implements SocialAdapter {
                     403);
         }
         ErrorClass clazz = classifyVkErrorCode(code);
-        Duration retryAfter = clazz == ErrorClass.RATE_LIMITED ? Duration.ofHours(1) : null;
-        throw new SocialApiException(clazz, msg, null, retryAfter, null);
+        throw new SocialApiException(clazz, msg, null, retryAfterFor(code), null);
+    }
+
+    /** Error 6 is per-second throttling (seconds). Error 9 is flood control (hours). */
+    private static Duration retryAfterFor(int code) {
+        return switch (code) {
+            case 6 -> Duration.ofSeconds(5);
+            case 9 -> Duration.ofHours(1);
+            default -> null;
+        };
+    }
+
+    private Integer vkErrorCode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode body = objectMapper.readTree(raw);
+            JsonNode error = body.get("error");
+            if (error != null && error.has("error_code")) {
+                return error.path("error_code").asInt();
+            }
+        } catch (Exception ignored) {
+            // ignore
+        }
+        return null;
     }
 
     private ErrorClass classifyVkErrorBody(String raw) {
@@ -1306,9 +1368,10 @@ public class VkSocialAdapter implements SocialAdapter {
         if (status == 499) {
             return new SocialApiException(ErrorClass.UNKNOWN_OUTCOME, "VK response lost", status, null, ex);
         }
-        ErrorClass fromBody = classifyVkErrorBody(ex.getResponseBodyAsString());
-        if (fromBody != null) {
-            return new SocialApiException(fromBody, "VK error", status, null, ex);
+        Integer bodyCode = vkErrorCode(ex.getResponseBodyAsString());
+        if (bodyCode != null) {
+            return new SocialApiException(
+                    classifyVkErrorCode(bodyCode), "VK error", status, retryAfterFor(bodyCode), ex);
         }
         return new SocialApiException(ErrorClass.PERMANENT, "VK error: " + status, status, null, ex);
     }

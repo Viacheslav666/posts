@@ -138,6 +138,8 @@ posts:
 
   grabber:
     website-enabled: true
+    postponed-repost:
+      enabled: false
     vk:
       base-url: ${POSTS_VK_API_BASE_URL:https://api.vk.com}
       api-version: "5.199"

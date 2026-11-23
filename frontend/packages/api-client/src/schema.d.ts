@@ -4558,6 +4558,7 @@ export interface components {
         };
         GrabberModeRow: {
             actionButton?: boolean;
+            available?: boolean;
             commentAttachments?: boolean;
             firstComment?: boolean;
             id?: string;

@@ -71,10 +71,15 @@ public final class SourceIdNormalizer {
         if (lower.startsWith("public") && NUMERIC.matcher(lower.substring(6)).matches()) {
             return "-" + lower.substring(6);
         }
-        if (NUMERIC.matcher(value).matches() || SCREEN.matcher(value).matches()) {
+        if (NUMERIC.matcher(value).matches()) {
+            // A bare positive id is a community wall. A positive owner_id reads the user wall.
+            return value.startsWith("-") ? value : "-" + value;
+        }
+        if (SCREEN.matcher(value).matches() && value.length() <= 50) {
             return value;
         }
-        throw new IllegalArgumentException("Invalid source id: " + raw);
+        // Do not include the raw value: a pasted access token must not land in a 422 detail.
+        throw new IllegalArgumentException("Некорректный ID источника");
     }
 
     /** Strips {@code https://vk.com/} and {@code vk.ru} so {@code club123} / {@code public123} remain. */

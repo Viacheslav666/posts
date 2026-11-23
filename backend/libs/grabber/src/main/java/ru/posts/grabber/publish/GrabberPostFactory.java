@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.target.GrabberRepostObject;
 import ru.posts.grabber.target.GrabberTargetMode;
@@ -44,18 +45,21 @@ public class GrabberPostFactory {
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
     private final OutboxRepository outboxRepository;
+    private final GrabberProperties grabberProperties;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberProperties grabberProperties) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
         this.outboxRepository = outboxRepository;
+        this.grabberProperties = grabberProperties;
     }
 
     @Transactional
@@ -82,6 +86,14 @@ public class GrabberPostFactory {
                 .orElseThrow(() -> new IllegalStateException("Target channel not found"));
         if ("reauth_required".equals(channel.getStatus())) {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
+        }
+        String targetModeEarly = GrabberConfigSupport.targetMode(rule.getConfig());
+        if (GrabberTargetMode.VK_POSTPONED_REPOST.wire().equals(targetModeEarly)
+                && !grabberProperties.isPostponedRepostEnabled()) {
+            item.setStatus("failed_validation");
+            item.setSkipReason("postponed_repost_unavailable");
+            item.setUpdatedAt(Instant.now());
+            return new PublishResult(null, List.of(), false);
         }
 
         MacroExpander.Context macroCtx =
@@ -157,7 +169,7 @@ public class GrabberPostFactory {
         sourceRef.put("contentHash", item.getContentHash());
         post.setSourceRef(sourceRef);
         post.setModerationStatus("approved");
-        post.setTimezone("Europe/Moscow");
+        post.setTimezone(GrabberConfigSupport.scheduleTimezone(rule.getConfig()));
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         postRepository.save(post);

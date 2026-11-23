@@ -11,7 +11,7 @@ export type GrabberModeCaps = {
 };
 
 export type GrabberModeMatrix = {
-  modes: Array<GrabberModeCaps & { id: string; postponed: boolean; repost: boolean }>;
+  modes: Array<GrabberModeCaps & { id: string; postponed: boolean; repost: boolean; available?: boolean }>;
   intervalDisables: string[];
   postponedHorizonDays: number;
   maxIntervalMinutes: number;
@@ -52,4 +52,11 @@ export function capabilitiesFor(
     if (disables.includes('interval')) caps.interval = false;
   }
   return caps;
+}
+
+/** Postponed repost stays disabled until the API marks it available. */
+export function isTargetModeAvailable(mode: string, matrix?: GrabberModeMatrix): boolean {
+  const row = matrix?.modes.find((item) => item.id === mode);
+  if (row && typeof row.available === 'boolean') return row.available;
+  return mode !== 'vk_postponed_repost';
 }

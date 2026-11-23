@@ -2,6 +2,8 @@ package ru.posts.social.vk;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
+import static com.github.tomakehurst.wiremock.client.WireMock.notContaining;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
@@ -92,14 +94,47 @@ class VkSocialAdapterWireMockTest {
                 null,
                 null,
                 null,
-                Map.of(PostVariantMeta.OPTIONS, Map.of("repost", Map.of("object", "wall-5_9", "message", "comment"))));
+                Map.of(
+                        PostVariantMeta.OPTIONS,
+                        Map.of(
+                                "vkPublishDate",
+                                Instant.now().plusSeconds(3600).getEpochSecond(),
+                                "repost",
+                                Map.of("object", "wall-5_9", "message", "comment"))));
         PublishResult result = adapter.publish(ctx, content, "guid-repost");
 
         assertThat(result.remotePostId()).isEqualTo("11");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.repost"))
                 .withRequestBody(containing("object=wall-5_9"))
                 .withRequestBody(containing("group_id=100"))
-                .withRequestBody(containing("message=comment")));
+                .withRequestBody(containing("message=comment"))
+                .withRequestBody(notContaining("guid="))
+                .withRequestBody(notContaining("publish_date")));
+    }
+
+    @Test
+    void repostRetryMatchesPublishedCopyHistory() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.get"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withBody(
+                                                "{\"response\":{\"items\":[{\"id\":11,\"text\":\"comment\",\"copy_history\":[{\"owner_id\":-5,\"id\":9}]}]}}")));
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.repost"))
+                .willReturn(aResponse().withStatus(500)));
+
+        PostVariantContent content = new PostVariantContent(
+                "comment",
+                null,
+                null,
+                null,
+                null,
+                Map.of(PostVariantMeta.OPTIONS, Map.of("repost", Map.of("object", "wall-5_9", "message", "comment"))));
+        PublishResult result = adapter.publish(ctx, content, "guid-repost");
+
+        assertThat(result.remotePostId()).isEqualTo("11");
+        wireMock.verify(exactly(0), postRequestedFor(urlPathEqualTo("/method/wall.repost")));
     }
 
     @Test
@@ -127,8 +162,27 @@ class VkSocialAdapterWireMockTest {
 
         assertThatThrownBy(() -> adapter.publish(ctx, new PostVariantContent("x"), "g"))
                 .isInstanceOf(SocialApiException.class)
-                .satisfies(
-                        ex -> assertThat(((SocialApiException) ex).errorClass()).isEqualTo(ErrorClass.RATE_LIMITED));
+                .satisfies(ex -> {
+                    SocialApiException api = (SocialApiException) ex;
+                    assertThat(api.errorClass()).isEqualTo(ErrorClass.RATE_LIMITED);
+                    assertThat(api.retryAfter()).contains(Duration.ofHours(1));
+                });
+    }
+
+    @Test
+    void tooManyRequestsPerSecondBacksOffBriefly() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.post"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"error\":{\"error_code\":6,\"error_msg\":\"Too many requests per second\"}}")));
+
+        assertThatThrownBy(() -> adapter.publish(ctx, new PostVariantContent("x"), "g"))
+                .isInstanceOf(SocialApiException.class)
+                .satisfies(ex -> {
+                    SocialApiException api = (SocialApiException) ex;
+                    assertThat(api.errorClass()).isEqualTo(ErrorClass.RATE_LIMITED);
+                    assertThat(api.retryAfter()).contains(Duration.ofSeconds(5));
+                });
     }
 
     @Test

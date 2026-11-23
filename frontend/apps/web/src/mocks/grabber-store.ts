@@ -215,6 +215,9 @@ function assertTargetMode(
   type: GrabberRule['type'],
 ): string | null {
   const mode = config?.targetMode ?? 'wall_now';
+  if (mode === 'vk_postponed_repost') {
+    return 'Скоро: требует проверки на VK';
+  }
   const limits = (config?.limits ?? {}) as Record<string, unknown>;
   const interval = typeof limits.min_interval_minutes === 'number' ? limits.min_interval_minutes : 0;
   const postponed = mode === 'vk_postponed_post' || mode === 'vk_postponed_repost';

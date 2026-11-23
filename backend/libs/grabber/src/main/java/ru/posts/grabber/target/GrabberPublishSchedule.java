@@ -45,8 +45,9 @@ public final class GrabberPublishSchedule {
         int slot = Math.max(0, slotIndex);
         String mode = GrabberConfigSupport.targetMode(config);
         if (GrabberTargetMode.isPostponed(mode)) {
-            Instant earliest = clock.plusSeconds(POSTPONED_MIN_LEAD_SECONDS + (long) POSTPONED_SLOT_SECONDS * slot);
-            Instant slotAt = WorkingWindow.nextOpen(config, earliest);
+            Instant earliest = clock.plusSeconds(POSTPONED_MIN_LEAD_SECONDS);
+            Instant opening = WorkingWindow.nextOpen(config, earliest);
+            Instant slotAt = place(config, opening, slot, POSTPONED_SLOT_SECONDS);
             Instant horizon = clock.plus(GrabberModeMatrix.POSTPONED_HORIZON_DAYS, ChronoUnit.DAYS);
             if (slotAt.isAfter(horizon)) {
                 throw new PostponedHorizonException("Отложенная запись VK должна быть не позже чем через "
@@ -56,11 +57,25 @@ public final class GrabberPublishSchedule {
             return new Plan(clock, slotAt.getEpochSecond());
         }
         Instant base = requested == null || requested.isBefore(clock) ? clock : requested;
+        Instant opening = WorkingWindow.nextOpen(config, base);
         int interval = GrabberConfigSupport.minIntervalMinutes(config);
-        if (interval > 0 && slot > 0) {
-            base = base.plus((long) interval * slot, ChronoUnit.MINUTES);
+        long spacing = interval > 0 ? interval * 60L : 0L;
+        return new Plan(place(config, opening, slot, spacing), null);
+    }
+
+    /**
+     * Opening is resolved once. Later slots add {@code spacingSeconds} and, when that instant is
+     * outside the window, roll to the next open day instead of collapsing onto the same minute.
+     */
+    static Instant place(Map<String, Object> config, Instant opening, int slot, long spacingSeconds) {
+        if (slot <= 0 || spacingSeconds <= 0) {
+            return opening;
         }
-        Instant runAt = WorkingWindow.nextOpen(config, base);
-        return new Plan(runAt, null);
+        Instant cursor = opening;
+        for (int i = 0; i < slot; i++) {
+            Instant next = cursor.plusSeconds(spacingSeconds);
+            cursor = WorkingWindow.isOpen(config, next) ? next : WorkingWindow.nextOpen(config, next);
+        }
+        return cursor;
     }
 }

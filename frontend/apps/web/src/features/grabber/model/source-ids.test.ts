@@ -13,6 +13,7 @@ describe('normalizeSourceIds (TC-GRAB-22)', () => {
       '-20',
       '-10',
     ]);
+    expect(normalizeSourceIds('12345, https://vk.com/team')).toEqual(['-12345', 'team']);
   });
 
   it('accepts empty input', () => {

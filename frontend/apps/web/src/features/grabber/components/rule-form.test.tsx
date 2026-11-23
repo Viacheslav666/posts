@@ -123,6 +123,9 @@ describe('RuleForm (FE-14)', () => {
       />,
     );
 
+    expect(screen.getByTestId('grabber-postponed-repost-unavailable')).toHaveTextContent(
+      'Скоро: требует проверки на VK',
+    );
     expect(screen.getByTestId('grabber-source-id-help')).toHaveTextContent('Как узнать ID группы?');
     expect(screen.getByTestId('grabber-target-mode')).toHaveTextContent(/Сразу на стену \(пост\)/);
     expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-interval', 'true');

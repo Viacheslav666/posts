@@ -121,6 +121,7 @@ public final class IngestDtos {
             String id,
             boolean postponed,
             boolean repost,
+            boolean available,
             boolean actionButton,
             boolean firstComment,
             boolean commentAttachments,

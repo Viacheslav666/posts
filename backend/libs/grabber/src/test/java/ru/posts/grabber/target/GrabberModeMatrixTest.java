@@ -146,5 +146,100 @@ class GrabberModeMatrixTest {
         assertThat(GrabberRepostObject.from("club", "9", Map.of("owner_id", -8)))
                 .isEqualTo("wall-8_9");
         assertThat(GrabberRepostObject.from("screen", "x", Map.of())).isNull();
+        assertThat(GrabberRepostObject.from("-123", "wall-123_456", Map.of())).isEqualTo("wall-123_456");
+    }
+
+    @Test
+    void closedWindowSpacesSlotsFromOneOpening() {
+        Instant now = Instant.parse("2026-11-18T12:00:00Z");
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(Map.of(
+                "target_mode",
+                "vk_postponed_post",
+                "schedule",
+                Map.of(
+                        "enabled",
+                        true,
+                        "timezone",
+                        "UTC",
+                        "days_of_week",
+                        List.of(1, 2, 3, 4, 5, 6, 7),
+                        "hours_from",
+                        9,
+                        "hours_to",
+                        10)));
+        GrabberPublishSchedule.Plan first = GrabberPublishSchedule.plan(config, now, now, 0);
+        GrabberPublishSchedule.Plan second = GrabberPublishSchedule.plan(config, now, now, 1);
+        Instant opening = Instant.ofEpochSecond(first.vkPublishDateEpoch());
+        Instant next = Instant.ofEpochSecond(second.vkPublishDateEpoch());
+        assertThat(opening).isEqualTo(Instant.parse("2026-11-19T09:00:00Z"));
+        assertThat(next).isEqualTo(opening.plusSeconds(60));
+        assertThat(next).isNotEqualTo(opening);
+    }
+
+    @Test
+    void rollPastWindowRechecksSevenDayHorizon() {
+        Instant now = Instant.parse("2026-11-18T12:00:00Z");
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(Map.of(
+                "target_mode",
+                "vk_postponed_post",
+                "schedule",
+                Map.of(
+                        "enabled",
+                        true,
+                        "timezone",
+                        "UTC",
+                        "days_of_week",
+                        List.of(4),
+                        "hours_from",
+                        9,
+                        "hours_to",
+                        10)));
+        assertThatThrownBy(() -> GrabberPublishSchedule.plan(config, now, now, 60))
+                .isInstanceOf(PostponedHorizonException.class);
+    }
+
+    @Test
+    void intervalAbove120IsRejected() {
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(
+                Map.of("target_mode", "wall_now", "limits", Map.of("min_interval_minutes", 121)));
+        assertThat(GrabberConfigSupport.minIntervalMinutes(config)).isEqualTo(120);
+        assertThatThrownBy(() -> GrabberModeRestrictions.validate(config, "grabber"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("120");
+    }
+
+    @Test
+    void postponedRepostIsUnavailableUntilFlag() {
+        Map<String, Object> body = GrabberModeMatrix.describe();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> modes = (List<Map<String, Object>>) body.get("modes");
+        Map<String, Object> row = modes.stream()
+                .filter(item -> "vk_postponed_repost".equals(item.get("id")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(row.get("available")).isEqualTo(false);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> enabled =
+                (List<Map<String, Object>>) GrabberModeMatrix.describe(true).get("modes");
+        assertThat(enabled.stream()
+                        .filter(item -> "vk_postponed_repost".equals(item.get("id")))
+                        .findFirst()
+                        .orElseThrow()
+                        .get("available"))
+                .isEqualTo(true);
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(Map.of("target_mode", "vk_postponed_repost"));
+        assertThatThrownBy(() -> GrabberModeRestrictions.validate(config, "grabber"))
+                .hasMessage(GrabberModeMatrix.POSTPONED_REPOST_UNAVAILABLE_HINT);
+        GrabberModeRestrictions.validate(config, "grabber", true);
+    }
+
+    @Test
+    void scheduleTimezoneUsesTheRuleZone() {
+        Map<String, Object> config =
+                GrabberConfigSupport.withDefaults(Map.of("schedule", Map.of("timezone", "Europe/Samara")));
+        assertThat(GrabberConfigSupport.scheduleTimezone(config)).isEqualTo("Europe/Samara");
+        assertThat(GrabberConfigSupport.scheduleTimezone(Map.of())).isEqualTo("Europe/Moscow");
+        assertThat(GrabberConfigSupport.scheduleTimezone(Map.of("schedule", Map.of("timezone", "Not/AZone"))))
+                .isEqualTo("Europe/Moscow");
     }
 }

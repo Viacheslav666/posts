@@ -13,17 +13,24 @@ public final class GrabberModeRestrictions {
     private GrabberModeRestrictions() {}
 
     public static void validate(Map<String, Object> config, String ruleType) {
+        validate(config, ruleType, false);
+    }
+
+    public static void validate(Map<String, Object> config, String ruleType, boolean postponedRepostEnabled) {
         String modeWire = GrabberConfigSupport.targetMode(config);
         if (!GrabberTargetMode.isKnown(modeWire)) {
             throw new IllegalArgumentException("Неизвестный режим публикации: " + modeWire);
         }
         GrabberTargetMode mode = GrabberTargetMode.fromWire(modeWire);
+        if (mode == GrabberTargetMode.VK_POSTPONED_REPOST && !postponedRepostEnabled) {
+            throw new IllegalArgumentException(GrabberModeMatrix.POSTPONED_REPOST_UNAVAILABLE_HINT);
+        }
         if (mode.repost() && ruleType != null && !"grabber".equalsIgnoreCase(ruleType)) {
             throw new IllegalArgumentException(
                     "Репост доступен только для граббера VK: у RSS и сайта нет объекта wall для wall.repost");
         }
 
-        int interval = GrabberConfigSupport.minIntervalMinutes(config);
+        int interval = GrabberConfigSupport.declaredMinIntervalMinutes(config);
         if (interval < 0 || interval > GrabberModeMatrix.MAX_INTERVAL_MINUTES) {
             throw new IllegalArgumentException("Интервал между постами должен быть от 0 до 120 минут");
         }

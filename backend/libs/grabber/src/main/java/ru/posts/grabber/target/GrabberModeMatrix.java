@@ -33,6 +33,9 @@ public final class GrabberModeMatrix {
     public static final int MAX_SOURCES = 20;
     public static final int DEFAULT_MAX_AGE_DAYS = 60;
 
+    /** Shown when {@code vk_postponed_repost} is listed but not selectable. */
+    public static final String POSTPONED_REPOST_UNAVAILABLE_HINT = "Скоро: требует проверки на VK";
+
     /** Features turned off when the interval between posts is greater than zero. */
     public static final List<String> INTERVAL_DISABLES = List.of(Feature.COMMENT_ATTACHMENTS.wire());
 
@@ -71,14 +74,30 @@ public final class GrabberModeMatrix {
         return supports(mode.wire(), intervalMinutes, feature);
     }
 
-    /** Full matrix for the UI and other callers. Mode rows ignore the interval interaction. */
+    /**
+     * {@code vk_postponed_repost} stays unavailable until {@code posts.grabber.postponed-repost.enabled}
+     * is turned on. {@code wall.repost} has no documented {@code publish_date}.
+     */
+    public static boolean available(GrabberTargetMode mode, boolean postponedRepostEnabled) {
+        if (mode == GrabberTargetMode.VK_POSTPONED_REPOST) {
+            return postponedRepostEnabled;
+        }
+        return true;
+    }
+
+    /** Full matrix for the UI. Postponed repost is unavailable unless the flag is on. */
     public static Map<String, Object> describe() {
+        return describe(false);
+    }
+
+    public static Map<String, Object> describe(boolean postponedRepostEnabled) {
         List<Map<String, Object>> modes = new ArrayList<>();
         for (GrabberTargetMode mode : GrabberTargetMode.values()) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", mode.wire());
             row.put("postponed", mode.postponed());
             row.put("repost", mode.repost());
+            row.put("available", available(mode, postponedRepostEnabled));
             row.put(Feature.ACTION_BUTTON.wire(), supports(mode, 0, Feature.ACTION_BUTTON));
             row.put(Feature.FIRST_COMMENT.wire(), supports(mode, 0, Feature.FIRST_COMMENT));
             row.put(Feature.COMMENT_ATTACHMENTS.wire(), supports(mode, 0, Feature.COMMENT_ATTACHMENTS));

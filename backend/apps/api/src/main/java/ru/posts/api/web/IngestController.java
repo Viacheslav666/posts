@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -44,9 +45,13 @@ import ru.posts.security.auth.SecurityAuthSupport;
 public class IngestController {
 
     private final IngestService ingestService;
+    private final boolean postponedRepostEnabled;
 
-    public IngestController(IngestService ingestService) {
+    public IngestController(
+            IngestService ingestService,
+            @Value("${posts.grabber.postponed-repost.enabled:false}") boolean postponedRepostEnabled) {
         this.ingestService = ingestService;
+        this.postponedRepostEnabled = postponedRepostEnabled;
     }
 
     @GetMapping("/api/v1/ingest/mode-matrix")
@@ -61,7 +66,7 @@ public class IngestController {
             description = "Capability matrix",
             content = @Content(schema = @Schema(implementation = IngestDtos.GrabberModeMatrixResponse.class)))
     public IngestDtos.GrabberModeMatrixResponse modeMatrix() {
-        Map<String, Object> described = GrabberModeMatrix.describe();
+        Map<String, Object> described = GrabberModeMatrix.describe(postponedRepostEnabled);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows = (List<Map<String, Object>>) described.get("modes");
         List<IngestDtos.GrabberModeRow> modes = new ArrayList<>();
@@ -70,6 +75,7 @@ public class IngestController {
                     String.valueOf(row.get("id")),
                     Boolean.TRUE.equals(row.get("postponed")),
                     Boolean.TRUE.equals(row.get("repost")),
+                    Boolean.TRUE.equals(row.get("available")),
                     Boolean.TRUE.equals(row.get("actionButton")),
                     Boolean.TRUE.equals(row.get("firstComment")),
                     Boolean.TRUE.equals(row.get("commentAttachments")),

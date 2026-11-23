@@ -536,7 +536,9 @@ class GrabberIngestIntegrationTest {
                 .andExpect(jsonPath("$.modes[1].interval").value(false))
                 .andExpect(jsonPath("$.modes[1].firstComment").value(false))
                 .andExpect(jsonPath("$.modes[1].actionButton").value(false))
-                .andExpect(jsonPath("$.modes[1].scheduledDelete").value(false));
+                .andExpect(jsonPath("$.modes[1].scheduledDelete").value(false))
+                .andExpect(jsonPath("$.modes[3].id").value("vk_postponed_repost"))
+                .andExpect(jsonPath("$.modes[3].available").value(false));
 
         mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
                         .with(csrf())
@@ -565,13 +567,83 @@ class GrabberIngestIntegrationTest {
                 .andExpect(jsonPath("$.code").value("validation_failed"))
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Интервал")));
 
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Interval too wide",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "wall_now",
+                                        "limits",
+                                        Map.of("min_interval_minutes", 121))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("120")));
+
+        String pastedToken = "vk1.a." + "secretTOKEN".repeat(8);
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad source",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of("sourceIds", List.of(pastedToken), "scanIntervalMinutes", 60)))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(pastedToken))));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Postponed repost",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "vk_postponed_repost")))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Скоро")));
+
         JsonNode created = createRule(
                 fx,
                 Map.of(
                         "type",
                         "grabber",
                         "name",
-                        "Postponed repost",
+                        "Wall repost",
                         "targetChannelId",
                         fx.channelId.toString(),
                         "userResponsibilityAccepted",
@@ -579,11 +651,11 @@ class GrabberIngestIntegrationTest {
                         "config",
                         Map.of(
                                 "sourceIds",
-                                List.of("club123", "https://vk.com/public77"),
+                                List.of("club123", "https://vk.com/public77", "12345", "https://vk.com/team"),
                                 "scanIntervalMinutes",
                                 60,
                                 "targetMode",
-                                "vk_postponed_repost",
+                                "wall_repost",
                                 "filters",
                                 Map.of("max_age_days", 0),
                                 "limits",
@@ -594,14 +666,16 @@ class GrabberIngestIntegrationTest {
                                         0,
                                         "min_interval_minutes",
                                         0))));
-        assertThat(created.get("config").get("targetMode").asText()).isEqualTo("vk_postponed_repost");
+        assertThat(created.get("config").get("targetMode").asText()).isEqualTo("wall_repost");
         assertThat(created.get("config").get("filters").get("max_age_days").asInt())
                 .isZero();
         assertThat(created.get("config").get("limits").get("rate_limit_per_day").asInt())
                 .isZero();
         assertThat(created.get("config").get("sourceIds").toString())
                 .contains("-123")
-                .contains("-77");
+                .contains("-77")
+                .contains("-12345")
+                .contains("team");
 
         JsonNode defaults = createRule(
                 fx,

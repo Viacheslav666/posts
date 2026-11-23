@@ -18081,6 +18081,8 @@ components:
       properties:
         actionButton:
           type: boolean
+        available:
+          type: boolean
         commentAttachments:
           type: boolean
         firstComment:

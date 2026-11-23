@@ -43,6 +43,7 @@ import ru.posts.grabber.ssrf.SsrfGuard;
 import ru.posts.grabber.ssrf.SsrfProperties;
 import ru.posts.grabber.target.GrabberModeRestrictions;
 import ru.posts.grabber.target.GrabberPublishSchedule;
+import ru.posts.grabber.target.GrabberTargetGuard;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.messaging.ingest.GrabberRunCommand;
 import ru.posts.messaging.topology.IngestTopology;
@@ -172,6 +173,7 @@ public class IngestServiceImpl implements IngestService {
         access.requireVisibleProject(membership, projectId);
         planLimitService.ensureCanCreateGrabberRule(workspaceId);
         ChannelEntity channel = requireChannel(workspaceId, request.targetChannelId());
+        requireGrabberCommunity(request.type(), channel);
         Map<String, Object> config = buildConfig(request.type(), request.config());
         validateConfig(request.type(), config);
 
@@ -247,7 +249,12 @@ public class IngestServiceImpl implements IngestService {
         }
         if (request.targetChannelId() != null) {
             ChannelEntity channel = requireChannel(rule.getWorkspaceId(), request.targetChannelId());
+            requireGrabberCommunity(IngestDtos.RuleType.valueOf(rule.getType()), channel);
             rule.setTargetChannelId(channel.getId());
+        } else if ("grabber".equals(rule.getType())) {
+            channelRepository
+                    .findByIdAndDeletedAtIsNull(rule.getTargetChannelId())
+                    .ifPresent(channel -> requireGrabberCommunity(IngestDtos.RuleType.grabber, channel));
         }
         if (request.config() != null) {
             Map<String, Object> config = buildConfig(IngestDtos.RuleType.valueOf(rule.getType()), request.config());
@@ -781,7 +788,8 @@ public class IngestServiceImpl implements IngestService {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }
         try {
-            GrabberModeRestrictions.validate(config, type == null ? null : type.name());
+            GrabberModeRestrictions.validate(
+                    config, type == null ? null : type.name(), grabberProperties.isPostponedRepostEnabled());
         } catch (IllegalArgumentException ex) {
             log.warn("Grabber config rejected type={} detail={}", type, ex.getMessage());
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
@@ -814,6 +822,17 @@ public class IngestServiceImpl implements IngestService {
                 throw new ApiException(
                         HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
             }
+        }
+    }
+
+    private void requireGrabberCommunity(IngestDtos.RuleType type, ChannelEntity channel) {
+        if (type != IngestDtos.RuleType.grabber || channel == null) {
+            return;
+        }
+        try {
+            GrabberTargetGuard.requireCommunity(channel.getNetwork(), channel.getType());
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         }
     }
 

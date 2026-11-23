@@ -16,6 +16,7 @@ export function normalizeSourceToken(raw: string): string | null {
   if (club) return `-${club[1]}`;
   const community = PUBLIC_RE.exec(value);
   if (community) return `-${community[1]}`;
+  if (/^\d+$/.test(value)) return `-${value}`;
   if (SOURCE_ID_RE.test(value)) return value;
   return null;
 }

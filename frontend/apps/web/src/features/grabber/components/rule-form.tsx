@@ -41,6 +41,7 @@ import {
   formValuesFromRule,
 } from '../model/config';
 import { grabberRuleFormSchema, type GrabberRuleFormValues } from '../model/schemas';
+import { isTargetModeAvailable } from '../model/mode-capabilities';
 import { normalizeSourceIds } from '../model/source-ids';
 import { useGrabberModeCapabilities } from '../model/use-grabber-mode-capabilities';
 import {
@@ -104,7 +105,7 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
     [channels],
   );
 
-  const { caps } = useGrabberModeCapabilities(targetMode, minIntervalMinutes || 0);
+  const { caps, matrix } = useGrabberModeCapabilities(targetMode, minIntervalMinutes || 0);
 
   useEffect(() => {
     if (!caps.interval && minIntervalMinutes > 0) {
@@ -433,11 +434,14 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TARGET_MODES.filter((mode) => type === 'grabber' || !isRepostTarget(mode)).map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {t(`targetModes.${mode}`)}
-                  </SelectItem>
-                ))}
+                {TARGET_MODES.filter((mode) => type === 'grabber' || !isRepostTarget(mode)).map((mode) => {
+                  const available = isTargetModeAvailable(mode, matrix);
+                  return (
+                    <SelectItem key={mode} value={mode} disabled={!available}>
+                      {t(`targetModes.${mode}`)}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           )}
@@ -445,6 +449,11 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         <p className="text-xs text-muted-foreground">
           {isPostponedTarget(targetMode) ? t('targetModePostponedHint') : t('targetModeHint')}
         </p>
+        {type === 'grabber' && !isTargetModeAvailable('vk_postponed_repost', matrix) ? (
+          <p className="text-xs text-muted-foreground" data-testid="grabber-postponed-repost-unavailable">
+            {t('targetModePostponedRepostUnavailable')}
+          </p>
+        ) : null}
         {fieldError('targetMode') ? (
           <p role="alert" className="text-xs text-destructive">
             {fieldError('targetMode')}

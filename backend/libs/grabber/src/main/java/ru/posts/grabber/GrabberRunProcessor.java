@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.SourceIdNormalizer;
+import ru.posts.grabber.fetch.GrabberSourceScan;
 import ru.posts.grabber.fetch.RssFetcher;
 import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
@@ -29,6 +30,7 @@ import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.hash.SimHasher;
 import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.grabber.publish.GrabberPostFactory;
+import ru.posts.grabber.target.GrabberDailyWindow;
 import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.grabber.transform.ContentTransformer;
@@ -50,7 +52,6 @@ public class GrabberRunProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(GrabberRunProcessor.class);
     private static final List<String> DEDUP_EXCLUDED = List.of("rejected", "suppressed_dedup", "filtered_out");
-    private static final List<String> PUBLISHED_STATUSES = List.of("scheduled", "published", "approved");
 
     private final AutomationRuleRepository ruleRepository;
     private final GrabberRunRepository runRepository;
@@ -96,7 +97,7 @@ public class GrabberRunProcessor {
     public GrabberRunEntity process(UUID ruleId, UUID runId, String trigger, String traceId) {
         Timer.Sample sample = Timer.start(meterRegistry);
         AutomationRuleEntity rule = ruleRepository
-                .findById(ruleId)
+                .findByIdForUpdate(ruleId)
                 .orElseThrow(() -> new IllegalArgumentException("Rule not found: " + ruleId));
         // migrate config on read
         rule.setConfig(GrabberConfigSupport.withDefaults(rule.getConfig()));
@@ -142,12 +143,17 @@ public class GrabberRunProcessor {
                         candidate.contentText(), candidate.mediaHashes(), candidate.attachmentCanonicalIds());
                 long simhash = SimHasher.fingerprint(candidate.contentText());
 
-                if (itemRepository
-                        .findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
-                                rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId())
-                        .isPresent()) {
-                    itemsDeduped++;
-                    continue;
+                var existing = itemRepository.findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
+                        rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId());
+                if (existing.isPresent()) {
+                    GrabberItemEntity prior = existing.get();
+                    if (GrabberDailyWindow.isReopenableRateLimit(prior.getStatus(), prior.getSkipReason())) {
+                        itemRepository.delete(prior);
+                        itemRepository.flush();
+                    } else {
+                        itemsDeduped++;
+                        continue;
+                    }
                 }
 
                 if (GrabberConfigSupport.dedupEnabled(rule.getConfig())
@@ -183,7 +189,7 @@ public class GrabberRunProcessor {
                             limitReason,
                             candidate.sourceId(),
                             candidate.remotePostId());
-                    persistItem(rule, run, candidate, contentHash, simhash, "filtered_out", limitReason, now);
+                    // No filtered_out row: a terminal skip would dedupe the post forever, past the reset.
                     continue;
                 }
 
@@ -316,25 +322,21 @@ public class GrabberRunProcessor {
     }
 
     private String quotaSkipReason(AutomationRuleEntity rule, SourceCandidate candidate, Instant now) {
+        Instant dayStart = GrabberDailyWindow.start(rule.getConfig(), now);
         int perDay = GrabberConfigSupport.rateLimitPerDay(rule.getConfig());
         if (perDay > 0) {
             long count = itemRepository.countByRuleIdAndStatusInAndDetectedAtAfter(
-                    rule.getId(), PUBLISHED_STATUSES, now.minus(1, ChronoUnit.DAYS));
-            count += itemRepository.countByRuleIdAndStatusAndDetectedAtAfter(
-                    rule.getId(), "pending_moderation", now.minus(1, ChronoUnit.DAYS));
+                    rule.getId(), GrabberDailyWindow.QUOTA_STATUSES, dayStart);
             if (count >= perDay) {
-                return "rate_limit_per_day";
+                return GrabberDailyWindow.RATE_LIMIT_PER_DAY;
             }
         }
         int perSource = GrabberConfigSupport.rateLimitPerSourcePerDay(rule.getConfig());
         if (perSource > 0) {
             long count = itemRepository.countByRuleIdAndSourceIdAndStatusInAndDetectedAtAfter(
-                    rule.getId(),
-                    candidate.sourceId(),
-                    List.of("scheduled", "published", "approved", "pending_moderation"),
-                    now.minus(1, ChronoUnit.DAYS));
+                    rule.getId(), candidate.sourceId(), GrabberDailyWindow.QUOTA_STATUSES, dayStart);
             if (count >= perSource) {
-                return "rate_limit_per_source_per_day";
+                return GrabberDailyWindow.RATE_LIMIT_PER_SOURCE;
             }
         }
         return null;
@@ -382,11 +384,15 @@ public class GrabberRunProcessor {
         if (token.isEmpty()) {
             throw new IllegalStateException("No VK token available for grabber sources");
         }
-        List<SourceCandidate> all = new ArrayList<>();
-        for (String sourceId : sourceIds) {
-            all.addAll(vkWallFetcher.fetch(sourceId, token.get(), 20));
-        }
-        return all;
+        String accessToken = token.get();
+        return GrabberSourceScan.collect(
+                sourceIds,
+                sourceId -> vkWallFetcher.fetch(sourceId, accessToken, 20),
+                (sourceId, ex) -> log.warn(
+                        "Grabber source skipped ruleId={} sourceId={} detail={}",
+                        rule.getId(),
+                        sourceId,
+                        GrabberSourceScan.redact(ex.getMessage(), accessToken)));
     }
 
     private GrabberItemEntity persistItem(

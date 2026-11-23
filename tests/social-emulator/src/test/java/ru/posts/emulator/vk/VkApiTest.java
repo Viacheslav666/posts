@@ -111,6 +111,29 @@ class VkApiTest {
     }
 
     @Test
+    void wallRepostWithoutGuidIsIdempotentPerObject() throws Exception {
+        mockMvc.perform(post("/method/wall.repost")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("object", "wall-5_9")
+                        .param("group_id", "100")
+                        .param("message", "via grabber")
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.post_id").exists());
+
+        mockMvc.perform(post("/method/wall.repost")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("object", "wall-5_9")
+                        .param("group_id", "100")
+                        .param("message", "via grabber")
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.post_already_exists").value(1));
+
+        assertThat(postStore.counts().get("vk")).isEqualTo(1L);
+    }
+
+    @Test
     void forcedVkError6() throws Exception {
         ScenarioConfig config = ScenarioConfig.defaults();
         config.forNetwork(Network.VK).setForcedError("6");

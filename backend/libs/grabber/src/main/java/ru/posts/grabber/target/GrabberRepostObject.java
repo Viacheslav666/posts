@@ -8,11 +8,20 @@ public final class GrabberRepostObject {
 
     private static final Pattern NUMERIC = Pattern.compile("^-?\\d+$");
     private static final Pattern POST = Pattern.compile("^\\d+$");
+    /** Form stored by {@code VkWallFetcher}: {@code wall-123_456}. */
+    private static final Pattern WALL = Pattern.compile("^wall-?\\d+_\\d+$");
 
     private GrabberRepostObject() {}
 
     public static String from(String sourceId, String remotePostId, Map<String, Object> raw) {
-        if (remotePostId == null || !POST.matcher(remotePostId.trim()).matches()) {
+        if (remotePostId == null) {
+            return null;
+        }
+        String trimmed = remotePostId.trim();
+        if (WALL.matcher(trimmed).matches()) {
+            return trimmed;
+        }
+        if (!POST.matcher(trimmed).matches()) {
             return null;
         }
         String owner = null;
@@ -28,6 +37,6 @@ public final class GrabberRepostObject {
         if (owner == null || !NUMERIC.matcher(owner).matches()) {
             return null;
         }
-        return "wall" + owner + "_" + remotePostId.trim();
+        return "wall" + owner + "_" + trimmed;
     }
 }

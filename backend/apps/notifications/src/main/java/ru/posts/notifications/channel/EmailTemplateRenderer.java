@@ -17,7 +17,11 @@ public class EmailTemplateRenderer {
         String template = loadTemplate(eventType);
         String html = template;
         for (Map.Entry<String, String> entry : vars.entrySet()) {
-            html = html.replace("{{" + entry.getKey() + "}}", entry.getValue() == null ? "" : entry.getValue());
+            String value = entry.getValue() == null ? "" : entry.getValue();
+            if ("body".equals(entry.getKey())) {
+                value = escapeHtml(value);
+            }
+            html = html.replace("{{" + entry.getKey() + "}}", value);
         }
         return html;
     }
@@ -39,6 +43,17 @@ public class EmailTemplateRenderer {
             case "billing.access_suspended" -> "Доступ приостановлен";
             default -> "Уведомление Posts";
         };
+    }
+
+    static String escapeHtml(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        return raw.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     private String loadTemplate(String eventType) {

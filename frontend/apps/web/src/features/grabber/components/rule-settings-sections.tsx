@@ -16,6 +16,16 @@ import {
 } from '../model/types';
 import { CheckboxRow } from './checkbox-row';
 
+const TIMEZONE_PRESETS = [
+  'Europe/Kaliningrad',
+  'Europe/Moscow',
+  'Europe/Samara',
+  'Asia/Yekaterinburg',
+  'Asia/Novosibirsk',
+  'Asia/Vladivostok',
+  'UTC',
+];
+
 type SectionsProps = {
   register: UseFormRegister<GrabberRuleFormValues>;
   control: Control<GrabberRuleFormValues>;
@@ -220,8 +230,14 @@ export function RuleSettingsSections({
               <input
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 data-testid="grabber-schedule-timezone"
+                list="grabber-timezone-presets"
                 {...register('scheduleTimezone')}
               />
+              <datalist id="grabber-timezone-presets">
+                {TIMEZONE_PRESETS.map((zone) => (
+                  <option key={zone} value={zone} />
+                ))}
+              </datalist>
             </label>
             <fieldset>
               <legend className="mb-2 text-sm font-medium">{t('schedule.days')}</legend>

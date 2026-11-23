@@ -337,11 +337,39 @@ public final class GrabberConfigSupport {
         return value instanceof Number n ? n.intValue() : 0;
     }
 
-    public static int minIntervalMinutes(Map<String, Object> config) {
+    /** Stored interval before the 0–120 clamp. Validation uses this so a value above 120 is rejected. */
+    public static int declaredMinIntervalMinutes(Map<String, Object> config) {
         Map<String, Object> limits = map(config == null ? null : config.get("limits"));
         Object value = limits.get("min_interval_minutes");
-        int n = value instanceof Number num ? num.intValue() : 0;
+        if (value instanceof Number num) {
+            return num.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        return 0;
+    }
+
+    public static int minIntervalMinutes(Map<String, Object> config) {
+        int n = declaredMinIntervalMinutes(config);
         return Math.max(0, Math.min(n, 120));
+    }
+
+    /** IANA zone from {@code schedule.timezone}, or {@code Europe/Moscow} when missing or invalid. */
+    public static String scheduleTimezone(Map<String, Object> config) {
+        Object raw = schedule(config).get("timezone");
+        String value = raw == null || raw.toString().isBlank()
+                ? "Europe/Moscow"
+                : raw.toString().trim();
+        try {
+            return java.time.ZoneId.of(value).getId();
+        } catch (java.time.DateTimeException ex) {
+            return "Europe/Moscow";
+        }
     }
 
     @SuppressWarnings("unchecked")
