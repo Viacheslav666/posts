@@ -7,11 +7,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.media.GrabberMediaResolver;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -35,23 +38,28 @@ import ru.posts.persistence.repository.PublicationRepository;
 @Profile("!openapi")
 public class GrabberPostFactory {
 
+    private static final Logger log = LoggerFactory.getLogger(GrabberPostFactory.class);
+
     private final PostRepository postRepository;
     private final PostVariantRepository postVariantRepository;
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
     private final OutboxRepository outboxRepository;
+    private final GrabberMediaResolver mediaResolver;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberMediaResolver mediaResolver) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
         this.outboxRepository = outboxRepository;
+        this.mediaResolver = mediaResolver;
     }
 
     @Transactional
@@ -86,9 +94,18 @@ public class GrabberPostFactory {
             return new PublishResult(null, List.of(), false);
         }
 
-        Instant now = Instant.now();
-        Instant scheduledAt = runAt == null ? now : runAt;
+        Instant scheduledAt = runAt == null ? Instant.now() : runAt;
         ensurePublicationPartition(scheduledAt);
+
+        GrabberMediaResolver.Resolution media =
+                mediaResolver.resolve(rule, channel, transformed.attachments(), transformed.text());
+        if (media.failed()) {
+            failItem(rule, item, media);
+            return new PublishResult(null, List.of(), false);
+        }
+        List<String> stringAttachments = media.attachments();
+
+        Instant now = Instant.now();
 
         PostEntity post = new PostEntity();
         post.setId(UuidV7.generate());
@@ -99,6 +116,9 @@ public class GrabberPostFactory {
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
         baseContent.put("mediaIds", List.of());
+        if (!stringAttachments.isEmpty()) {
+            baseContent.put("stringAttachments", stringAttachments);
+        }
         post.setBaseContent(baseContent);
         post.setStatus("scheduled");
         post.setScheduledAt(scheduledAt);
@@ -121,9 +141,8 @@ public class GrabberPostFactory {
         postRepository.save(post);
 
         Map<String, Object> options = new LinkedHashMap<>();
-        Object mode = GrabberConfigSupport.transform(rule.getConfig()).get("attachments_mode");
-        if (mode != null && !mode.toString().isBlank()) {
-            options.put("primaryAttachmentsMode", mode.toString());
+        if (media.carousel()) {
+            options.put("primaryAttachmentsMode", "carousel");
         }
         // BE-23 stub: do NOT set "firstComment" (that would schedule VK comment via adapters).
         // Keep draft under grabberFirstComment* until BE-23 wires comment adapters.
@@ -143,7 +162,13 @@ public class GrabberPostFactory {
         variant.setPostId(post.getId());
         variant.setChannelId(channel.getId());
         variant.setNetwork(channel.getNetwork());
-        variant.setContent(Map.of("text", finalText == null ? "" : finalText, "mediaIds", List.of()));
+        Map<String, Object> variantContent = new LinkedHashMap<>();
+        variantContent.put("text", finalText == null ? "" : finalText);
+        variantContent.put("mediaIds", List.of());
+        if (!stringAttachments.isEmpty()) {
+            variantContent.put("stringAttachments", stringAttachments);
+        }
+        variant.setContent(variantContent);
         variant.setOptions(options);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
@@ -180,6 +205,44 @@ public class GrabberPostFactory {
         item.setStatus("scheduled");
         item.setUpdatedAt(now);
         return new PublishResult(post.getId(), List.of(pub.getId()), false);
+    }
+
+    /**
+     * Required media could not be prepared (e.g. "Перезалить видео" is on and the re-upload failed):
+     * the post is not published; the item is marked failed and, per rule setting, users are notified.
+     */
+    private void failItem(AutomationRuleEntity rule, GrabberItemEntity item, GrabberMediaResolver.Resolution media) {
+        Instant now = Instant.now();
+        String reason = media.failureReason() + (media.failureCode() == null ? "" : ":" + media.failureCode());
+        log.warn(
+                "Grabber item not published ruleId={} itemId={} source={} reason={}: {}",
+                rule.getId(),
+                item.getId(),
+                item.getSourcePermalink(),
+                reason,
+                media.failureMessage());
+        item.setStatus("publish_failed");
+        item.setSkipReason(reason);
+        item.setUpdatedAt(now);
+        if (!GrabberConfigSupport.notifyOnErrors(rule.getConfig())) {
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("workspaceId", rule.getWorkspaceId().toString());
+        payload.put("ruleId", rule.getId().toString());
+        payload.put("ruleName", rule.getName() == null ? "" : rule.getName());
+        payload.put("itemId", item.getId().toString());
+        payload.put("sourcePermalink", item.getSourcePermalink() == null ? "" : item.getSourcePermalink());
+        payload.put("reason", reason);
+        String message = media.failureMessage() == null ? "" : media.failureMessage();
+        payload.put("errorMessage", message.substring(0, Math.min(message.length(), 500)));
+        OutboxEntity outbox = new OutboxEntity();
+        outbox.setAggregate("grabber_item");
+        outbox.setAggregateId(item.getId());
+        outbox.setEventType("grabber.item_failed");
+        outbox.setPayload(payload);
+        outbox.setCreatedAt(now);
+        outboxRepository.save(outbox);
     }
 
     private static void ensurePublicationPartition(Instant runAt) {

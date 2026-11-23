@@ -18,6 +18,7 @@ dependencies {
     api(project(":libs:social-api"))
 
     implementation(project(":libs:social-vk"))
+    implementation(project(":libs:security"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

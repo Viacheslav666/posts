@@ -35,6 +35,7 @@ import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
 import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.grabber.media.UserAttachmentsSpec;
 import ru.posts.grabber.publish.GrabberPostFactory;
 import ru.posts.grabber.ssrf.SsrfBlockedException;
 import ru.posts.grabber.ssrf.SsrfGuard;
@@ -556,7 +557,9 @@ public class IngestServiceImpl implements IngestService {
         if (item.getPostId() != null) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Item already approved/published");
         }
-        if (!"pending_moderation".equals(item.getStatus()) && !"approved".equals(item.getStatus())) {
+        if (!"pending_moderation".equals(item.getStatus())
+                && !"approved".equals(item.getStatus())
+                && !"publish_failed".equals(item.getStatus())) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Item is not approvable");
         }
 
@@ -768,6 +771,13 @@ public class IngestServiceImpl implements IngestService {
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     ProblemCodes.VALIDATION_FAILED,
                     "limits.min_interval_minutes must be 0..120");
+        }
+        List<String> attachmentErrors = UserAttachmentsSpec.validate(GrabberConfigSupport.userAttachments(config));
+        if (!attachmentErrors.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.VALIDATION_FAILED,
+                    "transform.user_attachments: " + String.join("; ", attachmentErrors));
         }
         if (type == IngestDtos.RuleType.grabber) {
             try {

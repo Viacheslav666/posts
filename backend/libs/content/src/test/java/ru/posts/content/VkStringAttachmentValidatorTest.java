@@ -27,6 +27,17 @@ class VkStringAttachmentValidatorTest {
     }
 
     @Test
+    void acceptsHttpLinkSnippets() {
+        assertThat(VkStringAttachmentValidator.isValid("https://vk.com/@club-article"))
+                .isTrue();
+        assertThat(VkStringAttachmentValidator.isValid("http://example.com/a_1?b=2"))
+                .isTrue();
+        assertThat(VkStringAttachmentValidator.isValid("ftp://example.com")).isFalse();
+        assertThat(VkStringAttachmentValidator.normalize(List.of("https://Example.com/A1_2")))
+                .containsExactly("https://Example.com/A1_2");
+    }
+
+    @Test
     void invalidOfCollectsBadTokens() {
         assertThat(VkStringAttachmentValidator.invalidOf(List.of("photo-1_2", "bad", "video-3_4")))
                 .containsExactly("bad");

@@ -261,6 +261,57 @@ class GrabberFiltersTest {
                 .isEqualTo("outside_working_window");
     }
 
+    @Nested
+    class MediaPipelineRules {
+        private Map<String, Object> flag(String name) {
+            Map<String, Object> f = new HashMap<>();
+            f.put("exclude_ads", false);
+            f.put("exclude_reposts", false);
+            f.put(name, true);
+            return filters(f);
+        }
+
+        @Test
+        void noVisualMediaSkipsPostsWithoutPhotoVideoOrClip() {
+            Map<String, Object> config = flag("skip_if_no_visual_media");
+            assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", "audio"))), config))
+                    .isEqualTo("skip_if_no_visual_media");
+            assertThat(GrabberFilters.skipReason(withAtt("x", List.of()), config))
+                    .isEqualTo("skip_if_no_visual_media");
+            for (String type : List.of("photo", "video", "clip")) {
+                assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", type))), config))
+                        .isNull();
+            }
+        }
+
+        @Test
+        void clipIsNotCountedAsVideo() {
+            List<Map<String, Object>> clip = List.of(Map.of("type", "video", "is_clip", true));
+            assertThat(GrabberFilters.skipReason(withAtt("x", clip), flag("skip_if_has_video")))
+                    .isNull();
+            assertThat(GrabberFilters.skipReason(withAtt("x", clip), flag("skip_if_has_clip")))
+                    .isEqualTo("skip_if_has_clip");
+            assertThat(GrabberFilters.skipReason(withAtt("x", clip), flag("skip_if_no_video")))
+                    .isEqualTo("skip_if_no_video");
+        }
+
+        @Test
+        void legacyDefaultAllowListDoesNotDropGoodsOrAlbums() {
+            Map<String, Object> f = new HashMap<>();
+            f.put("exclude_ads", false);
+            f.put("exclude_reposts", false);
+            f.put("attachment_types", List.of("photo", "video", "doc", "link", "audio", "poll", "none"));
+            Map<String, Object> config = filters(f);
+            for (String type : List.of("market", "album", "page", "audio_playlist", "market_album")) {
+                assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", type))), config))
+                        .isNull();
+            }
+            f.put("attachment_types", List.of("photo"));
+            assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", "market"))), filters(f)))
+                    .isEqualTo("attachment_types");
+        }
+    }
+
     private static Map<String, Object> filters(Map<String, Object> filters) {
         return GrabberConfigSupport.withDefaults(Map.of("filters", filters));
     }

@@ -41,10 +41,16 @@ public class SafeHttpFetcher {
     }
 
     public FetchResult fetch(String rawUrl, Set<String> allowedContentTypes, Collection<String> allowedHosts) {
+        return fetch(rawUrl, allowedContentTypes, allowedHosts, properties.getMaxBytes());
+    }
+
+    /** Same SSRF/redirect rules with a caller-specific body limit (media downloads). */
+    public FetchResult fetch(
+            String rawUrl, Set<String> allowedContentTypes, Collection<String> allowedHosts, long maxBodyBytes) {
         URI current = SsrfGuard.validateHttpUrl(rawUrl, allowedHosts, hostResolver);
         int redirects = 0;
         int maxRedirects = Math.max(0, properties.getMaxRedirects());
-        int maxBytes = Math.max(1, properties.getMaxBytes());
+        long maxBytes = Math.max(1, maxBodyBytes);
         Duration readTimeout = Duration.ofMillis(Math.max(100, properties.getReadTimeoutMs()));
 
         while (true) {
@@ -100,8 +106,8 @@ public class SafeHttpFetcher {
             Long contentLength =
                     response.headers().firstValueAsLong("Content-Length").orElse(-1L);
             if (contentLength > maxBytes) {
-                drainQuietly(response.body());
-                throw new IllegalArgumentException("Response exceeds size limit");
+                closeQuietly(response.body());
+                throw new ResponseTooLargeException(contentLength, maxBytes);
             }
             byte[] body = readLimited(response.body(), maxBytes);
             return new FetchResult(current.toString(), contentType, body, redirects);
@@ -124,22 +130,41 @@ public class SafeHttpFetcher {
         return false;
     }
 
-    private static byte[] readLimited(InputStream in, int maxBytes) {
+    private static byte[] readLimited(InputStream in, long maxBytes) {
         try (InputStream stream = in;
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buf = new byte[8192];
-            int total = 0;
+            long total = 0;
             int n;
             while ((n = stream.read(buf)) >= 0) {
                 total += n;
                 if (total > maxBytes) {
-                    throw new IllegalArgumentException("Response exceeds size limit");
+                    throw new ResponseTooLargeException(-1, maxBytes);
                 }
                 out.write(buf, 0, n);
             }
             return out.toByteArray();
         } catch (IOException ex) {
             throw new IllegalArgumentException("Failed to read response body", ex);
+        }
+    }
+
+    private static void closeQuietly(InputStream in) {
+        if (in == null) {
+            return;
+        }
+        try {
+            in.close();
+        } catch (IOException ignored) {
+            // best-effort
+        }
+    }
+
+    /** Body is larger than the allowed limit (declared via Content-Length or while streaming). */
+    public static final class ResponseTooLargeException extends IllegalArgumentException {
+        public ResponseTooLargeException(long declaredBytes, long maxBytes) {
+            super("Response exceeds size limit (" + (declaredBytes < 0 ? "streamed" : declaredBytes + " bytes") + " > "
+                    + maxBytes + " bytes)");
         }
     }
 

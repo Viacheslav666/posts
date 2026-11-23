@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import ru.posts.grabber.media.GrabbedAttachments;
 
 /** Normalizes attachment type aliases used by grabber filters/transforms. */
 public final class AttachmentTypes {
@@ -105,7 +106,7 @@ public final class AttachmentTypes {
             case "videos" -> "video";
             case "polls" -> "poll";
             case "links" -> "link";
-            case "playlists", "playlist" -> "playlist";
+            case "playlists", "playlist", "audio_playlist" -> "playlist";
             case "albums" -> "album";
             case "market_albums", "market-album", "selection" -> "market_album";
             default -> v;
@@ -115,17 +116,12 @@ public final class AttachmentTypes {
     private static Set<String> aliasesFor(Map<String, Object> att) {
         Set<String> out = new LinkedHashSet<>();
         String type = String.valueOf(att.getOrDefault("type", "none")).toLowerCase(Locale.ROOT);
-        out.add(canonicalize(type));
-        Object videoType = att.get("video_type");
-        if (videoType != null) {
-            String vt = videoType.toString().toLowerCase(Locale.ROOT);
-            if (vt.contains("short") || "clip".equals(vt)) {
-                out.add("clip");
-            }
-        }
-        if (Boolean.TRUE.equals(att.get("is_clip")) || "true".equalsIgnoreCase(String.valueOf(att.get("is_clip")))) {
+        if (GrabbedAttachments.CLIP.equals(GrabbedAttachments.kindOf(att))) {
+            // VK delivers clips as type=video; "has video" rules must not match clips.
             out.add("clip");
+            return out;
         }
+        out.add(canonicalize(type));
         if ("page".equals(type)) {
             out.add("article");
             out.add("wiki");

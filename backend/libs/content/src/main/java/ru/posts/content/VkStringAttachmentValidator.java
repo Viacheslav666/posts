@@ -21,13 +21,17 @@ public final class VkStringAttachmentValidator {
                     + "-?\\d+_\\d+(?:_[A-Za-z0-9_-]+)?$",
             Pattern.CASE_INSENSITIVE);
 
+    /** wall.post also accepts one link snippet given as an http(s) URL. */
+    private static final Pattern LINK = Pattern.compile("^https?://[^\\s,<>\"']+$", Pattern.CASE_INSENSITIVE);
+
     private VkStringAttachmentValidator() {}
 
     public static boolean isValid(String attachment) {
         if (attachment == null || attachment.isBlank()) {
             return false;
         }
-        return ATTACHMENT.matcher(attachment.trim()).matches();
+        String token = attachment.trim();
+        return ATTACHMENT.matcher(token).matches() || LINK.matcher(token).matches();
     }
 
     /** Returns invalid tokens (empty when all ok). */
@@ -60,7 +64,7 @@ public final class VkStringAttachmentValidator {
             String token = raw.trim();
             // Preserve VK casing for type prefix commonly lowercase.
             int us = token.indexOf('_');
-            if (us > 0) {
+            if (us > 0 && !LINK.matcher(token).matches()) {
                 String typeAndOwner = token.substring(0, us);
                 int digit = firstDigit(typeAndOwner);
                 if (digit > 0) {
