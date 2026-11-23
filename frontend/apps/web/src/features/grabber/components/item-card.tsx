@@ -28,6 +28,8 @@ export function ItemCard({
   const t = useTranslations('grabber.queue');
   const id = item.id!;
   const pending = item.status === 'pending_moderation';
+  const failed = item.status === 'publish_failed';
+  const failureCode = failed ? failureReasonCode(item.skipReason) : null;
 
   return (
     <article
@@ -51,7 +53,7 @@ export function ItemCard({
           ) : null}
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={pending ? 'scheduled' : 'published'}>
+              <Badge variant={failed ? 'failed' : pending ? 'scheduled' : 'published'}>
                 {t(`itemStatus.${item.status ?? 'pending_moderation'}`)}
               </Badge>
               <span className="text-xs text-muted-foreground">
@@ -63,6 +65,11 @@ export function ItemCard({
                 </time>
               ) : null}
             </div>
+            {failureCode ? (
+              <p className="text-xs text-destructive" data-testid={`grabber-item-failure-${id}`}>
+                {t(`failureReason.${failureCode}`)}
+              </p>
+            ) : null}
             <p className="whitespace-pre-wrap text-sm text-foreground">
               {(item.contentText ?? '').slice(0, 420)}
               {(item.contentText?.length ?? 0) > 420 ? '…' : ''}
@@ -116,7 +123,34 @@ export function ItemCard({
             </Button>
           </div>
         ) : null}
+        {canModerate && failed ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onApprove(id)}
+            data-testid={`grabber-retry-${id}`}
+          >
+            {t('retry')}
+          </Button>
+        ) : null}
       </div>
     </article>
   );
+}
+
+const FAILURE_CODES = [
+  'video_external',
+  'video_private',
+  'video_unavailable',
+  'video_not_downloadable',
+  'video_too_large',
+  'no_token',
+] as const;
+
+function failureReasonCode(skipReason: string | undefined): string {
+  const code = skipReason?.startsWith('video_reupload_failed:')
+    ? skipReason.slice('video_reupload_failed:'.length)
+    : '';
+  return (FAILURE_CODES as readonly string[]).includes(code) ? code : 'other';
 }

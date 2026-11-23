@@ -62,6 +62,7 @@ public final class GrabberConfigSupport {
         filters.putIfAbsent("skip_if_missing_attachment_types", List.of());
         filters.putIfAbsent("skip_if_has_attachment_types", List.of());
         filters.putIfAbsent("skip_if_no_visual_media", false);
+        filters.putIfAbsent("skip_if_no_article", false);
         filters.putIfAbsent("max_age_days", null);
         config.put("filters", filters);
 

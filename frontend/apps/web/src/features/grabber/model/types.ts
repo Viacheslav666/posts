@@ -33,6 +33,7 @@ export const SKIP_IF_NO_ATTACHMENT_FLAGS = [
   'skipIfNoProduct',
   'skipIfNoFile',
   'skipIfNoPoll',
+  'skipIfNoArticle',
 ] as const;
 
 export const SKIP_IF_HAS_ATTACHMENT_FLAGS = [

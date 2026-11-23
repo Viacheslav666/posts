@@ -285,6 +285,15 @@ class GrabberFiltersTest {
         }
 
         @Test
+        void noArticleSkipsPostsWithoutArticle() {
+            Map<String, Object> config = flag("skip_if_no_article");
+            assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", "photo"))), config))
+                    .isEqualTo("skip_if_no_article");
+            assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", "article"))), config))
+                    .isNull();
+        }
+
+        @Test
         void clipIsNotCountedAsVideo() {
             List<Map<String, Object>> clip = List.of(Map.of("type", "video", "is_clip", true));
             assertThat(GrabberFilters.skipReason(withAtt("x", clip), flag("skip_if_has_video")))

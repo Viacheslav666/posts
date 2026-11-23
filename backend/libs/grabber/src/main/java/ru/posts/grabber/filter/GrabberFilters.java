@@ -103,8 +103,9 @@ public final class GrabberFilters {
         if (!missingTypes.isEmpty() && !AttachmentTypes.containsAll(presentTypes, missingTypes)) {
             return "skip_if_missing_attachment_types";
         }
-        // Convenience aliases from vposter UI: no music/photo/video/clip/product/file/poll
+        // Convenience aliases from vposter UI: no music/photo/video/clip/product/file/poll/article
         for (String alias : List.of(
+                "skip_if_no_article",
                 "skip_if_no_music",
                 "skip_if_no_photo",
                 "skip_if_no_video",

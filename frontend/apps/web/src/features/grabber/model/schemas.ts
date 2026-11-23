@@ -6,6 +6,7 @@ import {
   SCAN_INTERVALS,
 } from './types';
 import { isValidSourceId, normalizeSourceIds } from './source-ids';
+import { USER_ATTACHMENTS_MAX_LENGTH, validateUserAttachments } from './user-attachments';
 
 const boolField = z.boolean();
 
@@ -45,6 +46,8 @@ export const grabberRuleFormSchema = z
     skipIfNoProduct: boolField,
     skipIfNoFile: boolField,
     skipIfNoPoll: boolField,
+    skipIfNoArticle: boolField,
+    skipIfNoVisualMedia: boolField,
     skipIfHasArticle: boolField,
     skipIfHasVideo: boolField,
     skipIfHasClip: boolField,
@@ -104,11 +107,13 @@ export const grabberRuleFormSchema = z
     // Attached text / attachments
     prependText: z.string().max(4000),
     appendText: z.string().max(4000),
-    attachWhenNoAttachments: boolField,
+    userAttachmentsText: z.string().max(USER_ATTACHMENTS_MAX_LENGTH, 'userAttachmentsTooLong'),
+    reuploadVideo: boolField,
     attachmentsMode: z.enum(['grid', 'carousel']),
     linkToSource: boolField,
     linkToAuthor: boolField,
     autoPauseOnErrors: boolField,
+    notifyOnErrors: boolField,
 
     attributionEnabled: z.literal(true),
     attributionPlacement: z.enum(['footer', 'first_comment', 'both']),
@@ -154,6 +159,10 @@ export const grabberRuleFormSchema = z
           break;
         }
       }
+    }
+    const userAttachmentsError = validateUserAttachments(values.userAttachmentsText);
+    if (userAttachmentsError) {
+      ctx.addIssue({ code: 'custom', path: ['userAttachmentsText'], message: userAttachmentsError });
     }
     if (values.activate && !values.userResponsibilityAccepted) {
       ctx.addIssue({

@@ -381,6 +381,7 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         control={control}
         scheduleEnabled={scheduleEnabled}
         firstCommentEnabled={firstCommentEnabled}
+        userAttachmentsError={fieldError('userAttachmentsText')}
       />
 
       <FormField
