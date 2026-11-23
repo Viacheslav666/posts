@@ -102,10 +102,10 @@ public final class UserAttachmentsSpec {
         String text = postText == null ? "" : postText.toLowerCase(Locale.ROOT);
         Set<String> out = new LinkedHashSet<>();
         Matcher m = BLOCK.matcher(spec);
-        StringBuilder rest = new StringBuilder();
         int last = 0;
         while (m.find()) {
-            rest.append(spec, last, m.start()).append(',');
+            // Plain tokens keep the position they were written in, including those before a block.
+            addValid(out, splitRefs(spec.substring(last, m.start())));
             last = m.end();
             String tag = m.group(1).toLowerCase(Locale.ROOT);
             String body = m.group(2);
@@ -125,8 +125,7 @@ public final class UserAttachmentsSpec {
                 }
             }
         }
-        rest.append(spec.substring(last));
-        addValid(out, splitRefs(rest.toString()));
+        addValid(out, splitRefs(spec.substring(last)));
         return out.stream().limit(GrabbedAttachments.VK_MAX_ATTACHMENTS).toList();
     }
 

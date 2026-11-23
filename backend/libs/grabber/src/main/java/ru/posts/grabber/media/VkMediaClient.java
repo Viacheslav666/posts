@@ -19,7 +19,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import ru.posts.grabber.ssrf.SafeHttpFetcher;
+import ru.posts.grabber.ssrf.SsrfBlockedException;
+import ru.posts.grabber.ssrf.SsrfGuard;
 import ru.posts.grabber.ssrf.SsrfProperties;
+import ru.posts.grabber.ssrf.UrlRedactor;
 
 /**
  * VK API calls used by the grabber media pipeline: source media download (SSRF-guarded), wall photo
@@ -63,7 +66,7 @@ public class VkMediaClient {
         } catch (SafeHttpFetcher.ResponseTooLargeException ex) {
             throw new MediaException("too_large", ex.getMessage(), ex);
         } catch (RuntimeException ex) {
-            throw new MediaException("download_failed", ex.getMessage(), ex);
+            throw new MediaException("download_failed", UrlRedactor.stripQuery(ex.getMessage()), ex);
         }
     }
 
@@ -148,7 +151,8 @@ public class VkMediaClient {
                     .retrieve()
                     .body(JsonNode.class);
         } catch (RestClientException ex) {
-            throw new MediaException("vk_unavailable", "VK " + method + " failed: " + ex.getMessage(), ex);
+            throw new MediaException(
+                    "vk_unavailable", "VK " + method + " failed: " + UrlRedactor.stripQuery(ex.getMessage()), ex);
         }
         if (body == null) {
             throw new MediaException("vk_error", "VK " + method + " returned empty response");
@@ -164,6 +168,12 @@ public class VkMediaClient {
     }
 
     private JsonNode multipart(String uploadUrl, String part, byte[] bytes, String filename, MediaType type) {
+        try {
+            SsrfGuard.validateHttpUrl(uploadUrl, ssrfProperties.getAllowedHosts());
+        } catch (SsrfBlockedException ex) {
+            throw new MediaException(
+                    "upload_failed", "VK upload URL rejected: " + UrlRedactor.stripQuery(uploadUrl), ex);
+        }
         MultipartBodyBuilder multipart = new MultipartBodyBuilder();
         multipart
                 .part(part, new ByteArrayResource(bytes) {
@@ -182,7 +192,8 @@ public class VkMediaClient {
                     .retrieve()
                     .body(String.class);
         } catch (RestClientException ex) {
-            throw new MediaException("upload_failed", "VK upload failed: " + ex.getMessage(), ex);
+            throw new MediaException(
+                    "upload_failed", "VK upload failed: " + UrlRedactor.stripQuery(ex.getMessage()), ex);
         }
         if (raw == null || raw.isBlank()) {
             return null;

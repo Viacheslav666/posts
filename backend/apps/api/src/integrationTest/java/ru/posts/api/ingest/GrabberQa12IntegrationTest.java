@@ -322,6 +322,33 @@ class GrabberQa12IntegrationTest {
     }
 
     @Test
+    @DisplayName("Retry of publish_failed without automations.moderate is 403")
+    void retryWithoutModerateIsForbidden() throws Exception {
+        Fixture fx = bootstrap();
+        upgradeToAgency(fx.workspaceId);
+        String viewerEmail = "viewer-retry-" + UUID.randomUUID() + "@example.com";
+        String viewerToken = registerVerifyLogin(viewerEmail, "Viewer");
+        inviteAndAccept(fx.token, fx.workspaceId, viewerEmail, "viewer", List.of(fx.projectId));
+
+        JsonNode rule = createActiveRule(fx, Map.of("sourceIds", List.of("-123"), "scanIntervalMinutes", 15));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        runProcessor.process(ruleId, null, "manual", "trace-retry-rbac");
+        GrabberItemEntity item =
+                itemRepository.findByRuleIdOrderByDetectedAtDesc(ruleId).getFirst();
+        item.setStatus("publish_failed");
+        item.setSkipReason("video_reupload_failed:video_private");
+        itemRepository.save(item);
+
+        mockMvc.perform(post("/api/v1/ingest/items/" + item.getId() + "/approve")
+                        .with(csrf())
+                        .header("Authorization", bearer(viewerToken))
+                        .header("Idempotency-Key", "retry-" + item.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("TC-GRAB-17 audit create/activate/approve")
     void auditTrail() throws Exception {
         Fixture fx = bootstrap();

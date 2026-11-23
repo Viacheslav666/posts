@@ -11,10 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.media.GrabberMediaResolver;
+import ru.posts.grabber.ssrf.UrlRedactor;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -25,6 +27,7 @@ import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
@@ -44,31 +47,38 @@ public class GrabberPostFactory {
     private final PostVariantRepository postVariantRepository;
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
+    private final GrabberItemRepository itemRepository;
     private final OutboxRepository outboxRepository;
     private final GrabberMediaResolver mediaResolver;
+    private final TransactionTemplate tx;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
+            GrabberItemRepository itemRepository,
             OutboxRepository outboxRepository,
-            GrabberMediaResolver mediaResolver) {
+            GrabberMediaResolver mediaResolver,
+            PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
+        this.itemRepository = itemRepository;
         this.outboxRepository = outboxRepository;
         this.mediaResolver = mediaResolver;
+        this.tx = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
+    /**
+     * Downloads and re-uploads media outside any database transaction, then persists the post in a
+     * short transaction that locks the item row.
+     */
     public PublishResult publishItem(
             AutomationRuleEntity rule, GrabberItemEntity item, UUID actorId, String overrideText, Instant runAt) {
         if (item.getPostId() != null) {
-            UUID[] existing = item.getPublicationIds();
-            List<UUID> pubs = existing == null ? List.of() : List.of(existing);
-            return new PublishResult(item.getPostId(), pubs, true);
+            return alreadyPublished(item);
         }
         ChannelEntity channel = channelRepository
                 .findByIdAndDeletedAtIsNull(rule.getTargetChannelId())
@@ -88,23 +98,64 @@ public class GrabberPostFactory {
         // Network text limit (VK ~4096) — fail validation without wall.post
         int maxLen = 4096;
         if (finalText != null && finalText.length() > maxLen) {
-            item.setStatus("failed_validation");
-            item.setSkipReason("text_too_long");
-            item.setUpdatedAt(Instant.now());
-            return new PublishResult(null, List.of(), false);
+            return tx.execute(status -> {
+                GrabberItemEntity locked = lockItem(item);
+                if (locked.getPostId() != null) {
+                    return alreadyPublished(locked, item);
+                }
+                locked.setStatus("failed_validation");
+                locked.setSkipReason("text_too_long");
+                locked.setUpdatedAt(Instant.now());
+                itemRepository.save(locked);
+                copyPublishState(locked, item);
+                return new PublishResult(null, List.of(), false);
+            });
         }
 
         Instant scheduledAt = runAt == null ? Instant.now() : runAt;
         ensurePublicationPartition(scheduledAt);
 
+        // Network I/O. Callers must not hold a transaction across this line.
         GrabberMediaResolver.Resolution media =
                 mediaResolver.resolve(rule, channel, transformed.attachments(), transformed.text());
         if (media.failed()) {
-            failItem(rule, item, media);
-            return new PublishResult(null, List.of(), false);
+            return tx.execute(status -> failLocked(rule, item, media));
         }
         List<String> stringAttachments = media.attachments();
+        boolean carousel = media.carousel();
 
+        return tx.execute(status -> persistPublished(
+                rule,
+                item,
+                channel,
+                actorId,
+                overrideText,
+                finalText,
+                macroCtx,
+                stringAttachments,
+                carousel,
+                scheduledAt));
+    }
+
+    private PublishResult persistPublished(
+            AutomationRuleEntity rule,
+            GrabberItemEntity passed,
+            ChannelEntity channel,
+            UUID actorId,
+            String overrideText,
+            String finalText,
+            MacroExpander.Context macroCtx,
+            List<String> stringAttachments,
+            boolean carousel,
+            Instant scheduledAt) {
+        GrabberItemEntity item = lockItem(passed);
+        if (item.getPostId() != null) {
+            return alreadyPublished(item, passed);
+        }
+        if (overrideText != null) {
+            item.setEditedText(overrideText);
+            item.setContentText(overrideText);
+        }
         Instant now = Instant.now();
 
         PostEntity post = new PostEntity();
@@ -141,7 +192,7 @@ public class GrabberPostFactory {
         postRepository.save(post);
 
         Map<String, Object> options = new LinkedHashMap<>();
-        if (media.carousel()) {
+        if (carousel) {
             options.put("primaryAttachmentsMode", "carousel");
         }
         // BE-23 stub: do NOT set "firstComment" (that would schedule VK comment via adapters).
@@ -204,7 +255,51 @@ public class GrabberPostFactory {
         item.setPublicationIds(new UUID[] {pub.getId()});
         item.setStatus("scheduled");
         item.setUpdatedAt(now);
+        itemRepository.save(item);
+        copyPublishState(item, passed);
         return new PublishResult(post.getId(), List.of(pub.getId()), false);
+    }
+
+    private PublishResult failLocked(
+            AutomationRuleEntity rule, GrabberItemEntity passed, GrabberMediaResolver.Resolution media) {
+        GrabberItemEntity item = lockItem(passed);
+        if (item.getPostId() != null) {
+            return alreadyPublished(item, passed);
+        }
+        failItem(rule, item, media);
+        itemRepository.save(item);
+        copyPublishState(item, passed);
+        return new PublishResult(null, List.of(), false);
+    }
+
+    private GrabberItemEntity lockItem(GrabberItemEntity item) {
+        return itemRepository
+                .findByIdForUpdate(item.getId())
+                .orElseThrow(() -> new IllegalStateException("Grabber item not found: " + item.getId()));
+    }
+
+    private static PublishResult alreadyPublished(GrabberItemEntity item) {
+        UUID[] existing = item.getPublicationIds();
+        List<UUID> pubs = existing == null ? List.of() : List.of(existing);
+        return new PublishResult(item.getPostId(), pubs, true);
+    }
+
+    private static PublishResult alreadyPublished(GrabberItemEntity locked, GrabberItemEntity passed) {
+        copyPublishState(locked, passed);
+        return alreadyPublished(locked);
+    }
+
+    private static void copyPublishState(GrabberItemEntity from, GrabberItemEntity to) {
+        if (from == to) {
+            return;
+        }
+        to.setPostId(from.getPostId());
+        to.setPublicationIds(from.getPublicationIds());
+        to.setStatus(from.getStatus());
+        to.setSkipReason(from.getSkipReason());
+        to.setContentText(from.getContentText());
+        to.setEditedText(from.getEditedText());
+        to.setUpdatedAt(from.getUpdatedAt());
     }
 
     /**
@@ -214,17 +309,22 @@ public class GrabberPostFactory {
     private void failItem(AutomationRuleEntity rule, GrabberItemEntity item, GrabberMediaResolver.Resolution media) {
         Instant now = Instant.now();
         String reason = media.failureReason() + (media.failureCode() == null ? "" : ":" + media.failureCode());
+        String safeMessage = UrlRedactor.stripQuery(media.failureMessage());
         log.warn(
                 "Grabber item not published ruleId={} itemId={} source={} reason={}: {}",
                 rule.getId(),
                 item.getId(),
                 item.getSourcePermalink(),
                 reason,
-                media.failureMessage());
+                safeMessage);
         item.setStatus("publish_failed");
         item.setSkipReason(reason);
         item.setUpdatedAt(now);
         if (!GrabberConfigSupport.notifyOnErrors(rule.getConfig())) {
+            return;
+        }
+        if (outboxRepository.existsByAggregateAndAggregateIdAndEventType(
+                "grabber_item", item.getId(), "grabber.item_failed")) {
             return;
         }
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -234,7 +334,7 @@ public class GrabberPostFactory {
         payload.put("itemId", item.getId().toString());
         payload.put("sourcePermalink", item.getSourcePermalink() == null ? "" : item.getSourcePermalink());
         payload.put("reason", reason);
-        String message = media.failureMessage() == null ? "" : media.failureMessage();
+        String message = safeMessage == null ? "" : safeMessage;
         payload.put("errorMessage", message.substring(0, Math.min(message.length(), 500)));
         OutboxEntity outbox = new OutboxEntity();
         outbox.setAggregate("grabber_item");

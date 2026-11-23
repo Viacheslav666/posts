@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.GrabberProperties;
+import ru.posts.grabber.ssrf.UrlRedactor;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
@@ -74,13 +75,14 @@ public class GrabberMediaResolver {
                         try {
                             ref = reuploadVideo(rule, channel, att, uploadToken);
                         } catch (VkMediaClient.MediaException ex) {
+                            String safe = UrlRedactor.stripQuery(ex.getMessage());
                             log.warn(
                                     "Grabber video re-upload failed ruleId={} video={} code={}: {}",
                                     rule.getId(),
                                     GrabbedAttachments.reference(att),
                                     ex.code(),
-                                    ex.getMessage());
-                            return Resolution.failed("video_reupload_failed", ex.code(), ex.getMessage());
+                                    safe);
+                            return Resolution.failed("video_reupload_failed", ex.code(), safe);
                         }
                     } else {
                         ref = GrabbedAttachments.reference(att);
@@ -141,7 +143,7 @@ public class GrabberMediaResolver {
                     rule.getId(),
                     fallback,
                     ex.code(),
-                    ex.getMessage());
+                    UrlRedactor.stripQuery(ex.getMessage()));
             return fallback;
         }
     }
@@ -221,11 +223,11 @@ public class GrabberMediaResolver {
             String failureCode,
             String failureMessage) {
 
-        static Resolution ok(List<String> attachments, boolean carousel) {
+        public static Resolution ok(List<String> attachments, boolean carousel) {
             return new Resolution(attachments, carousel, null, null, null);
         }
 
-        static Resolution failed(String reason, String code, String message) {
+        public static Resolution failed(String reason, String code, String message) {
             return new Resolution(List.of(), false, reason, code, message);
         }
 

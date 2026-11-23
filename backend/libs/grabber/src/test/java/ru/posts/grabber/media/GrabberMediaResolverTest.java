@@ -169,6 +169,49 @@ class GrabberMediaResolverTest {
     }
 
     @Test
+    void tooLarge4kFallsBackTo720p() {
+        properties.getMedia().setMaxVideoBytes(1500);
+        stubJson(
+                "video.get",
+                "{\"response\":{\"count\":1,\"items\":[{\"id\":5,\"owner_id\":-123,\"title\":\"Ролик\","
+                        + "\"files\":{\"mp4_2160\":\"" + vk.baseUrl() + "/cdn/v4k.mp4\",\"mp4_720\":\""
+                        + vk.baseUrl() + "/cdn/v720.mp4\"}}]}}");
+        vk.stubFor(get(urlPathEqualTo("/cdn/v4k.mp4"))
+                .willReturn(aResponse().withHeader("Content-Type", "video/mp4").withBody(new byte[4000])));
+        vk.stubFor(get(urlPathEqualTo("/cdn/v720.mp4"))
+                .willReturn(aResponse().withHeader("Content-Type", "video/mp4").withBody(new byte[100])));
+        GrabberMediaResolver.Resolution r =
+                resolver.resolve(rule(Map.of("reupload_video", true)), channel, List.of(video(5)), "t");
+        assertThat(r.failed()).isFalse();
+        assertThat(r.attachments()).containsExactly("video-999_777");
+        vk.verify(getRequestedFor(urlPathEqualTo("/cdn/v720.mp4")));
+    }
+
+    @Test
+    void privateUploadServerIsRejectedAndPhotoFallsBack() {
+        stubJson(
+                "photos.getWallUploadServer",
+                "{\"response\":{\"upload_url\":\"http://169.254.169.254/latest/meta-data\"}}");
+        GrabberMediaResolver.Resolution r = resolver.resolve(rule(Map.of()), channel, List.of(photo(1)), "t");
+        assertThat(r.failed()).isFalse();
+        assertThat(r.attachments()).containsExactly("photo-123_1_ak");
+    }
+
+    @Test
+    void signedCdnUrlDoesNotLeakIntoFailureMessage() {
+        String signed = vk.baseUrl() + "/cdn/v.mp4?token=supersecret";
+        stubJson(
+                "video.get",
+                "{\"response\":{\"count\":1,\"items\":[{\"id\":5,\"owner_id\":-123," + "\"files\":{\"mp4_720\":\""
+                        + signed + "\"}}]}}");
+        vk.stubFor(get(urlPathEqualTo("/cdn/v.mp4")).willReturn(aResponse().withStatus(500)));
+        GrabberMediaResolver.Resolution r =
+                resolver.resolve(rule(Map.of("reupload_video", true)), channel, List.of(video(5)), "t");
+        assertThat(r.failed()).isTrue();
+        assertThat(r.failureMessage()).doesNotContain("supersecret");
+    }
+
+    @Test
     void oversizedVideoBlocksPublication() {
         properties.getMedia().setMaxVideoBytes(1024);
         stubJson(
@@ -238,7 +281,7 @@ class GrabberMediaResolverTest {
         AutomationRuleEntity rule =
                 rule(Map.of("user_attachments", "photo-1_1, [keyTextEntry]video-1_2|смеят[/keyTextEntry]"));
         assertThat(resolver.resolve(rule, channel, List.of(), "Все смеятся").attachments())
-                .containsExactly("video-1_2", "photo-1_1");
+                .containsExactly("photo-1_1", "video-1_2");
         assertThat(resolver.resolve(rule, channel, List.of(photo(1)), "Все смеятся")
                         .attachments())
                 .containsExactly("photo-999_501");

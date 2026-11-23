@@ -285,6 +285,21 @@ class GrabberFiltersTest {
         }
 
         @Test
+        void wikiPageDoesNotSatisfyArticleRules() {
+            List<Map<String, Object>> page = List.of(Map.of("type", "page"));
+            assertThat(GrabberFilters.skipReason(withAtt("x", page), flag("skip_if_no_article")))
+                    .isEqualTo("skip_if_no_article");
+            assertThat(GrabberFilters.skipReason(withAtt("x", page), flag("skip_if_has_article")))
+                    .isNull();
+            assertThat(GrabberFilters.skipReason(
+                            withAtt("x", List.of(Map.of("type", "article"))), flag("skip_if_has_article")))
+                    .isEqualTo("skip_if_has_article");
+            assertThat(GrabberFilters.skipReason(
+                            withAtt("x", List.of(Map.of("type", "article"))), flag("skip_if_no_article")))
+                    .isNull();
+        }
+
+        @Test
         void noArticleSkipsPostsWithoutArticle() {
             Map<String, Object> config = flag("skip_if_no_article");
             assertThat(GrabberFilters.skipReason(withAtt("x", List.of(Map.of("type", "photo"))), config))

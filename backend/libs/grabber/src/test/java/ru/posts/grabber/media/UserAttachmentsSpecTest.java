@@ -59,7 +59,7 @@ class UserAttachmentsSpecTest {
         String spec = "video-5_5, [rand]photo-1_1|photo-1_2[/rand], [keyTextEntry]doc-1_9|отчёт[/keyTextEntry]";
         assertThat(UserAttachmentsSpec.validate(spec)).isEmpty();
         assertThat(UserAttachmentsSpec.resolve(spec, "Годовой отчёт", fixed(1)))
-                .containsExactlyInAnyOrder("photo-1_2", "doc-1_9", "video-5_5");
+                .containsExactly("video-5_5", "photo-1_2", "doc-1_9");
     }
 
     @Test

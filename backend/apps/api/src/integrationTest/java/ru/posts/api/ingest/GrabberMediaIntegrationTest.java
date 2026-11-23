@@ -224,6 +224,36 @@ class GrabberMediaIntegrationTest {
     }
 
     @Test
+    @DisplayName("Second failure of the same item does not enqueue another notification")
+    void secondFailureNotificationIsDeduped() throws Exception {
+        stubWall("""
+                {"id":5,"owner_id":-123,"title":"Ролик","is_private":1}""");
+        Fixture fx = bootstrap();
+        UUID ruleId = createRule(fx, Map.of("reupload_video", true));
+        runProcessor.process(ruleId, null, "manual", "trace-media-dedupe");
+        GrabberItemEntity item =
+                itemRepository.findByRuleIdOrderByDetectedAtDesc(ruleId).getFirst();
+        assertThat(item.getStatus()).isEqualTo("publish_failed");
+
+        mockMvc.perform(post("/api/v1/ingest/items/" + item.getId() + "/approve")
+                        .with(csrf())
+                        .header("Authorization", "Bearer " + fx.token)
+                        .header("Idempotency-Key", "retry-" + item.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+
+        assertThat(itemRepository.findById(item.getId()).orElseThrow().getPostId())
+                .isNull();
+        assertThat(publicationRepository.findAll()).isEmpty();
+        assertThat(outboxRepository.findAll().stream()
+                        .filter(event -> "grabber.item_failed".equals(event.getEventType())
+                                && item.getId().equals(event.getAggregateId()))
+                        .count())
+                .isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("Invalid user attachments → 422 on save")
     void invalidUserAttachmentsRejected() throws Exception {
         Fixture fx = bootstrap();

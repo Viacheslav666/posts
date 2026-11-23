@@ -10,7 +10,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -120,6 +124,70 @@ class SafeHttpFetcherSsrfTest {
         assertThatThrownBy(() -> fetcher.fetch(wireMock.baseUrl() + "/r1", Set.of("text/html")))
                 .isInstanceOf(SsrfBlockedException.class)
                 .hasMessageContaining("redirects");
+    }
+
+    @Test
+    void bodyReadDeadlineAbortsASlowStream() throws Exception {
+        props.setReadTimeoutMs(300);
+        fetcher = new SafeHttpFetcher(props, HostResolver.SYSTEM);
+        try (ServerSocket server = new ServerSocket(0)) {
+            Thread slow = new Thread(() -> {
+                try (Socket socket = server.accept();
+                        OutputStream out = socket.getOutputStream()) {
+                    out.write(
+                            """
+                            HTTP/1.1 200 OK\r
+                            Content-Type: text/html\r
+                            Content-Length: 32\r
+                            Connection: close\r
+                            \r
+                            """
+                                    .getBytes(StandardCharsets.US_ASCII));
+                    out.flush();
+                    Thread.sleep(5_000);
+                    out.write("x".repeat(32).getBytes(StandardCharsets.US_ASCII));
+                } catch (Exception ignored) {
+                    // client closes the stream when the deadline fires
+                }
+            });
+            slow.setDaemon(true);
+            slow.start();
+            assertThatThrownBy(() ->
+                            fetcher.fetch("http://127.0.0.1:" + server.getLocalPort() + "/slow", Set.of("text/html")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("deadline");
+        }
+    }
+
+    @Test
+    void redirectBodyIsNotDrained() {
+        props.setReadTimeoutMs(300);
+        fetcher = new SafeHttpFetcher(props, HostResolver.SYSTEM);
+        wireMock.stubFor(get(urlPathEqualTo("/slow-redirect"))
+                .willReturn(aResponse()
+                        .withStatus(302)
+                        .withHeader("Location", wireMock.baseUrl() + "/article")
+                        .withBody("x".repeat(80_000))
+                        .withChunkedDribbleDelay(40, 8_000)));
+        wireMock.stubFor(get(urlPathEqualTo("/article"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "text/html")
+                        .withBody("<html>ok</html>")));
+        long started = System.nanoTime();
+        SafeHttpFetcher.FetchResult result = fetcher.fetch(wireMock.baseUrl() + "/slow-redirect", Set.of("text/html"));
+        assertThat(new String(result.body(), java.nio.charset.StandardCharsets.UTF_8))
+                .contains("ok");
+        assertThat(System.nanoTime() - started)
+                .isLessThan(java.time.Duration.ofSeconds(3).toNanos());
+    }
+
+    @Test
+    void errorMessageStripsSignedQuery() {
+        wireMock.stubFor(get(urlPathEqualTo("/cdn")).willReturn(aResponse().withStatus(500)));
+        assertThatThrownBy(() -> fetcher.fetch(wireMock.baseUrl() + "/cdn?token=supersecret", Set.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageNotContaining("supersecret");
     }
 
     @Test

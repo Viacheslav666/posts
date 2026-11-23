@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.SourceIdNormalizer;
@@ -60,6 +61,7 @@ public class GrabberRunProcessor {
     private final GrabberPostFactory postFactory;
     private final MeterRegistry meterRegistry;
     private final OutboxRepository outboxRepository;
+    private final TransactionTemplate tx;
 
     public GrabberRunProcessor(
             AutomationRuleRepository ruleRepository,
@@ -72,7 +74,8 @@ public class GrabberRunProcessor {
             GrabberTokenProvider tokenProvider,
             GrabberPostFactory postFactory,
             MeterRegistry meterRegistry,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            PlatformTransactionManager transactionManager) {
         this.ruleRepository = ruleRepository;
         this.runRepository = runRepository;
         this.itemRepository = itemRepository;
@@ -84,9 +87,14 @@ public class GrabberRunProcessor {
         this.postFactory = postFactory;
         this.meterRegistry = meterRegistry;
         this.outboxRepository = outboxRepository;
+        this.tx = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
+    /**
+     * Not transactional: candidate fetch and {@code publishItem} perform network I/O. Database
+     * writes use short {@link TransactionTemplate} transactions (and Spring Data repository
+     * transactions) so a pooled connection is not held across downloads or VK uploads.
+     */
     public GrabberRunEntity process(UUID ruleId, UUID runId, String trigger, String traceId) {
         Timer.Sample sample = Timer.start(meterRegistry);
         AutomationRuleEntity rule = ruleRepository
@@ -112,7 +120,7 @@ public class GrabberRunProcessor {
             if ("reauth_required".equals(channel.getStatus())) {
                 rule.setStatus("auto_paused");
                 rule.setUpdatedAt(now);
-                ruleRepository.save(rule);
+                saveRule(rule);
                 failRun(rule, run, "channel_reauth_required", "Target channel requires reauth", now);
                 return run;
             }
@@ -214,7 +222,7 @@ public class GrabberRunProcessor {
                 } catch (GrabberPostFactory.ChannelReauthRequiredException ex) {
                     rule.setStatus("auto_paused");
                     rule.setUpdatedAt(now);
-                    ruleRepository.save(rule);
+                    saveRule(rule);
                     item.setStatus("failed_ingest");
                     item.setSkipReason("channel_reauth_required");
                     itemRepository.save(item);
@@ -224,34 +232,39 @@ public class GrabberRunProcessor {
                 }
             }
 
-            run.setItemsNew(itemsNew);
-            run.setItemsDeduped(itemsDeduped);
-            run.setItemsPublished(itemsPublished);
-            run.setStatus("succeeded");
-            run.setFinishedAt(now);
-            runRepository.save(run);
+            int newCount = itemsNew;
+            int dedupedCount = itemsDeduped;
+            int publishedCount = itemsPublished;
+            tx.executeWithoutResult(status -> {
+                run.setItemsNew(newCount);
+                run.setItemsDeduped(dedupedCount);
+                run.setItemsPublished(publishedCount);
+                run.setStatus("succeeded");
+                run.setFinishedAt(now);
+                runRepository.save(run);
 
-            if (itemsNew > 0 && GrabberConfigSupport.PUBLISH_MODE_MODERATE.equals(publishMode)) {
-                OutboxEntity outbox = new OutboxEntity();
-                outbox.setAggregate("grabber_run");
-                outbox.setAggregateId(run.getId());
-                outbox.setEventType("grabber.moderation_queued");
-                outbox.setPayload(Map.of(
-                        "workspaceId", rule.getWorkspaceId().toString(),
-                        "ruleId", rule.getId().toString(),
-                        "runId", run.getId().toString(),
-                        "itemsNew", itemsNew,
-                        "publishMode", publishMode));
-                outbox.setCreatedAt(now);
-                outboxRepository.save(outbox);
-            }
+                if (newCount > 0 && GrabberConfigSupport.PUBLISH_MODE_MODERATE.equals(publishMode)) {
+                    OutboxEntity outbox = new OutboxEntity();
+                    outbox.setAggregate("grabber_run");
+                    outbox.setAggregateId(run.getId());
+                    outbox.setEventType("grabber.moderation_queued");
+                    outbox.setPayload(Map.of(
+                            "workspaceId", rule.getWorkspaceId().toString(),
+                            "ruleId", rule.getId().toString(),
+                            "runId", run.getId().toString(),
+                            "itemsNew", newCount,
+                            "publishMode", publishMode));
+                    outbox.setCreatedAt(now);
+                    outboxRepository.save(outbox);
+                }
 
-            rule.setLastRunAt(now);
-            rule.setConsecutiveFailures(0);
-            int interval = GrabberConfigSupport.scanIntervalMinutes(rule.getConfig());
-            rule.setNextRunAt(now.plus(interval, ChronoUnit.MINUTES));
-            rule.setUpdatedAt(now);
-            ruleRepository.save(rule);
+                rule.setLastRunAt(now);
+                rule.setConsecutiveFailures(0);
+                int interval = GrabberConfigSupport.scanIntervalMinutes(rule.getConfig());
+                rule.setNextRunAt(now.plus(interval, ChronoUnit.MINUTES));
+                rule.setUpdatedAt(now);
+                saveRule(rule);
+            });
             return run;
         } catch (Exception ex) {
             log.warn("Grabber run failed ruleId={} runId={}: {}", ruleId, run.getId(), ex.getMessage());
@@ -418,6 +431,11 @@ public class GrabberRunProcessor {
     }
 
     private void failRun(AutomationRuleEntity rule, GrabberRunEntity run, String code, String message, Instant now) {
+        tx.executeWithoutResult(status -> applyFailure(rule, run, code, message, now));
+    }
+
+    private void applyFailure(
+            AutomationRuleEntity rule, GrabberRunEntity run, String code, String message, Instant now) {
         run.setStatus("failed");
         run.setErrorCode(code);
         run.setErrorMessage(message == null ? null : message.substring(0, Math.min(message.length(), 1000)));
@@ -433,7 +451,7 @@ public class GrabberRunProcessor {
         }
         rule.setNextRunAt(now.plus(interval, ChronoUnit.MINUTES));
         rule.setUpdatedAt(now);
-        ruleRepository.save(rule);
+        saveRule(rule);
 
         OutboxEntity outbox = new OutboxEntity();
         outbox.setAggregate("grabber_run");
@@ -457,8 +475,17 @@ public class GrabberRunProcessor {
         if (rule.getConsecutiveFailures() >= threshold) {
             rule.setStatus("auto_paused");
             rule.setUpdatedAt(Instant.now());
-            ruleRepository.save(rule);
+            saveRule(rule);
         }
+    }
+
+    /**
+     * {@code save} merges into a new managed instance and only then bumps {@code @Version}. Copy the
+     * version back so a later save of this same object does not fail with an optimistic lock.
+     */
+    private void saveRule(AutomationRuleEntity rule) {
+        AutomationRuleEntity saved = ruleRepository.saveAndFlush(rule);
+        rule.setVersion(saved.getVersion());
     }
 
     private boolean rateLimited(AutomationRuleEntity rule, Instant now) {

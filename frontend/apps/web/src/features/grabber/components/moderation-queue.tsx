@@ -39,6 +39,7 @@ type ModerationQueueProps = {
 
 const FILTERS: Array<ItemStatus | 'all'> = [
   'pending_moderation',
+  'publish_failed',
   'all',
   'rejected',
   'published',

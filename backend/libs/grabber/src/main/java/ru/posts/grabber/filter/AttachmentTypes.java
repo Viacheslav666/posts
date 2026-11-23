@@ -68,8 +68,7 @@ public final class AttachmentTypes {
                     || ("market".equals(key) && present.contains("product"))) {
                 return true;
             }
-            if (("article".equals(key) && present.contains("wiki"))
-                    || ("wiki".equals(key) && (present.contains("article") || present.contains("page")))) {
+            if (("wiki".equals(key) && present.contains("page")) || ("page".equals(key) && present.contains("wiki"))) {
                 return true;
             }
         }
@@ -101,7 +100,8 @@ public final class AttachmentTypes {
             case "file", "document", "documents" -> "doc";
             case "product", "goods" -> "market";
             case "clips", "short_video", "shortvideo" -> "clip";
-            case "articles", "page" -> "article";
+            case "articles" -> "article";
+            case "page", "pages" -> "wiki";
             case "photos" -> "photo";
             case "videos" -> "video";
             case "polls" -> "poll";
@@ -123,8 +123,8 @@ public final class AttachmentTypes {
         }
         out.add(canonicalize(type));
         if ("page".equals(type)) {
-            out.add("article");
             out.add("wiki");
+            out.add("page");
         }
         if ("audio".equals(type)) {
             out.add("music");

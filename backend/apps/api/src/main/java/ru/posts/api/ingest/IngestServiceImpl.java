@@ -12,6 +12,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.channel.PlanLimitService;
@@ -380,7 +381,13 @@ public class IngestServiceImpl implements IngestService {
         return toRuleDto(rule);
     }
 
+    /**
+     * No transaction on this entry point. A class-level transaction would stay open (and keep its
+     * pooled connection) across {@code GrabberRunProcessor}, including media upload. Controllers
+     * call this method with no transaction active, so nothing is suspended.
+     */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberRun startRun(UUID userId, UUID ruleId, String idempotencyKey, ClientRequestContext ctx) {
         return idempotencyService.execute(
                 userId,
@@ -478,7 +485,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}: approve/retry downloads media and must not hold a DB connection. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberItem approve(
             UUID userId,
             UUID itemId,
@@ -523,7 +532,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberItem editAndApprove(
             UUID userId,
             UUID itemId,
@@ -589,7 +600,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}. Bulk approve calls {@link #approveOnce} on this instance, still outside a transaction. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberBulkModerationResponse bulk(
             UUID userId, IngestDtos.GrabberBulkModerationRequest request, ClientRequestContext ctx) {
         GrabberItemEntity first = requireItem(request.itemIds().getFirst());
