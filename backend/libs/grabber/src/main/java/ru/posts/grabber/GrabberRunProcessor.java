@@ -385,14 +385,20 @@ public class GrabberRunProcessor {
             throw new IllegalStateException("No VK token available for grabber sources");
         }
         String accessToken = token.get();
-        return GrabberSourceScan.collect(
-                sourceIds,
-                sourceId -> vkWallFetcher.fetch(sourceId, accessToken, 20),
-                (sourceId, ex) -> log.warn(
-                        "Grabber source skipped ruleId={} sourceId={} detail={}",
-                        rule.getId(),
-                        sourceId,
-                        GrabberSourceScan.redact(ex.getMessage(), accessToken)));
+        List<String> failed = new ArrayList<>();
+        List<SourceCandidate> found = GrabberSourceScan.collect(
+                sourceIds, sourceId -> vkWallFetcher.fetch(sourceId, accessToken, 20), (sourceId, ex) -> {
+                    failed.add(sourceId);
+                    log.warn(
+                            "Grabber source skipped ruleId={} sourceId={} detail={}",
+                            rule.getId(),
+                            sourceId,
+                            GrabberSourceScan.redact(ex.getMessage(), accessToken));
+                });
+        if (!sourceIds.isEmpty() && failed.size() == sourceIds.size()) {
+            throw new IllegalStateException("VK wall.get failed for every source");
+        }
+        return found;
     }
 
     private GrabberItemEntity persistItem(

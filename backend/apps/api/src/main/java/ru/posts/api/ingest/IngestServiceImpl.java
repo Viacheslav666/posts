@@ -174,7 +174,7 @@ public class IngestServiceImpl implements IngestService {
         planLimitService.ensureCanCreateGrabberRule(workspaceId);
         ChannelEntity channel = requireChannel(workspaceId, request.targetChannelId());
         requireGrabberCommunity(request.type(), channel);
-        Map<String, Object> config = buildConfig(request.type(), request.config());
+        Map<String, Object> config = buildConfigOr422(request.type(), request.config());
         validateConfig(request.type(), config);
 
         Instant now = Instant.now();
@@ -257,7 +257,8 @@ public class IngestServiceImpl implements IngestService {
                     .ifPresent(channel -> requireGrabberCommunity(IngestDtos.RuleType.grabber, channel));
         }
         if (request.config() != null) {
-            Map<String, Object> config = buildConfig(IngestDtos.RuleType.valueOf(rule.getType()), request.config());
+            Map<String, Object> config =
+                    buildConfigOr422(IngestDtos.RuleType.valueOf(rule.getType()), request.config());
             validateConfig(IngestDtos.RuleType.valueOf(rule.getType()), config);
             rule.setConfig(config);
             rule.setConfigVersion(rule.getConfigVersion() + 1);
@@ -710,6 +711,14 @@ public class IngestServiceImpl implements IngestService {
                         null))
                 .toList();
         return new IngestDtos.IngestPreviewResponse(items);
+    }
+
+    private Map<String, Object> buildConfigOr422(IngestDtos.RuleType type, IngestDtos.GrabberConfig dto) {
+        try {
+            return buildConfig(type, dto);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
+        }
     }
 
     private Map<String, Object> buildConfig(IngestDtos.RuleType type, IngestDtos.GrabberConfig dto) {
