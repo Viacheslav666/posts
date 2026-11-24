@@ -10,12 +10,20 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.fetch.SourceCandidate;
+import ru.posts.grabber.media.GrabbedAttachments;
 import ru.posts.grabber.text.TextSignals;
 
 /**
  * Pure skip-filters for grabber candidates. Returns a stable machine reason code or {@code null}.
  */
 public final class GrabberFilters {
+
+    /**
+     * Pre-media-pipeline default persisted into existing rules; it silently dropped posts with goods,
+     * albums, wiki pages, playlists and clips, so it is treated as "no restriction".
+     */
+    private static final Set<String> LEGACY_DEFAULT_ATTACHMENT_TYPES =
+            Set.of("photo", "video", "doc", "link", "audio", "poll", "none");
 
     private GrabberFilters() {}
 
@@ -91,8 +99,9 @@ public final class GrabberFilters {
         if (!missingTypes.isEmpty() && !AttachmentTypes.containsAll(presentTypes, missingTypes)) {
             return "skip_if_missing_attachment_types";
         }
-        // Convenience aliases from vposter UI: no music/photo/video/clip/product/file/poll
+        // Convenience aliases from vposter UI: no music/photo/video/clip/product/file/poll/article
         for (String alias : List.of(
+                "skip_if_no_article",
                 "skip_if_no_music",
                 "skip_if_no_photo",
                 "skip_if_no_video",
@@ -106,6 +115,11 @@ public final class GrabberFilters {
                     return alias;
                 }
             }
+        }
+
+        if (bool(filters.get("skip_if_no_visual_media"), false)
+                && GrabbedAttachments.countKinds(attachments, GrabbedAttachments.VISUAL_KINDS) == 0) {
+            return "skip_if_no_visual_media";
         }
 
         List<String> hasTypes = stringList(filters.get("skip_if_has_attachment_types"));
@@ -151,7 +165,7 @@ public final class GrabberFilters {
         Set<String> allowed = stringList(filters.get("attachment_types")).stream()
                 .map(AttachmentTypes::canonicalize)
                 .collect(Collectors.toSet());
-        if (!allowed.isEmpty() && !attachments.isEmpty()) {
+        if (!allowed.isEmpty() && !attachments.isEmpty() && !allowed.equals(LEGACY_DEFAULT_ATTACHMENT_TYPES)) {
             boolean anyAllowed = AttachmentTypes.containsAny(presentTypes, allowed);
             if (!anyAllowed && !allowed.contains("none")) {
                 return "attachment_types";

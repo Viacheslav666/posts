@@ -7,14 +7,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.GrabberProperties;
+import ru.posts.grabber.media.GrabberMediaResolver;
 import ru.posts.grabber.notify.GrabberSettingReporter;
+import ru.posts.grabber.ssrf.UrlRedactor;
 import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.target.GrabberRepostObject;
 import ru.posts.grabber.target.GrabberTargetMode;
@@ -29,6 +34,7 @@ import ru.posts.persistence.entity.PostEntity;
 import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.repository.ChannelRepository;
+import ru.posts.persistence.repository.GrabberItemRepository;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.PostRepository;
 import ru.posts.persistence.repository.PostVariantRepository;
@@ -42,41 +48,54 @@ import ru.posts.persistence.repository.PublicationRepository;
 @Profile("!openapi")
 public class GrabberPostFactory {
 
+    private static final Logger log = LoggerFactory.getLogger(GrabberPostFactory.class);
+
     private final PostRepository postRepository;
     private final PostVariantRepository postVariantRepository;
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
+    private final GrabberItemRepository itemRepository;
     private final OutboxRepository outboxRepository;
+    private final GrabberMediaResolver mediaResolver;
     private final GrabberAiRewriteService aiRewriteService;
     private final GrabberSettingReporter settingReporter;
     private final GrabberProperties grabberProperties;
+    private final TransactionTemplate tx;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
+            GrabberItemRepository itemRepository,
             OutboxRepository outboxRepository,
+            GrabberMediaResolver mediaResolver,
             GrabberAiRewriteService aiRewriteService,
             GrabberSettingReporter settingReporter,
-            GrabberProperties grabberProperties) {
+            GrabberProperties grabberProperties,
+            PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
+        this.itemRepository = itemRepository;
         this.outboxRepository = outboxRepository;
+        this.mediaResolver = mediaResolver;
         this.aiRewriteService = aiRewriteService;
         this.settingReporter = settingReporter;
         this.grabberProperties = grabberProperties;
+        this.tx = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
+    /**
+     * Downloads and re-uploads media outside any database transaction, then persists the post in a
+     * short transaction that locks the item row.
+     */
     public PublishResult publishItem(
             AutomationRuleEntity rule, GrabberItemEntity item, UUID actorId, String overrideText, Instant runAt) {
         return publishItem(rule, item, actorId, overrideText, runAt, 0);
     }
 
-    @Transactional
     public PublishResult publishItem(
             AutomationRuleEntity rule,
             GrabberItemEntity item,
@@ -85,9 +104,7 @@ public class GrabberPostFactory {
             Instant runAt,
             int slotIndex) {
         if (item.getPostId() != null) {
-            UUID[] existing = item.getPublicationIds();
-            List<UUID> pubs = existing == null ? List.of() : List.of(existing);
-            return new PublishResult(item.getPostId(), pubs, true);
+            return alreadyPublished(item);
         }
         ChannelEntity channel = channelRepository
                 .findByIdAndDeletedAtIsNull(rule.getTargetChannelId())
@@ -98,10 +115,7 @@ public class GrabberPostFactory {
         String targetModeEarly = GrabberConfigSupport.targetMode(rule.getConfig());
         if (GrabberTargetMode.VK_POSTPONED_REPOST.wire().equals(targetModeEarly)
                 && !grabberProperties.isPostponedRepostEnabled()) {
-            item.setStatus("failed_validation");
-            item.setSkipReason("postponed_repost_unavailable");
-            item.setUpdatedAt(Instant.now());
-            return new PublishResult(null, List.of(), false);
+            return failValidation(item, "postponed_repost_unavailable");
         }
 
         String sourceText = sourceText(item);
@@ -110,30 +124,28 @@ public class GrabberPostFactory {
                 MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId(), sourceText);
         UUID actor = actorId == null ? rule.getCreatedBy() : actorId;
         GrabberAiRewriteService.Attempt ai;
+        ContentTransformer.TransformResult transformed;
         String finalText;
         if (overrideText != null) {
             ai = GrabberAiRewriteService.Attempt.unchanged(overrideText);
+            transformed = transformOnce(rule, item, sourceText, macroCtx);
             finalText = finish(rule, item, overrideText, signerName, actor);
         } else {
             ai = aiRewriteService.prepare(rule, item, sourceText, actor);
             String body = ai.applied() ? ai.text() : sourceText;
-            finalText = finish(rule, item, transformOnce(rule, item, body, macroCtx), signerName, actor);
+            transformed = transformOnce(rule, item, body, macroCtx);
+            finalText = finish(rule, item, transformed.text(), signerName, actor);
         }
 
         int maxLen = 4096;
         if (finalText.length() > maxLen) {
-            item.setStatus("failed_validation");
-            item.setSkipReason("text_too_long");
-            item.setUpdatedAt(Instant.now());
-            return new PublishResult(null, List.of(), false);
+            return failValidation(item, "text_too_long");
         }
         if (ai.applied() && !aiRewriteService.charge(rule, item, ai, actor)) {
-            finalText = finish(rule, item, transformOnce(rule, item, sourceText, macroCtx), signerName, actor);
+            transformed = transformOnce(rule, item, sourceText, macroCtx);
+            finalText = finish(rule, item, transformed.text(), signerName, actor);
             if (finalText.length() > maxLen) {
-                item.setStatus("failed_validation");
-                item.setSkipReason("text_too_long");
-                item.setUpdatedAt(Instant.now());
-                return new PublishResult(null, List.of(), false);
+                return failValidation(item, "text_too_long");
             }
         }
 
@@ -142,24 +154,93 @@ public class GrabberPostFactory {
         try {
             plan = GrabberPublishSchedule.plan(rule.getConfig(), now, runAt, slotIndex);
         } catch (PostponedHorizonException ex) {
-            item.setStatus("failed_validation");
-            item.setSkipReason("postponed_horizon");
-            item.setUpdatedAt(now);
-            return new PublishResult(null, List.of(), false);
+            return failValidation(item, "postponed_horizon");
         }
         String targetMode = GrabberConfigSupport.targetMode(rule.getConfig());
         String repostObject = null;
         if (GrabberTargetMode.isRepost(targetMode)) {
             repostObject = GrabberRepostObject.from(item.getSourceId(), item.getRemotePostId(), item.getRawPayload());
             if (repostObject == null) {
-                item.setStatus("failed_validation");
-                item.setSkipReason("repost_object_missing");
-                item.setUpdatedAt(now);
-                return new PublishResult(null, List.of(), false);
+                return failValidation(item, "repost_object_missing");
             }
         }
         Instant scheduledAt = plan.pipelineRunAt();
         ensurePublicationPartition(scheduledAt);
+
+        List<String> stringAttachments;
+        boolean carousel;
+        if (GrabberTargetMode.isRepost(targetMode)) {
+            stringAttachments = List.of();
+            carousel = false;
+        } else {
+            // Network I/O. Callers must not hold a transaction across this line.
+            GrabberMediaResolver.Resolution media =
+                    mediaResolver.resolve(rule, channel, transformed.attachments(), transformed.text());
+            if (media.failed()) {
+                return tx.execute(status -> failLocked(rule, item, media));
+            }
+            stringAttachments = media.attachments();
+            carousel = media.carousel();
+        }
+
+        final String finalTextLocked = finalText;
+        final List<String> stringAttachmentsLocked = stringAttachments;
+        final boolean carouselLocked = carousel;
+        final String repostObjectLocked = repostObject;
+        return tx.execute(status -> persistPublished(
+                rule,
+                item,
+                channel,
+                actor,
+                overrideText,
+                finalTextLocked,
+                macroCtx,
+                stringAttachmentsLocked,
+                carouselLocked,
+                scheduledAt,
+                targetMode,
+                repostObjectLocked,
+                plan));
+    }
+
+    private PublishResult failValidation(GrabberItemEntity item, String skipReason) {
+        return tx.execute(status -> {
+            GrabberItemEntity locked = lockItem(item);
+            if (locked.getPostId() != null) {
+                return alreadyPublished(locked, item);
+            }
+            locked.setStatus("failed_validation");
+            locked.setSkipReason(skipReason);
+            locked.setUpdatedAt(Instant.now());
+            itemRepository.save(locked);
+            copyPublishState(locked, item);
+            return new PublishResult(null, List.of(), false);
+        });
+    }
+
+    private PublishResult persistPublished(
+            AutomationRuleEntity rule,
+            GrabberItemEntity passed,
+            ChannelEntity channel,
+            UUID actor,
+            String overrideText,
+            String finalText,
+            MacroExpander.Context macroCtx,
+            List<String> stringAttachments,
+            boolean carousel,
+            Instant scheduledAt,
+            String targetMode,
+            String repostObject,
+            GrabberPublishSchedule.Plan plan) {
+        GrabberItemEntity item = lockItem(passed);
+        if (item.getPostId() != null) {
+            return alreadyPublished(item, passed);
+        }
+        if (overrideText != null) {
+            item.setEditedText(overrideText);
+            item.setContentText(overrideText);
+        }
+        Instant now = Instant.now();
 
         PostEntity post = new PostEntity();
         post.setId(UuidV7.generate());
@@ -170,6 +251,9 @@ public class GrabberPostFactory {
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
         baseContent.put("mediaIds", List.of());
+        if (!stringAttachments.isEmpty()) {
+            baseContent.put("stringAttachments", stringAttachments);
+        }
         if (repostObject != null) {
             Map<String, Object> repost = new LinkedHashMap<>();
             repost.put("object", repostObject);
@@ -207,6 +291,10 @@ public class GrabberPostFactory {
             settingReporter.reportUserNotice(actor, rule, notice.setting(), notice.code(), notice.message());
         }
         Map<String, Object> options = new LinkedHashMap<>(built.options());
+        options.remove("primaryAttachmentsMode");
+        if (carousel) {
+            options.put("primaryAttachmentsMode", "carousel");
+        }
         options.put("grabberTargetMode", targetMode);
         if (repostObject != null) {
             Map<String, Object> repost = new LinkedHashMap<>();
@@ -223,7 +311,13 @@ public class GrabberPostFactory {
         variant.setPostId(post.getId());
         variant.setChannelId(channel.getId());
         variant.setNetwork(channel.getNetwork());
-        variant.setContent(Map.of("text", finalText == null ? "" : finalText, "mediaIds", List.of()));
+        Map<String, Object> variantContent = new LinkedHashMap<>();
+        variantContent.put("text", finalText == null ? "" : finalText);
+        variantContent.put("mediaIds", List.of());
+        if (!stringAttachments.isEmpty()) {
+            variantContent.put("stringAttachments", stringAttachments);
+        }
+        variant.setContent(variantContent);
         variant.setOptions(options);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
@@ -259,13 +353,95 @@ public class GrabberPostFactory {
         item.setPublicationIds(new UUID[] {pub.getId()});
         item.setStatus("scheduled");
         item.setUpdatedAt(now);
+        itemRepository.save(item);
+        copyPublishState(item, passed);
         return new PublishResult(post.getId(), List.of(pub.getId()), false);
     }
 
-    private static String transformOnce(
+    private PublishResult failLocked(
+            AutomationRuleEntity rule, GrabberItemEntity passed, GrabberMediaResolver.Resolution media) {
+        GrabberItemEntity item = lockItem(passed);
+        if (item.getPostId() != null) {
+            return alreadyPublished(item, passed);
+        }
+        failItem(rule, item, media);
+        itemRepository.save(item);
+        copyPublishState(item, passed);
+        return new PublishResult(null, List.of(), false);
+    }
+
+    private GrabberItemEntity lockItem(GrabberItemEntity item) {
+        return itemRepository
+                .findByIdForUpdate(item.getId())
+                .orElseThrow(() -> new IllegalStateException("Grabber item not found: " + item.getId()));
+    }
+
+    private static PublishResult alreadyPublished(GrabberItemEntity item) {
+        UUID[] existing = item.getPublicationIds();
+        List<UUID> pubs = existing == null ? List.of() : List.of(existing);
+        return new PublishResult(item.getPostId(), pubs, true);
+    }
+
+    private static PublishResult alreadyPublished(GrabberItemEntity locked, GrabberItemEntity passed) {
+        copyPublishState(locked, passed);
+        return alreadyPublished(locked);
+    }
+
+    private static void copyPublishState(GrabberItemEntity from, GrabberItemEntity to) {
+        if (from == to) {
+            return;
+        }
+        to.setPostId(from.getPostId());
+        to.setPublicationIds(from.getPublicationIds());
+        to.setStatus(from.getStatus());
+        to.setSkipReason(from.getSkipReason());
+        to.setContentText(from.getContentText());
+        to.setEditedText(from.getEditedText());
+        to.setUpdatedAt(from.getUpdatedAt());
+    }
+
+    private void failItem(AutomationRuleEntity rule, GrabberItemEntity item, GrabberMediaResolver.Resolution media) {
+        Instant now = Instant.now();
+        String reason = media.failureReason() + (media.failureCode() == null ? "" : ":" + media.failureCode());
+        String safeMessage = UrlRedactor.stripQuery(media.failureMessage());
+        log.warn(
+                "Grabber item not published ruleId={} itemId={} source={} reason={}: {}",
+                rule.getId(),
+                item.getId(),
+                item.getSourcePermalink(),
+                reason,
+                safeMessage);
+        item.setStatus("publish_failed");
+        item.setSkipReason(reason);
+        item.setUpdatedAt(now);
+        if (!GrabberConfigSupport.notifyOnErrors(rule.getConfig())) {
+            return;
+        }
+        if (outboxRepository.existsByAggregateAndAggregateIdAndEventType(
+                "grabber_item", item.getId(), "grabber.item_failed")) {
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("workspaceId", rule.getWorkspaceId().toString());
+        payload.put("ruleId", rule.getId().toString());
+        payload.put("ruleName", rule.getName() == null ? "" : rule.getName());
+        payload.put("itemId", item.getId().toString());
+        payload.put("sourcePermalink", item.getSourcePermalink() == null ? "" : item.getSourcePermalink());
+        payload.put("reason", reason);
+        String message = safeMessage == null ? "" : safeMessage;
+        payload.put("errorMessage", message.substring(0, Math.min(message.length(), 500)));
+        OutboxEntity outbox = new OutboxEntity();
+        outbox.setAggregate("grabber_item");
+        outbox.setAggregateId(item.getId());
+        outbox.setEventType("grabber.item_failed");
+        outbox.setPayload(payload);
+        outbox.setCreatedAt(now);
+        outboxRepository.save(outbox);
+    }
+
+    private static ContentTransformer.TransformResult transformOnce(
             AutomationRuleEntity rule, GrabberItemEntity item, String body, MacroExpander.Context macroCtx) {
-        return ContentTransformer.transform(body, item.getAttachmentsJson(), rule.getConfig(), macroCtx)
-                .text();
+        return ContentTransformer.transform(body, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
     }
 
     private String finish(

@@ -30,6 +30,7 @@ export const DEFAULT_PREFERENCE_MATRIX: Record<NotificationEventType, ChannelPre
   'channel.reauth_required': ALL,
   'channel.no_permissions': ALL,
   'grabber.moderation_queued': ALL,
+  'grabber.item_failed': ALL,
   'ord.error': ALL,
   'ord.erid_failed': ALL,
   'invitation.created': INVITATION,

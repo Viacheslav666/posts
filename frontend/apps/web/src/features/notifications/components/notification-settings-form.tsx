@@ -201,6 +201,7 @@ export function NotificationSettingsForm({ workspaceId }: NotificationSettingsFo
       'channel.reauth_required': t('events.channel.reauth_required'),
       'channel.no_permissions': t('events.channel.no_permissions'),
       'grabber.moderation_queued': t('events.grabber.moderation_queued'),
+      'grabber.item_failed': t('events.grabber.item_failed'),
       'ord.error': t('events.ord.error'),
       'ord.erid_failed': t('events.ord.erid_failed'),
       'invitation.created': t('events.invitation.created'),

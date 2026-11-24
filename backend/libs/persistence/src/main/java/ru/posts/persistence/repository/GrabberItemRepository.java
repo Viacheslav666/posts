@@ -1,5 +1,6 @@
 package ru.posts.persistence.repository;
 
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ru.posts.persistence.entity.GrabberItemEntity;
@@ -14,6 +16,11 @@ import ru.posts.persistence.entity.GrabberItemEntity;
 public interface GrabberItemRepository extends JpaRepository<GrabberItemEntity, UUID> {
 
     Optional<GrabberItemEntity> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
+
+    /** Row lock for approve/retry so two concurrent publishes cannot both insert a post. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from GrabberItemEntity i where i.id = :id")
+    Optional<GrabberItemEntity> findByIdForUpdate(@Param("id") UUID id);
 
     List<GrabberItemEntity> findByRuleIdOrderByDetectedAtDesc(UUID ruleId);
 

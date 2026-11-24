@@ -1,6 +1,7 @@
 package ru.posts.grabber.transform;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,7 +9,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import ru.posts.grabber.config.GrabberConfigSupport;
-import ru.posts.grabber.filter.AttachmentTypes;
+import ru.posts.grabber.media.GrabbedAttachments;
 import ru.posts.grabber.text.TextSignals;
 
 /** Pure content transforms: strip types, replace words, macros, attribution. */
@@ -66,21 +67,19 @@ public final class ContentTransformer {
             result = p.matcher(result).replaceAll(Matcher.quoteReplacement(e.getValue() == null ? "" : e.getValue()));
         }
 
-        Set<String> stripTypes = stripTypeSet(transform);
-        if (!stripTypes.isEmpty()) {
-            atts.removeIf(att -> {
-                Set<String> aliases = AttachmentTypes.presentTypes(List.of(att));
-                return AttachmentTypes.containsAny(aliases, stripTypes);
-            });
-        }
-        if (bool(transform.get("strip_all_links")) || bool(transform.get("strip_links"))) {
-            atts.removeIf(att -> AttachmentTypes.presentTypes(List.of(att)).contains("link"));
+        Set<String> stripKinds = stripKindSet(transform);
+        if (!stripKinds.isEmpty()) {
+            atts.removeIf(att -> stripKinds.contains(GrabbedAttachments.kindOf(att)));
         }
 
         boolean attachOnlyWhenEmpty = bool(transform.get("attach_when_no_attachments"));
         List<Map<String, Object>> extra = objectMapList(transform.get("attached_attachments"));
         if (!extra.isEmpty() && (!attachOnlyWhenEmpty || atts.isEmpty())) {
-            atts.addAll(extra);
+            for (Map<String, Object> e : extra) {
+                if (!atts.contains(e)) {
+                    atts.add(e);
+                }
+            }
         }
 
         MacroExpander.Context ctx = macroCtx == null ? MacroExpander.Context.of("", "", "") : macroCtx;
@@ -169,31 +168,36 @@ public final class ContentTransformer {
         return MacroExpander.expand(text, config, ctx);
     }
 
-    private static Set<String> stripTypeSet(Map<String, Object> transform) {
+    /** "Удалять" flags → precise kinds; videos and clips are stripped independently. */
+    private static Set<String> stripKindSet(Map<String, Object> transform) {
         Map<String, String> flags = Map.ofEntries(
-                Map.entry("strip_photo", "photo"),
-                Map.entry("strip_video", "video"),
-                Map.entry("strip_clip", "clip"),
-                Map.entry("strip_audio", "audio"),
-                Map.entry("strip_music", "audio"),
-                Map.entry("strip_playlist", "playlist"),
-                Map.entry("strip_doc", "doc"),
-                Map.entry("strip_file", "doc"),
-                Map.entry("strip_poll", "poll"),
-                Map.entry("strip_album", "album"),
-                Map.entry("strip_market", "market"),
-                Map.entry("strip_product", "market"),
-                Map.entry("strip_market_album", "market_album"),
-                Map.entry("strip_wiki", "wiki"),
-                Map.entry("strip_article", "article"));
-        List<String> out = new ArrayList<>();
+                Map.entry("strip_photo", GrabbedAttachments.PHOTO),
+                Map.entry("strip_video", GrabbedAttachments.VIDEO),
+                Map.entry("strip_clip", GrabbedAttachments.CLIP),
+                Map.entry("strip_audio", GrabbedAttachments.AUDIO),
+                Map.entry("strip_music", GrabbedAttachments.AUDIO),
+                Map.entry("strip_playlist", GrabbedAttachments.AUDIO_PLAYLIST),
+                Map.entry("strip_doc", GrabbedAttachments.DOC),
+                Map.entry("strip_file", GrabbedAttachments.DOC),
+                Map.entry("strip_poll", GrabbedAttachments.POLL),
+                Map.entry("strip_album", GrabbedAttachments.ALBUM),
+                Map.entry("strip_market", GrabbedAttachments.MARKET),
+                Map.entry("strip_product", GrabbedAttachments.MARKET),
+                Map.entry("strip_market_album", GrabbedAttachments.MARKET_ALBUM),
+                Map.entry("strip_wiki", GrabbedAttachments.WIKI),
+                Map.entry("strip_article", GrabbedAttachments.ARTICLE),
+                Map.entry("strip_all_links", GrabbedAttachments.LINK),
+                Map.entry("strip_links", GrabbedAttachments.LINK));
+        Set<String> out = new HashSet<>();
         for (Map.Entry<String, String> e : flags.entrySet()) {
             if (bool(transform.get(e.getKey()))) {
                 out.add(e.getValue());
             }
         }
-        out.addAll(stringList(transform.get("strip_attachment_types")));
-        return Set.copyOf(out.stream().map(AttachmentTypes::canonicalize).toList());
+        for (String raw : stringList(transform.get("strip_attachment_types"))) {
+            out.add(GrabbedAttachments.kindAlias(raw));
+        }
+        return Set.copyOf(out);
     }
 
     private static boolean bool(Object value) {

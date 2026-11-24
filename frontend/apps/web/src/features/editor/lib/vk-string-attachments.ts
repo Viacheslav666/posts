@@ -6,12 +6,16 @@
 const ATTACHMENT =
   /^(photo|video|audio|doc|poll|market|album|page|note|clip|audio_playlist|market_album)-?\d+_\d+(?:_[A-Za-z0-9_-]+)?$/i;
 
+/** wall.post also accepts one link snippet given as an http(s) URL. */
+const LINK = /^https?:\/\/[^\s,<>"']+$/i;
+
 /** Soft UI cap (backend validates format; OpenAPI has no maxItems). */
 export const VK_STRING_ATTACHMENTS_MAX = 10;
 
 export function isValidVkStringAttachment(token: string | null | undefined): boolean {
   if (!token || !token.trim()) return false;
-  return ATTACHMENT.test(token.trim());
+  const trimmed = token.trim();
+  return ATTACHMENT.test(trimmed) || LINK.test(trimmed);
 }
 
 export function invalidVkStringAttachments(attachments: string[] | null | undefined): string[] {
@@ -33,6 +37,10 @@ export function normalizeVkStringAttachments(attachments: string[] | null | unde
   for (const raw of attachments) {
     if (raw == null || !String(raw).trim()) continue;
     let token = String(raw).trim();
+    if (LINK.test(token)) {
+      out.push(token);
+      continue;
+    }
     const us = token.indexOf('_');
     if (us > 0) {
       const typeAndOwner = token.slice(0, us);

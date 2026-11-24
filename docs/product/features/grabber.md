@@ -382,6 +382,23 @@ posts-ingest
 
 Ручной run: тот же путь, `trigger=manual`, отдельный rate limit.
 
+### 6.1. Медиа-пайплайн (вложения граббера)
+
+При создании поста (auto-режим или одобрение из очереди) `GrabberMediaResolver` превращает вложения источника в VK string attachments (`content.stringAttachments`, ≤ 10) целевого поста:
+
+| Вложение | Как попадает в пост |
+|---|---|
+| Фото | Скачивается (≤ `posts.grabber.media.max-photo-bytes`, 20 МБ) и перезаливается в целевое сообщество: `photos.getWallUploadServer` → upload → `photos.saveWallPhoto`. При ошибке — ссылка на оригинал (`photo{owner}_{id}_{access_key}`), в лог пишется предупреждение. |
+| Видео | `transform.reupload_video=false` — ссылка на оригинал. `true` — публичное видео ≤ 50 МБ (`max-video-bytes`) скачивается по `video.get` → `files.mp4_*` и загружается через `video.save` (`group_id` цели). Если перезалить не удалось (внешнее, приватное, недоступно, нет файла, > 50 МБ, нет токена) — пост **не публикуется**: item `publish_failed`, `skip_reason=video_reupload_failed:<code>`, событие `grabber.item_failed` (если `reliability.notify_on_errors`). Повтор — кнопкой «Повторить» в очереди. |
+| Клипы, музыка, плейлисты, файлы, опросы, альбомы, товары, подборки, вики-страницы | Ссылка на оригинал `type{owner}_{id}[_{access_key}]`. |
+| Ссылка / статья | Одна ссылка-сниппет (URL). |
+
+Фильтры «Не публиковать»: `skip_if_no_*` / `skip_if_has_*` для фото, видео, клипа, музыки, файла, товара, опроса, статьи; `skip_if_no_visual_media` — нет ни фото, ни видео, ни клипа. Клип не считается видео.
+
+Удаление (`transform.strip_*`) выполняется до разрешения медиа. `transform.user_attachments` («Свои вложения»: `photo-1_2, video-1_3`, `[rand]a|b[/rand]`, `[keyTextEntry]вложения|слово1,слово2[/keyTextEntry]`) добавляется, только если после очистки вложений не осталось; синтаксис проверяется при сохранении правила (422). `transform.attachments_mode=carousel` → `primary_attachments_mode=carousel`, если в посте ≥ 2 фото/видео.
+
+Загрузка выполняется токеном администратора целевого сообщества (social account канала, расшифровка через workspace DEK); без него — сервисный токен граббера. Для не-VK каналов вложения пока не переносятся.
+
 ---
 
 ## 7. Предлагаемые OpenAPI-эндпоинты

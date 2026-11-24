@@ -102,6 +102,53 @@ describe('grabber config helpers', () => {
     expect(restored.publishMode).toBe('moderate');
   });
 
+  it('maps media pipeline settings to config and back', () => {
+    const values = {
+      ...defaultFormValues('019a0000-chan-7000-8000-000000000001'),
+      name: 'Media',
+      sourceIdsText: '-100',
+      userResponsibilityAccepted: true,
+      skipIfNoArticle: true,
+      skipIfNoVisualMedia: true,
+      reuploadVideo: true,
+      notifyOnErrors: false,
+      userAttachmentsText: '  photo-1_2, [rand]video-1_3|video-1_4[/rand]  ',
+      attachmentsMode: 'carousel' as const,
+    };
+    const config = buildGrabberConfig(values);
+    expect(config.filters).toMatchObject({
+      skip_if_no_article: true,
+      skip_if_no_visual_media: true,
+    });
+    expect(config.transform).toMatchObject({
+      reupload_video: true,
+      user_attachments: 'photo-1_2, [rand]video-1_3|video-1_4[/rand]',
+      attachments_mode: 'carousel',
+    });
+    expect(config.transform).not.toHaveProperty('attach_when_no_attachments');
+    expect(config.reliability).toMatchObject({ notify_on_errors: false });
+
+    const restored = formValuesFromRule({ name: 'Media', type: 'grabber', config });
+    expect(restored).toMatchObject({
+      skipIfNoArticle: true,
+      skipIfNoVisualMedia: true,
+      reuploadVideo: true,
+      notifyOnErrors: false,
+      userAttachmentsText: 'photo-1_2, [rand]video-1_3|video-1_4[/rand]',
+      attachmentsMode: 'carousel',
+    });
+  });
+
+  it('defaults media settings for legacy rules', () => {
+    const restored = formValuesFromRule({ name: 'Old', type: 'grabber', config: {} });
+    expect(restored).toMatchObject({
+      reuploadVideo: false,
+      notifyOnErrors: true,
+      userAttachmentsText: '',
+      skipIfNoVisualMedia: false,
+    });
+  });
+
   it('keeps sources and publish mode when applying cloned config', () => {
     const current = {
       ...defaultFormValues('chan'),

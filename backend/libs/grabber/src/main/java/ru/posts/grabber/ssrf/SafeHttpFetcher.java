@@ -12,6 +12,11 @@ import java.util.Collection;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +27,16 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("!openapi")
 public class SafeHttpFetcher {
+
+    /**
+     * Closes a slow body stream when the read deadline passes. {@code HttpRequest.timeout} only
+     * covers the wait for response headers when the body is consumed from an {@code InputStream}.
+     */
+    private static final ScheduledExecutorService DEADLINES = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "grabber-fetch-deadline");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final SsrfProperties properties;
     private final HostResolver hostResolver;
@@ -41,10 +56,16 @@ public class SafeHttpFetcher {
     }
 
     public FetchResult fetch(String rawUrl, Set<String> allowedContentTypes, Collection<String> allowedHosts) {
+        return fetch(rawUrl, allowedContentTypes, allowedHosts, properties.getMaxBytes());
+    }
+
+    /** Same SSRF/redirect rules with a caller-specific body limit (media downloads). */
+    public FetchResult fetch(
+            String rawUrl, Set<String> allowedContentTypes, Collection<String> allowedHosts, long maxBodyBytes) {
         URI current = SsrfGuard.validateHttpUrl(rawUrl, allowedHosts, hostResolver);
         int redirects = 0;
         int maxRedirects = Math.max(0, properties.getMaxRedirects());
-        int maxBytes = Math.max(1, properties.getMaxBytes());
+        long maxBytes = Math.max(1, maxBodyBytes);
         Duration readTimeout = Duration.ofMillis(Math.max(100, properties.getReadTimeoutMs()));
 
         while (true) {
@@ -58,16 +79,18 @@ public class SafeHttpFetcher {
             try {
                 response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             } catch (IOException ex) {
-                throw new IllegalArgumentException("Failed to fetch URL: " + current, ex);
+                throw new IllegalArgumentException(
+                        "Failed to fetch URL: " + UrlRedactor.stripQuery(String.valueOf(current)), ex);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                throw new IllegalArgumentException("Fetch interrupted: " + current, ex);
+                throw new IllegalArgumentException(
+                        "Fetch interrupted: " + UrlRedactor.stripQuery(String.valueOf(current)), ex);
             }
 
             int status = response.statusCode();
             if (status >= 300 && status < 400) {
                 String location = response.headers().firstValue("Location").orElse(null);
-                drainQuietly(response.body());
+                closeQuietly(response.body());
                 if (location == null || location.isBlank()) {
                     throw new SsrfBlockedException("Redirect without Location header");
                 }
@@ -82,8 +105,9 @@ public class SafeHttpFetcher {
             }
 
             if (status < 200 || status >= 300) {
-                drainQuietly(response.body());
-                throw new IllegalArgumentException("HTTP " + status + " fetching " + current);
+                closeQuietly(response.body());
+                throw new IllegalArgumentException(
+                        "HTTP " + status + " fetching " + UrlRedactor.stripQuery(String.valueOf(current)));
             }
 
             String contentType = response.headers()
@@ -93,17 +117,17 @@ public class SafeHttpFetcher {
             if (allowedContentTypes != null
                     && !allowedContentTypes.isEmpty()
                     && !contentTypeAllowed(contentType, allowedContentTypes)) {
-                drainQuietly(response.body());
+                closeQuietly(response.body());
                 throw new IllegalArgumentException("Disallowed content-type: " + contentType);
             }
 
             Long contentLength =
                     response.headers().firstValueAsLong("Content-Length").orElse(-1L);
             if (contentLength > maxBytes) {
-                drainQuietly(response.body());
-                throw new IllegalArgumentException("Response exceeds size limit");
+                closeQuietly(response.body());
+                throw new ResponseTooLargeException(contentLength, maxBytes);
             }
-            byte[] body = readLimited(response.body(), maxBytes);
+            byte[] body = readLimited(response.body(), maxBytes, readTimeout);
             return new FetchResult(current.toString(), contentType, body, redirects);
         }
     }
@@ -124,44 +148,67 @@ public class SafeHttpFetcher {
         return false;
     }
 
-    private static byte[] readLimited(InputStream in, int maxBytes) {
+    private static byte[] readLimited(InputStream in, long maxBytes, Duration budget) {
+        long deadlineNanos = System.nanoTime() + budget.toNanos();
+        AtomicBoolean timedOut = new AtomicBoolean(false);
+        ScheduledFuture<?> watchdog = DEADLINES.schedule(
+                () -> {
+                    timedOut.set(true);
+                    closeQuietly(in);
+                },
+                Math.max(1, budget.toMillis()),
+                TimeUnit.MILLISECONDS);
         try (InputStream stream = in;
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buf = new byte[8192];
-            int total = 0;
+            long total = 0;
             int n;
-            while ((n = stream.read(buf)) >= 0) {
+            while (true) {
+                if (timedOut.get() || System.nanoTime() > deadlineNanos) {
+                    throw new IllegalArgumentException("Response body read exceeded deadline");
+                }
+                try {
+                    n = stream.read(buf);
+                } catch (IOException ex) {
+                    if (timedOut.get() || System.nanoTime() > deadlineNanos) {
+                        throw new IllegalArgumentException("Response body read exceeded deadline", ex);
+                    }
+                    throw new IllegalArgumentException("Failed to read response body", ex);
+                }
+                if (n < 0) {
+                    break;
+                }
                 total += n;
                 if (total > maxBytes) {
-                    throw new IllegalArgumentException("Response exceeds size limit");
+                    throw new ResponseTooLargeException(-1, maxBytes);
                 }
                 out.write(buf, 0, n);
             }
             return out.toByteArray();
         } catch (IOException ex) {
             throw new IllegalArgumentException("Failed to read response body", ex);
+        } finally {
+            watchdog.cancel(false);
         }
     }
 
-    private static void drainQuietly(InputStream in) {
+    private static void closeQuietly(InputStream in) {
         if (in == null) {
             return;
         }
-        try (InputStream stream = in) {
-            stream.transferTo(OutputNull.INSTANCE);
+        try {
+            in.close();
         } catch (IOException ignored) {
             // best-effort
         }
     }
 
-    private static final class OutputNull extends java.io.OutputStream {
-        static final OutputNull INSTANCE = new OutputNull();
-
-        @Override
-        public void write(int b) {}
-
-        @Override
-        public void write(byte[] b, int off, int len) {}
+    /** Body is larger than the allowed limit (declared via Content-Length or while streaming). */
+    public static final class ResponseTooLargeException extends IllegalArgumentException {
+        public ResponseTooLargeException(long declaredBytes, long maxBytes) {
+            super("Response exceeds size limit (" + (declaredBytes < 0 ? "streamed" : declaredBytes + " bytes") + " > "
+                    + maxBytes + " bytes)");
+        }
     }
 
     public static final class FetchResult {

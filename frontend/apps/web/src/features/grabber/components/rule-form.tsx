@@ -491,9 +491,12 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         errors={errors}
         scheduleEnabled={scheduleEnabled}
         firstCommentEnabled={firstCommentEnabled}
+
+        userAttachmentsError={fieldError('userAttachmentsText')}
         caps={caps}
         intervalError={fieldError('minIntervalMinutes')}
         firstCommentError={fieldError('firstCommentEnabled')}
+
       />
 
       <p

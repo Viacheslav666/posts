@@ -46,7 +46,7 @@ public final class GrabberConfigSupport {
         filters.putIfAbsent("keyword_exclude", List.of());
         filters.putIfAbsent("stop_words", List.of());
         filters.putIfAbsent("keyword_match", "any");
-        filters.putIfAbsent("attachment_types", List.of("photo", "video", "doc", "link", "audio", "poll", "none"));
+        filters.putIfAbsent("attachment_types", List.of());
         filters.putIfAbsent("require_attachments", false);
         filters.putIfAbsent("exclude_ads", true);
         filters.putIfAbsent("exclude_reposts", true);
@@ -63,7 +63,8 @@ public final class GrabberConfigSupport {
         filters.putIfAbsent("require_phone_or_signature", false);
         filters.putIfAbsent("only_group_posts", false);
         filters.putIfAbsent("skip_if_missing_attachment_types", List.of());
-        filters.putIfAbsent("skip_if_has_attachment_types", List.of());
+        filters.putIfAbsent("skip_if_no_visual_media", false);
+        filters.putIfAbsent("skip_if_no_article", false);
         if (!filters.containsKey("max_age_days")) {
             filters.put("max_age_days", GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS);
         }
@@ -99,6 +100,8 @@ public final class GrabberConfigSupport {
         transform.putIfAbsent("attached_attachments", List.of());
         transform.putIfAbsent("attach_when_no_attachments", false);
         transform.putIfAbsent("attachments_mode", "grid");
+        transform.putIfAbsent("user_attachments", "");
+        transform.putIfAbsent("reupload_video", false);
         transform.putIfAbsent("link_to_source", false);
         transform.putIfAbsent("link_to_author", false);
         transform.putIfAbsent("append_author_signature", true);
@@ -133,6 +136,7 @@ public final class GrabberConfigSupport {
         reliability.putIfAbsent("ignore_edits", true);
         reliability.putIfAbsent("auto_pause_on_errors", true);
         reliability.putIfAbsent("auto_pause_error_threshold", 5);
+        reliability.putIfAbsent("notify_on_errors", true);
         reliability.putIfAbsent("notify_on_error", true);
         config.put("reliability", reliability);
 
@@ -293,6 +297,12 @@ public final class GrabberConfigSupport {
         return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
     }
 
+    public static boolean notifyOnErrors(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object enabled = reliability.get("notify_on_errors");
+        return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
+    }
+
     /** When false, setting failures are only logged — no {@code grabber.setting_error} notification. */
     public static boolean notifyOnError(Map<String, Object> config) {
         Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
@@ -304,6 +314,21 @@ public final class GrabberConfigSupport {
             return b;
         }
         return !"false".equalsIgnoreCase(enabled.toString());
+    }
+
+    public static boolean reuploadVideo(Map<String, Object> config) {
+        Object enabled = transform(config).get("reupload_video");
+        return Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
+    }
+
+    public static String userAttachments(Map<String, Object> config) {
+        Object raw = transform(config).get("user_attachments");
+        return raw == null ? "" : raw.toString();
+    }
+
+    public static boolean carouselMode(Map<String, Object> config) {
+        Object mode = transform(config).get("attachments_mode");
+        return mode != null && "carousel".equalsIgnoreCase(mode.toString().trim());
     }
 
     /**
