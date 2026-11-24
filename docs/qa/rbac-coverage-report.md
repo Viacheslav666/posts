@@ -14,7 +14,7 @@
 | Роли | 5 |
 | Ячейки роль×эндпоинт | 305 |
 | Реализованы (hint) | 35 |
-| Stub / 501 (hint) | 26 — HTTP skip до реализации |
+| Stub / 501 (hint) | 26 - HTTP skip до реализации |
 
 ## Матрица (ожидание HTTP)
 
@@ -87,8 +87,8 @@
 
 ## Синхронизация
 
-- `RbacOpenApiEndpointMapSyncTest` — падает, если в OpenAPI появился operationId без записи в карте.
-- `RbacMatrixDocsSyncTest` — падает при рассинхроне product YAML и classpath-копии BE-6.
-- `RbacMatrixFullCoverageTest` — все пары роль×action из YAML (unit).
-- `RbacEndpointMatrixIT` / `RbacIdorMatrixIT` — HTTP; skip при 501.
-- Сценарные TC-RBAC-01…05 / TC-IDOR-01 — `WorkspaceRbacIntegrationTest` (не дублируются).
+- `RbacOpenApiEndpointMapSyncTest` - падает, если в OpenAPI появился operationId без записи в карте.
+- `RbacMatrixDocsSyncTest` - падает при рассинхроне product YAML и classpath-копии BE-6.
+- `RbacMatrixFullCoverageTest` - все пары роль×action из YAML (unit).
+- `RbacEndpointMatrixIT` / `RbacIdorMatrixIT` - HTTP; skip при 501.
+- Сценарные TC-RBAC-01…05 / TC-IDOR-01 - `WorkspaceRbacIntegrationTest` (не дублируются).

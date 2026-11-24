@@ -112,7 +112,7 @@ function DraggableEvent({
       ref={setNodeRef}
       style={style}
       time={formatEventTime(item.scheduledAt)}
-      title={item.title ?? '—'}
+      title={item.title ?? '-'}
       networks={item.networks}
       status={item.status}
       contentKind={item.contentKind === 'story' ? 'story' : 'post'}
@@ -462,7 +462,7 @@ export function CalendarBoard({
         {activeItem ? (
           <CalendarEventCard
             time={formatEventTime(activeItem.scheduledAt)}
-            title={activeItem.title ?? '—'}
+            title={activeItem.title ?? '-'}
             networks={activeItem.networks}
             status={activeItem.status}
             contentKind={activeItem.contentKind === 'story' ? 'story' : 'post'}

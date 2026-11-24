@@ -95,7 +95,7 @@ export function RuleCard({ rule, workspaceId, channel, canManage }: RuleCardProp
           {t('target')}: {channel?.title ?? rule.targetChannelId}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {t('sources')}: {sources || '—'}
+          {t('sources')}: {sources || '-'}
         </p>
         <p className="text-xs text-muted-foreground">
           {t('mode')}: {rule.config?.publishMode ?? 'moderate'} · {t('copied')}:{' '}

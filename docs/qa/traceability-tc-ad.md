@@ -47,10 +47,10 @@ cd backend && ./gradlew :apps:api:integrationTest --tests 'ru.posts.api.ord.*' -
 # E2E UI маркировки (MSW / demo)
 cd tests/e2e && pnpm test:ad-marking
 
-# Live VK ORD sandbox only (never api.ord.vk.com) — skip without VK_ORD_SANDBOX_API_KEY
+# Live VK ORD sandbox only (never api.ord.vk.com) - skip without VK_ORD_SANDBOX_API_KEY
 cd backend && ./gradlew :apps:api:integrationTest -PincludeOrdSandbox=true \
   --tests 'ru.posts.api.ord.OrdVkSandboxIT'
 
-# Nightly — полный publisher IT (+ load) и e2e ad-marking на compose full
+# Nightly - полный publisher IT (+ load) и e2e ad-marking на compose full
 # P0 coverage: python3 docs/qa/generate_p0_parity_coverage_report.py
 ```

@@ -120,7 +120,7 @@ function createInitialState(): StoreState {
         settingsId: SETTINGS_IDS.vkNews,
         vkPostId: '456002',
         authorVkId: '10002',
-        text: 'Второй пост из предложки — вопрос про доставку.',
+        text: 'Второй пост из предложки - вопрос про доставку.',
         attachments: [],
         status: 'pending_moderation',
         reasons: [],

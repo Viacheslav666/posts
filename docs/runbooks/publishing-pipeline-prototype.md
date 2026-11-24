@@ -8,7 +8,7 @@
 |---|---|---|
 | `posts-scheduler` | 8081 | Postgres, Redis (ShedLock), RabbitMQ |
 | `posts-publisher` (`POSTS_PUBLISHER_NETWORK=tg`) | 8082 | Postgres, Redis (Bucket4j), RabbitMQ, social-emulator |
-| `social-emulator` | 8090 | — |
+| `social-emulator` | 8090 | - |
 
 ## Локальный прогон
 
@@ -23,9 +23,9 @@ POSTS_PUBLISHER_NETWORK=tg POSTS_SOCIAL_EMULATOR_URL=http://localhost:8090 \
 
 ## Метрики
 
-- `posts_publication_delay_seconds` — задержка `published_at - run_at`
-- `posts_publications_total{network,result}` — счётчик исходов
-- `posts_ratelimit_throttled_total{network,level}` — отказы Bucket4j
+- `posts_publication_delay_seconds` - задержка `published_at - run_at`
+- `posts_publications_total{network,result}` - счётчик исходов
+- `posts_ratelimit_throttled_total{network,level}` - отказы Bucket4j
 
 ## Алерты (минимум для прототипа)
 
@@ -45,4 +45,4 @@ cd backend
 ```
 
 Матрица кейс → тест: `docs/qa/traceability-tc-pub.md`.  
-Покрывают TC-PUB-01…08 (реализуемые на прототипе TG), rate-limit, CB, deferred/cancel; TC-PUB-09…13 — `@Disabled` «ожидает BE-10».
+Покрывают TC-PUB-01…08 (реализуемые на прототипе TG), rate-limit, CB, deferred/cancel; TC-PUB-09…13 - `@Disabled` «ожидает BE-10».

@@ -1,7 +1,7 @@
 # Матрица трассировки TC-IN → автотест (QA-14 / BE-32)
 
 Обновлено: 2026-11-19.  
-Источник требований: p2 **BE-32 «Приёмка»** (каждая строка ниже — дословный пункт).
+Источник требований: p2 **BE-32 «Приёмка»** (каждая строка ниже - дословный пункт).
 
 | Пункт приёмки BE-32 | TC | Класс / путь | Набор | Статус |
 |---|---|---|---|---|
@@ -26,7 +26,7 @@
 | Путь | Назначение |
 |---|---|
 | `backend/libs/social-api/src/test/java/ru/posts/social/api/SocialLiveApiGuardTest` | Guard prod social hosts в тестах |
-| `tests/social-emulator` — `InboundInjectController` | Инъекция callback/update |
+| `tests/social-emulator` - `InboundInjectController` | Инъекция callback/update |
 | `RecordingSocialEventHandler` | Подсчёт доставок handler в IT |
 
 ## Запуск

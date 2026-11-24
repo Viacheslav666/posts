@@ -23,7 +23,7 @@ type MoveConfirmDialogProps = {
 };
 
 function formatWhen(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     return format(new Date(iso), 'd MMM yyyy, HH:mm', { locale: ru });
   } catch {

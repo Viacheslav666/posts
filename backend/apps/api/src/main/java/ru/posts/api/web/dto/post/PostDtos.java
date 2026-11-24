@@ -150,7 +150,7 @@ public final class PostDtos {
             ContentKind contentKind,
             @Schema(description = "Present when contentKind=story") StoryOptions story,
             @Schema(
-                            description = "manual|grabber|rss|import|api — grabber/rss set by BE-17",
+                            description = "manual|grabber|rss|import|api - grabber/rss set by BE-17",
                             example = "manual",
                             allowableValues = {"manual", "grabber", "rss", "import", "api"})
                     String sourceType,

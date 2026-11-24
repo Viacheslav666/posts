@@ -90,7 +90,7 @@ export function AutopayForm({ workspaceId, canManage }: AutopayFormProps) {
         <div>
           <p className="text-sm font-medium text-foreground">{t('enabled')}</p>
           <p className="text-xs text-muted-foreground">
-            {hasMethod ? t('card', { mask: cardMask ?? '—' }) : t('noCard')}
+            {hasMethod ? t('card', { mask: cardMask ?? '-' }) : t('noCard')}
           </p>
         </div>
         <Switch

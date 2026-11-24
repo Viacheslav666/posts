@@ -2,17 +2,17 @@
 
 | Поле | Значение |
 |---|---|
-| MVP | **AN-3** — E1–E6 |
-| Фаза 2 | **AN-5** — E8–E22 (`docs/an-5-phase2-stories`) |
+| MVP | **AN-3** - E1–E6 |
+| Фаза 2 | **AN-5** - E8–E22 (`docs/an-5-phase2-stories`) |
 | Формат AC | Given / When / Then |
 | DoR | `docs/specs/01-analyst.md` §10 |
 | DoR P0 паритета | [`phase2-parity-dor.md`](./phase2-parity-dor.md) |
 | PRD | [`../PRD-MVP.md`](../PRD-MVP.md) · [`../PRD-phase2.md`](../PRD-phase2.md) |
 | Биллинг | [`../billing-rules.md`](../billing-rules.md) |
 
-Каждый файл — одна user story с ценностью, AC, приоритетом, зависимостями, экраном, черновиком тестовых данных и чеклистом DoR.
+Каждый файл - одна user story с ценностью, AC, приоритетом, зависимостями, экраном, черновиком тестовых данных и чеклистом DoR.
 
-Issues в GitHub **не создаются агентом** — владелец запускает:
+Issues в GitHub **не создаются агентом** - владелец запускает:
 
 ```bash
 ./infra/scripts/gh-stories-issues.sh          # dry-run по умолчанию
@@ -271,5 +271,5 @@ E22 после стабилизации E10–E17 (Q-MISC-04)
 ## Тестируемость
 
 - MVP P0: QA-4 / TC-AUTH…PUB.
-- Паритет P0: TC-AD-*, TC-STORY-*, TC-GRAB-* уже в `docs/qa/test-cases/`; автоматизация — QA-10…12.
+- Паритет P0: TC-AD-*, TC-STORY-*, TC-GRAB-* уже в `docs/qa/test-cases/`; автоматизация - QA-10…12.
 - Все AC формулированы проверяемо (UI/API/эмулятор/WireMock ORD).

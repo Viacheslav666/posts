@@ -14,8 +14,8 @@ BE-4 дал прототип scheduler → RabbitMQ → publisher. BE-10 дов�
 ### Rate limiting и resilience
 
 - Bucket4j + Redis: ключи `rl:{network}:global|token|chat`; AIMD `penalize()` после 429/flood (VK flood → блок до 1 ч).
-- Fallback при недоступности Redis — локальный Resilience4j RateLimiter + метрика `posts_ratelimit_redis_degraded_total`.
-- Resilience4j: CircuitBreaker + TimeLimiter + Bulkhead на вызов сети. Повтор **публикации** — только через PG `next_attempt_at` (не Retry Resilience4j).
+- Fallback при недоступности Redis - локальный Resilience4j RateLimiter + метрика `posts_ratelimit_redis_degraded_total`.
+- Resilience4j: CircuitBreaker + TimeLimiter + Bulkhead на вызов сети. Повтор **публикации** - только через PG `next_attempt_at` (не Retry Resilience4j).
 
 ### scheduled_actions
 
@@ -36,7 +36,7 @@ BE-4 дал прототип scheduler → RabbitMQ → publisher. BE-10 дов�
 | `PrePublishHook` | BE-15: erid/маркер, fail-closed без erid |
 | `SocialAdapter.publishStory` / `deleteStory` | BE-16: `content_kind=story` в том же Deployment |
 | `source_type` в outbox + единый schedule API | BE-17: публикация граббера только через конвейер |
-| `posts.publisher.vk.native-deferred.enabled` | §5.6 нативная отложка VK — **выкл.**; Phase 2 |
+| `posts.publisher.vk.native-deferred.enabled` | §5.6 нативная отложка VK - **выкл.**; Phase 2 |
 
 ### Метрики
 
@@ -44,8 +44,8 @@ BE-4 дал прототип scheduler → RabbitMQ → publisher. BE-10 дов�
 
 ## Альтернативы
 
-- Ретраи через TTL/DLX RabbitMQ — отвергнуто (ADR-0004).
-- Отдельный Deployment на stories — отвергнуто; ветвление по `content_kind`.
+- Ретраи через TTL/DLX RabbitMQ - отвергнуто (ADR-0004).
+- Отдельный Deployment на stories - отвергнуто; ветвление по `content_kind`.
 
 ## Последствия
 

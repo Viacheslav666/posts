@@ -11,7 +11,7 @@ checked_at: "2026-11-17"
 notes: >
   Бэкенд загружает этот файл в NetworkCapabilities и posts.ratelimit.<network>.*.
   Фронт получает снимок через GET /api/v1/networks/capabilities.
-  Числовые лимиты без официальной цифры в документации сети помечены unknown — не подставлять «народные» значения в прод-валидацию без отдельного решения владельца.
+  Числовые лимиты без официальной цифры в документации сети помечены unknown - не подставлять «народные» значения в прод-валидацию без отдельного решения владельца.
 
 networks:
   # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ networks:
         value: true
         source: "https://dev.vk.ru/ru/method/wall.post"
         checked_at: "2026-11-17"
-        note: "Параметр publish_date (Unix Timestamp). В MVP Posts публикует сам; нативная отложка — ADR Фазы 2."
+        note: "Параметр publish_date (Unix Timestamp). В MVP Posts публикует сам; нативная отложка - ADR Фазы 2."
       edit_after_publish:
         status: confirmed
         value: true
@@ -270,7 +270,7 @@ networks:
         flood_control_error: 9
         too_many_requests_error: 6
       notes: >
-        При error 6 — backoff; при error 9 (flood control) — временная блокировка ключа.
+        При error 6 - backoff; при error 9 (flood control) - временная блокировка ключа.
         Суточные лимиты на публикацию официально не раскрыты.
 
     tokens:
@@ -285,14 +285,14 @@ networks:
         unit: seconds
         source: "https://id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/api-description"
         checked_at: "2026-11-17"
-        note: "Access token VK ID — 1 час."
+        note: "Access token VK ID - 1 час."
       refresh_token_ttl_seconds:
         status: confirmed
         value: 15552000
         unit: seconds
         source: "https://id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/tokens/refresh-token"
         checked_at: "2026-11-17"
-        note: "Refresh token VK ID — 180 дней; ротация инвалидирует прежнюю пару."
+        note: "Refresh token VK ID - 180 дней; ротация инвалидирует прежнюю пару."
       notes: >
         Ключ сообщества создаётся в настройках сообщества / OAuth; действует до удаления/отзыва
         (см. https://dev.vk.ru/en/api/community-messages/getting-started). TTL ключа сообщества
@@ -310,12 +310,12 @@ networks:
         source: "https://dev.vk.ru/ru/api/callback/getting-started"
         checked_at: "2026-11-17"
         note: "Ответ ok; до 10 серверов; secret; confirmation."
-      notes: "Фаза 2: предложка/антиспам; MVP — статус канала и ingest."
+      notes: "Фаза 2: предложка/антиспам; MVP - статус канала и ingest."
 
     permissions:
       summary:
         status: confirmed
-        value: "Пользователь должен быть админом/редактором сообщества или владельцем стены; wall.post требует права wall (для user token — по правилам VK)."
+        value: "Пользователь должен быть админом/редактором сообщества или владельцем стены; wall.post требует права wall (для user token - по правилам VK)."
         source: "https://dev.vk.ru/ru/method/wall.post"
         checked_at: "2026-11-17"
       required_scopes:
@@ -323,7 +323,7 @@ networks:
         value: [wall, photos, video, docs, groups, stories, offline]
         source: "https://dev.vk.ru/ru/method/wall.post"
         checked_at: "2026-11-17"
-        note: "Точный набор scopes для Posts утверждается при подключении VK ID; stories — отдельное право для Фазы 2."
+        note: "Точный набор scopes для Posts утверждается при подключении VK ID; stories - отдельное право для Фазы 2."
 
   # ---------------------------------------------------------------------------
   # Telegram
@@ -369,7 +369,7 @@ networks:
         unit: items
         source: "https://core.telegram.org/bots/api#sendmediagroup"
         checked_at: "2026-11-17"
-        note: "Альбом sendMediaGroup: 2–10 элементов; одиночные sendPhoto/sendVideo — 1."
+        note: "Альбом sendMediaGroup: 2–10 элементов; одиночные sendPhoto/sendVideo - 1."
       photo:
         supported:
           status: confirmed
@@ -517,7 +517,7 @@ networks:
         value: true
         source: "https://core.telegram.org/bots/api#sendmessage"
         checked_at: "2026-11-17"
-        note: "Для каналов с discussion — сообщение в связанную группу/ответ; отдельного метода «первый комментарий» нет."
+        note: "Для каналов с discussion - сообщение в связанную группу/ответ; отдельного метода «первый комментарий» нет."
       stories:
         status: confirmed
         value: false
@@ -595,7 +595,7 @@ networks:
         global_msg_rps: 30
         per_chat_msg_rps: 1
         per_group_msg_rpm: 20
-      notes: "При 429 учитывать parameters.retry_after. Для пика >30/с — пул ботов (см. 02-backend.md)."
+      notes: "При 429 учитывать parameters.retry_after. Для пика >30/с - пул ботов (см. 02-backend.md)."
 
     tokens:
       auth_model:
@@ -635,7 +635,7 @@ networks:
     permissions:
       summary:
         status: confirmed
-        value: "Бот — администратор канала/группы с правами публикации (can_post_messages и др.)."
+        value: "Бот - администратор канала/группы с правами публикации (can_post_messages и др.)."
         source: "https://core.telegram.org/bots/api#getchatmember"
         checked_at: "2026-11-17"
       required_scopes:
@@ -670,7 +670,7 @@ networks:
         value: plain
         source: "https://apiok.ru/dev/methods/rest/mediatopic/mediatopic.post"
         checked_at: "2026-11-17"
-        note: "media type=text — обычная строка; HTML/Markdown для поста не документированы."
+        note: "media type=text - обычная строка; HTML/Markdown для поста не документированы."
       features:
         status: confirmed
         value: []
@@ -807,7 +807,7 @@ networks:
         value: true
         source: "https://apiok.ru/dev/methods/rest/moments/"
         checked_at: "2026-11-17"
-        note: "OK «Моменты» (moments.*). Фаза 2 продукта. Детальные лимиты размера — unknown без страницы commit/upload."
+        note: "OK «Моменты» (moments.*). Фаза 2 продукта. Детальные лимиты размера - unknown без страницы commit/upload."
       close_comments:
         status: confirmed
         value: true
@@ -858,7 +858,7 @@ networks:
         token_rps: 5
       notes: >
         Официального RPS нет. Консервативный стартовый ключ posts.ratelimit.ok.token_rps=5
-        (рекомендация 02-backend.md), не как лимит OK — как защита Posts.
+        (рекомендация 02-backend.md), не как лимит OK - как защита Posts.
 
     tokens:
       auth_model:
@@ -929,7 +929,7 @@ networks:
         value: html
         source: "https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting"
         checked_at: "2026-11-17"
-        note: "format=html|markdown; Posts — HTML-подмножество."
+        note: "format=html|markdown; Posts - HTML-подмножество."
       features:
         status: confirmed
         value: [bold, italic, underline, strikethrough, code, link, heading, quote, highlight, user_mention]
@@ -940,7 +940,7 @@ networks:
         value: [b, strong, i, em, u, ins, s, strike, del, code, pre, a, h1, h2, h3, h4, h5, h6, blockquote, mark]
         source: "https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting"
         checked_at: "2026-11-17"
-        note: "Точный список тегов — по таблице HTML на странице форматирования Max."
+        note: "Точный список тегов - по таблице HTML на странице форматирования Max."
 
     media:
       max_attachments_per_post:
@@ -1015,7 +1015,7 @@ networks:
           value: [TXT, DOC]
           source: "https://dev.max.ru/docs-api/methods/POST/uploads"
           checked_at: "2026-11-17"
-          note: "Документация: «распространённые форматы (например, TXT, DOC и другие)» — полный whitelist не закрыт."
+          note: "Документация: «распространённые форматы (например, TXT, DOC и другие)» - полный whitelist не закрыт."
       audio:
         supported:
           status: confirmed
@@ -1054,7 +1054,7 @@ networks:
         value: true
         source: "https://dev.max.ru/docs-api/methods/PUT/messages"
         checked_at: "2026-11-17"
-        note: "В диалогах без кнопок — ≤7 суток; в группах/каналах — без лимита давности."
+        note: "В диалогах без кнопок - ≤7 суток; в группах/каналах - без лимита давности."
       delete_after_publish:
         status: confirmed
         value: true
@@ -1177,7 +1177,7 @@ networks:
     permissions:
       summary:
         status: confirmed
-        value: "Бот добавлен админом в чат/канал; для pin/delete — права администратора."
+        value: "Бот добавлен админом в чат/канал; для pin/delete - права администратора."
         source: "https://dev.max.ru/docs-api/methods/PUT/chats/-chatId-/pin"
         checked_at: "2026-11-17"
       required_scopes:
@@ -1334,13 +1334,13 @@ networks:
         value: null
         source: "https://r2b.su/"
         checked_at: "2026-11-17"
-        note: "В PartnerAPI (r2b.su) метод отложенной публикации в просмотренной спецификации не найден; is_hidden — скрытие, не schedule."
+        note: "В PartnerAPI (r2b.su) метод отложенной публикации в просмотренной спецификации не найден; is_hidden - скрытие, не schedule."
       edit_after_publish:
         status: confirmed
         value: true
         source: "https://r2b.su/"
         checked_at: "2026-11-17"
-        note: "PATCH /api/video/{video_id}/ — title/description/category/…"
+        note: "PATCH /api/video/{video_id}/ - title/description/category/…"
       delete_after_publish:
         status: confirmed
         value: true

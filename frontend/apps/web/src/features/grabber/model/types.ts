@@ -36,7 +36,7 @@ export const SCAN_INTERVALS = [15, 30, 60, 120, 180, 360, 720, 1440] as const;
 /** BE-27: max 20 sources per rule. */
 export const MAX_SOURCES_PER_RULE = 20;
 
-export const DEFAULT_ATTRIBUTION_TEMPLATE = 'Источник: {source_name} — {source_url}';
+export const DEFAULT_ATTRIBUTION_TEMPLATE = 'Источник: {source_name} - {source_url}';
 
 /** ISO day numbers Monday=1 … Sunday=7 (matches backend WorkingWindow). */
 export const DAYS_OF_WEEK = [1, 2, 3, 4, 5, 6, 7] as const;

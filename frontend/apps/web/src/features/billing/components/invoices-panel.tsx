@@ -30,7 +30,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 function formatDate(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short' }).format(new Date(iso));
   } catch {
@@ -149,7 +149,7 @@ export function InvoicesPanel({ workspaceId, canManage }: InvoicesPanelProps) {
                   <td className="px-2 py-2">{invoice.invoiceNumber ?? invoice.id}</td>
                   <td className="px-2 py-2">{formatDate(invoice.createdAt)}</td>
                   <td className="px-2 py-2">{formatKopecks(invoice.amountKopecks ?? 0)}</td>
-                  <td className="px-2 py-2">{invoice.status ?? '—'}</td>
+                  <td className="px-2 py-2">{invoice.status ?? '-'}</td>
                   <td className="px-2 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Button

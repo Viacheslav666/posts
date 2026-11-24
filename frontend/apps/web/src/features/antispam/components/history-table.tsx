@@ -267,7 +267,7 @@ function HistoryRow({
   const [unban, setUnban] = useState(false);
   const stamp = entry.createdAt
     ? format(new Date(entry.createdAt), 'dd MMM HH:mm', { locale: ru })
-    : '—';
+    : '-';
   const isRestored = entry.state === 'restored';
   const network = channel?.network;
 
@@ -279,26 +279,26 @@ function HistoryRow({
       <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">{stamp}</td>
       <td className="px-2 py-3">
         <p className="max-w-[10rem] truncate" title={channel?.title}>
-          {channel?.title ?? entry.channelId ?? '—'}
+          {channel?.title ?? entry.channelId ?? '-'}
         </p>
       </td>
       <td className="px-2 py-3">
         <p className="max-w-xs truncate" title={entry.textSnapshot}>
-          {entry.textSnapshot || '—'}
+          {entry.textSnapshot || '-'}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">{entry.authorRef}</p>
       </td>
       <td className="px-2 py-3">
         {entry.section && ALL_SECTIONS.includes(entry.section as (typeof ALL_SECTIONS)[number])
           ? tSection(entry.section as 'wall_comment')
-          : (entry.section ?? '—')}
+          : (entry.section ?? '-')}
       </td>
       <td className="px-2 py-3">
         <div className="space-y-0.5">
           <span>
             {entry.action && ANTISPAM_ACTIONS.includes(entry.action as (typeof ANTISPAM_ACTIONS)[number])
               ? tAction(entry.action as 'deleted')
-              : (entry.action ?? '—')}
+              : (entry.action ?? '-')}
           </span>
           <p
             className="text-xs text-muted-foreground"

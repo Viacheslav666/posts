@@ -1,4 +1,4 @@
-# E10 — Маркировка рекламы / ОРД (TC-AD)
+# E10 - Маркировка рекламы / ОРД (TC-AD)
 
 | | |
 |---|---|
@@ -20,20 +20,20 @@
 | 8 | Репост+маркировка VK/OK | TC-AD-08 | авто | `OrdAdMarkingIT#repostWithAdMarking` |
 | 9 | RBAC ORD | TC-AD-09 | авто | `OrdAdMarkingIT#rbacAuthorAndViewerDenied` |
 | 10 | ★ предпросмотр маркера | TC-AD-10 | авто | `OrdAdMarkingIT#previewShowsMarker` |
-| — | Невалидный ИНН | TC-AD-11 | авто | `OrdAdMarkingIT` + validator unit |
-| — | ORD 5xx/429/timeout → fail-closed | TC-AD-12 | авто | `OrdAdMarkingIT` + `OrdAdPipelineIT` + provider WM |
-| — | Идемпотентность creative external_id | TC-AD-13 | авто | `OrdAdMarkingIT` + provider WM |
-| — | Самореклама | TC-AD-14 | авто | `OrdAdMarkingIT#selfPromoSkipsContract` |
-| — | Смена провайдера VK↔Yandex | TC-AD-15 | ручной / авто | `OrdAdMarkingIT#yandexConnectionTest` |
-| — | ККТУ/ОКСМ справочники | TC-AD-16 | авто | `OrdAdMarkingIT#dictionariesAvailable` |
-| — | Donut/co-authors/poll UI | TC-AD-17 | авто | `OrdAdMarkingIT#postOptionsParity` |
-| — | IDOR чужой creative | TC-AD-18 | авто | `OrdAdMarkingIT#foreignCreativeIdor` |
+| - | Невалидный ИНН | TC-AD-11 | авто | `OrdAdMarkingIT` + validator unit |
+| - | ORD 5xx/429/timeout → fail-closed | TC-AD-12 | авто | `OrdAdMarkingIT` + `OrdAdPipelineIT` + provider WM |
+| - | Идемпотентность creative external_id | TC-AD-13 | авто | `OrdAdMarkingIT` + provider WM |
+| - | Самореклама | TC-AD-14 | авто | `OrdAdMarkingIT#selfPromoSkipsContract` |
+| - | Смена провайдера VK↔Yandex | TC-AD-15 | ручной / авто | `OrdAdMarkingIT#yandexConnectionTest` |
+| - | ККТУ/ОКСМ справочники | TC-AD-16 | авто | `OrdAdMarkingIT#dictionariesAvailable` |
+| - | Donut/co-authors/poll UI | TC-AD-17 | авто | `OrdAdMarkingIT#postOptionsParity` |
+| - | IDOR чужой creative | TC-AD-18 | авто | `OrdAdMarkingIT#foreignCreativeIdor` |
 
 Полная матрица: [`docs/qa/traceability-tc-ad.md`](../traceability-tc-ad.md).
 
 ---
 
-## TC-AD-01 — Все опции поста отображаются с учётом сети
+## TC-AD-01 - Все опции поста отображаются с учётом сети
 
 | Поле | Значение |
 |---|---|
@@ -41,11 +41,11 @@
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Для выбранных каналов доступны только опции из матрицы спеки; Donut/соавторы только VK; кнопки — TG/Max.
+Для выбранных каналов доступны только опции из матрицы спеки; Donut/соавторы только VK; кнопки - TG/Max.
 
 ---
 
-## TC-AD-02 — Recurrence соответствует enum vposter
+## TC-AD-02 - Recurrence соответствует enum vposter
 
 | Поле | Значение |
 |---|---|
@@ -57,7 +57,7 @@
 
 ---
 
-## TC-AD-03 — Маркировка без ORD connection блокирует schedule
+## TC-AD-03 - Маркировка без ORD connection блокирует schedule
 
 | Поле | Значение |
 |---|---|
@@ -67,7 +67,7 @@
 
 ---
 
-## TC-AD-04 — Успешная регистрация креатива → erid в тексте
+## TC-AD-04 - Успешная регистрация креатива → erid в тексте
 
 | Поле | Значение |
 |---|---|
@@ -80,7 +80,7 @@
 
 ---
 
-## TC-AD-05 — Ежемесячный отчёт / ручной run
+## TC-AD-05 - Ежемесячный отчёт / ручной run
 
 | Поле | Значение |
 |---|---|
@@ -93,7 +93,7 @@ BE-26: полный цикл WireMock VK/Yandex (показы → submitted); т
 
 ---
 
-## TC-AD-06 — Автоудаление после периода показа
+## TC-AD-06 - Автоудаление после периода показа
 
 | Поле | Значение |
 |---|---|
@@ -101,12 +101,12 @@ BE-26: полный цикл WireMock VK/Yandex (показы → submitted); т
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-`scheduled_actions` kind=delete выполняется; повтор — success.
+`scheduled_actions` kind=delete выполняется; повтор - success.
 BE-26: после снятия фиксируется `display_ended_at`, финальная статистика в ближайшем отчёте; erid сохраняется.
 
 ---
 
-## TC-AD-07 — Рекламный пост: 0 дублей при ретрае
+## TC-AD-07 - Рекламный пост: 0 дублей при ретрае
 
 | Поле | Значение |
 |---|---|
@@ -116,7 +116,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-08 — Репост VK/OK с маркировкой
+## TC-AD-08 - Репост VK/OK с маркировкой
 
 | Поле | Значение |
 |---|---|
@@ -125,7 +125,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-09 — RBAC: Author не планирует рекламу; Viewer не настраивает ORD
+## TC-AD-09 - RBAC: Author не планирует рекламу; Viewer не настраивает ORD
 
 | Поле | Значение |
 |---|---|
@@ -134,7 +134,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-10 — Предпросмотр показывает маркер до публикации
+## TC-AD-10 - Предпросмотр показывает маркер до публикации
 
 | Поле | Значение |
 |---|---|
@@ -143,7 +143,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-11 — Невалидный ИНН → 400 `ad_inn_invalid`
+## TC-AD-11 - Невалидный ИНН → 400 `ad_inn_invalid`
 
 | Поле | Значение |
 |---|---|
@@ -152,7 +152,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-12 — ORD 5xx → публикация не уходит в сеть
+## TC-AD-12 - ORD 5xx → публикация не уходит в сеть
 
 | Поле | Значение |
 |---|---|
@@ -161,7 +161,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-13 — Повтор register не меняет erid
+## TC-AD-13 - Повтор register не меняет erid
 
 | Поле | Значение |
 |---|---|
@@ -170,7 +170,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-14 — Самореклама без договора с третьим лицом
+## TC-AD-14 - Самореклама без договора с третьим лицом
 
 | Поле | Значение |
 |---|---|
@@ -179,7 +179,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-15 — Переключение провайдера ORD
+## TC-AD-15 - Переключение провайдера ORD
 
 | Поле | Значение |
 |---|---|
@@ -188,7 +188,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-16 — Справочники ККТУ и ОКСМ отдаются API
+## TC-AD-16 - Справочники ККТУ и ОКСМ отдаются API
 
 | Поле | Значение |
 |---|---|
@@ -197,7 +197,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-17 — Donut, соавторы, опрос сохраняются в options
+## TC-AD-17 - Donut, соавторы, опрос сохраняются в options
 
 | Поле | Значение |
 |---|---|
@@ -206,7 +206,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-18 — IDOR к чужому ord_creative → 404
+## TC-AD-18 - IDOR к чужому ord_creative → 404
 
 | Поле | Значение |
 |---|---|
@@ -215,7 +215,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-19 — Шесть режимов размещения + предупреждение vk_menu (FE-15)
+## TC-AD-19 - Шесть режимов размещения + предупреждение vk_menu (FE-15)
 
 | Поле | Значение |
 |---|---|
@@ -228,7 +228,7 @@ BE-26: после снятия фиксируется `display_ended_at`, фин
 
 ---
 
-## TC-AD-20 — Настройки ОРД: адрес, роли, оферта (FE-15)
+## TC-AD-20 - Настройки ОРД: адрес, роли, оферта (FE-15)
 
 | Поле | Значение |
 |---|---|

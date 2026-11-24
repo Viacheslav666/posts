@@ -29,7 +29,7 @@ python3 tests/seed/generate_seed.py --profile load --dry-run   # проверк�
 python3 tests/seed/generate_seed.py --profile load --out-dir /tmp/posts-seed-load
 ```
 
-Выход: логический JSON (`users`, `workspaces`, `projects`, `memberships`, `channels`, `posts`) — **не SQL**.
+Выход: логический JSON (`users`, `workspaces`, `projects`, `memberships`, `channels`, `posts`) - **не SQL**.
 
 ## 3. Учётные записи (логические)
 
@@ -45,7 +45,7 @@ python3 tests/seed/generate_seed.py --profile load --out-dir /tmp/posts-seed-loa
 | `unconfirmed` | qa-unconfirmed@posts.test | Owner личного | email не подтверждён (US-1.1) |
 | `totp_user` | qa-2fa@posts.test | Owner | 2FA включена (US-1.3) |
 
-Пароли в seed — плейсхолдер `SEED_ONLY_CHANGE_ME`; реальные секреты только в Vault/ENV стенда.
+Пароли в seed - плейсхолдер `SEED_ONLY_CHANGE_ME`; реальные секреты только в Vault/ENV стенда.
 
 ## 4. Объёмы и смеси
 
@@ -53,14 +53,14 @@ python3 tests/seed/generate_seed.py --profile load --out-dir /tmp/posts-seed-loa
 - Посты: draft 15 % / scheduled 45 % / published 30 % / failed 5 % / paused 5 %.
 - Варианты под сеть включаются (`include_variants: true`).
 
-Лимит тарифа Агентства для 1000 каналов: базовые 100 + пакеты +25 (см. `billing-rules.md`); в spec — `channel_addons: 36`.
+Лимит тарифа Агентства для 1000 каналов: базовые 100 + пакеты +25 (см. `billing-rules.md`); в spec - `channel_addons: 36`.
 
 ## 5. TODO после BE-2
 
 1. Зафиксировать маппинг logical → таблицы Flyway (`users`, `workspaces`, `workspace_members`, `projects`, `project_grants`, `channels`, `posts`, `post_variants`, `publications`, …).
 2. Добавить `tests/seed/mappers/be2_sql.py` (или JDBC loader в `backend/libs/test-support`).
 3. Опционально Flyway callback / `R__seed_qa.sql` только для profile `local`/`staging`.
-4. Не коммитить дамп `load` (десятки МБ) — генерировать на стенде.
+4. Не коммитить дамп `load` (десятки МБ) - генерировать на стенде.
 
 До выполнения пункта 1 генератор **намеренно** не пишет SQL.
 

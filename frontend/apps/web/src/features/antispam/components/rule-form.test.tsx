@@ -27,7 +27,7 @@ const channels = [
     id: CHANNEL_IDS.vkNews,
     workspaceId: PERSONAL_WORKSPACE_ID,
     network: 'vk' as const,
-    title: 'Posts — новости',
+    title: 'Posts - новости',
     status: 'active' as const,
     type: 'group' as const,
   },

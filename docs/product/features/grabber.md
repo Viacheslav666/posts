@@ -1,13 +1,13 @@
-# Граббер / Ingest — спецификация функции (E17)
+# Граббер / Ingest - спецификация функции (E17)
 
 | Поле | Значение |
 |---|---|
 | Версия | **1.0.1** |
 | Дата | **2026-11-17** |
-| Статус | Готово к реализации (DoR); patch: Q-GRAB-02 — `moderate` default |
-| Эпик | **E17** — RSS-импорт и граббер (единый модуль Ingest) |
+| Статус | Готово к реализации (DoR); patch: Q-GRAB-02 - `moderate` default |
+| Эпик | **E17** - RSS-импорт и граббер (единый модуль Ingest) |
 | Задачи | BE-17, BE-17b (сайты P1), FE-14, QA-12 |
-| Конкурент | [vposter.ru](https://vposter.ru/) — раздел «Граббер» / «RSS-парсер» |
+| Конкурент | [vposter.ru](https://vposter.ru/) - раздел «Граббер» / «RSS-парсер» |
 | Архитектура | Java 21, Spring Boot; `apps/ingest`; таблица `automation_rules` (`type` + `config` jsonb); публикационный конвейер scheduler → RabbitMQ → publisher; RBAC workspace; идемпотентность; **0 потерь / 0 дублей** |
 | Связанные ТЗ | `docs/specs/02-backend.md` §10 (Фаза 2, `automation_rules`); `docs/specs/01-analyst.md` E17; `docs/product/parity-matrix.md` §5; `docs/adr/0004-publishing-pipeline.md` |
 | Открытые вопросы | [`../parity-open-questions.md`](../parity-open-questions.md) |
@@ -24,7 +24,7 @@
 | Backend Phase 2 | `docs/specs/02-backend.md` §10 | 2026-11-17 |
 | OpenAPI (расширение) | `docs/api/openapi.yaml` | предлагается в §7 |
 
-> **ASSUMPTION.** Публичная справка vposter описывает граббер кратко (целевое сообщество, ID источников через запятую без пробелов, «Добавить в сообщество», «Активные сообщества», скан раз в несколько часов, ручная проверка, история, юр. предупреждение). Полный набор UI-фильтров кабинета **не документирован публично**. Ниже поля с пометкой **ASSUMPTION** — продуктовые допущения Posts для паритета и превосходства; уточняются скриншотами ЛК / ответами владельца в `parity-open-questions.md`.
+> **ASSUMPTION.** Публичная справка vposter описывает граббер кратко (целевое сообщество, ID источников через запятую без пробелов, «Добавить в сообщество», «Активные сообщества», скан раз в несколько часов, ручная проверка, история, юр. предупреждение). Полный набор UI-фильтров кабинета **не документирован публично**. Ниже поля с пометкой **ASSUMPTION** - продуктовые допущения Posts для паритета и превосходства; уточняются скриншотами ЛК / ответами владельца в `parity-open-questions.md`.
 
 ---
 
@@ -34,37 +34,37 @@
 
 Дать SMM-командам и паблик-мейкерам **автоматический импорт контента** из внешних источников в каналы Posts с последующей публикацией через **тот же** надёжный пайплайн, что и ручные/отложенные посты: без потерь, без дублей, с аудитом, RBAC и обязательной атрибуцией источника.
 
-В vposter граббер и RSS — **разные** авто-установки. В Posts они объединяются в **единый модуль Ingest (E17)** с общим UX «правило → источники → фильтры → действие → журнал».
+В vposter граббер и RSS - **разные** авто-установки. В Posts они объединяются в **единый модуль Ingest (E17)** с общим UX «правило → источники → фильтры → действие → журнал».
 
 ### 1.2. In-scope (фаза E17 / BE-17)
 
 | Приоритет | Источник | Приёмник (MVP E17) | Примечание |
 |---|---|---|---|
 | **P0** | VK-группы / страницы (по ID / screen name) | VK-канал workspace | Паритет vposter Grabber |
-| **P0** | RSS 1.0 / 2.0 / Atom | VK-канал workspace (далее — любой подключённый канал по матрице) | Единый Ingest; vposter — отдельный RSS-парсер |
+| **P0** | RSS 1.0 / 2.0 / Atom | VK-канал workspace (далее - любой подключённый канал по матрице) | Единый Ingest; vposter - отдельный RSS-парсер |
 | **P1** | Веб-сайты (HTML / Open Graph / article extract) | VK (+ опционально TG) | SSRF-защита обязательна; BE-17b |
 | **P2+** | Telegram-каналы / чаты как источник | VK / TG / OK / Max | После стабилизации E16 кросспостинг / прав доступа |
 | **P2+** | Одноклассники как источник | VK / OK | По мере API-доступа |
 
 ### 1.3. Out of scope (этот документ)
 
-- Автопостинг предложки (E18), антиспам (E19), кросспостинг как отдельный UX (E16) — соседние модули на той же `automation_rules`.
-- AI-рерайт / суммаризация (E15) — ★ дифференциатор, подключается к Ingest как опциональный шаг; контракт — отдельная story.
-- Meta (Instagram*/Facebook*) как источник или приёмник — **окончательно вне scope** (Q-STORY-05 / паритет-матрица).
-- Браузерное расширение «копировать пост» (аналог Впостер Tools) — Фаза 3.
+- Автопостинг предложки (E18), антиспам (E19), кросспостинг как отдельный UX (E16) - соседние модули на той же `automation_rules`.
+- AI-рерайт / суммаризация (E15) - ★ дифференциатор, подключается к Ingest как опциональный шаг; контракт - отдельная story.
+- Meta (Instagram*/Facebook*) как источник или приёмник - **окончательно вне scope** (Q-STORY-05 / паритет-матрица).
+- Браузерное расширение «копировать пост» (аналог Впостер Tools) - Фаза 3.
 
 ### 1.4. Принципы
 
 1. **Один пайплайн публикации.** Grabbed/RSS item → нормализованный черновик/пост → `publications` → scheduler → RabbitMQ → publisher. Нельзя публиковать «в обход» идемпотентности.
 2. **0 потерь / 0 дублей.** Дедуп по `content_hash` (sha256 текста + медиа) + ключ источника `(network, source_id, remote_post_id)`; идемпотентный ingest run.
 3. **Юридическая безопасность по умолчанию.** Обязательная атрибуция источника + чекбокс ответственности пользователя до активации правила.
-4. **Workspace-first.** Правила живут в проекте/workspace; права — из `roles-permissions`; чужой workspace → 404.
+4. **Workspace-first.** Правила живут в проекте/workspace; права - из `roles-permissions`; чужой workspace → 404.
 
 ---
 
 ## 2. Пользовательские сценарии
 
-### 2.1. Happy path — граббер VK → VK
+### 2.1. Happy path - граббер VK → VK
 
 1. Owner/Admin/Editor открывает **Автоматизации → Ingest → Граббер**.
 2. Выбирает **целевой VK-канал** (подключён, статус `ok`, права на стену).
@@ -72,23 +72,23 @@
 4. Настраивает фильтры, интервал, режим публикации (сразу / очередь модерации / по расписанию слотов).
 5. Включает **атрибуцию** (обязательно), подтверждает **чекбокс ответственности** (КоАП 7.12 / УК 146 / ToS VK).
 6. Нажимает «Создать правило» → правило в статусе `active`, появляется в списке активных.
-7. Scheduler/ingest раз в N минут (по `scan_interval_minutes`) опрашивает источники, создаёт `grabber_items`. По умолчанию (`publish_mode=moderate`) items ждут в очереди модерации; при явно выбранном `auto` — сразу в пайплайн.
+7. Scheduler/ingest раз в N минут (по `scan_interval_minutes`) опрашивает источники, создаёт `grabber_items`. По умолчанию (`publish_mode=moderate`) items ждут в очереди модерации; при явно выбранном `auto` - сразу в пайплайн.
 8. Пользователь видит **историю** скопированных постов (статус, ссылка на оригинал, ссылка на публикацию).
 9. Кнопка **«Проверить сейчас»** запускает внеочередной run (с rate-limit).
 
 ### 2.2. Очередь модерации (**решение Q-GRAB-02**)
 
-1. Режим `publish_mode=moderate` — **обязательная возможность продукта** и **значение по умолчанию** при создании правила. Режим `auto` — **опционален** (пользователь может переключить явно; UI предупреждает о рисках копирайта/спама).
+1. Режим `publish_mode=moderate` - **обязательная возможность продукта** и **значение по умолчанию** при создании правила. Режим `auto` - **опционален** (пользователь может переключить явно; UI предупреждает о рисках копирайта/спама).
 2. При `moderate` новые items → статус `pending_moderation`; публикаций в сеть **нет** до approve.
 3. Editor+ видит очередь: превью, оригинал, предложенный текст с футером атрибуции.
 4. Действия: **Опубликовать** / **Отклонить** / **Редактировать и опубликовать** / массовые «опубликовать выбранные».
-5. Author может создавать/смотреть правила только если выдано право `automations.view` + draft — см. §10; публиковать из очереди — только Editor+.
+5. Author может создавать/смотреть правила только если выдано право `automations.view` + draft - см. §10; публиковать из очереди - только Editor+.
 
 ### 2.3. Дедупликация
 
 1. Источник публикует пост A; граббер копирует → `content_hash=H1`, `remote_post_id=R1`.
 2. Повторный скан того же поста → item не создаётся повторно (unique key).
-3. Источник правит текст → новый hash; поведение: **ASSUMPTION** по умолчанию **не** перепубликовывать правки (`ignore_edits=true`); опция `regrab_on_edit` — P2.
+3. Источник правит текст → новый hash; поведение: **ASSUMPTION** по умолчанию **не** перепубликовывать правки (`ignore_edits=true`); опция `regrab_on_edit` - P2.
 4. Два разных источника с идентичным текстом+медиа → второй отбрасывается по `content_hash` в рамках целевого канала/workspace (настраиваемо: `dedup_scope`).
 
 ### 2.4. Пауза / автопауза
@@ -99,8 +99,8 @@
 ### 2.5. Атрибуция и копирайт
 
 1. Без включённой атрибуции и без чекбокса ответственности правило **нельзя** активировать (API 422).
-2. В конец текста (или первый комментарий — **ASSUMPTION** опция) добавляется футер вида:  
-   `Источник: «Название» — https://vk.com/wall-123_456`  
+2. В конец текста (или первый комментарий - **ASSUMPTION** опция) добавляется футер вида:  
+   `Источник: «Название» - https://vk.com/wall-123_456`  
    (шаблон настраиваемый, плейсхолдеры `{source_name}`, `{source_url}`, `{author}`).
 3. История хранит `source_permalink` для аудита.
 
@@ -112,7 +112,7 @@
 
 ### 2.7. Сайт (P1)
 
-1. Тип `website`: список URL или sitemap / CSS/selectors (**ASSUMPTION** минимально — URL статьи или RSS-подобный список ссылок с OG-extract).
+1. Тип `website`: список URL или sitemap / CSS/selectors (**ASSUMPTION** минимально - URL статьи или RSS-подобный список ссылок с OG-extract).
 2. Жёсткий SSRF deny (private IP, link-local, metadata endpoints); DNS rebinding protection (`02-backend.md` § security).
 
 ---
@@ -120,57 +120,57 @@
 ## 3. UI: полная таблица полей
 
 Контекст экрана: **Автоматизации → Ingest → создать/редактировать правило**.  
-Типы правил в UI: «Граббер VK», «RSS», «Сайт» (P1) — внутри одна сущность `automation_rules`.
+Типы правил в UI: «Граббер VK», «RSS», «Сайт» (P1) - внутри одна сущность `automation_rules`.
 
 | field id | Label (RU) | Тип | Default | Валидация | Visibility | Поведение |
 |---|---|---|---|---|---|---|
 | `name` | Название правила | string | «Граббер {channel}» | 1–120 символов | всегда | Отображается в списке активных |
-| `type` | Тип источника | enum `grabber` \| `rss` \| `website` | `grabber` | required | всегда | Переключает блок источников; `website` — P1 / feature flag |
+| `type` | Тип источника | enum `grabber` \| `rss` \| `website` | `grabber` | required | всегда | Переключает блок источников; `website` - P1 / feature flag |
 | `project_id` | Проект | uuid select | текущий | project in workspace | всегда | Scope RBAC |
-| `target_channel_id` | Целевое сообщество / канал | channel select | — | канал `network` совместим с матрицей; статус ≠ `reauth_required` | всегда | Аналог «выбрать сообщество» vposter |
-| `source_ids` | ID источников | string[] / textarea «через запятую» | `[]` | для `grabber`: 1–50 ID; `^-?\d+$` или `@?[A-Za-z0-9._]+`; **без обязательности «без пробелов»** — UI trim/split | `type=grabber` | Паритет vposter; нормализация пробелов ★ |
-| `source_labels` | Подписи источников | map id→name | авто из API | — | `type=grabber`, read-mostly | Кэш имён для атрибуции |
-| `rss_url` | URL RSS/Atom | url | — | http(s); SSRF-safe; content-type feed | `type=rss` | ETag/Last-Modified |
+| `target_channel_id` | Целевое сообщество / канал | channel select | - | канал `network` совместим с матрицей; статус ≠ `reauth_required` | всегда | Аналог «выбрать сообщество» vposter |
+| `source_ids` | ID источников | string[] / textarea «через запятую» | `[]` | для `grabber`: 1–50 ID; `^-?\d+$` или `@?[A-Za-z0-9._]+`; **без обязательности «без пробелов»** - UI trim/split | `type=grabber` | Паритет vposter; нормализация пробелов ★ |
+| `source_labels` | Подписи источников | map id→name | авто из API | - | `type=grabber`, read-mostly | Кэш имён для атрибуции |
+| `rss_url` | URL RSS/Atom | url | - | http(s); SSRF-safe; content-type feed | `type=rss` | ETag/Last-Modified |
 | `rss_max_items_per_run` | Макс. записей за прогон | int | `20` | 1–100 | `type=rss` | **ASSUMPTION** |
 | `website_urls` | URL страниц / sitemap | url[] | `[]` | SSRF-safe; ≤ 20 | `type=website` (P1) | **ASSUMPTION** |
-| `website_selector` | CSS-селектор статьи | string | — | optional | `type=website` advanced | **ASSUMPTION** |
+| `website_selector` | CSS-селектор статьи | string | - | optional | `type=website` advanced | **ASSUMPTION** |
 | `scan_interval_minutes` | Интервал проверки | int / select | `180` (3 ч) | ∈ {15,30,60,120,180,360,720,1440}; тариф может резать минимум | всегда | Паритет «раз в несколько часов»; ручной run отдельно |
 | `manual_check_enabled` | Кнопка «Проверить сейчас» | bool (UI) | `true` | rate limit: ≤ 1 / 5 мин / правило | всегда | **ASSUMPTION** лимит |
-| `publish_mode` | Режим публикации | enum `moderate` \| `auto` \| `draft` | **`moderate`** | required; значение `moderate` всегда доступно | всегда | **РЕШЕНИЕ Q-GRAB-02** (не ASSUMPTION): default и обязательный режим продукта; `auto` — опционально |
-| `schedule_mode` | Когда публиковать | enum `immediate` \| `delay` \| `slot` | `immediate` | — | `publish_mode≠draft` | **ASSUMPTION** |
+| `publish_mode` | Режим публикации | enum `moderate` \| `auto` \| `draft` | **`moderate`** | required; значение `moderate` всегда доступно | всегда | **РЕШЕНИЕ Q-GRAB-02** (не ASSUMPTION): default и обязательный режим продукта; `auto` - опционально |
+| `schedule_mode` | Когда публиковать | enum `immediate` \| `delay` \| `slot` | `immediate` | - | `publish_mode≠draft` | **ASSUMPTION** |
 | `publish_delay_minutes` | Задержка после обнаружения | int | `0` | 0–10080 | `schedule_mode=delay` | **ASSUMPTION** |
-| `content_slot_id` | Слот контент-плана | uuid | — | slot of project | `schedule_mode=slot` (E9) | P2, если слоты ещё нет — скрыто |
+| `content_slot_id` | Слот контент-плана | uuid | - | slot of project | `schedule_mode=slot` (E9) | P2, если слоты ещё нет - скрыто |
 | `keyword_include` | Ключевые слова (включить) | string[] | `[]` | ≤ 50; match mode ниже | advanced | **ASSUMPTION** |
 | `keyword_exclude` | Ключевые слова (исключить) | string[] | `[]` | ≤ 50 | advanced | **ASSUMPTION** |
-| `keyword_match` | Режим совпадения | enum `any` \| `all` \| `whole_word` | `any` | — | если keywords не пусты | **ASSUMPTION** (как у предложки vposter) |
-| `attachment_types` | Типы вложений | multi enum `photo` \| `video` \| `audio` \| `doc` \| `poll` \| `link` \| `none` | все | — | advanced | **ASSUMPTION** |
-| `require_attachments` | Только с вложениями | bool | `false` | — | advanced | **ASSUMPTION** |
-| `exclude_ads` | Исключать рекламные посты | bool | `true` | — | `type=grabber` | **ASSUMPTION** (VK `marked_as_ads`) |
-| `exclude_reposts` | Исключать репосты | bool | `true` | — | `type=grabber` | **ASSUMPTION** |
-| `exclude_copyrighted_music` | Пропускать посты с copyright audio | bool | `false` | — | `type=grabber` | **ASSUMPTION** P2 |
+| `keyword_match` | Режим совпадения | enum `any` \| `all` \| `whole_word` | `any` | - | если keywords не пусты | **ASSUMPTION** (как у предложки vposter) |
+| `attachment_types` | Типы вложений | multi enum `photo` \| `video` \| `audio` \| `doc` \| `poll` \| `link` \| `none` | все | - | advanced | **ASSUMPTION** |
+| `require_attachments` | Только с вложениями | bool | `false` | - | advanced | **ASSUMPTION** |
+| `exclude_ads` | Исключать рекламные посты | bool | `true` | - | `type=grabber` | **ASSUMPTION** (VK `marked_as_ads`) |
+| `exclude_reposts` | Исключать репосты | bool | `true` | - | `type=grabber` | **ASSUMPTION** |
+| `exclude_copyrighted_music` | Пропускать посты с copyright audio | bool | `false` | - | `type=grabber` | **ASSUMPTION** P2 |
 | `text_max_length` | Обрезать текст до | int | по лимиту сети | ≤ network max | advanced | Иначе truncate + «…» |
-| `strip_hashtags` | Удалять хештеги | bool | `false` | — | advanced | **ASSUMPTION** |
-| `strip_mentions` | Удалять @упоминания | bool | `false` | — | advanced | **ASSUMPTION** |
+| `strip_hashtags` | Удалять хештеги | bool | `false` | - | advanced | **ASSUMPTION** |
+| `strip_mentions` | Удалять @упоминания | bool | `false` | - | advanced | **ASSUMPTION** |
 | `prepend_text` | Текст в начало | string | `""` | ≤ 500 | advanced | **ASSUMPTION** |
 | `append_text` | Текст в конец (до атрибуции) | string | `""` | ≤ 500 | advanced | **ASSUMPTION** |
-| `attribution_enabled` | Указывать источник | bool | `true` (locked on) | must be true для `active` | всегда | ★ юр. требование Posts; в vposter — предупреждение |
-| `attribution_placement` | Куда ставить атрибуцию | enum `footer` \| `first_comment` \| `both` | `footer` | — | всегда | **ASSUMPTION** |
-| `attribution_template` | Шаблон атрибуции | string | `Источник: {source_name} — {source_url}` | плейсхолдеры whitelist | advanced | Обязателен непустой |
+| `attribution_enabled` | Указывать источник | bool | `true` (locked on) | must be true для `active` | всегда | ★ юр. требование Posts; в vposter - предупреждение |
+| `attribution_placement` | Куда ставить атрибуцию | enum `footer` \| `first_comment` \| `both` | `footer` | - | всегда | **ASSUMPTION** |
+| `attribution_template` | Шаблон атрибуции | string | `Источник: {source_name} - {source_url}` | плейсхолдеры whitelist | advanced | Обязателен непустой |
 | `user_responsibility_accepted` | Чекбокс ответственности | bool | `false` | must `true` при activate | всегда | Блокирует activate; текст со ссылкой на ToS / КоАП 7.12 / УК 146 |
 | `rate_limit_per_hour` | Лимит постов/час на правило | int | `10` | 1–60 | advanced | **ASSUMPTION**; защита целевого сообщества |
 | `rate_limit_per_day` | Лимит постов/сутки | int | `50` | 1–500 | advanced | **ASSUMPTION** |
-| `auto_pause_on_errors` | Автопауза при ошибках | bool | `true` | — | advanced | **ASSUMPTION** |
+| `auto_pause_on_errors` | Автопауза при ошибках | bool | `true` | - | advanced | **ASSUMPTION** |
 | `auto_pause_error_threshold` | Порог подряд failed runs | int | `5` | 1–20 | если auto_pause | **ASSUMPTION** |
-| `dedup_enabled` | Дедупликация | bool | `true` | — | advanced | Выключение — только Owner/Admin + предупреждение |
-| `dedup_scope` | Область дедупа | enum `rule` \| `channel` \| `workspace` | `channel` | — | если dedup | **ASSUMPTION** |
-| `ignore_edits` | Не перезабирать правки | bool | `true` | — | advanced | **ASSUMPTION** |
-| `stop_words_list_id` | Чёрный список (shared) | uuid | — | optional | advanced | **ASSUMPTION** P2 |
+| `dedup_enabled` | Дедупликация | bool | `true` | - | advanced | Выключение - только Owner/Admin + предупреждение |
+| `dedup_scope` | Область дедупа | enum `rule` \| `channel` \| `workspace` | `channel` | - | если dedup | **ASSUMPTION** |
+| `ignore_edits` | Не перезабирать правки | bool | `true` | - | advanced | **ASSUMPTION** |
+| `stop_words_list_id` | Чёрный список (shared) | uuid | - | optional | advanced | **ASSUMPTION** P2 |
 | `ai_rewrite_enabled` | AI-рерайт перед публикацией | bool | `false` | нужен AI-кредит | advanced (E15) | ★; вне MVP E17 core |
 | `status` | Статус | enum | `draft` | см. §8 | read + actions | pause/resume/archive |
-| `created_at` / `updated_at` | Служебные | datetime | — | — | read-only | — |
-| `last_run_at` | Последняя проверка | datetime | null | — | список/карточка | — |
-| `next_run_at` | Следующая проверка | datetime | — | — | список | — |
-| `stats.copied_total` | Скопировано всего | int | 0 | — | список | из агрегата items |
+| `created_at` / `updated_at` | Служебные | datetime | - | - | read-only | - |
+| `last_run_at` | Последняя проверка | datetime | null | - | список/карточка | - |
+| `next_run_at` | Следующая проверка | datetime | - | - | список | - |
+| `stats.copied_total` | Скопировано всего | int | 0 | - | список | из агрегата items |
 
 ### 3.1. Элементы списка «Активные правила» (паритет «Активные сообщества»)
 
@@ -193,15 +193,15 @@
 
 | Источник ↓ \ Приёмник → | VK | Telegram | OK | Max | Rutube |
 |---|:---:|:---:|:---:|:---:|:---:|
-| **VK wall** (grabber) | **P0** | P2 | P2 | P2 | — |
-| **RSS/Atom** | **P0** | P1 | P1 | P1 | — |
-| **Website/HTML** | **P1** | P1 | P2 | P2 | — |
-| **Telegram channel** | P2 | P2 | P2 | P2 | — |
-| **OK** | P2 | P2 | P2 | — | — |
+| **VK wall** (grabber) | **P0** | P2 | P2 | P2 | - |
+| **RSS/Atom** | **P0** | P1 | P1 | P1 | - |
+| **Website/HTML** | **P1** | P1 | P2 | P2 | - |
+| **Telegram channel** | P2 | P2 | P2 | P2 | - |
+| **OK** | P2 | P2 | P2 | - | - |
 
-Легенда: P0 — E17 core; P1 — BE-17b / следом; P2 — позже; «—» — нецелесообразно / нет API.
+Легенда: P0 - E17 core; P1 - BE-17b / следом; P2 - позже; «-» - нецелесообразно / нет API.
 
-Ограничения приёмника — `network-capabilities` (длина текста, число вложений, форматы). При несовместимости item → `failed_validation` с причиной, без публикации.
+Ограничения приёмника - `network-capabilities` (длина текста, число вложений, форматы). При несовместимости item → `failed_validation` с причиной, без публикации.
 
 ---
 
@@ -287,7 +287,7 @@ grabber_items (
 CREATE UNIQUE INDEX uq_grabber_items_remote
   ON grabber_items (rule_id, source_network, source_id, remote_post_id);
 
--- Дедуп по контенту в выбран dedup_scope (пример для channel — через rule→channel в приложении
+-- Дедуп по контенту в выбран dedup_scope (пример для channel - через rule→channel в приложении
 -- либо денормализованный target_channel_id)
 CREATE UNIQUE INDEX uq_grabber_items_hash_channel
   ON grabber_items (workspace_id, content_hash, /* target_channel_id denorm */ rule_id)
@@ -295,7 +295,7 @@ CREATE UNIQUE INDEX uq_grabber_items_hash_channel
 -- Точная форма уникальности hash уточняется при реализации под dedup_scope (open-questions).
 ```
 
-### 5.1. `config` jsonb (GrabberConfig) — логическая схема
+### 5.1. `config` jsonb (GrabberConfig) - логическая схема
 
 ```json
 {
@@ -324,7 +324,7 @@ CREATE UNIQUE INDEX uq_grabber_items_hash_channel
   "attribution": {
     "enabled": true,
     "placement": "footer",
-    "template": "Источник: {source_name} — {source_url}"
+    "template": "Источник: {source_name} - {source_url}"
   },
   "limits": {
     "rate_limit_per_hour": 10,
@@ -353,7 +353,7 @@ content_hash = sha256(
 )
 ```
 
-Медиа перед хешированием загружается в media-pipeline (или хешируется по байтам после download); при недоступности медиа — hash только текста + remote attachment ids (**ASSUMPTION**, зафиксировать в open-questions).
+Медиа перед хешированием загружается в media-pipeline (или хешируется по байтам после download); при недоступности медиа - hash только текста + remote attachment ids (**ASSUMPTION**, зафиксировать в open-questions).
 
 ---
 
@@ -386,7 +386,7 @@ posts-ingest
 
 ## 7. Предлагаемые OpenAPI-эндпоинты
 
-Расширение `docs/api/openapi.yaml` (tag **Ingest** / **Automations**). Префикс `/api/v1`. Ошибки — RFC 7807 ProblemDetail + `code`. IDOR → 404. Мутации — `Idempotency-Key` где указано.
+Расширение `docs/api/openapi.yaml` (tag **Ingest** / **Automations**). Префикс `/api/v1`. Ошибки - RFC 7807 ProblemDetail + `code`. IDOR → 404. Мутации - `Idempotency-Key` где указано.
 
 | Method | Path | Описание | Permission |
 |---|---|---|---|
@@ -411,7 +411,7 @@ posts-ingest
 ### 7.1. Фрагменты схем (логика для openapi)
 
 ```yaml
-# Предлагаемые schemas (не вмержены в openapi.yaml этим документом — задача BE-17)
+# Предлагаемые schemas (не вмержены в openapi.yaml этим документом - задача BE-17)
 GrabberRuleCreate:
   type: object
   required: [type, name, targetChannelId, config, userResponsibilityAccepted]
@@ -451,7 +451,7 @@ GrabberItem:
 | `active` | Сканируется по расписанию | → `paused`, `auto_paused`, `archived` |
 | `paused` | Пауза пользователем | → `active`, `archived` |
 | `auto_paused` | Пауза системой | → `active` (resume после фикса), `archived` |
-| `archived` | Терминальный (read-only) | — |
+| `archived` | Терминальный (read-only) | - |
 
 ### 8.2. Статусы run
 
@@ -503,7 +503,7 @@ GrabberItem:
 | 0 потерь | Успешно обнаруженный кандидат либо в items, либо в DLQ run с алертом; не «проглатывать» без статуса |
 | 0 дублей в сети | Запрет второго wall.post для того же item; дедуп до создания post |
 | Наблюдаемость | `trace_id` на run; метрики; аудит; алерт при auto_pause и DLQ |
-| Медиа | Скачивание через posts-media / временный storage; кэш по sha256; вирусы/тип — Tika |
+| Медиа | Скачивание через posts-media / временный storage; кэш по sha256; вирусы/тип - Tika |
 
 ---
 
@@ -517,15 +517,15 @@ GrabberItem:
 | `automations.manage` | ✔ | ✔ | ◐ | – | – |
 | `automations.moderate` | ✔ | ✔ | ◐ | – | – |
 
-◐ — только назначенные проекты (`assigned_projects`).
+◐ - только назначенные проекты (`assigned_projects`).
 
 Маппинг на сценарии:
 
 - Создать/изменить/пауза/ручной run → `automations.manage`
 - Очередь модерации approve/reject → `automations.moderate` (и фактически `posts.schedule` при публикации)
-- Author: просмотр правил и items своего проекта — **ASSUMPTION** allow `automations.view`; без manage/moderate (как «не публикует сам»)
-- Viewer: только view, без превью raw_payload чувствительных полей — **ASSUMPTION** raw скрыт
-- Публикация из граббера создаёт posts от имени актора модерации / system bot `ingest@posts` с `created_by` = актор approve или `rule.created_by` для auto — **ASSUMPTION** зафиксировать в open-questions
+- Author: просмотр правил и items своего проекта - **ASSUMPTION** allow `automations.view`; без manage/moderate (как «не публикует сам»)
+- Viewer: только view, без превью raw_payload чувствительных полей - **ASSUMPTION** raw скрыт
+- Публикация из граббера создаёт posts от имени актора модерации / system bot `ingest@posts` с `created_by` = актор approve или `rule.created_by` для auto - **ASSUMPTION** зафиксировать в open-questions
 
 Связь с каналами: управлять правилом на канал можно только если канал в scope проекта; подключение канала по-прежнему `channels.manage`.
 
@@ -541,9 +541,9 @@ GrabberItem:
 | `ingest.rule.updated` | PATCH | json patch / before-after |
 | `ingest.rule.activated` | activate | responsibility_by, at |
 | `ingest.rule.paused` | pause | reason=user |
-| `ingest.rule.resumed` | resume | — |
+| `ingest.rule.resumed` | resume | - |
 | `ingest.rule.auto_paused` | система | error_code, threshold |
-| `ingest.rule.archived` | archive | — |
+| `ingest.rule.archived` | archive | - |
 | `ingest.run.started` | run create | trigger |
 | `ingest.run.finished` | run end | stats |
 | `ingest.item.approved` | moderate | item_id, post_id |
@@ -561,9 +561,9 @@ GrabberItem:
 2. **ToS VK / сетей.** Пользователь обязан соблюдать правила платформ (в т.ч. запрет спама, вводящего в заблуждение контента, нарушений исключительных прав).
 3. **Обязательная атрибуция.** В Posts нельзя активировать правило без `attribution.enabled=true` и непустого шаблона. ★ жёстче предупреждения vposter.
 4. **Чекбокс ответственности.** Текст (нормативный): пользователь подтверждает, что имеет право использовать контент или действует в рамках исключений закона, указывает источник, несёт ответственность за публикации. Фиксируются `accepted_at`, `accepted_by`.
-5. **Хранение доказательств.** `source_permalink`, `content_hash`, audit — для разбора жалоб (≥ срок ретенции audit).
+5. **Хранение доказательств.** `source_permalink`, `content_hash`, audit - для разбора жалоб (≥ срок ретенции audit).
 6. **Персональные данные.** Не собирать лишние ПДн из источников; raw_payload усекать; доступ по RBAC.
-7. **Маркировка рекламы.** Если исходный пост `marked_as_ads` и не исключён фильтром — **не** публиковать без отдельного ORD-потока (E10); default `exclude_ads=true`.
+7. **Маркировка рекламы.** Если исходный пост `marked_as_ads` и не исключён фильтром - **не** публиковать без отдельного ORD-потока (E10); default `exclude_ads=true`.
 
 ---
 
@@ -618,9 +618,9 @@ GrabberItem:
 |---|---|---|
 | Q-G1 | Полный список UI-полей граббера в ЛК vposter (скриншоты) | Паритет фильтров |
 | Q-G2 | Точный интервал скана «раз в несколько часов» у vposter | Default `scan_interval_minutes` |
-| Q-G3 | ~~Очередь модерации vs auto~~ → **закрыто Q-GRAB-02:** default `moderate`, `auto` опционально | — |
+| Q-G3 | ~~Очередь модерации vs auto~~ → **закрыто Q-GRAB-02:** default `moderate`, `auto` опционально | - |
 | Q-G4 | Как vposter обрабатывает рекламные посты и репосты | Defaults `exclude_ads` / `exclude_reposts` |
-| Q-G5 | Лимиты «постов в час/сутки» и автопауза — факт или только у нас | Тарифные лимиты |
+| Q-G5 | Лимиты «постов в час/сутки» и автопауза - факт или только у нас | Тарифные лимиты |
 | Q-G6 | Формат футера источника у vposter (если есть) | Шаблон attribution |
 | Q-G7 | Дедуп: только remote id или ещё по тексту/медиа | Алгоритм hash |
 | Q-G8 | Поведение при edit исходного поста | `ignore_edits` |

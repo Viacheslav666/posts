@@ -118,7 +118,7 @@ export function ScheduleWindowEditor({
                   className="w-32"
                   onChange={(event) => updateInterval(index, { start: event.target.value })}
                 />
-                <span className="text-sm text-muted-foreground">—</span>
+                <span className="text-sm text-muted-foreground">-</span>
                 <Input
                   type="time"
                   value={interval.end}

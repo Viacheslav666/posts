@@ -33,7 +33,7 @@ export function ImpersonationBannerHost() {
     return null;
   }
 
-  const targetLabel = storedTarget?.email || me?.email || me?.name || '—';
+  const targetLabel = storedTarget?.email || me?.email || me?.name || '-';
   const reason = storedTarget?.reason || me?.impersonation?.reason;
 
   return (

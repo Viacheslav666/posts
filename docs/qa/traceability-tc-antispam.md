@@ -9,7 +9,7 @@
 | Восстановление → комментарий восстановлен, статус **`restored`** | TC-AS-02 | `Qa14AntispamIT#restoreSetsRestoredStatus` | CI | авто |
 | **Dry-run** → только `flagged`, удалений **0** | TC-AS-03 | `AntispamProcessorIT#vkStopWordActionsAndIdempotency` (ветка dry_run) | CI | авто |
 | Админ сообщества со стоп-словом **не тронут** | TC-AS-04 | `Qa14AntispamIT#adminAuthorSkipped` | CI | авто |
-| Комментарий под **рекламной** записью — только при включённом фильтре | TC-AS-05 | `Qa14AntispamIT#commentUnderAdsRequiresFilter` | CI | авто |
+| Комментарий под **рекламной** записью - только при включённом фильтре | TC-AS-05 | `Qa14AntispamIT#commentUnderAdsRequiresFilter` | CI | авто |
 | Антиповтор: **3** одинаковых за 12 ч → **2-й и 3-й** удалены | TC-AS-06 | `AntispamEngineTest#repeat`; `AntispamProcessorIT` | CI | авто |
 | TG: ссылка в группе обсуждений → **удалено** | TC-AS-07 | `AntispamProcessorIT#tgMaxConstraints`; `Be33RemoteActionsTgIT` | CI | авто |
 | TG: `is_automatic_forward` **не тронут** | TC-AS-08 | `AntispamProcessorIT#tgMaxConstraints` | CI | авто |
@@ -24,7 +24,7 @@
 | Bulk suggest **approve_ids/reject_ids** IDOR | TC-SUG-IDOR | `Qa14SuggestBulkIdorIT` | CI | авто |
 | Crosspost **erid** skip (смежный BE-36) | TC-XP-12 | `Qa14AntispamIT#crosspostEridExcluded` | CI | авто |
 | Нагрузка: **3000** комм/с (хук), p95/p99 latency | TC-AS-16 | `tests/load/scenarios/l4-p2-antispam-events.js` | nightly | **частично** |
-| Redis degrade: лимитер fail-safe | — | `Qa14RedisDegradeTest` | CI | **частично** |
+| Redis degrade: лимитер fail-safe | - | `Qa14RedisDegradeTest` | CI | **частично** |
 
 ## Запуск
 

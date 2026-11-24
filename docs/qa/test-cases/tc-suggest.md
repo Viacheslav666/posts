@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Задача | QA-14 |
-| Эпик | BE-34 — автопостинг предложенных записей VK |
+| Эпик | BE-34 - автопостинг предложенных записей VK |
 | Story | [`docs/product/stories/E18-US-18.1-vk-suggests-autopost.md`](../../product/stories/E18-US-18.1-vk-suggests-autopost.md) |
 | Источник AC | p2 BE-34 «Приёмка» |
 | Пайплайн | Публикация через BE-33 `publish_suggested`; **0 дублей** на redelivery / `UNKNOWN_OUTCOME` |
@@ -27,7 +27,7 @@
 
 ---
 
-## TC-SUG-01 — Режим `auto`: Callback `post_type=suggest` → публикация + `signed=1` + первый комментарий
+## TC-SUG-01 - Режим `auto`: Callback `post_type=suggest` → публикация + `signed=1` + первый комментарий
 
 | Поле | Значение |
 |---|---|
@@ -44,7 +44,7 @@
 
 ---
 
-## TC-SUG-02 — Стоп-слово: `rejected` + `delete_post` + уведомление (если разрешены сообщения)
+## TC-SUG-02 - Стоп-слово: `rejected` + `delete_post` + уведомление (если разрешены сообщения)
 
 | Поле | Значение |
 |---|---|
@@ -57,7 +57,7 @@
 
 ---
 
-## TC-SUG-03 — Лимит на автора: третья запись за сутки → `filtered_out` с причиной
+## TC-SUG-03 - Лимит на автора: третья запись за сутки → `filtered_out` с причиной
 
 | Поле | Значение |
 |---|---|
@@ -70,7 +70,7 @@
 
 ---
 
-## TC-SUG-04 — Ручной / hybrid: `pending_moderation` до approve
+## TC-SUG-04 - Ручной / hybrid: `pending_moderation` до approve
 
 | Поле | Значение |
 |---|---|
@@ -83,7 +83,7 @@
 
 ---
 
-## TC-SUG-05 — Bulk `approve_all`: N записей → N публикаций, прогресс, идемпотентность
+## TC-SUG-05 - Bulk `approve_all`: N записей → N публикаций, прогресс, идемпотентность
 
 | Поле | Значение |
 |---|---|
@@ -92,11 +92,11 @@
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-`suggest_bulk_jobs` доходит до 100%; повтор bulk с тем же `Idempotency-Key` — no-op; в эмуляторе **ровно N** wall posts (0 дублей).
+`suggest_bulk_jobs` доходит до 100%; повтор bulk с тем же `Idempotency-Key` - no-op; в эмуляторе **ровно N** wall posts (0 дублей).
 
 ---
 
-## TC-SUG-06 — Дедуп Callback ×3 → одна запись и одна публикация
+## TC-SUG-06 - Дедуп Callback ×3 → одна запись и одна публикация
 
 | Поле | Значение |
 |---|---|
@@ -109,7 +109,7 @@
 
 ---
 
-## TC-SUG-07 — Сверка: запись исчезла из VK suggests → `removed_externally`
+## TC-SUG-07 - Сверка: запись исчезла из VK suggests → `removed_externally`
 
 | Поле | Значение |
 |---|---|
@@ -122,7 +122,7 @@
 
 ---
 
-## TC-SUG-08 — Пауза после рекламного поста на стене
+## TC-SUG-08 - Пауза после рекламного поста на стене
 
 | Поле | Значение |
 |---|---|
@@ -131,11 +131,11 @@
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Если последний пост стены `marked_as_ads` / erid — слот следующей suggest сдвигается за `ads_pause_minutes`; публикация не раньше окна.
+Если последний пост стены `marked_as_ads` / erid - слот следующей suggest сдвигается за `ads_pause_minutes`; публикация не раньше окна.
 
 ---
 
-## TC-SUG-09 — Антидубль: текст как у поста стены за 7 дней → `filtered_out`
+## TC-SUG-09 - Антидубль: текст как у поста стены за 7 дней → `filtered_out`
 
 | Поле | Значение |
 |---|---|
@@ -148,7 +148,7 @@ SimHash near-duplicate к недавней публикации → `filtered_ou
 
 ---
 
-## TC-SUG-10 — `UNKNOWN_OUTCOME` на `publish_suggested` → сверка без второго поста
+## TC-SUG-10 - `UNKNOWN_OUTCOME` на `publish_suggested` → сверка без второго поста
 
 | Поле | Значение |
 |---|---|
@@ -157,11 +157,11 @@ SimHash near-duplicate к недавней публикации → `filtered_ou
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Эмулятор / reconcile path: после «потерянного» ответа сети — `SuggestRemoteActionReconciler` / `Be33PublishSuggestedReconcileTest`; **0** дублей в эмуляторе.
+Эмулятор / reconcile path: после «потерянного» ответа сети - `SuggestRemoteActionReconciler` / `Be33PublishSuggestedReconcileTest`; **0** дублей в эмуляторе.
 
 ---
 
-## TC-SUG-11 — Unit-фильтры SuggestFilterEngine (≥30 кейсов)
+## TC-SUG-11 - Unit-фильтры SuggestFilterEngine (≥30 кейсов)
 
 | Поле | Значение |
 |---|---|
@@ -175,7 +175,7 @@ SimHash near-duplicate к недавней публикации → `filtered_ou
 
 ---
 
-## TC-SUG-12 — IDOR и RBAC (Author/Viewer не модерируют)
+## TC-SUG-12 - IDOR и RBAC (Author/Viewer не модерируют)
 
 | Поле | Значение |
 |---|---|

@@ -5,8 +5,8 @@
 | Версия | 1.0.1 |
 | Статус | Готово к реализации (DoR); patch: Q-STORY-05 Instagram вне scope |
 | Дата | **2026-11-17** |
-| Эпик | **E11** — Истории VK/OK, пакетная загрузка |
-| Задачи | BE-16, FE-13, QA-11; маркировка — BE-15/16 (M7) |
+| Эпик | **E11** - Истории VK/OK, пакетная загрузка |
+| Задачи | BE-16, FE-13, QA-11; маркировка - BE-15/16 (M7) |
 | Приоритет паритета | **P0** (матрица: S1–S8) |
 | Зависимости | E3 (каналы VK/OK), E4 (календарь/редактор), E5 (конвейер), E10 (ОРД / ads) |
 | Связанные документы | [`../parity-matrix.md`](../parity-matrix.md) §4 · [`../network-capabilities.md`](../network-capabilities.md) · [`../../analysis.md`](../../analysis.md) §2.2 · [`../../adr/0004-publishing-pipeline.md`](../../adr/0004-publishing-pipeline.md) · [`../../qa/test-cases/E11-stories.md`](../../qa/test-cases/E11-stories.md) |
@@ -18,7 +18,7 @@
 
 1. **Паритет ключевого инструмента №2 Впостера:** планирование, повтор, пауза/resume, удаление, пакетная загрузка и (для VK/OK) маркировка историй.
 2. **Надёжность как у постов:** тот же публикационный конвейер (`publications` + `scheduled_actions`), SLA p99 ≤ 60 с от `run_at`, 0 потерь / 0 дублей в сети.
-3. **Честная матрица сетей:** в продукте — **VK** и **OK**; Telegram/Max/Rutube — out of scope (API); **Instagram* окончательно вне scope** (решение заказчика Q-STORY-05).
+3. **Честная матрица сетей:** в продукте - **VK** и **OK**; Telegram/Max/Rutube - out of scope (API); **Instagram* окончательно вне scope** (решение заказчика Q-STORY-05).
 4. **Переиспользование модели постов:** один пайплайн, `content_kind = post | story` (рекомендация §6), без отдельного «островного» сервиса историй.
 
 **Не цели этой спецификации:** Stories-бот VK (Фаза 3), конструктор холста/стикеров уровня SMMplanner, публикации историй в личный профиль пользователя (только сообщества/страницы каналов Posts).
@@ -44,9 +44,9 @@
 
 ---
 
-## 3. UI: экран «Создать историю» — полная спецификация полей
+## 3. UI: экран «Создать историю» - полная спецификация полей
 
-Навигация: **Контент → Истории → Создать** (отдельный поток от «Создать пост»; в календаре — фильтр «Истории»).  
+Навигация: **Контент → Истории → Создать** (отдельный поток от «Создать пост»; в календаре - фильтр «Истории»).  
 Состав экрана (паритет help Впостера + расширения Posts ★):
 
 ### 3.1. Медиа
@@ -55,7 +55,7 @@
 |---|---|---|---|
 | Медиа истории | `media_asset_id` **или** `media_url` (паритет vposter `stories_image`) | **Да** (ровно 1 медиа на историю) | Фото или видео; валидация по capabilities выбранных сетей (§5). Предпросмотр 9:16. |
 | Тип медиа | `media_kind`: `photo` \| `video` | Выводится из файла | Смена файла пересчитывает валидацию |
-| Обрезка / кадр ★ | `crop` (опционально) | Нет | Для фото — safe-area 9:16; не обязателен для MVP, если файл уже вертикальный |
+| Обрезка / кадр ★ | `crop` (опционально) | Нет | Для фото - safe-area 9:16; не обязателен для MVP, если файл уже вертикальный |
 
 **Пакетная загрузка (отдельный режим «Пакет историй»):** multi-file picker → таблица строк (файл, канал(ы), дата/время, TTL). Каждая строка → отдельная сущность `content_kind=story`. Лимит пакета: **50** файлов за операцию (продуктовое допущение; конфиг `posts.stories.batch_max=50`).
 
@@ -65,7 +65,7 @@
 |---|---|---|---|
 | Каналы | `channel_ids[]` | **Да** (≥1) | Только каналы с `capabilities.stories=true` и статусом `ready` для stories |
 | Набор страниц | `channel_set_id` | Нет | Разворачивается в список каналов (как у постов) |
-| Предупреждение VK stories | — | — | Если у VK-канала нет отдельного story-подключения — карточка канала disabled + CTA «Подключить истории» |
+| Предупреждение VK stories | - | - | Если у VK-канала нет отдельного story-подключения - карточка канала disabled + CTA «Подключить истории» |
 
 ### 3.3. Расписание и повторы
 
@@ -82,7 +82,7 @@
 | Поле UI | API / модель | Обязательность | Соответствие vposter |
 |---|---|---|---|
 | Время показа (TTL) | `stories_time` enum | Да (default `24h`) | `0=24h, 1=1h, 2=12h, 3=48h` |
-| Текст кнопки-ссылки | `link_text` enum | Нет; если задан URL — оба обязательны | `stories_link_text` |
+| Текст кнопки-ссылки | `link_text` enum | Нет; если задан URL - оба обязательны | `stories_link_text` |
 | URL ссылки | `link_url` | Нет; парно с `link_text` | `stories_link_url` |
 
 **Enum `stories_time` (Posts):**
@@ -147,7 +147,7 @@
 | `attach_narrative` | Смотреть момент |
 | `attach_podcast` | Слушать подкаст |
 
-> **Валидация VK:** официальный `stories.getPhotoUploadServer` допускает урезанный набор `link_text` и требует **внутренний** URL (`https://vk.com/…` / `https://vk.ru/…`, max 2048). UI: при сети только VK — жёсткая валидация; при мультиканале VK+OK — предупреждение и отдельный `link_url` per-network в варианте (★), либо общий URL с fail на VK при несоответствии.
+> **Валидация VK:** официальный `stories.getPhotoUploadServer` допускает урезанный набор `link_text` и требует **внутренний** URL (`https://vk.com/…` / `https://vk.ru/…`, max 2048). UI: при сети только VK - жёсткая валидация; при мультиканале VK+OK - предупреждение и отдельный `link_url` per-network в варианте (★), либо общий URL с fail на VK при несоответствии.
 
 ### 3.5. Автоудаление и жизненный цикл
 
@@ -157,7 +157,7 @@
 | Удалить из соцсети в дату | `auto_delete_at` | `delete_post_date` (+ время по правилам продукта) |
 | Пауза повторов с даты | `stop_at` | `stop_post_date` |
 
-Взаимоисключение: нельзя одновременно задать бессмысленную комбинацию `auto_delete_after` и `auto_delete_at` с `auto_delete_at` раньше `scheduled_at` — API `422`.
+Взаимоисключение: нельзя одновременно задать бессмысленную комбинацию `auto_delete_after` и `auto_delete_at` с `auto_delete_at` раньше `scheduled_at` - API `422`.
 
 ### 3.6. Периодичность (`post_day` → `Recurrence`)
 
@@ -182,17 +182,17 @@
 | Поле UI | API / модель | Правило |
 |---|---|---|
 | Переключатель «Маркировать рекламу» | `ads.enabled` | Доступен **только** если среди выбранных каналов есть VK и/или OK |
-| Данные рекламодателя | `ads` / `ads_items` | Те же поля, что у постов (fio, inn, kpp, type, kktus, contract_*, vat_rate, foreign_*, `stories_summ`, …) — см. E10 / scheduled-posts |
+| Данные рекламодателя | `ads` / `ads_items` | Те же поля, что у постов (fio, inn, kpp, type, kktus, contract_*, vat_rate, foreign_*, `stories_summ`, …) - см. E10 / scheduled-posts |
 | Провайдер ОРД | `ord_provider` | VK ОРД / Яндекс ОРД (из настроек workspace) |
 
-Источники: [маркировка через Впостер](https://help.vposter.ru/informaciya-neobkhodimaya-dlya-ispolzovaniya-po/avto-ustanovki/otlozhennyi-posting/avtomaticheskaya-markirovka-reklamy-cherez-vposter) — «Истории доступны только для ВКонтакте и Одноклассников».
+Источники: [маркировка через Впостер](https://help.vposter.ru/informaciya-neobkhodimaya-dlya-ispolzovaniya-po/avto-ustanovki/otlozhennyi-posting/avtomaticheskaya-markirovka-reklamy-cherez-vposter) - «Истории доступны только для ВКонтакте и Одноклассников».
 
 ### 3.8. Действия экрана
 
-- **Сохранить черновик** — Author+
-- **Запланировать** / **Опубликовать сейчас** — Editor+ (`posts.schedule`)
-- **Предпросмотр** ★ — телефонный фрейм 9:16, CTA, бейдж «Реклама» если ads
-- **Создать пакет** — переход в batch-режим
+- **Сохранить черновик** - Author+
+- **Запланировать** / **Опубликовать сейчас** - Editor+ (`posts.schedule`)
+- **Предпросмотр** ★ - телефонный фрейм 9:16, CTA, бейдж «Реклама» если ads
+- **Создать пакет** - переход в batch-режим
 
 ---
 
@@ -200,12 +200,12 @@
 
 | Сеть | Отдельное подключение? | Детали |
 |---|---|---|
-| **VK** | **Да** | Как у Впостера: нужен community token / право **`stories`**. Scope `stories` для user token «выдаётся в исключительных случаях» (dev.vk.ru) — в Posts ориентируемся на **токен сообщества** с правом stories. UI: «Подключить истории» на карточке канала / в разделе Истории. Поле канала: `story_connection_status`: `missing` \| `pending` \| `ready` \| `revoked` \| `error`. |
+| **VK** | **Да** | Как у Впостера: нужен community token / право **`stories`**. Scope `stories` для user token «выдаётся в исключительных случаях» (dev.vk.ru) - в Posts ориентируемся на **токен сообщества** с правом stories. UI: «Подключить истории» на карточке канала / в разделе Истории. Поле канала: `story_connection_status`: `missing` \| `pending` \| `ready` \| `revoked` \| `error`. |
 | **OK** | **Нет** | Достаточно уже подключённого аккаунта/группы с правами Moments: `PHOTO_CONTENT` + `VALUABLE_ACCESS` ([moments.getUploadUrl](https://apiok.ru/dev/methods/rest/moments/moments.getUploadUrl)). |
 | **IG*** | N/A | Out of product scope (§5.5). |
 | **Telegram / Max** | N/A | Истории не в scope (§5.3–5.4). |
 
-Источник UX: [otlozhennye-istorii](https://help.vposter.ru/informaciya-neobkhodimaya-dlya-ispolzovaniya-po/avto-ustanovki/otlozhennyi-posting/otlozhennye-istorii) — «Для ВКонтакте нужно отдельно подключать группы… Для Одноклассники и Instagram* подключать отдельно не нужно».
+Источник UX: [otlozhennye-istorii](https://help.vposter.ru/informaciya-neobkhodimaya-dlya-ispolzovaniya-po/avto-ustanovki/otlozhennyi-posting/otlozhennye-istorii) - «Для ВКонтакте нужно отдельно подключать группы… Для Одноклассники и Instagram* подключать отдельно не нужно».
 
 ---
 
@@ -219,11 +219,11 @@
 |---|---|---|---|---|---|
 | VK | да | Фаза 2 (P0 паритет) | да | да | Отдельный story-connect |
 | OK (Моменты) | да | Фаза 2 (P0) | да | да | TTL фактически ~24 ч |
-| Telegram | канал — **нет** | Phase 3 research | out of scope | — | Bot API `postStory` только business |
-| Max | **нет** | — | unsupported | — | Публичный API stories unknown |
-| Instagram* | **нет** | — | out of scope | — | Meta — экстремистская орг. в РФ |
-| Rutube | нет | — | нет | — | Нет stories в PartnerAPI |
-| Facebook* | нет | — | — | — | Как IG* |
+| Telegram | канал - **нет** | Phase 3 research | out of scope | - | Bot API `postStory` только business |
+| Max | **нет** | - | unsupported | - | Публичный API stories unknown |
+| Instagram* | **нет** | - | out of scope | - | Meta - экстремистская орг. в РФ |
+| Rutube | нет | - | нет | - | Нет stories в PartnerAPI |
+| Facebook* | нет | - | - | - | Как IG* |
 
 ### 5.2. VK Stories
 
@@ -233,8 +233,8 @@
 | Фото форматы | JPG, PNG, GIF, WEBP, HEIF/HEIC | story-in-profile | 2026-11-17 |
 | Фото разрешение | min 1×1; max 8192×8192; сторона >2560 → downscale до 2560 | story-in-profile | 2026-11-17 |
 | Видео | H.264 + AAC, MP4; **≤ 350 МБ** | story-in-profile | 2026-11-17 |
-| Токен | Community access token, право **`stories`**; user `stories` — по запросу в support VK | getPhotoUploadServer | 2026-11-17 |
-| Ссылка | `link_text` + `link_url`; только для community stories; URL — внутренние vk.com/vk.ru, ≤2048 | getPhotoUploadServer | 2026-11-17 |
+| Токен | Community access token, право **`stories`**; user `stories` - по запросу в support VK | getPhotoUploadServer | 2026-11-17 |
+| Ссылка | `link_text` + `link_url`; только для community stories; URL - внутренние vk.com/vk.ru, ≤2048 | getPhotoUploadServer | 2026-11-17 |
 | Удаление | `stories.delete` (ожидаемо в адаптере `deleteStory`) | Stories API | 2026-11-17 |
 | RPS | user 3/с; community 20/с | api-requests | 2026-11-17 |
 
@@ -248,30 +248,30 @@
 | Права | `PHOTO_CONTENT`, `VALUABLE_ACCESS` | moments.getUploadUrl | 2026-11-17 |
 | TTL жизни момента | **~24 ч** (продукт OK; в примере API `ttl_ms` ≈ 86 400 000) | [ok.ru/groupmoments](https://ok.ru/page/groupmoments), example getUploadUrl | 2026-11-17 |
 | Тип upload | `PHOTO` \| `VIDEO` \| `OVERLAY` | getUploadUrl | 2026-11-17 |
-| Лимит видео-сегмента | **≤ 1 мин** — продуктовое допущение Posts (см. §16); UI режет/предупреждает | не зафиксировано числом в публичном описании метода | 2026-11-17 |
-| Лимит публикаций/сутки | **до 100/день** — продуктовое допущение Posts (`posts.ratelimit.ok.moments_per_day=100`) | не в публичном REST overview | 2026-11-17 |
-| Ссылка в моменте | Поддерживается продуктом OK (кнопка); передача через API — уточнить в интеграции BE-16 | ok.ru how-to-create-content | 2026-11-17 |
+| Лимит видео-сегмента | **≤ 1 мин** - продуктовое допущение Posts (см. §16); UI режет/предупреждает | не зафиксировано числом в публичном описании метода | 2026-11-17 |
+| Лимит публикаций/сутки | **до 100/день** - продуктовое допущение Posts (`posts.ratelimit.ok.moments_per_day=100`) | не в публичном REST overview | 2026-11-17 |
+| Ссылка в моменте | Поддерживается продуктом OK (кнопка); передача через API - уточнить в интеграции BE-16 | ok.ru how-to-create-content | 2026-11-17 |
 
-**Поведение TTL в UI:** для OK при выборе 1h/12h/48h — показать warning: «Моменты OK живут ~24 ч; будет применено 24 ч» и записать `effective_ttl=24h` в publication meta. Не блокировать сохранение (паритет с возможностью выбрать 48h во Впостере, но честный UX ★).
+**Поведение TTL в UI:** для OK при выборе 1h/12h/48h - показать warning: «Моменты OK живут ~24 ч; будет применено 24 ч» и записать `effective_ttl=24h` в publication meta. Не блокировать сохранение (паритет с возможностью выбрать 48h во Впостере, но честный UX ★).
 
-### 5.4. Telegram — OUT OF SCOPE / Phase 3 research
+### 5.4. Telegram - OUT OF SCOPE / Phase 3 research
 
 | Факт | Источник |
 |---|---|
-| Bot API 9.0+: `postStory` — **только** для managed **business accounts** с правом `can_manage_stories` | [postStory](https://core.telegram.org/bots/api#poststory), [BusinessBotRights](https://core.telegram.org/bots/api#businessbotrights) |
+| Bot API 9.0+: `postStory` - **только** для managed **business accounts** с правом `can_manage_stories` | [postStory](https://core.telegram.org/bots/api#poststory), [BusinessBotRights](https://core.telegram.org/bots/api#businessbotrights) |
 | `active_period`: 6h / 12h / 24h / 48h (сек.) | postStory |
 | Публикация **историй канала** через Bot API **не** документирована | Bot API changelog / docs |
 | Канальные stories: MTProto `stories.sendStory`, нужны boosts + admin `post_stories` | [Telegram Stories](https://core.telegram.org/api/stories) |
 
 **Решение Posts MVP/Фаза 2:** Telegram stories = **вне scope**. В UI сеть Telegram не предлагается для `content_kind=story`. Phase 3: отдельное исследование (business-bot path vs user-client MTProto + compliance). Зафиксировано в parity-matrix S9.
 
-### 5.5. Max — unsupported
+### 5.5. Max - unsupported
 
 Публичная документация [dev.max.ru/docs-api](https://dev.max.ru/docs-api) на 2026-11-17 **не** подтверждает stories. В `network-capabilities`: `stories: unknown`. **Решение:** трактовать как **unsupported** до подтверждения владельцем/документацией Max. UI не показывает Max для историй.
 
 ### 5.6. Instagram* / Facebook*
 
-Meta (вкл. Instagram, Facebook) признана экстремистской организацией в РФ (дисклеймер help Впостера). У Впостера есть `ig_business`, но **заказчик (Q-STORY-05) окончательно исключил Instagram из scope Posts** — не реализуем, не планируем «после юр. решения», UI/API не содержат IG как целевую сеть историй.
+Meta (вкл. Instagram, Facebook) признана экстремистской организацией в РФ (дисклеймер help Впостера). У Впостера есть `ig_business`, но **заказчик (Q-STORY-05) окончательно исключил Instagram из scope Posts** - не реализуем, не планируем «после юр. решения», UI/API не содержат IG как целевую сеть историй.
 
 ### 5.7. Соответствие полям vposter `stories.create`
 
@@ -292,7 +292,7 @@ Meta (вкл. Instagram, Facebook) признана экстремистской
 
 Операции vposter: `stories.getList/getById/create/edit/delete/pause/resume` → Posts: CRUD + pause/resume на той же модели, что посты.
 
-Лимиты Впостера (для импорта/паритета поведения, не как жёсткий лимит Posts): HTTP 409 «слот занят»; 429 «не более 25 историй на одно время на разных страницах» — у Posts свои лимиты тарифа + rate limit сетей.
+Лимиты Впостера (для импорта/паритета поведения, не как жёсткий лимит Posts): HTTP 409 «слот занят»; 429 «не более 25 историй на одно время на разных страницах» - у Posts свои лимиты тарифа + rate limit сетей.
 
 ---
 
@@ -349,7 +349,7 @@ content_kind ENUM ('post', 'story')  -- default 'post'
 ### 6.3. Индексы / календарь
 
 - Календарь и лента фильтруют `content_kind`.
-- Unique (мягкий): предупреждение при >N историй одного канала на тот же `scheduled_at` (конфиг), без жёсткого 409 Впостера — ★ прозрачнее для агентств.
+- Unique (мягкий): предупреждение при >N историй одного канала на тот же `scheduled_at` (конфиг), без жёсткого 409 Впостера - ★ прозрачнее для агентств.
 
 ---
 
@@ -378,15 +378,15 @@ public interface SocialAdapter {
 }
 ```
 
-- Очереди те же `publish.vk` / `publish.ok` (поле `content_type=story` в payload) **или** отдельные `publish.vk.story` — решение BE: предпочтительно **тот же** consumer с ветвлением по `content_type`, чтобы не плодить Deployment’ы.
+- Очереди те же `publish.vk` / `publish.ok` (поле `content_type=story` в payload) **или** отдельные `publish.vk.story` - решение BE: предпочтительно **тот же** consumer с ветвлением по `content_type`, чтобы не плодить Deployment’ы.
 - Медиа: предварительно в S3/media-service; адаптер качает/стримит на upload URL сети.
-- Идемпотентность: до вызова `save`/`commit` — проверка `remote_story_id`; для VK по возможности `findExisting` по метаданным.
+- Идемпотентность: до вызова `save`/`commit` - проверка `remote_story_id`; для VK по возможности `findExisting` по метаданным.
 
 ---
 
 ## 8. Предложения OpenAPI (`/api/v1`)
 
-Базовый префикс совместим с текущим `openapi.yaml` (ресурсы posts). Не вводить параллельный `/stories`, если выбран путь A (§6) — фильтр и отдельные operationId.
+Базовый префикс совместим с текущим `openapi.yaml` (ресурсы posts). Не вводить параллельный `/stories`, если выбран путь A (§6) - фильтр и отдельные operationId.
 
 ### 8.1. Схемы (фрагменты)
 
@@ -494,7 +494,7 @@ Post:
 
 ## 11. RBAC
 
-Права — те же, что у постов (`roles-permissions.md` §3.4), с уточнением:
+Права - те же, что у постов (`roles-permissions.md` §3.4), с уточнением:
 
 | Действие | Право | Owner | Admin | Editor | Author | Viewer |
 |---|---|:---:|:---:|:---:|:---:|:---:|
@@ -526,10 +526,10 @@ IDOR: чужой workspace → **404**. Author: только `own_posts` до sc
 ## 13. Юридическое: маркировка рекламы для историй
 
 1. Рекламные истории подпадают под **ФЗ-38 ст. 18.1** так же, как посты.
-2. Паритет Впостера: маркировка историй в продукте — **VK и OK**; help прямо: «Истории доступны только для ВКонтакте и Одноклассников» в разделе маркировки истории.
-3. Поток: ads-флаг → создание/reuse контрагента и креатива в ОРД (E10) → получение **erid** → передача в адаптер (пометка «Реклама» / нативные поля сети) → учёт в отчётности; автоудаление рекламных историй — по политике E10 (M5).
-4. Без успешного erid **не** публиковать рекламную историю (fail-closed) — ★ жёстче, чем «опубликовать и потом чинить».
-5. Самореклама / foreign / НДС — поля `ads_items` как у постов (M10).
+2. Паритет Впостера: маркировка историй в продукте - **VK и OK**; help прямо: «Истории доступны только для ВКонтакте и Одноклассников» в разделе маркировки истории.
+3. Поток: ads-флаг → создание/reuse контрагента и креатива в ОРД (E10) → получение **erid** → передача в адаптер (пометка «Реклама» / нативные поля сети) → учёт в отчётности; автоудаление рекламных историй - по политике E10 (M5).
+4. Без успешного erid **не** публиковать рекламную историю (fail-closed) - ★ жёстче, чем «опубликовать и потом чинить».
+5. Самореклама / foreign / НДС - поля `ads_items` как у постов (M10).
 
 Ссылки: [ФЗ-38](https://www.consultant.ru/document/cons_doc_LAW_58968/) · [ОРД VK](https://ord.vk.ru/help/api/api) · [help Впостер маркировка](https://help.vposter.ru/informaciya-neobkhodimaya-dlya-ispolzovaniya-po/avto-ustanovki/otlozhennyi-posting/avtomaticheskaya-markirovka-reklamy-cherez-vposter).
 
@@ -537,72 +537,72 @@ IDOR: чужой workspace → **404**. Author: только `own_posts` до sc
 
 ## 14. Критерии приёмки (AC) и трассировка на TC
 
-### AC-STORY-01 — Создание фото-истории VK
+### AC-STORY-01 - Создание фото-истории VK
 **Given** VK-канал со `story_connection_status=ready`, валидное фото  
 **When** Editor планирует историю на T+1h, ttl=24h  
 **Then** `content_kind=story`, publication `scheduled`; в T эмулятор/сеть получает story; статус `published`
 
-### AC-STORY-02 — Видео OK Moments
+### AC-STORY-02 - Видео OK Moments
 **Given** OK-группа подключена  
 **When** schedule видео-истории  
 **Then** вызван пайплайн moments.*; remote id сохранён
 
-### AC-STORY-03 — TTL enum
+### AC-STORY-03 - TTL enum
 **Given** выбор ttl 1/12/24/48h  
 **When** save  
 **Then** значение сохранено; для OK effective_ttl=24h при любом выборе с warning
 
-### AC-STORY-04 — Ссылка VK
+### AC-STORY-04 - Ссылка VK
 **Given** `link_text=go_to`, `link_url=https://vk.com/club1`  
 **When** publish VK  
 **Then** CTA передана в getPhotoUploadServer; внешний URL → 422
 
-### AC-STORY-05 — Отдельный VK connect
+### AC-STORY-05 - Отдельный VK connect
 **Given** канал VK без stories scope  
 **When** попытка schedule  
-**Then** 422 `story_connection_required`; после успешного connect — ok
+**Then** 422 `story_connection_required`; после успешного connect - ok
 
-### AC-STORY-06 — OK без отдельного connect
+### AC-STORY-06 - OK без отдельного connect
 **Given** OK канал `ready` для постов с нужными permissions  
 **When** schedule story  
 **Then** отдельный story-connect не требуется
 
-### AC-STORY-07 — Повторы и pause/resume
+### AC-STORY-07 - Повторы и pause/resume
 **Given** recurrence everyday until D  
 **When** pause  
 **Then** будущие publications не стартуют; resume продолжает
 
-### AC-STORY-08 — Автоудаление
+### AC-STORY-08 - Автоудаление
 **Given** auto_delete_after=2h  
 **When** story published  
-**Then** создан `scheduled_actions.delete_story`; после срока — deleteStory идемпотентно
+**Then** создан `scheduled_actions.delete_story`; после срока - deleteStory идемпотентно
 
-### AC-STORY-09 — Пакетная загрузка
+### AC-STORY-09 - Пакетная загрузка
 **Given** 10 файлов, один канал, шаг +5 мин  
 **When** batch create  
 **Then** 10 story posts; все в календаре
 
-### AC-STORY-10 — Маркировка VK/OK
+### AC-STORY-10 - Маркировка VK/OK
 **Given** ads.enabled + валидный ОРД  
 **When** publish  
 **Then** erid получен до publish; в отчёте ОРД есть запись; TG/Max недоступны для ads на story
 
-### AC-STORY-11 — Out of scope сети
+### AC-STORY-11 - Out of scope сети
 **Given** capabilities  
 **When** UI/API create story для telegram|max|ig  
 **Then** отказ; документированное сообщение
 
-### AC-STORY-12 — RBAC Author
+### AC-STORY-12 - RBAC Author
 **Given** Author  
 **When** schedule story  
 **Then** 403; draft разрешён
 
-### AC-STORY-13 — Надёжность / идемпотентность
+### AC-STORY-13 - Надёжность / идемпотентность
 **Given** повторная доставка сообщения publish  
 **When** consumer отрабатывает дважды  
 **Then** в сети одна история (`remote_story_id` / findExisting)
 
-### AC-STORY-14 — Календарь и фильтр
+### AC-STORY-14 - Календарь и фильтр
 **Given** смесь post/story  
 **When** фильтр «Истории»  
 **Then** видны только `content_kind=story` с отличимым маркером
@@ -615,7 +615,7 @@ IDOR: чужой workspace → **404**. Author: только `own_posts` до sc
 
 | ★ Posts | Зачем |
 |---|---|
-| Единый контент-календарь post+story с фильтрами и DnD | У Впостера истории — отдельный раздел, легко потерять слоты |
+| Единый контент-календарь post+story с фильтрами и DnD | У Впостера истории - отдельный раздел, легко потерять слоты |
 | Честные предупреждения TTL OK и ограничений VK link_url | Меньше «тихих» сюрпризов |
 | Workspace / RBAC / аудит на историях | Агентствам и командам |
 | Fail-closed маркировка (нет erid → нет publish) | Снижение юр. риска |
@@ -629,16 +629,16 @@ IDOR: чужой workspace → **404**. Author: только `own_posts` до sc
 
 | # | Допущение / вопрос | Влияние | Владелец |
 |---|---|---|---|
-| A1 | OK: лимит **100 moments/день** и видео-сегмент **≤1 мин** — продуктовые лимиты Posts до появления цифр в apiok.ru | Конфиг rate limit / валидация UI | BE-16 + аналитик |
-| A2 | Ссылки OK Moments через API поддерживают произвольный HTTPS (в отличие от VK) — подтвердить на интеграции | Валидатор link_url | BE-16 |
+| A1 | OK: лимит **100 moments/день** и видео-сегмент **≤1 мин** - продуктовые лимиты Posts до появления цифр в apiok.ru | Конфиг rate limit / валидация UI | BE-16 + аналитик |
+| A2 | Ссылки OK Moments через API поддерживают произвольный HTTPS (в отличие от VK) - подтвердить на интеграции | Валидатор link_url | BE-16 |
 | A3 | `content_kind` на `posts` утверждён вместо отдельной таблицы | Миграции | BE-16 / ADR follow-up |
 | A4 | ~~Instagram без юр. решения~~ → **РЕШЕНИЕ Q-STORY-05: Instagram окончательно вне scope** | Scope | Owner ✓ |
-| A5 | Telegram stories — Phase 3 research (business bot vs MTProto) | Roadmap | Owner + аналитик |
-| A6 | Max stories — unsupported until docs | Roadmap | аналитик |
-| A7 | VK user-token scope `stories` может быть недоступен приложению — только community token | Онбординг connect | BE-16, FE-13 |
-| A8 | Пакет max 50 — конфиг, не закон | Тарифы | продукт |
+| A5 | Telegram stories - Phase 3 research (business bot vs MTProto) | Roadmap | Owner + аналитик |
+| A6 | Max stories - unsupported until docs | Roadmap | аналитик |
+| A7 | VK user-token scope `stories` может быть недоступен приложению - только community token | Онбординг connect | BE-16, FE-13 |
+| A8 | Пакет max 50 - конфиг, не закон | Тарифы | продукт |
 | A9 | Импорт из Впостера (E22) маппит `stories.*` → `content_kind=story` | Миграция клиентов | BE-22 |
-| A10 | Видео VK duration/bitrate сверх «MP4 H.264/AAC ≤350MB» — уточнить при smoke на реальном сообществе | Валидация | QA-11 |
+| A10 | Видео VK duration/bitrate сверх «MP4 H.264/AAC ≤350MB» - уточнить при smoke на реальном сообществе | Валидация | QA-11 |
 
 ---
 

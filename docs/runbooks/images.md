@@ -26,7 +26,7 @@ docker run --rm -d --name posts-scheduler -p 8081:8080 \
 curl -sf http://127.0.0.1:8081/actuator/health
 docker stop posts-scheduler
 
-# API без БД — профиль openapi (только Actuator + springdoc)
+# API без БД - профиль openapi (только Actuator + springdoc)
 docker run --rm -d --name posts-api -p 8080:8080 \
   -e SPRING_PROFILES_ACTIVE=openapi \
   ghcr.io/viacheslav666/posts-api:latest
@@ -49,7 +49,7 @@ docker stop posts-web
 
 | Событие | Поведение |
 |---|---|
-| Pull request | Сборка всех образов, Trivy (fail на CRITICAL), SBOM CycloneDX — **без push** |
+| Pull request | Сборка всех образов, Trivy (fail на CRITICAL), SBOM CycloneDX - **без push** |
 | Push в `main` / тег `v*` | Push в `ghcr.io/viacheslav666/posts-<svc>:<sha>` и `:<tag>`, SBOM, **cosign keyless**, Trivy |
 
 Сервисы: `api`, `scheduler`, `publisher`, `media`, `ingest`, `notifications`, `web`.  

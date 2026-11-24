@@ -34,10 +34,10 @@
 | TC-GRAB-25 | P0 | `GrabberQa12IntegrationTest#validationLimit` | CI | авто |
 | TC-GRAB-26 | P1 | `GrabberQa12IntegrationTest#channelReauthAutoPause` | CI | авто |
 | TC-GRAB-27 | P1 | `GrabberQa12IntegrationTest#bulkAndEditApprove` | CI | авто |
-| TC-GRAB-28 | P2 | — | — | ручной / кандидат |
+| TC-GRAB-28 | P2 | - | - | ручной / кандидат |
 | FE P0 UX | P0 | `tests/e2e/specs/grabber-moderation.spec.ts` (MSW) | CI `e2e-smoke` | авто |
 | Full-stack E2E | P1 | `tests/e2e/specs/grabber-fullstack.spec.ts` | nightly (`E2E_GRABBER_FULLSTACK=1`) | авто |
-| Emulator wall fixtures | — | `WallSourceApiTest`; `PUT /_control/vk/wall/{ownerId}` | CI `social-emulator` | авто |
+| Emulator wall fixtures | - | `WallSourceApiTest`; `PUT /_control/vk/wall/{ownerId}` | CI `social-emulator` | авто |
 
 ## Фикстуры
 
@@ -51,10 +51,10 @@
 ## Запуск
 
 ```bash
-# CI — unit + IT (без @Tag("nightly"))
+# CI - unit + IT (без @Tag("nightly"))
 cd backend && ./gradlew :libs:grabber:test :apps:api:integrationTest
 
-# Nightly — + TC-GRAB-14 pipeline tag + fullstack e2e
+# Nightly - + TC-GRAB-14 pipeline tag + fullstack e2e
 cd backend && ./gradlew :apps:api:integrationTest -PincludeNightly=true
 E2E_GRABBER_FULLSTACK=1 pnpm --dir tests/e2e test:grabber-fullstack
 

@@ -34,5 +34,5 @@ Profile `full` уже в `main` (DEV-4). Nightly (`.github/workflows/nightly.yml
 
 ## CI
 
-- PR: job `e2e-smoke` в `ci.yml` — API на профиле `openapi`, Playwright webServer, Schemathesis smoke, артефакты.
+- PR: job `e2e-smoke` в `ci.yml` - API на профиле `openapi`, Playwright webServer, Schemathesis smoke, артефакты.
 - Ночь: `nightly.yml` (schedule 02:00 UTC + `workflow_dispatch`).

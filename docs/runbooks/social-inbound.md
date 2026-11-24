@@ -2,11 +2,11 @@
 
 ## Симптомы
 
-- Рост `social_hook_auth_failures_total` — неверные секреты / сканирование.
-- Рост `social_inbound_duplicates_total` при стабильном `social_inbound_events_total{result="handled"}` — нормальные ретраи сети.
-- Рост `social_inbound_lag_seconds` p99 — ingest отстаёт или album flush задерживается.
+- Рост `social_hook_auth_failures_total` - неверные секреты / сканирование.
+- Рост `social_inbound_duplicates_total` при стабильном `social_inbound_events_total{result="handled"}` - нормальные ретраи сети.
+- Рост `social_inbound_lag_seconds` p99 - ingest отстаёт или album flush задерживается.
 - Подписки в статусе `degraded` / `failed`; уведомления `channel.event_subscription_degraded`.
-- Хуки отвечают `503` — RabbitMQ недоступен (VK/Max/TG будут ретраить).
+- Хуки отвечают `503` - RabbitMQ недоступен (VK/Max/TG будут ретраить).
 
 ## Диагностика
 
@@ -28,7 +28,7 @@
 
 ## Алерты (рекомендуемые)
 
-- `social_hook_auth_failures_total` rate > 1/s за 5m — warning.
-- `ingest.*.dlq` messages > 0 — warning; > 100 — critical.
-- `social_inbound_lag_seconds` p99 > 30s за 10m — warning.
-- Доля подписок `failed` > 5% — critical.
+- `social_hook_auth_failures_total` rate > 1/s за 5m - warning.
+- `ingest.*.dlq` messages > 0 - warning; > 100 - critical.
+- `social_inbound_lag_seconds` p99 > 30s за 10m - warning.
+- Доля подписок `failed` > 5% - critical.

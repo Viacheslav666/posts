@@ -78,7 +78,7 @@ export function TopErrorsTable({
                     <td className="px-2 py-2">
                       {error.network && ['vk', 'ok', 'tg', 'max'].includes(error.network)
                         ? tn(error.network as 'vk' | 'ok' | 'tg' | 'max')
-                        : (error.network ?? '—')}
+                        : (error.network ?? '-')}
                     </td>
                     <td className="px-2 py-2 tabular-nums">{error.count}</td>
                     <td className="px-2 py-2">

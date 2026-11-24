@@ -52,15 +52,15 @@ Then `scheduled_at ≈ now()`; публикации уходят в конвей
 
 ### S3. Репост
 When включён режим репоста и указан URL объекта (VK/TG/OK)  
-Then публикуется репост с опциональным комментарием; Max/Rutube — опция скрыта.
+Then публикуется репост с опциональным комментарием; Max/Rutube - опция скрыта.
 
 ### S4. Маркировка рекламы
 Given в workspace подключен ОРД (VK или Яндекс)  
 When включён флаг «Маркировать рекламу» и заполнены данные рекламодателя  
-Then до публикации: контрагент/договор/креатив в ОРД → **erid**; в текст/меню поста вставляются «Реклама», рекламодатель, `erid: …`; после периода — акты/статистика; по умолчанию — автоудаление из сети.
+Then до публикации: контрагент/договор/креатив в ОРД → **erid**; в текст/меню поста вставляются «Реклама», рекламодатель, `erid: …`; после периода - акты/статистика; по умолчанию - автоудаление из сети.
 
 ### S5. Пауза / возобновление / bulk
-Соответствует US-4.7; серии повторов — «только это / все последующие».
+Соответствует US-4.7; серии повторов - «только это / все последующие».
 
 ### S6. Ошибка ОРД до публикации
 When ОРД недоступен или отказ валидации  
@@ -71,20 +71,20 @@ Then пост **не** публикуется как рекламный; ста�
 ## 3. UI: полный перечень полей вкладки «Создать пост»
 
 Экран: полноэкранный редактор (`03-frontend` A4) + панель опций.  
-Defaults и валидация — ниже. Серая подсветка опции = сеть не поддерживает (из `GET /networks/capabilities`).
+Defaults и валидация - ниже. Серая подсветка опции = сеть не поддерживает (из `GET /networks/capabilities`).
 
 ### 3.1. Основные
 
 | ID поля | UI | Тип | Default | Валидация / поведение | Сети |
 |---|---|---|---|---|---|
 | `title` | Название в списке | string | авто из текста (≤80) | max 200 | все |
-| `channelIds` / `channelSetId` | Каналы / набор | multi | — | ≥1 канал; лимит тарифа | все |
+| `channelIds` / `channelSetId` | Каналы / набор | multi | - | ≥1 канал; лимит тарифа | все |
 | `baseText` | Общий текст (Tiptap) | rich | "" | лимит max по выбранным сетям; HTML→TG/Max | все |
 | `variants[].text` | Вариант сети | rich | null (=base) | бейдж «переопределено» | per network |
 | `mediaIds` | Медиа | list | [] | форматы/кол-во по capabilities; ≤10 VK и т.д. | см. матрицу |
 | `scheduledAt` | Дата/время | datetime TZ | now+1min (как vposter) | future или now; UTC в БД | все |
 | `recurrence` | Повтор | enum+until | `once` | см. §3.2 | все |
-| `publishMode` | Сейчас / по расписанию | enum | schedule | — | все |
+| `publishMode` | Сейчас / по расписанию | enum | schedule | - | все |
 
 ### 3.2. Повтор (`post_day` ↔ Posts `recurrence`)
 
@@ -108,28 +108,28 @@ Defaults и валидация — ниже. Серая подсветка оп�
 
 | ID | UI | Default | Валидация | Сети |
 |---|---|---|---|---|
-| `signed` | Подпись автора | false | — | VK |
-| `muteNotifications` | Без уведомления | false | — | VK, OK, TG, Max |
-| `closeComments` | Закрыть комментарии | false | — | VK, OK |
-| `pin` | Закрепить | false | — | VK, TG, Max |
+| `signed` | Подпись автора | false | - | VK |
+| `muteNotifications` | Без уведомления | false | - | VK, OK, TG, Max |
+| `closeComments` | Закрыть комментарии | false | - | VK, OK |
+| `pin` | Закрепить | false | - | VK, TG, Max |
 | `unpinAt` | Дата открепления | null | ≥ scheduledAt если pin | VK, TG, Max |
 | `autoDeleteAfter` | Автоудаление из сети | null | часы 0–4382 + минуты 0–59 **или** абсолютная дата | все с delete API |
 | `stopAt` | Приостановить серию на сервисе | null | дата | все |
 | `removeFromServiceAfterPublish` (`del_task`) | Удалить из Posts после публикации | false | только журнал публикаций остаётся | все |
 | `coOwnerIds` | Соавторы VK | [] | ≤4; ID сообществ с `-` | VK |
 | `donutDays` | VK Donut видимость | 0 (без ограничений) | 0–7 | VK |
-| `primaryAttachmentsMode` | Сетка / карусель | grid | — | VK |
+| `primaryAttachmentsMode` | Сетка / карусель | grid | - | VK |
 | `firstComment` | Первый комментарий | null | лимит комментария сети | VK (+ TG discussion ★) |
 | `repost.url` | Ссылка объекта репоста | null | URL сети | VK, TG, OK |
-| `repost.comment` | Комментарий к репосту | "" | — | VK, TG, OK |
+| `repost.comment` | Комментарий к репосту | "" | - | VK, TG, OK |
 | `buttons` | Inline-кнопки | [] | ≤10 пар name/url | TG, Max |
 | `actionButton` | Кнопка действия VK | null | enum type_button | VK |
 | `poll` | Опрос | null | question + ≥2 answers | VK, OK, TG |
 | `geo` | Место | null | lat/long | VK, OK |
 | `copyrightUrl` | Источник | null | HTTPS URL | VK |
 | `linkSnippet` | Сниппет ссылки | null | url + title… | VK, OK, TG |
-| `isAd` | Маркировать рекламу | false | если true — блок ORD обязателен | VK, OK, TG, Max, Rutube |
-| `ad` | Блок рекламодателя | — | см. §3.4 | при isAd |
+| `isAd` | Маркировать рекламу | false | если true - блок ORD обязателен | VK, OK, TG, Max, Rutube |
+| `ad` | Блок рекламодателя | - | см. §3.4 | при isAd |
 
 **Вложения:** единый `attachments` через `mediaIds` + typed blocks (poll/geo/…) в `content.jsonb`. Старый формат VK `photo-123_456` поддерживается при импорте из vposter (E22), в UI не показывается.
 
@@ -137,22 +137,22 @@ Defaults и валидация — ниже. Серая подсветка оп�
 
 | ID | UI | Default | Валидация |
 |---|---|---|---|
-| `ad.advertiserName` (`fio`) | ФИО / наименование | — | required if isAd |
-| `ad.inn` | ИНН | — | 10 или 12 цифр; автоподстановка имени по ИНН ★ |
+| `ad.advertiserName` (`fio`) | ФИО / наименование | - | required if isAd |
+| `ad.inn` | ИНН | - | 10 или 12 цифр; автоподстановка имени по ИНН ★ |
 | `ad.kpp` | КПП | "" | required для юрлица |
-| `ad.orgType` (`type`) | Физлицо / ИП / ЮЛ / иностранное | — | enum |
-| `ad.amount` (`posts_summ`) | Сумма размещения | — | ≥0, decimal |
+| `ad.orgType` (`type`) | Физлицо / ИП / ЮЛ / иностранное | - | enum |
+| `ad.amount` (`posts_summ`) | Сумма размещения | - | ≥0, decimal |
 | `ad.contractAmount` | Сумма договора | = amount | ≥0 |
-| `ad.contractDate` | Дата договора | — | required unless self-promo |
+| `ad.contractDate` | Дата договора | - | required unless self-promo |
 | `ad.contractDateEnd` | Окончание договора | null | ≥ start |
-| `ad.contractSerial` | Номер договора | "" | — |
+| `ad.contractSerial` | Номер договора | "" | - |
 | `ad.kktuCodes` | ККТУ | [] | ≥1 из справочника |
 | `ad.oksmCountry` | Страна (ОКСМ) | RU | справочник |
 | `ad.vatRate` | НДС | `without_vat` | enum |
 | `ad.roles` (`person`) | Роли в цепочке | `["advertiser"]` | subset ORD roles |
 | `ad.isForeign` | Иностранный рекламодатель | false | foreign_* поля |
 | `ad.foreignInn` / `foreignRegNumber` / `foreignEpayment` | Реквизиты иностранца | "" | if foreign |
-| `ad.phone` / `ad.address` | Контакты | "" | — |
+| `ad.phone` / `ad.address` | Контакты | "" | - |
 | `ad.description` | Описание для ОРД | "" | max 1000 |
 | `ad.markingType` (`type_marking`) | Режим маркировки | `0` | по справочнику ORD |
 | `ad.selfPromo` | Самореклама | false | упрощённый договор (как у vposter) |
@@ -160,7 +160,7 @@ Defaults и валидация — ниже. Серая подсветка оп�
 | `ad.autoDeleteAfterPeriod` | Автоудаление после периода | **true** | fail-safe отчётности |
 | `ad.contractorId` | Выбор из справочника | last used | autocomplete по ИНН |
 
-Площадки маркировки (паритет help): **VK, OK, Telegram, Rutube, Max**. Истории — см. `scheduled-stories.md`.
+Площадки маркировки (паритет help): **VK, OK, Telegram, Rutube, Max**. Истории - см. `scheduled-stories.md`.
 
 ### 3.5. Список «Запланированные»
 
@@ -175,20 +175,20 @@ Defaults и валидация — ниже. Серая подсветка оп�
 |---|---|---|---|---|---|
 | Текст + медиа | ✔ | ✔ | ✔ | ✔ | видео |
 | Форматирование | plain | HTML | plain | HTML/MD | plain |
-| Нативный schedule API | `publish_date` (не используем в MVP — свой конвейер) | нет | `publishAt` | unknown | unknown |
+| Нативный schedule API | `publish_date` (не используем в MVP - свой конвейер) | нет | `publishAt` | unknown | unknown |
 | Pin / unpin | ✔ | ✔ | unknown | ✔ | нет |
 | Delete | ✔ | ✔ | ✔ | ✔ | ✔ |
-| Close comments | ✔ | — | ✔ | — | — |
-| Mute | ✔ | ✔ | ✔ | ✔ | — |
+| Close comments | ✔ | - | ✔ | - | - |
+| Mute | ✔ | ✔ | ✔ | ✔ | - |
 | Repost | ✔ | ✔ | ✔ | нет | нет |
-| First comment | ✔ | discussion ★ | unknown | unknown | — |
-| Buttons | action_button | inline | — | inline | — |
-| Poll | ✔ | ✔ | ✔ | — | — |
-| Donut / co-authors | ✔ | — | — | — | — |
+| First comment | ✔ | discussion ★ | unknown | unknown | - |
+| Buttons | action_button | inline | - | inline | - |
+| Poll | ✔ | ✔ | ✔ | - | - |
+| Donut / co-authors | ✔ | - | - | - | - |
 | Маркировка ОРД | ✔ | ✔ (текст) | ✔ | ✔ | ✔ |
 | Идемпотентность | `guid` | findExisting | hash±2m | hash±2m | hash |
 
-Лимиты — `network-capabilities.md` (дата проверки 2026-11-17).
+Лимиты - `network-capabilities.md` (дата проверки 2026-11-17).
 
 ---
 
@@ -221,7 +221,7 @@ ord_platforms(...), ord_invoices(...), ord_statistics(...)
 ord_dictionary_kktu / ord_dictionary_oksm  -- кэш справочников
 ```
 
-Публикации и `scheduled_actions` (delete/unpin/first_comment) — без изменений контракта конвейера.
+Публикации и `scheduled_actions` (delete/unpin/first_comment) - без изменений контракта конвейера.
 
 ---
 
@@ -251,7 +251,7 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 
 Коды ошибок: `ord_not_configured`, `ord_validation_failed`, `ord_provider_unavailable`, `ord_erid_missing`, `ad_inn_invalid`, `network_option_unsupported`.
 
-Интерфейс бэка: `OrdProvider` — **полноценные** адаптеры `vk_ord` и `yandex_ord` (не stub); ОЗОН и др. — позже через тот же интерфейс (`ozon_ord` и т.п.). Клиент подключает **свой** API-ключ ОРД; Posts **не субсидирует** ОРД (решение заказчика Q-ORD-03 / Q-ORD-06). См. `02-backend.md` §10 / BE-15.
+Интерфейс бэка: `OrdProvider` - **полноценные** адаптеры `vk_ord` и `yandex_ord` (не stub); ОЗОН и др. - позже через тот же интерфейс (`ozon_ord` и т.п.). Клиент подключает **свой** API-ключ ОРД; Posts **не субсидирует** ОРД (решение заказчика Q-ORD-03 / Q-ORD-06). См. `02-backend.md` §10 / BE-15.
 
 ---
 
@@ -277,11 +277,11 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 ## 8. Надёжность
 
 1. Регистрация креатива **идемпотентна** по `external_id = creative:{postId}:{version}` (как ORD VK PUT).
-2. Публикация рекламного поста только после `erid != null` (кроме feature-flag `ord.allow_publish_without_erid` — **выкл** по умолчанию).
-3. Вставка маркера: для TG/Max — префикс текста; для VK — текст + по возможности меню; для OK — по правилам площадки.
-4. Повтор публикации — `guid` / `findExisting`; erid не пересоздаётся.
-5. Ежемесячный job (ShedLock, 7-е число 03:00 Europe/Moscow — паритет vposter): акты + statistics; идемпотентность по периоду.
-6. Автоудаление — `scheduled_actions`; удаление уже удалённого = success.
+2. Публикация рекламного поста только после `erid != null` (кроме feature-flag `ord.allow_publish_without_erid` - **выкл** по умолчанию).
+3. Вставка маркера: для TG/Max - префикс текста; для VK - текст + по возможности меню; для OK - по правилам площадки.
+4. Повтор публикации - `guid` / `findExisting`; erid не пересоздаётся.
+5. Ежемесячный job (ShedLock, 7-е число 03:00 Europe/Moscow - паритет vposter): акты + statistics; идемпотентность по периоду.
+6. Автоудаление - `scheduled_actions`; удаление уже удалённого = success.
 
 ---
 
@@ -289,12 +289,12 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 
 | Действие | Owner | Admin | Editor | Author | Viewer |
 |---|---|---|---|---|---|
-| Настроить ORD connection | ✔ | ✔ | — | — | — |
-| CRUD contractors/contracts | ✔ | ✔ | ✔ | — | — |
-| Включить isAd на посте | ✔ | ✔ | ✔ | — (только черновик без schedule) | — |
-| Планировать рекламный пост | ✔ | ✔ | ✔ | — | — |
+| Настроить ORD connection | ✔ | ✔ | - | - | - |
+| CRUD contractors/contracts | ✔ | ✔ | ✔ | - | - |
+| Включить isAd на посте | ✔ | ✔ | ✔ | - (только черновик без schedule) | - |
+| Планировать рекламный пост | ✔ | ✔ | ✔ | - | - |
 | Смотреть erid/статус | ✔ | ✔ | ✔ | свои | ✔ (проект) |
-| Запуск отчётов ORD | ✔ | ✔ | — | — | — |
+| Запуск отчётов ORD | ✔ | ✔ | - | - | - |
 
 Все проверки с `workspace_id`; чужой workspace → 404.
 
@@ -309,18 +309,18 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 ## 11. Юридические требования
 
 1. Интернет-реклама в РФ подлежит маркировке (ФЗ-38 ст. 18.1): пометка «Реклама», сведения о рекламодателе, токен erid, отчётность в ЕРИР через ОРД.
-2. Posts — технический посредник: пользователь подтверждает ответственность за корректность данных (checkbox при первом подключении ORD).
-3. Самореклама — отдельный упрощённый поток (без договора с третьим лицом), по правилам выбранного ОРД.
-4. Неверные суммы/акты — риск претензий; Posts ★: сверка `posts_summ` vs акт, предупреждения о расхождениях.
-5. Хранение ПДн рекламодателей — 152-ФЗ, только в РФ.
+2. Posts - технический посредник: пользователь подтверждает ответственность за корректность данных (checkbox при первом подключении ORD).
+3. Самореклама - отдельный упрощённый поток (без договора с третьим лицом), по правилам выбранного ОРД.
+4. Неверные суммы/акты - риск претензий; Posts ★: сверка `posts_summ` vs акт, предупреждения о расхождениях.
+5. Хранение ПДн рекламодателей - 152-ФЗ, только в РФ.
 
 ---
 
 ## 12. Критерии приёмки
 
-1. Все поля §3 доступны в UI и API; неподдерживаемые сетью — disabled с tooltip.
+1. Все поля §3 доступны в UI и API; неподдерживаемые сетью - disabled с tooltip.
 2. Паритет recurrence enum vposter.
-3. При isAd без ORD connection — schedule блокируется.
+3. При isAd без ORD connection - schedule блокируется.
 4. Успешный sandbox ORD VK/Yandex → erid в предпросмотре и в опубликованном тексте.
 5. Акт/статистика за тестовый период создаются job’ом или ручным run.
 6. Автоудаление рекламного поста срабатывает; повтор delete идемпотентен.
@@ -337,10 +337,10 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 
 1. Варианты текста/медиа под сеть + живой предпросмотр с маркером «Реклама».
 2. Командный RBAC и аудит изменений ORD/рекламных постов.
-3. Конвейер с SLA и идемпотентностью (отзывы на vposter — «сгоревшие» посты).
+3. Конвейер с SLA и идемпотентностью (отзывы на vposter - «сгоревшие» посты).
 4. Справочник контрагентов на workspace + автозаполнение по ИНН + сверка сумм актов.
 5. Несколько ORD-провайдеров за единым UI (`OrdProvider`): на старте VK + Яндекс полноценно; расширение (ОЗОН…) без смены UX.
-6. Нет лимита «25 постов на одно время» — масштаб под 2 000 pub/s с rate-limit сетей.
+6. Нет лимита «25 постов на одно время» - масштаб под 2 000 pub/s с rate-limit сетей.
 7. Календарь и bulk вместо только списка.
 
 ---
@@ -348,10 +348,10 @@ POST   /api/v1/ord/reports/run              # ручной запуск акто
 ## 14. Допущения и решения
 
 **Решения заказчика (сняты ASSUMPTION):**
-- **Q-ORD-03:** VK ОРД и ОРД Яндекс — оба полноценно; ОЗОН/другие — позже через `OrdProvider`.
+- **Q-ORD-03:** VK ОРД и ОРД Яндекс - оба полноценно; ОЗОН/другие - позже через `OrdProvider`.
 - **Q-ORD-06:** клиентский ключ ОРД; Posts не субсидирует стоимость ОРД.
 
-**Открытые допущения** — см. `parity-open-questions.md` (Q-POST-*, Q-ORD-01/02/04/05): автоудаление рекламы по умолчанию **вкл**; период отчётности 30 дней.
+**Открытые допущения** - см. `parity-open-questions.md` (Q-POST-*, Q-ORD-01/02/04/05): автоудаление рекламы по умолчанию **вкл**; период отчётности 30 дней.
 
 ## 15. История изменений
 

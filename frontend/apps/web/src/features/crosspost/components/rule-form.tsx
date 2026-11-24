@@ -385,12 +385,12 @@ export function RuleForm({
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-muted-foreground">{t('name')}</dt>
-              <dd className="font-medium">{watch('name') || '—'}</dd>
+              <dd className="font-medium">{watch('name') || '-'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">{t('source')}</dt>
               <dd className="font-medium">
-                {sourceChannel?.title ?? sourceChannelId ?? '—'}
+                {sourceChannel?.title ?? sourceChannelId ?? '-'}
               </dd>
             </div>
             <div className="sm:col-span-2">
@@ -398,7 +398,7 @@ export function RuleForm({
               <dd className="font-medium">
                 {targetChannelIds
                   .map((id) => channels.find((c) => c.id === id)?.title ?? id)
-                  .join(', ') || '—'}
+                  .join(', ') || '-'}
               </dd>
             </div>
           </dl>

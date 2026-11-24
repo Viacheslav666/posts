@@ -53,10 +53,10 @@ export function RunsHistory({ workspaceId, ruleId }: RunsHistoryProps) {
           {items.map((run) => (
             <tr key={run.id} className="border-b border-border/70">
               <td className="px-2 py-2">
-                {run.startedAt ? new Date(run.startedAt).toLocaleString('ru-RU') : '—'}
+                {run.startedAt ? new Date(run.startedAt).toLocaleString('ru-RU') : '-'}
               </td>
-              <td className="px-2 py-2">{run.trigger ?? '—'}</td>
-              <td className="px-2 py-2">{run.status ?? '—'}</td>
+              <td className="px-2 py-2">{run.trigger ?? '-'}</td>
+              <td className="px-2 py-2">{run.status ?? '-'}</td>
               <td className="px-2 py-2">{run.itemsNew ?? 0}</td>
               <td className="px-2 py-2">{run.itemsDeduped ?? 0}</td>
             </tr>

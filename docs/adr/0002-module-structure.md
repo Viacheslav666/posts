@@ -21,7 +21,7 @@
 | `ingest` | posts-ingest | Вебхуки → нормализованные события |
 | `notifications` | posts-notifications | Email, TG-бот, Web Push, WS fan-out |
 
-`analytics` и `social-rutube` — фаза 2, не входят в MVP-каркас.
+`analytics` и `social-rutube` - фаза 2, не входят в MVP-каркас.
 
 ### Библиотеки (`backend/libs/*`)
 
@@ -50,9 +50,9 @@ Gradle: `apps` → `implementation(project(":libs:…"))`; apps не включ�
 
 ## Альтернативы
 
-- **Один модуль / multi-package** — отвергнуто: нет compile-time границ.
-- **Отдельный микросервисный репозиторий на приложение** — отвергнуто для MVP: общий домен, Flyway и контракт проще в монорепо.
-- **Отдельный модуль только под ArchUnit** — отвергнуто BE-1: правила живут рядом с Testcontainers-фикстурами в `test-support`.
+- **Один модуль / multi-package** - отвергнуто: нет compile-time границ.
+- **Отдельный микросервисный репозиторий на приложение** - отвергнуто для MVP: общий домен, Flyway и контракт проще в монорепо.
+- **Отдельный модуль только под ArchUnit** - отвергнуто BE-1: правила живут рядом с Testcontainers-фикстурами в `test-support`.
 
 ## Последствия
 

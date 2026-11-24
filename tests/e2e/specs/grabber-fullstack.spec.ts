@@ -64,7 +64,7 @@ test.describe('Grabber full-stack (QA-12)', () => {
     }
     const channelItems = (await channels.json()).items ?? [];
     if (!channelItems.length) {
-      test.skip(true, 'No VK channel in workspace — seed required for full-stack publish');
+      test.skip(true, 'No VK channel in workspace - seed required for full-stack publish');
     }
     const channelId = channelItems[0].id as string;
 

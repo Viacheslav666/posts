@@ -1,6 +1,6 @@
 # Матрица трассировки TC-PUB → автотест (QA-5 / QA-13 / BE-10 / BE-23)
 
-Обновлено: 2026-11-18. Сети в CI: **Telegram** (+ social-emulator); VK/OK — WireMock-контракты + publisher IT.  
+Обновлено: 2026-11-18. Сети в CI: **Telegram** (+ social-emulator); VK/OK - WireMock-контракты + publisher IT.  
 Инвариант **0 потерь / 0 дублей**: сверка `publications.state=succeeded` ↔ `GET /_control/posts/count` + `GET /_control/verify`.  
 Prod-профиль: `application-prod.yml` → `reconciliation-mode=api` (нет `/_control`); ArchUnit + `ProdProfileNoControlPathTest`.
 
@@ -24,7 +24,7 @@ Prod-профиль: `application-prod.yml` → `reconciliation-mode=api` (не�
 | TC-PUB-10 | `TcPubAwaitingBe10IT#tcPub10PostgresFailover` | staging | **QA-8 / HA PG** |
 | TC-PUB-11 | `TcPubBe10IT#tcPub11NetworkIsolation` | CI | авто (BE-10) |
 | TC-PUB-12 | `TcPubBe10IT#tcPub12EditPauseNearFire` | CI | авто (BE-10) |
-| TC-PUB-13 | `TcPubBe10IT#tcPub13OutboxForWebsocket` | CI | авто (outbox ≤ 3 с; UI — FE) |
+| TC-PUB-13 | `TcPubBe10IT#tcPub13OutboxForWebsocket` | CI | авто (outbox ≤ 3 с; UI - FE) |
 | scheduled_actions | `TcPubBe10IT#scheduledActionsFirstCommentAndDelete` | CI | авто (BE-10) |
 | reauth_required | `TcPubBe10IT#authMarksChannelReauth` | CI | авто (BE-10) |
 | TC-AD-07 (ads regress) | `OrdAdPipelineIT#tcAd07RetryNoDuplicate` | CI | авто (QA-10) |

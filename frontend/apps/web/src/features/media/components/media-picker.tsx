@@ -140,7 +140,7 @@ export function MediaPicker({
                 {uploads.slice(0, 5).map((item) => (
                   <li key={item.localId} className="flex items-center justify-between gap-2">
                     <span className="truncate">
-                      {item.file.name} — {Math.round(item.progress * 100)}% ({item.status})
+                      {item.file.name} - {Math.round(item.progress * 100)}% ({item.status})
                     </span>
                     {item.status === 'uploading' ? (
                       <Button type="button" size="sm" variant="ghost" onClick={() => cancel(item.localId)}>

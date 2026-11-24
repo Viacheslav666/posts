@@ -6,13 +6,13 @@ import { useTranslations } from 'next-intl';
 import type { MediaLibraryItem } from '../model/types';
 
 function formatBytes(value?: number): string {
-  if (value === undefined) return '—';
+  if (value === undefined) return '-';
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatDuration(ms?: number): string {
-  if (!ms) return '—';
+  if (!ms) return '-';
   const seconds = Math.round(ms / 1000);
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -74,7 +74,7 @@ export function MediaDetailsPanel({
                 <div>
                   <dt className="text-muted-foreground">{t('dimensions')}</dt>
                   <dd>
-                    {item.width && item.height ? `${item.width}×${item.height}` : '—'}
+                    {item.width && item.height ? `${item.width}×${item.height}` : '-'}
                   </dd>
                 </div>
                 <div>

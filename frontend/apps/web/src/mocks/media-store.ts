@@ -299,7 +299,7 @@ export function completeUpload(
       );
 
   // Mark ready after a microtask-friendly flag: first GET after complete stays processing once,
-  // second GET becomes ready — tests can force via advanceProcessing.
+  // second GET becomes ready - tests can force via advanceProcessing.
   (asset as MediaLibraryItem & { _processingTicks?: number })._processingTicks = 0;
   sessions.delete(mediaId);
   return asset;

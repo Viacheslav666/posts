@@ -64,7 +64,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 function formatMoney(value: number | undefined): string {
-  if (value === undefined || Number.isNaN(value)) return '—';
+  if (value === undefined || Number.isNaN(value)) return '-';
   return value.toLocaleString('ru-RU', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -493,7 +493,7 @@ export function AdMarkingForm({
                     <option value="">{t('oksmPlaceholder')}</option>
                     {(oksmQuery.data ?? []).map((item) => (
                       <option key={item.code} value={item.code}>
-                        {item.code} — {item.name}
+                        {item.code} - {item.name}
                       </option>
                     ))}
                   </select>
@@ -524,7 +524,7 @@ export function AdMarkingForm({
                 <option value="">{t('kktuPlaceholder')}</option>
                 {(kktuDictQuery.data ?? []).map((item) => (
                   <option key={item.code} value={item.code}>
-                    {item.code} — {item.name}
+                    {item.code} - {item.name}
                   </option>
                 ))}
               </select>

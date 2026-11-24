@@ -9,7 +9,7 @@ import type { EditorChannel } from './types';
 export const MOCK_CHANNELS: EditorChannel[] = [
   {
     id: CHANNEL_IDS.vkNews,
-    name: 'Posts — новости',
+    name: 'Posts - новости',
     network: 'vk',
     projectName: 'Основной проект',
   },

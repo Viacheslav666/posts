@@ -15562,7 +15562,7 @@ components:
           type: string
         inn:
           type: string
-          description: INN — 10 or 12 digits with checksum; foreign ids when isForeign
+          description: INN - 10 or 12 digits with checksum; foreign ids when isForeign
         isForeign:
           type: boolean
         kktuCodes:
@@ -15919,7 +15919,7 @@ components:
           format: int64
         impersonating:
           type: boolean
-          description: Always true — FE shows «вы вошли как…» banner
+          description: Always true - FE shows «вы вошли как…» banner
         reason:
           type: string
         targetEmail:
@@ -19376,7 +19376,7 @@ components:
             type: object
         sourceType:
           type: string
-          description: manual|grabber|rss|import|api — grabber/rss set by BE-17
+          description: manual|grabber|rss|import|api - grabber/rss set by BE-17
           enum:
           - manual
           - grabber

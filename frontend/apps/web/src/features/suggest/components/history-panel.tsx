@@ -250,7 +250,7 @@ export function HistoryPanel({ workspaceId, settings }: HistoryPanelProps) {
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium">{t(`filters.${item.status as ItemStatus}`)}</span>
                 <span className="text-muted-foreground">
-                  {item.authorVkId ? `id${item.authorVkId}` : '—'}
+                  {item.authorVkId ? `id${item.authorVkId}` : '-'}
                 </span>
                 {item.decidedAt || item.createdAt ? (
                   <time className="text-xs text-muted-foreground">

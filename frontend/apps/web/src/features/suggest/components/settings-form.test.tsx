@@ -37,7 +37,7 @@ describe('SettingsForm (FE-22)', () => {
           {
             id: CHANNEL_IDS.vkNews,
             network: 'vk',
-            title: 'Posts — новости',
+            title: 'Posts - новости',
             status: 'active',
             capabilities: { publishSuggested: true } as never,
           },
@@ -82,7 +82,7 @@ describe('SettingsForm (FE-22)', () => {
           {
             id: CHANNEL_IDS.vkNews,
             network: 'vk',
-            title: 'Posts — новости',
+            title: 'Posts - новости',
             status: 'active',
             capabilities: { publishSuggested: true } as never,
           },
@@ -118,7 +118,7 @@ describe('SettingsForm (FE-22)', () => {
           {
             id: CHANNEL_IDS.vkNews,
             network: 'vk',
-            title: 'Posts — новости',
+            title: 'Posts - новости',
             status: 'active',
             capabilities: { publishSuggested: true } as never,
           },
@@ -145,7 +145,7 @@ describe('SettingsForm (FE-22)', () => {
           {
             id: CHANNEL_IDS.vkNews,
             network: 'vk',
-            title: 'Posts — новости',
+            title: 'Posts - новости',
             status: 'active',
             capabilities: { publishSuggested: true } as never,
           },

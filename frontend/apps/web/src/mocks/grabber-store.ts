@@ -67,7 +67,7 @@ function defaultConfig(overrides?: Partial<GrabberConfig>): GrabberConfig {
     attribution: {
       enabled: true,
       placement: 'footer',
-      template: 'Источник: {source_name} — {source_url}',
+      template: 'Источник: {source_name} - {source_url}',
     } as unknown as GrabberConfig['attribution'],
     limits: {
       rate_limit_per_hour: 10,
@@ -149,7 +149,7 @@ function createInitialState(): GrabberStoreState {
         sourcePermalink: 'https://vk.com/wall-123456_10',
         sourceName: 'Demo Source',
         contentText:
-          'Черновик из граббера: анонс мероприятия.\n\nИсточник: Demo Source — https://vk.com/wall-123456_10',
+          'Черновик из граббера: анонс мероприятия.\n\nИсточник: Demo Source - https://vk.com/wall-123456_10',
         contentHash: 'a'.repeat(64),
         status: 'pending_moderation',
         detectedAt: now,
@@ -165,7 +165,7 @@ function createInitialState(): GrabberStoreState {
         sourcePermalink: 'https://vk.com/wall-123456_11',
         sourceName: 'Demo Source',
         contentText:
-          'Второй материал в очереди модерации.\n\nИсточник: Demo Source — https://vk.com/wall-123456_11',
+          'Второй материал в очереди модерации.\n\nИсточник: Demo Source - https://vk.com/wall-123456_11',
         contentHash: 'b'.repeat(64),
         status: 'pending_moderation',
         detectedAt: now,
@@ -230,10 +230,10 @@ function assertTargetMode(
   const perDay = limits.rate_limit_per_day;
   const perSource = limits.rate_limit_per_source_per_day;
   if (typeof perDay === 'number' && (perDay < 0 || perDay > 500)) {
-    return 'Суточный лимит по всем источникам: 0 — не ограничивать, максимум 500';
+    return 'Суточный лимит по всем источникам: 0 - не ограничивать, максимум 500';
   }
   if (typeof perSource === 'number' && (perSource < 0 || perSource > 500)) {
-    return 'Суточный лимит на источник: 0 — не ограничивать, максимум 500';
+    return 'Суточный лимит на источник: 0 - не ограничивать, максимум 500';
   }
   return null;
 }
@@ -276,7 +276,7 @@ function withPublishModeDefault(config: GrabberConfig | undefined): GrabberConfi
     next.attribution = {
       enabled: true,
       placement: 'footer',
-      template: 'Источник: {source_name} — {source_url}',
+      template: 'Источник: {source_name} - {source_url}',
     } as unknown as GrabberConfig['attribution'];
   }
   return next;

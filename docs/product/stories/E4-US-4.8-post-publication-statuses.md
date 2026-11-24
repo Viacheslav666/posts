@@ -11,7 +11,7 @@ depends_on: [US-4.4, US-5.1]
 
 | Поле | Значение |
 |---|---|
-| Эпик | **E4** — Создание и планирование постов |
+| Эпик | **E4** - Создание и планирование постов |
 | ID | `US-4.8` |
 | Приоритет | **P0** |
 | Фаза | 1 (MVP) |
@@ -30,10 +30,10 @@ depends_on: [US-4.4, US-5.1]
 
 1. **Given** пост запланирован в 2 канала
    **When** успех в одном, ошибка в другом
-   **Then** агрегат `partially_published`; у успешного — remote link; у ошибочного — причина
+   **Then** агрегат `partially_published`; у успешного - remote link; у ошибочного - причина
 2. **Given** жизненный цикл
    **When** переходы
-   **Then** допустимы: draft → scheduled → publishing → published|partially_published|failed|paused|deleted_from_network; задел pending_approval — Фаза 2
+   **Then** допустимы: draft → scheduled → publishing → published|partially_published|failed|paused|deleted_from_network; задел pending_approval - Фаза 2
 3. **Given** waiting_for_channel
    **When** канал offline
    **Then** статус публикации отражает ожидание (US-3.5)

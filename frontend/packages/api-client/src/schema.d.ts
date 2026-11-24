@@ -3218,7 +3218,7 @@ export interface components {
             foreignEpayment?: string;
             foreignInn?: string;
             foreignRegNumber?: string;
-            /** @description INN — 10 or 12 digits with checksum; foreign ids when isForeign */
+            /** @description INN - 10 or 12 digits with checksum; foreign ids when isForeign */
             inn?: string;
             isForeign?: boolean;
             kktuCodes?: string[];
@@ -3409,7 +3409,7 @@ export interface components {
             expiresAt?: string;
             /** Format: int64 */
             expiresIn?: number;
-            /** @description Always true — FE shows «вы вошли как…» banner */
+            /** @description Always true - FE shows «вы вошли как…» banner */
             impersonating?: boolean;
             reason?: string;
             targetEmail?: string;
@@ -5299,7 +5299,7 @@ export interface components {
                 [key: string]: Record<string, never>;
             };
             /**
-             * @description manual|grabber|rss|import|api — grabber/rss set by BE-17
+             * @description manual|grabber|rss|import|api - grabber/rss set by BE-17
              * @example manual
              * @enum {string}
              */

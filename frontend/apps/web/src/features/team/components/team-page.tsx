@@ -319,12 +319,12 @@ export function TeamPage({ workspaceId }: TeamPageProps) {
                         <td className="px-3 py-2">{entry.action}</td>
                         <td className="px-3 py-2 text-muted-foreground">{entry.entity}</td>
                         <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                          {entry.ip ?? '—'}
+                          {entry.ip ?? '-'}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {entry.createdAt
                             ? new Date(entry.createdAt).toLocaleString('ru-RU')
-                            : '—'}
+                            : '-'}
                         </td>
                       </tr>
                     ))}

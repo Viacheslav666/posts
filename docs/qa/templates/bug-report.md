@@ -1,6 +1,6 @@
 # Шаблон баг-репорта
 
-Используйте при создании Issue (шаблон `.github/ISSUE_TEMPLATE/bug.md` можно дополнить полями ниже) или в комментарии к PR. Классификация — [defect-classification.md](../defect-classification.md).
+Используйте при создании Issue (шаблон `.github/ISSUE_TEMPLATE/bug.md` можно дополнить полями ниже) или в комментарии к PR. Классификация - [defect-classification.md](../defect-classification.md).
 
 ---
 

@@ -8,7 +8,7 @@
 |---|---|---|
 | `posts-scheduler` | 8081 | Postgres, Redis (ShedLock), RabbitMQ |
 | `posts-publisher` (`POSTS_PUBLISHER_NETWORK`) | 8082+ | Postgres, Redis (Bucket4j), RabbitMQ, emulator |
-| Очереди | — | `publish.<network>`, `actions.<network>` + DLQ |
+| Очереди | - | `publish.<network>`, `actions.<network>` + DLQ |
 
 ## Локальный прогон
 
@@ -38,9 +38,9 @@ POSTS_PUBLISHER_NETWORK=tg POSTS_SOCIAL_EMULATOR_URL=http://localhost:8090 \
 
 ## Восстановление
 
-1. **Очередь потеряна / RabbitMQ down:** PG — источник истины. После восстановления scheduler заново заберёт `pending`/`failed_retryable` (и reaper вернёт застрявшие `queued`/`in_progress`).
+1. **Очередь потеряна / RabbitMQ down:** PG - источник истины. После восстановления scheduler заново заберёт `pending`/`failed_retryable` (и reaper вернёт застрявшие `queued`/`in_progress`).
 2. **DLQ не пуст:** разбор poison pill; при необходимости вернуть publication в `failed_retryable` с `next_attempt_at=now()`.
-3. **Массовый reauth:** токены сети отозваны — чинить OAuth каналов; публикации в `failed_permanent` / `waiting_for_channel`.
+3. **Массовый reauth:** токены сети отозваны - чинить OAuth каналов; публикации в `failed_permanent` / `waiting_for_channel`.
 4. **Redis down:** лимитер уходит в local fallback (консервативно) + алерт degradation.
 
 ## Тесты

@@ -74,7 +74,7 @@ function createInitialState(): ChannelStoreState {
         projectId: DEFAULT_PROJECT_ID,
         network: 'vk',
         type: 'group',
-        title: 'Posts — новости',
+        title: 'Posts - новости',
         username: 'posts_news',
         status: 'active',
         timezone: 'Europe/Moscow',
@@ -247,7 +247,7 @@ export function startConnect(
     };
   }
 
-  // Local callback URL — no external OAuth host (required for offline next build / MSW).
+  // Local callback URL - no external OAuth host (required for offline next build / MSW).
   return {
     state: stateToken,
     authorizationUrl: `/app/${workspaceId}/channels/connect/${network}/callback?code=demo-oauth-code&state=${encodeURIComponent(stateToken)}${projectId ? `&projectId=${projectId}` : ''}`,
@@ -311,7 +311,7 @@ export function connectCallback(
       network,
       workspaceId: body.workspaceId,
       projectId: body.projectId ?? pending.projectId,
-      title: network === 'vk' ? 'VK — новое сообщество' : 'OK — новая группа',
+      title: network === 'vk' ? 'VK - новое сообщество' : 'OK - новая группа',
       type: 'group',
     });
     if ('error' in created) return created;

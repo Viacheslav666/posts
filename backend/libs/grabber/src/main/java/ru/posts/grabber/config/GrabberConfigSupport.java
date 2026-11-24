@@ -114,7 +114,7 @@ public final class GrabberConfigSupport {
         Map<String, Object> attribution = map(config.get("attribution"));
         attribution.putIfAbsent("enabled", true);
         attribution.putIfAbsent("placement", "footer");
-        attribution.putIfAbsent("template", "Источник: {source_name} — {source_url}");
+        attribution.putIfAbsent("template", "Источник: {source_name} - {source_url}");
         config.put("attribution", attribution);
 
         Map<String, Object> limits = map(config.get("limits"));
@@ -204,7 +204,7 @@ public final class GrabberConfigSupport {
         Map<String, Object> attribution = map(config == null ? null : config.get("attribution"));
         Object template = attribution.get("template");
         if (template == null || template.toString().isBlank()) {
-            return "Источник: {source_name} — {source_url}";
+            return "Источник: {source_name} - {source_url}";
         }
         return template.toString();
     }
@@ -293,7 +293,7 @@ public final class GrabberConfigSupport {
         return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
     }
 
-    /** When false, setting failures are only logged — no {@code grabber.setting_error} notification. */
+    /** When false, setting failures are only logged - no {@code grabber.setting_error} notification. */
     public static boolean notifyOnError(Map<String, Object> config) {
         Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
         Object enabled = reliability.get("notify_on_error");

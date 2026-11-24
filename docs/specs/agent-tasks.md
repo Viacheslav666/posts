@@ -1,9 +1,9 @@
-# Первые задачи для облачных агентов Cursor — репозиторий `Viacheslav666/posts`
+# Первые задачи для облачных агентов Cursor - репозиторий `Viacheslav666/posts`
 
 Каждая задача ниже = **одна ветка + один Pull Request** в `main`. Формулировку задачи можно целиком передавать облачному агенту Cursor как промпт (вместе с «Общей вводной»). Задачи внутри роли выполняются по порядку; зависимости между ролями указаны в поле «Зависит от».
 
 ## Общая вводная (добавлять в начало промпта каждой задачи)
-> Ты — агент «Posts <роль>» проекта Posts (SMM-платформа, аналог и конкурент vposter.ru). Репозиторий: `Viacheslav666/posts`. Перед работой прочитай `docs/specs/00-overview.md`, ТЗ своей роли (`docs/specs/0X-*.md`) и `docs/analysis.md`. Стек: бэкенд Java 21 + Spring Boot 3 (Gradle Kotlin DSL multi-module в `backend/`), фронтенд Next.js 15 + TypeScript (pnpm в `frontend/`), инфраструктура в `infra/`, документация в `docs/`. Требование надёжности: 100 000 пользователей с запасом ×3, публикации без потерь и дублей. Правила: ветка `feat|fix|chore/<id>-<slug>`, Conventional Commits, PR с описанием, чеклистом DoD и ссылкой на задачу; CI должен быть зелёным; не меняй файлы чужой зоны без необходимости (CODEOWNERS), при необходимости — отметь в PR. Документы пиши на русском, код и идентификаторы — на английском. Не коммить секреты.
+> Ты - агент «Posts <роль>» проекта Posts (SMM-платформа, аналог и конкурент vposter.ru). Репозиторий: `Viacheslav666/posts`. Перед работой прочитай `docs/specs/00-overview.md`, ТЗ своей роли (`docs/specs/0X-*.md`) и `docs/analysis.md`. Стек: бэкенд Java 21 + Spring Boot 3 (Gradle Kotlin DSL multi-module в `backend/`), фронтенд Next.js 15 + TypeScript (pnpm в `frontend/`), инфраструктура в `infra/`, документация в `docs/`. Требование надёжности: 100 000 пользователей с запасом ×3, публикации без потерь и дублей. Правила: ветка `feat|fix|chore/<id>-<slug>`, Conventional Commits, PR с описанием, чеклистом DoD и ссылкой на задачу; CI должен быть зелёным; не меняй файлы чужой зоны без необходимости (CODEOWNERS), при необходимости - отметь в PR. Документы пиши на русском, код и идентификаторы - на английском. Не коммить секреты.
 
 **Предусловие:** репозиторий `Viacheslav666/posts` создан владельцем (приватный), облачные агенты Cursor подключены к нему с правом push в ветки и создания PR.
 
@@ -12,25 +12,25 @@
 ## Posts Devops
 
 ### DEV-1. Скелет монорепозитория (первая задача проекта)
-- **Ветка:** `chore/dev-1-repo-skeleton` · **Зависит от:** — · **Блокирует:** все остальные задачи.
+- **Ветка:** `chore/dev-1-repo-skeleton` · **Зависит от:** - · **Блокирует:** все остальные задачи.
 - **Сделать:**
   1. Корень: `README.md` (что за проект, структура, быстрый старт), `.gitignore` (Java/Gradle, Node/Next, IDE, `.env`), `.editorconfig`, `LICENSE` (proprietary/«All rights reserved»), `Makefile` (`up`, `down`, `backend`, `frontend`, `test`, `openapi`, `lint`), `.env.example`, `CODEOWNERS` (зоны ролей по `04-devops.md` §2), `.github/ISSUE_TEMPLATE/{story,bug,task,adr}.md`, `.github/pull_request_template.md` (чеклист DoD).
-  2. `docs/`: положить `analysis.md` и `specs/` (00-overview, 01-analyst, 02-backend, 03-frontend, 04-devops, 05-qa, agent-tasks) — файлы приложены владельцем к задаче; создать пустые разделы с `README.md`: `docs/product/`, `docs/adr/` (+ шаблон ADR `0000-template.md`), `docs/api/` (+ `fixtures/formatting/.gitkeep`), `docs/qa/`, `docs/runbooks/`.
-  3. `backend/` — Gradle 8.x (Kotlin DSL) multi-module, Java 21 toolchain:
+  2. `docs/`: положить `analysis.md` и `specs/` (00-overview, 01-analyst, 02-backend, 03-frontend, 04-devops, 05-qa, agent-tasks) - файлы приложены владельцем к задаче; создать пустые разделы с `README.md`: `docs/product/`, `docs/adr/` (+ шаблон ADR `0000-template.md`), `docs/api/` (+ `fixtures/formatting/.gitkeep`), `docs/qa/`, `docs/runbooks/`.
+  3. `backend/` - Gradle 8.x (Kotlin DSL) multi-module, Java 21 toolchain:
      - `settings.gradle.kts`, корневой `build.gradle.kts`, `gradle/libs.versions.toml` (Spring Boot 3.4.x+, springdoc 2.x, Resilience4j, Bucket4j, Flyway, Testcontainers, WireMock, ArchUnit, ShedLock), Gradle wrapper.
      - `build-logic/` с convention-плагинами `posts.java-conventions` (Spotless palantir-java-format, Error Prone, JUnit 5, JaCoCo), `posts.spring-app` (Spring Boot + Jib), `posts.integration-test` (source set `integrationTest`).
      - Модули-заглушки (по одному классу/`package-info.java`): `libs/{common,domain,persistence,messaging,security,ratelimit,content,social-api,social-vk,social-telegram,social-ok,social-max,test-support}`, `apps/{api,scheduler,publisher,media,ingest,notifications}`.
      - `apps/api`: Spring Boot-приложение с Actuator (`/actuator/health`), springdoc, эндпоинт `GET /api/v1/ping` → `{"status":"ok"}`, профиль `local`, один unit-тест и один интеграционный тест на Testcontainers Postgres (`@ServiceConnection`) с Flyway-миграцией `V1__init.sql` (таблица `schema_info` или пустая baseline).
      - Задача `:apps:api:generateOpenApiDocs` → `docs/api/openapi.yaml` (закоммитить результат).
-     - Остальные `apps/*` — минимальные Spring Boot-приложения с Actuator, которые стартуют (`contextLoads`-тест).
+     - Остальные `apps/*` - минимальные Spring Boot-приложения с Actuator, которые стартуют (`contextLoads`-тест).
      - ArchUnit-тест базовых правил зависимостей (`apps` не зависят друг от друга, `domain` не зависит от `apps`).
-  4. `frontend/` — pnpm workspaces (`pnpm-workspace.yaml`), Node 22 (`.nvmrc`):
+  4. `frontend/` - pnpm workspaces (`pnpm-workspace.yaml`), Node 22 (`.nvmrc`):
      - `apps/web`: Next.js 15 (App Router, TypeScript strict, Tailwind, ESLint, Prettier), главная страница-заглушка «Posts», страница `/health`; Vitest с одним тестом.
      - `packages/ui` (заглушка с одним компонентом Button на shadcn/ui), `packages/domain` (заглушка), `packages/api-client`: скрипт `pnpm gen:api` = `openapi-typescript ../../docs/api/openapi.yaml -o src/schema.d.ts` + обёртка `openapi-fetch`; сгенерированный код закоммитить.
   5. `infra/docker-compose/docker-compose.yml`: Postgres 16, Redis 7, RabbitMQ 3.13-management, MinIO (+ init-контейнер создания бакета `posts-media`), ClickHouse, Mailpit, `grafana/otel-lgtm`; healthchecks; именованные volume; порты по умолчанию; `application-local.yml` в `apps/api` настроен на эти сервисы.
   6. `tests/`: каталоги `e2e/`, `load/`, `social-emulator/`, `chaos/` с `README.md` (заполнит QA).
-  7. CI `.github/workflows/ci.yml`: path-filter; джобы `backend` (Temurin 21, setup-gradle, `./gradlew spotlessCheck build integrationTest`), `contract` (генерация OpenAPI + `git diff --exit-code docs/api/openapi.yaml frontend/packages/api-client`), `frontend` (pnpm install, lint, typecheck, test, build), `security` (gitleaks, CodeQL java + javascript-typescript — отдельный workflow `codeql.yml`). Кэширование Gradle и pnpm.
-  8. `.cursor/` — инструкции для облачных агентов (например, `.cursor/environment.json` или `README` для агента): JDK 21, Node 22, pnpm, Docker; команды `make up`, `./gradlew build`, `pnpm --dir frontend install`.
+  7. CI `.github/workflows/ci.yml`: path-filter; джобы `backend` (Temurin 21, setup-gradle, `./gradlew spotlessCheck build integrationTest`), `contract` (генерация OpenAPI + `git diff --exit-code docs/api/openapi.yaml frontend/packages/api-client`), `frontend` (pnpm install, lint, typecheck, test, build), `security` (gitleaks, CodeQL java + javascript-typescript - отдельный workflow `codeql.yml`). Кэширование Gradle и pnpm.
+  8. `.cursor/` - инструкции для облачных агентов (например, `.cursor/environment.json` или `README` для агента): JDK 21, Node 22, pnpm, Docker; команды `make up`, `./gradlew build`, `pnpm --dir frontend install`.
 - **Критерии приёмки:** на чистой машине `make up && make backend` поднимает API, `curl localhost:8080/api/v1/ping` → ok; `make frontend` открывает страницу на `localhost:3000`; `./gradlew build integrationTest` и `pnpm --dir frontend -r test` зелёные; CI в PR зелёный; `docs/` содержит анализ и все ТЗ; README описывает запуск за ≤ 10 мин.
 
 ### DEV-2. Защита веток, метки, доска, Renovate
@@ -40,12 +40,12 @@
 
 ### DEV-3. Сборка и публикация образов
 - **Ветка:** `chore/dev-3-images` · **Зависит от:** DEV-1.
-- **Сделать:** Jib-конфигурация для всех `apps/*` (distroless Java 21 nonroot; для `media` — базовый образ с ffmpeg), JVM-флаги (`-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError`), labels OCI; `frontend/apps/web/Dockerfile` (Next.js standalone, node:22-alpine, non-root); workflow `images.yml` (на push в `main` и теги): push в `ghcr.io/viacheslav666/posts-<svc>:<sha>` и `:<tag>`, SBOM (CycloneDX), подпись cosign keyless, скан Trivy (fail на CRITICAL).
+- **Сделать:** Jib-конфигурация для всех `apps/*` (distroless Java 21 nonroot; для `media` - базовый образ с ffmpeg), JVM-флаги (`-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError`), labels OCI; `frontend/apps/web/Dockerfile` (Next.js standalone, node:22-alpine, non-root); workflow `images.yml` (на push в `main` и теги): push в `ghcr.io/viacheslav666/posts-<svc>:<sha>` и `:<tag>`, SBOM (CycloneDX), подпись cosign keyless, скан Trivy (fail на CRITICAL).
 - **Приёмка:** образы собираются и запускаются локально (`./gradlew jibDockerBuild`, `docker run` → health OK), workflow проходит в GHCR.
 
 ### DEV-4. Локальное окружение для e2e и эмулятора
 - **Ветка:** `chore/dev-4-compose-full` · **Зависит от:** DEV-3, QA-3 (эмулятор).
-- **Сделать:** профиль compose `full` — все backend-приложения из локально собранных образов + web + эмулятор соцсетей; `make up-full`; конфиг публикатора на эмулятор.
+- **Сделать:** профиль compose `full` - все backend-приложения из локально собранных образов + web + эмулятор соцсетей; `make up-full`; конфиг публикатора на эмулятор.
 - **Приёмка:** `make up-full` поднимает всю систему; ping API и web доступны; документация в README.
 
 ### DEV-5. Staging (Terraform + K8s + Argo CD)
@@ -78,7 +78,7 @@
 - **Приёмка:** контракт проверен Фронтом и QA в ревью PR (гейт C); у всех операций `operationId`, описания, примеры.
 
 ### BE-4. Прототип публикационного конвейера (главный риск)
-- **Ветка:** `feat/be-4-pipeline-prototype` · **Зависит от:** BE-2, QA-3 (эмулятор; до его готовности — WireMock).
+- **Ветка:** `feat/be-4-pipeline-prototype` · **Зависит от:** BE-2, QA-3 (эмулятор; до его готовности - WireMock).
 - **Сделать:** `apps/scheduler` (диспетчер `SKIP LOCKED` батчами, отправка с publisher confirms, reaper), `apps/publisher` (`POSTS_PUBLISHER_NETWORK`, listener на виртуальных потоках, переход состояний, идемпотентность, классификация ошибок, ретраи через `next_attempt_at`), Bucket4j-лимитер на Redis, Resilience4j CircuitBreaker/TimeLimiter, адаптер-заглушка `social-telegram` против эмулятора; метрики `posts_publication_delay_seconds`, `posts_publications_total{network,result}`.
 - **Приёмка:** интеграционный тест: 10 000 публикаций на одну минуту → все опубликованы, 0 дублей в эмуляторе, p99 задержки < 60 с локально; тесты TC-PUB-02/03/06/07 (`05-qa.md`) автоматизированы.
 
@@ -96,7 +96,7 @@
 
 ### BE-15. ОРД и маркировка рекламы + полный паритет опций поста (E10)
 - **Ветка:** `feat/be-15-ord-ad-marking` · **Зависит от:** BE-9, BE-10, **AN-P**.
-- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` v1.0.1+: Flyway `ord_*`, `OrdProvider` с **полноценными** адаптерами VK ОРД и ОРД Яндекс (не stub; ОЗОН/др. — позже через тот же интерфейс); клиентский API-ключ ОРД (Posts не субсидирует); register creative → erid, вставка маркера, job актов/статистики, расширение DTO поста (Donut, co-authors, poll, stop/del_task, ads); OpenAPI + WireMock ORD.
+- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` v1.0.1+: Flyway `ord_*`, `OrdProvider` с **полноценными** адаптерами VK ОРД и ОРД Яндекс (не stub; ОЗОН/др. - позже через тот же интерфейс); клиентский API-ключ ОРД (Posts не субсидирует); register creative → erid, вставка маркера, job актов/статистики, расширение DTO поста (Donut, co-authors, poll, stop/del_task, ads); OpenAPI + WireMock ORD.
 - **Приёмка:** TC-AD-* (интеграционные) зелёные; fail-closed без erid; идемпотентность `external_id`.
 
 ### BE-16. Отложенные истории VK/OK (E11)
@@ -106,7 +106,7 @@
 
 ### BE-17. Граббер + RSS Ingest (E17)
 - **Ветка:** `feat/be-17-grabber-ingest` · **Зависит от:** BE-9, BE-10, apps/ingest, **AN-P**.
-- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+: `automation_rules`, runs/items, дедуп, атрибуция, RSS; **`publish_mode=moderate` по умолчанию и как обязательный режим продукта**, `auto` — опционально; очередь модерации (approve/reject/edit-and-approve); публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
+- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+: `automation_rules`, runs/items, дедуп, атрибуция, RSS; **`publish_mode=moderate` по умолчанию и как обязательный режим продукта**, `auto` - опционально; очередь модерации (approve/reject/edit-and-approve); публикация только через конвейер. **BE-17b** (отдельный PR): HTML-сайты + SSRF.
 - **Приёмка:** TC-GRAB-* P0 (в т.ч. default moderate без публикации до approve); повторный ingest не создаёт дублей публикаций.
 
 ### BE-23. Боевые адаптеры VK и OK (медиа, опции, закреп, сверка без эмулятора)
@@ -120,7 +120,7 @@
 
 ### FE-1. Каркас приложения и дизайн-система
 - **Ветка:** `feat/fe-1-app-shell` · **Зависит от:** DEV-1.
-- **Сделать:** дизайн-токены (светлая/тёмная тема), базовые компоненты в `frontend/packages/ui` (Button, Input, Select, Dialog, Sheet, Tabs, Toast, Tooltip, Badge статусов, Avatar, NetworkIcon, Skeleton, EmptyState), Storybook с a11y-аддоном, layout приложения (шапка, боковое меню, переключатель workspace — заглушки), i18n (next-intl, ru), TanStack Query provider, обработка ошибок.
+- **Сделать:** дизайн-токены (светлая/тёмная тема), базовые компоненты в `frontend/packages/ui` (Button, Input, Select, Dialog, Sheet, Tabs, Toast, Tooltip, Badge статусов, Avatar, NetworkIcon, Skeleton, EmptyState), Storybook с a11y-аддоном, layout приложения (шапка, боковое меню, переключатель workspace - заглушки), i18n (next-intl, ru), TanStack Query provider, обработка ошибок.
 - **Приёмка:** Storybook собирается в CI; Lighthouse a11y ≥ 90 на layout; тёмная тема работает.
 
 ### FE-2. Публичные страницы и auth-экраны (на моках)
@@ -142,17 +142,17 @@
 
 ### FE-12. Паритет редактора поста + UI маркировки ОРД
 - **Ветка:** `feat/fe-12-ord-ad-editor` · **Зависит от:** FE-4, FE-8, BE-15, **AN-P**.
-- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` — полные опции поста, экран настроек ОРД, контрагенты, предпросмотр «Реклама»+erid, валидация ИНН/ККТУ.
+- **Сделать:** по `docs/product/features/scheduled-posts-and-ad-marking.md` - полные опции поста, экран настроек ОРД, контрагенты, предпросмотр «Реклама»+erid, валидация ИНН/ККТУ.
 - **Приёмка:** e2e TC-AD-01…04 на моках/MSW; a11y редактора без регрессий.
 
 ### FE-13. UI отложенных историй
 - **Ветка:** `feat/fe-13-scheduled-stories` · **Зависит от:** FE-7, FE-12, BE-16, **AN-P**.
-- **Сделать:** по `docs/product/features/scheduled-stories.md` v1.0.1+ — создать историю, список/фильтр календаря, VK story-connect, batch, TTL/ссылки, ads. Instagram не показывать в UI (Q-STORY-05).
+- **Сделать:** по `docs/product/features/scheduled-stories.md` v1.0.1+ - создать историю, список/фильтр календаря, VK story-connect, batch, TTL/ссылки, ads. Instagram не показывать в UI (Q-STORY-05).
 - **Приёмка:** e2e TC-STORY P0 на моках; сети TG/Max скрыты с пояснением; IG отсутствует в селекторе.
 
 ### FE-14. UI граббера / RSS
 - **Ветка:** `feat/fe-14-grabber` · **Зависит от:** FE-6, BE-17, **AN-P**.
-- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+ — правила, активные, ручной run, история, **очередь модерации как default UX** (`moderate`; переключение на `auto` — опционально с предупреждением), юр. чекбокс.
+- **Сделать:** по `docs/product/features/grabber.md` v1.0.1+ - правила, активные, ручной run, история, **очередь модерации как default UX** (`moderate`; переключение на `auto` - опционально с предупреждением), юр. чекбокс.
 - **Приёмка:** e2e TC-GRAB P0 на моках (default moderate; approve path).
 
 ---
@@ -161,12 +161,12 @@
 
 ### AN-1. PRD MVP, глоссарий, роли
 - **Ветка:** `docs/an-1-prd-mvp` · **Зависит от:** DEV-1.
-- **Сделать:** `docs/product/PRD-MVP.md`, `glossary.md`, `roles-permissions.md` (матрица роль × действие в машиночитаемом виде — таблица/YAML для автогенерации RBAC-тестов) по `01-analyst.md`.
+- **Сделать:** `docs/product/PRD-MVP.md`, `glossary.md`, `roles-permissions.md` (матрица роль × действие в машиночитаемом виде - таблица/YAML для автогенерации RBAC-тестов) по `01-analyst.md`.
 - **Приёмка:** утверждено владельцем (гейт A); Бэк и QA подтвердили, что матрица пригодна для автотестов.
 
 ### AN-2. Матрица возможностей сетей
 - **Ветка:** `docs/an-2-network-capabilities` · **Зависит от:** AN-1.
-- **Сделать:** `docs/product/network-capabilities.md` + `docs/api/fixtures/network-capabilities.yaml` (лимиты текста/медиа, форматы, форматирование, закреп, удаление, первый комментарий, истории, лимиты API, токены) для VK, Telegram, OK, Max, Rutube — каждое значение со ссылкой на официальную документацию и датой проверки.
+- **Сделать:** `docs/product/network-capabilities.md` + `docs/api/fixtures/network-capabilities.yaml` (лимиты текста/медиа, форматы, форматирование, закреп, удаление, первый комментарий, истории, лимиты API, токены) для VK, Telegram, OK, Max, Rutube - каждое значение со ссылкой на официальную документацию и датой проверки.
 - **Приёмка:** Бэк использует YAML для `NetworkCapabilities` и конфигурации лимитов; нет значений без источника.
 
 ### AN-3. User stories E1–E6 с критериями приёмки
@@ -175,14 +175,14 @@
 - **Приёмка:** каждая P0 story соответствует Definition of Ready (`01-analyst.md` §10); QA подтвердил тестируемость.
 
 ### AN-4. Ревью контракта API
-- **Ветка:** — (ревью PR BE-3) · **Зависит от:** BE-3.
-- **Сделать:** проверить, что `openapi.yaml` покрывает stories E1–E6; замечания — комментариями в PR.
+- **Ветка:** - (ревью PR BE-3) · **Зависит от:** BE-3.
+- **Сделать:** проверить, что `openapi.yaml` покрывает stories E1–E6; замечания - комментариями в PR.
 
 ### AN-P. Матрица паритета vposter и детальные спецификации ключевых инструментов
 - **Ветка:** `feat/an-p-vposter-parity` · **Зависит от:** AN-1, AN-2, AN-3. **Блокирует:** BE-15…17, FE-12…14, QA-10…12.
 - **Сделать:**
-  1. Исследование vposter (help, API v3, блог, тарифы) + API сетей + ФЗ-38/ОРД — со ссылками.
-  2. `docs/product/parity-matrix.md` — все функции оригинала.
+  1. Исследование vposter (help, API v3, блог, тарифы) + API сетей + ФЗ-38/ОРД - со ссылками.
+  2. `docs/product/parity-matrix.md` - все функции оригинала.
   3. Спеки: `features/scheduled-posts-and-ad-marking.md`, `scheduled-stories.md`, `grabber.md` (UI, сети, модель, OpenAPI, надёжность, RBAC, юр., AC, TC).
   4. `parity-open-questions.md` + допущения.
   5. Обновить `02-backend.md`, `03-frontend.md`, `05-qa.md`, `agent-tasks.md` (только дополнения; не ломать BE-1…7, FE-1…6, QA-2…6).
@@ -209,7 +209,7 @@
 
 ### QA-3. Эмулятор соцсетей
 - **Ветка:** `feat/qa-3-social-emulator` · **Зависит от:** DEV-1. **Блокирует:** BE-4 (полноценно), DEV-4.
-- **Сделать:** `tests/social-emulator` — лёгкое Spring Boot-приложение (Java 21) с эндпоинтами, имитирующими VK API (`wall.post` с `guid`, загрузка фото, ошибки 6/9/10/15/100), Telegram Bot API (`sendMessage`, `sendPhoto`, `sendMediaGroup`, 429 + `retry_after`), OK и Max (базовая публикация); управляющий API для сценариев (задержки, доля ошибок, «успех без ответа»/обрыв соединения), счётчики созданных постов и API сверки дублей; Docker-образ (Jib) и сервис в docker-compose.
+- **Сделать:** `tests/social-emulator` - лёгкое Spring Boot-приложение (Java 21) с эндпоинтами, имитирующими VK API (`wall.post` с `guid`, загрузка фото, ошибки 6/9/10/15/100), Telegram Bot API (`sendMessage`, `sendPhoto`, `sendMediaGroup`, 429 + `retry_after`), OK и Max (базовая публикация); управляющий API для сценариев (задержки, доля ошибок, «успех без ответа»/обрыв соединения), счётчики созданных постов и API сверки дублей; Docker-образ (Jib) и сервис в docker-compose.
 - **Приёмка:** сценарии ошибок включаются через управляющий API; есть README и тесты эмулятора; бэк-прототип BE-4 работает против него.
 
 ### QA-4. Тест-план MVP, тестовые данные, первые кейсы
@@ -242,7 +242,7 @@
   3. Сквозной сценарий рекламный пост с медиа → erid → пометка нужного вида → акт и статистика (`Qa13ParityOrdE2EIT`, `Qa13AdPlacementPipelineIT`).
   4. История с настоящим JPEG из S3 (`Qa13StoryRealMediaIT`).
   5. Граббер: фильтры + похожие дубли SimHash (`GrabberQa13IntegrationTest`).
-  6. VK ОРД nightly только в `https://api-sandbox.ord.vk.com` (`OrdSandboxGuard`); Яндекс ОРД — skip без `YANDEX_ORD_SANDBOX_TOKEN`; PR-CI на WireMock.
+  6. VK ОРД nightly только в `https://api-sandbox.ord.vk.com` (`OrdSandboxGuard`); Яндекс ОРД - skip без `YANDEX_ORD_SANDBOX_TOKEN`; PR-CI на WireMock.
   7. Обновить `docs/qa/traceability-*.md` + отчёт `p0-parity-coverage-report.md` (=100%).
 - **Приёмка:** nightly зелёный; P0 AC паритета 100%; PR-CI зелёный. Не менять пин `aquasecurity/trivy-action@v0.36.0`.
 

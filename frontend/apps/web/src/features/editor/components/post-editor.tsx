@@ -409,7 +409,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       toast({
         title: t('actions.blockedTitle'),
         description: t('options.times.invalidError', {
-          times: [...timesCheck.invalid, ...timesCheck.duplicates].join(', ') || '—',
+          times: [...timesCheck.invalid, ...timesCheck.duplicates].join(', ') || '-',
         }),
         variant: 'destructive',
       });

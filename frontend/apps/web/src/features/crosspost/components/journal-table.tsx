@@ -191,7 +191,7 @@ function JournalRow({
   const tStatus = useTranslations('automations.crosspost.itemStatus');
   const stamp = item.createdAt
     ? format(new Date(item.createdAt), 'dd MMM HH:mm', { locale: ru })
-    : '—';
+    : '-';
   const permalink = buildSourcePermalink(item.sourceNetwork, item.sourceRemoteId, sourceChannel);
   const status = (item.status ?? 'received') as ItemStatus;
 
@@ -214,7 +214,7 @@ function JournalRow({
               {item.sourceRemoteId ?? permalink}
             </a>
           ) : (
-            <span>{item.sourceRemoteId ?? '—'}</span>
+            <span>{item.sourceRemoteId ?? '-'}</span>
           )}
           {item.postId ? (
             <div>
@@ -247,7 +247,7 @@ function JournalRow({
             {t('retry')}
           </Button>
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground">-</span>
         )}
       </td>
     </tr>

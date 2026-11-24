@@ -1,4 +1,4 @@
-# E11 — Отложенные истории (TC-STORY)
+# E11 - Отложенные истории (TC-STORY)
 
 | | |
 |---|---|
@@ -26,24 +26,24 @@
 | AC-STORY-12 | RBAC Author | TC-STORY-14 | P0 | авто |
 | AC-STORY-13 | Идемпотентность | TC-STORY-15 | P0 | авто |
 | AC-STORY-14 | Календарь фильтр | TC-STORY-16 | P1 | авто |
-| — | Медиа-лимиты VK | TC-STORY-17 | P0 | авто |
-| — | del_task / stop_at | TC-STORY-18 | P1 | авто |
-| — | IDOR чужой workspace | TC-STORY-19 | P0 | авто |
-| — | waiting_for_channel | TC-STORY-20 | P0 | авто |
-| — | Bulk delete stories | TC-STORY-21 | P1 | авто |
-| — | Редактирование до publish | TC-STORY-22 | P1 | авто |
-| — | Recurrence everyday materialize | TC-STORY-23 | P0 | авто |
-| — | Ads fail-closed без erid | TC-STORY-24 | P0 | авто |
-| — | Batch limit 50 | TC-STORY-25 | P2 | авто |
-| — | Audit events | TC-STORY-26 | P1 | авто |
-| — | Capabilities stories flags | TC-STORY-27 | P0 | contract |
-| — | Max unsupported | TC-STORY-28 | P1 | авто |
-| — | Telegram postStory documented OOS | TC-STORY-29 | P1 | ручной / doc |
-| — | VK video ≤350MB reject | TC-STORY-30 | P0 | авто |
+| - | Медиа-лимиты VK | TC-STORY-17 | P0 | авто |
+| - | del_task / stop_at | TC-STORY-18 | P1 | авто |
+| - | IDOR чужой workspace | TC-STORY-19 | P0 | авто |
+| - | waiting_for_channel | TC-STORY-20 | P0 | авто |
+| - | Bulk delete stories | TC-STORY-21 | P1 | авто |
+| - | Редактирование до publish | TC-STORY-22 | P1 | авто |
+| - | Recurrence everyday materialize | TC-STORY-23 | P0 | авто |
+| - | Ads fail-closed без erid | TC-STORY-24 | P0 | авто |
+| - | Batch limit 50 | TC-STORY-25 | P2 | авто |
+| - | Audit events | TC-STORY-26 | P1 | авто |
+| - | Capabilities stories flags | TC-STORY-27 | P0 | contract |
+| - | Max unsupported | TC-STORY-28 | P1 | авто |
+| - | Telegram postStory documented OOS | TC-STORY-29 | P1 | ручной / doc |
+| - | VK video ≤350MB reject | TC-STORY-30 | P0 | авто |
 
 ---
 
-## TC-STORY-01 — Запланировать фото-историю VK
+## TC-STORY-01 - Запланировать фото-историю VK
 
 | Поле | Значение |
 |---|---|
@@ -63,8 +63,8 @@
 | № | Действие | Данные |
 |---|---|---|
 | 1 | POST `/api/v1/posts` | `contentKind=story`, media, channel VK, `scheduledAt=now+2m`, `story.ttl=ttl_24h` |
-| 2 | Дождаться scheduler | — |
-| 3 | Проверить publication + эмулятор | — |
+| 2 | Дождаться scheduler | - |
+| 3 | Проверить publication + эмулятор | - |
 
 ### Ожидание
 - Пост `content_kind=story`, publication `succeeded`
@@ -73,7 +73,7 @@
 
 ---
 
-## TC-STORY-02 — Видео-история OK Moments
+## TC-STORY-02 - Видео-история OK Moments
 
 | Поле | Значение |
 |---|---|
@@ -87,7 +87,7 @@
 
 ---
 
-## TC-STORY-03 — TTL 1/12/24/48; OK effective 24h
+## TC-STORY-03 - TTL 1/12/24/48; OK effective 24h
 
 | Поле | Значение |
 |---|---|
@@ -97,11 +97,11 @@
 | Сети | VK, OK |
 
 ### Ожидание
-Все 4 значения сохраняются в `story.ttl`. Для OK в `publication.meta.effective_ttl=ttl_24h` и UI warning; job не падает. Для VK ttl уходит в адаптер/meta как выбранный (если сеть не поддерживает кастом — зафиксировать фактическое поведение адаптера в тесте).
+Все 4 значения сохраняются в `story.ttl`. Для OK в `publication.meta.effective_ttl=ttl_24h` и UI warning; job не падает. Для VK ttl уходит в адаптер/meta как выбранный (если сеть не поддерживает кастом - зафиксировать фактическое поведение адаптера в тесте).
 
 ---
 
-## TC-STORY-04 — VK CTA: валидная внутренняя ссылка
+## TC-STORY-04 - VK CTA: валидная внутренняя ссылка
 
 | Поле | Значение |
 |---|---|
@@ -115,7 +115,7 @@
 
 ---
 
-## TC-STORY-05 — VK CTA: внешний URL → 422
+## TC-STORY-05 - VK CTA: внешний URL → 422
 
 | Поле | Значение |
 |---|---|
@@ -129,7 +129,7 @@
 
 ---
 
-## TC-STORY-06 — VK без story-connect блокирует schedule
+## TC-STORY-06 - VK без story-connect блокирует schedule
 
 | Поле | Значение |
 |---|---|
@@ -139,11 +139,11 @@
 | Сети | VK |
 
 ### Ожидание
-`story_connection_status=missing` → schedule `422 story_connection_required`. После `POST .../story-connection` → `ready` — повторный schedule успешен.
+`story_connection_status=missing` → schedule `422 story_connection_required`. После `POST .../story-connection` → `ready` - повторный schedule успешен.
 
 ---
 
-## TC-STORY-07 — OK не требует отдельного story-connect
+## TC-STORY-07 - OK не требует отдельного story-connect
 
 | Поле | Значение |
 |---|---|
@@ -153,11 +153,11 @@
 | Сети | OK |
 
 ### Ожидание
-Канал OK в статусе обычного `ready` без отдельного story-флага — schedule story разрешён (при наличии PHOTO_CONTENT+VALUABLE_ACCESS в токене фикстуры).
+Канал OK в статусе обычного `ready` без отдельного story-флага - schedule story разрешён (при наличии PHOTO_CONTENT+VALUABLE_ACCESS в токене фикстуры).
 
 ---
 
-## TC-STORY-08 — Everyday + pause/resume
+## TC-STORY-08 - Everyday + pause/resume
 
 | Поле | Значение |
 |---|---|
@@ -170,7 +170,7 @@ Recurrence materialize ближайших экземпляров; `POST pause` �
 
 ---
 
-## TC-STORY-09 — Автоудаление через 2 часа
+## TC-STORY-09 - Автоудаление через 2 часа
 
 | Поле | Значение |
 |---|---|
@@ -180,11 +180,11 @@ Recurrence materialize ближайших экземпляров; `POST pause` �
 | Сети | VK (эмулятор) |
 
 ### Ожидание
-После publish создан `scheduled_actions` `delete_story` с `run_at≈published_at+2h`. По срабатыванию — `deleteStory`; повтор action идемпотентен (0 ошибок / 0 дубль-delete crash).
+После publish создан `scheduled_actions` `delete_story` с `run_at≈published_at+2h`. По срабатыванию - `deleteStory`; повтор action идемпотентен (0 ошибок / 0 дубль-delete crash).
 
 ---
 
-## TC-STORY-10 — Пакет из 10 медиа
+## TC-STORY-10 - Пакет из 10 медиа
 
 | Поле | Значение |
 |---|---|
@@ -193,11 +193,11 @@ Recurrence materialize ближайших экземпляров; `POST pause` �
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-`POST /api/v1/stories/batch` с 10 файлами, step 5 мин → 10 posts `content_kind=story`, 10 publications; календарь показывает все; partial fail одного файла не откатывает весь пакет (или all-or-nothing — зафиксировать выбранную политику BE; по умолчанию **best-effort с отчётом**).
+`POST /api/v1/stories/batch` с 10 файлами, step 5 мин → 10 posts `content_kind=story`, 10 publications; календарь показывает все; partial fail одного файла не откатывает весь пакет (или all-or-nothing - зафиксировать выбранную политику BE; по умолчанию **best-effort с отчётом**).
 
 ---
 
-## TC-STORY-11 — Маркировка истории VK (erid до publish)
+## TC-STORY-11 - Маркировка истории VK (erid до publish)
 
 | Поле | Значение |
 |---|---|
@@ -211,7 +211,7 @@ Recurrence materialize ближайших экземпляров; `POST pause` �
 
 ---
 
-## TC-STORY-12 — Маркировка истории OK; запрет для не-VK/OK
+## TC-STORY-12 - Маркировка истории OK; запрет для не-VK/OK
 
 | Поле | Значение |
 |---|---|
@@ -225,7 +225,7 @@ Ads на OK story разрешены. Попытка ads на story с сеть�
 
 ---
 
-## TC-STORY-13 — Telegram / Instagram* / Rutube недоступны для story
+## TC-STORY-13 - Telegram / Instagram* / Rutube недоступны для story
 
 | Поле | Значение |
 |---|---|
@@ -239,7 +239,7 @@ Capabilities: `stories=false` / отсутствует. Create с `network=teleg
 
 ---
 
-## TC-STORY-14 — Author: draft ok, schedule 403
+## TC-STORY-14 - Author: draft ok, schedule 403
 
 | Поле | Значение |
 |---|---|
@@ -253,7 +253,7 @@ Author создаёт draft story; `POST schedule` → 403. Editor в том ж�
 
 ---
 
-## TC-STORY-15 — Идемпотентность повторной доставки
+## TC-STORY-15 - Идемпотентность повторной доставки
 
 | Поле | Значение |
 |---|---|
@@ -263,11 +263,11 @@ Author создаёт draft story; `POST schedule` → 403. Editor в том ж�
 | Уровень | integration (publisher) |
 
 ### Ожидание
-Дважды доставить одно и то же сообщение `publish.*` для story → в эмуляторе **1** remote story; вторая обработка — no-op по `remote_story_id` / findExistingStory.
+Дважды доставить одно и то же сообщение `publish.*` для story → в эмуляторе **1** remote story; вторая обработка - no-op по `remote_story_id` / findExistingStory.
 
 ---
 
-## TC-STORY-16 — Фильтр календаря «Истории»
+## TC-STORY-16 - Фильтр календаря «Истории»
 
 | Поле | Значение |
 |---|---|
@@ -281,7 +281,7 @@ Author создаёт draft story; `POST schedule` → 403. Editor в том ж�
 
 ---
 
-## TC-STORY-17 — Недопустимый формат медиа
+## TC-STORY-17 - Недопустимый формат медиа
 
 | Поле | Значение |
 |---|---|
@@ -294,7 +294,7 @@ Author создаёт draft story; `POST schedule` → 403. Editor в том ж�
 
 ---
 
-## TC-STORY-18 — stop_at и delete_after_publish
+## TC-STORY-18 - stop_at и delete_after_publish
 
 | Поле | Значение |
 |---|---|
@@ -302,11 +302,11 @@ Author создаёт draft story; `POST schedule` → 403. Editor в том ж�
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-`stop_at` останавливает materialize после даты. `deleteAfterPublish=true` (`del_task`) — после успешного publish сущность скрывается/удаляется из активных задач сервиса, publication history сохраняется для аудита.
+`stop_at` останавливает materialize после даты. `deleteAfterPublish=true` (`del_task`) - после успешного publish сущность скрывается/удаляется из активных задач сервиса, publication history сохраняется для аудита.
 
 ---
 
-## TC-STORY-19 — IDOR: чужой workspace
+## TC-STORY-19 - IDOR: чужой workspace
 
 | Поле | Значение |
 |---|---|
@@ -319,7 +319,7 @@ GET/PATCH/DELETE story другого workspace → **404** (не 403).
 
 ---
 
-## TC-STORY-20 — Отзыв stories-токена → waiting_for_channel
+## TC-STORY-20 - Отзыв stories-токена → waiting_for_channel
 
 | Поле | Значение |
 |---|---|
@@ -328,11 +328,11 @@ GET/PATCH/DELETE story другого workspace → **404** (не 403).
 | Сети | VK |
 
 ### Ожидание
-Перед run_at отозвать story token в эмуляторе → publication `waiting_for_channel` + уведомление Admin/Editor; после реконнекта и retry — publish.
+Перед run_at отозвать story token в эмуляторе → publication `waiting_for_channel` + уведомление Admin/Editor; после реконнекта и retry - publish.
 
 ---
 
-## TC-STORY-21 — Bulk delete запланированных историй
+## TC-STORY-21 - Bulk delete запланированных историй
 
 | Поле | Значение |
 |---|---|
@@ -344,7 +344,7 @@ GET/PATCH/DELETE story другого workspace → **404** (не 403).
 
 ---
 
-## TC-STORY-22 — Редактирование до публикации
+## TC-STORY-22 - Редактирование до публикации
 
 | Поле | Значение |
 |---|---|
@@ -352,11 +352,11 @@ GET/PATCH/DELETE story другого workspace → **404** (не 403).
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-PATCH media/ttl/link до `publishing` успешен. После `published` — 409/422 (редактирование remote story — out of MVP, только delete+create).
+PATCH media/ttl/link до `publishing` успешен. После `published` - 409/422 (редактирование remote story - out of MVP, только delete+create).
 
 ---
 
-## TC-STORY-23 — Материализация recurrence weekdays
+## TC-STORY-23 - Материализация recurrence weekdays
 
 | Поле | Значение |
 |---|---|
@@ -368,7 +368,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-24 — Ads fail-closed без erid
+## TC-STORY-24 - Ads fail-closed без erid
 
 | Поле | Значение |
 |---|---|
@@ -381,7 +381,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-25 — Batch > 50 → 422
+## TC-STORY-25 - Batch > 50 → 422
 
 | Поле | Значение |
 |---|---|
@@ -393,7 +393,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-26 — Audit: story.created / connection.ready
+## TC-STORY-26 - Audit: story.created / connection.ready
 
 | Поле | Значение |
 |---|---|
@@ -405,7 +405,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-27 — Contract: capabilities.stories
+## TC-STORY-27 - Contract: capabilities.stories
 
 | Поле | Значение |
 |---|---|
@@ -418,7 +418,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-28 — Max канал нельзя выбрать для story
+## TC-STORY-28 - Max канал нельзя выбрать для story
 
 | Поле | Значение |
 |---|---|
@@ -430,7 +430,7 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 
 ---
 
-## TC-STORY-29 — Документация OOS Telegram (регрессия продукта)
+## TC-STORY-29 - Документация OOS Telegram (регрессия продукта)
 
 | Поле | Значение |
 |---|---|
@@ -439,11 +439,11 @@ PATCH media/ttl/link до `publishing` успешен. После `published` �
 | Тип | регрессия / doc |
 
 ### Ожидание
-В UI/help Posts явно: Telegram stories out of scope (Bot API только business; каналы — MTProto). Нет кнопки «История» на TG-канале.
+В UI/help Posts явно: Telegram stories out of scope (Bot API только business; каналы - MTProto). Нет кнопки «История» на TG-канале.
 
 ---
 
-## TC-STORY-30 — VK video > 350 МБ отклоняется
+## TC-STORY-30 - VK video > 350 МБ отклоняется
 
 | Поле | Значение |
 |---|---|

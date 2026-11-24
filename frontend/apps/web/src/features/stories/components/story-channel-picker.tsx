@@ -197,7 +197,7 @@ export function StoryChannelPicker({
             </div>
           ) : null}
 
-          {/* Instagram must never appear (Q-STORY-05) — assert via e2e absence. */}
+          {/* Instagram must never appear (Q-STORY-05) - assert via e2e absence. */}
           <div className="sr-only" data-testid="story-ig-absent" aria-hidden>
             ig-absent
           </div>

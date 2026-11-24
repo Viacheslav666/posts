@@ -1,10 +1,10 @@
 # Шаблон тест-кейса
 
-Скопируйте в `docs/qa/test-cases/<эпик>.md` или заведите Issue с метками `role:qa`, `phase:*`, приоритетом кейса. ID — стабильный: `TC-<AREA>-NN` (AUTH, RBAC, IDOR, CH, POST, PUB, BILL, NOTIF, …).
+Скопируйте в `docs/qa/test-cases/<эпик>.md` или заведите Issue с метками `role:qa`, `phase:*`, приоритетом кейса. ID - стабильный: `TC-<AREA>-NN` (AUTH, RBAC, IDOR, CH, POST, PUB, BILL, NOTIF, …).
 
 ---
 
-## TC-AREA-00 — Краткое название
+## TC-AREA-00 - Краткое название
 
 | Поле | Значение |
 |---|---|

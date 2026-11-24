@@ -49,7 +49,7 @@ describe('suggest config helpers', () => {
       rejectPolicy: 'keep' as const,
       publishEditMode: 'fallback_new_post' as const,
       enrichmentHashtags: ['#posts'],
-      enrichmentAppendText: '— команда Posts',
+      enrichmentAppendText: '- команда Posts',
       adsPauseAfterMinutes: 90,
     };
 
@@ -88,7 +88,7 @@ describe('suggest config helpers', () => {
     expect(restored.rejectPolicy).toBe('keep');
     expect(restored.publishEditMode).toBe('fallback_new_post');
     expect(restored.enrichmentHashtags).toEqual(['#posts']);
-    expect(restored.enrichmentAppendText).toBe('— команда Posts');
+    expect(restored.enrichmentAppendText).toBe('- команда Posts');
     expect(restored.adsPauseAfterMinutes).toBe(90);
   });
 

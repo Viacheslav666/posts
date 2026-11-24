@@ -2,7 +2,7 @@
 
 SMM-платформа отложенного постинга (аналог и конкурент [vposter.ru](https://vposter.ru)): планирование и гарантированная публикация в VK, Telegram, OK, Max и др., командная работа, аналитика.
 
-Репозиторий: монорепо `Viacheslav666/posts`. Целевая нагрузка — 100 000 пользователей с запасом ×3.
+Репозиторий: монорепо `Viacheslav666/posts`. Целевая нагрузка - 100 000 пользователей с запасом ×3.
 
 ## Структура
 
@@ -14,7 +14,7 @@ tests/       e2e, load, social-emulator, chaos
 docs/        analysis, specs, ADR, OpenAPI, product, qa, runbooks
 ```
 
-Подробности: [`docs/specs/00-overview.md`](docs/specs/00-overview.md), задачи агентов — [`docs/specs/agent-tasks.md`](docs/specs/agent-tasks.md).
+Подробности: [`docs/specs/00-overview.md`](docs/specs/00-overview.md), задачи агентов - [`docs/specs/agent-tasks.md`](docs/specs/agent-tasks.md).
 
 ## Быстрый старт (≤ 10 минут)
 
@@ -124,9 +124,9 @@ make wait-full
 | Grafana (otel-lgtm) | 3001 |
 | Social emulator | 8090 |
 
-Учётки по умолчанию — в [`.env.example`](.env.example).
+Учётки по умолчанию - в [`.env.example`](.env.example).
 
-Эмулятор соцсетей (QA-3): `make emulator` или `make up-emulator` (Jib-образ + compose profile `emulator`). Описание API — [`tests/social-emulator/README.md`](tests/social-emulator/README.md).
+Эмулятор соцсетей (QA-3): `make emulator` или `make up-emulator` (Jib-образ + compose profile `emulator`). Описание API - [`tests/social-emulator/README.md`](tests/social-emulator/README.md).
 
 ## Документация
 
@@ -137,4 +137,4 @@ make wait-full
 
 ## Лицензия
 
-Proprietary — All rights reserved (см. `LICENSE`).
+Proprietary - All rights reserved (см. `LICENSE`).

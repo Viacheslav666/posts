@@ -22,21 +22,21 @@
 | TC-STORY-15 | P0 | `StoryVkPipelineIT#tcStory15NoDuplicateOnRedelivery` / `#tcStoryRetryNoDuplicate`; `StoryOkPipelineIT#tcStory15OkNoDuplicate`; `VkStoryAdapterWireMockTest#findExistingStory` | CI | авто |
 | TC-STORY-16 | P1 | `StoriesApiIntegrationTest#calendarStoryFilter`; e2e calendar filter | CI | авто |
 | TC-STORY-17 | P0 | `StoriesQa11IntegrationTest#tcStory17InvalidBmpMedia`; `StorySupportTest#mediaLimits` | CI | авто |
-| TC-STORY-18 | P1 | — | — | кандидат |
+| TC-STORY-18 | P1 | - | - | кандидат |
 | TC-STORY-19 | P0 | `StoriesQa11IntegrationTest#tcStory19IdorOtherWorkspace` | CI | авто |
 | TC-STORY-20 | P0 | `StoryVkPipelineIT#tcStory20WaitingForChannel`; emulator `VkStoriesFaultTest#revokedStoryTokenReturnsAuthError` | CI | авто |
-| TC-STORY-21 | P1 | — | — | кандидат |
-| TC-STORY-22 | P1 | — | — | кандидат |
+| TC-STORY-21 | P1 | - | - | кандидат |
+| TC-STORY-22 | P1 | - | - | кандидат |
 | TC-STORY-23 | P0 | `StoriesQa11IntegrationTest#tcStory23WeekdaysMaterialize` | CI | авто |
 | TC-STORY-24 | P0 | `StoriesQa11IntegrationTest#tcStory24Ord5xxFailClosed`; `StoryVkPipelineIT#tcStory24AdFailClosedWithoutErid` | CI | авто |
 | TC-STORY-25 | P2 | `StoriesQa11IntegrationTest#tcStory25BatchOverLimit` | CI | авто |
-| TC-STORY-26 | P1 | — | — | кандидат |
+| TC-STORY-26 | P1 | - | - | кандидат |
 | TC-STORY-27 | P0 | `NetworkCapabilitiesStoriesIT#storiesCapabilityFlags` | CI | авто |
 | TC-STORY-28 | P1 | `StoriesQa11IntegrationTest#tcStory28MaxUnsupported` | CI | авто |
-| TC-STORY-29 | P1 | — | ручной / doc | checklist |
+| TC-STORY-29 | P1 | - | ручной / doc | checklist |
 | TC-STORY-30 | P0 | `StoriesQa11IntegrationTest#tcStory30OversizedVideoRejected` (`story_media_size`, ≤50 MB); `StorySupportTest#mediaLimits` | CI | авто |
 | FE P0 UX | P0 | `tests/e2e/specs/scheduled-stories.spec.ts` (MSW) | CI `e2e-smoke` | авто |
-| Emulator stories/moments | — | `VkApiTest`; `VkStoriesFaultTest`; `OkMaxApiTest`; `OkMomentsFaultTest` | CI `social-emulator` | авто |
+| Emulator stories/moments | - | `VkApiTest`; `VkStoriesFaultTest`; `OkMaxApiTest`; `OkMomentsFaultTest` | CI `social-emulator` | авто |
 
 ## Эмулятор (QA-11)
 

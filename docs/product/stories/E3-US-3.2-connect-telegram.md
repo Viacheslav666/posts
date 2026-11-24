@@ -11,7 +11,7 @@ depends_on: [US-2.2]
 
 | Поле | Значение |
 |---|---|
-| Эпик | **E3** — Каналы (подключение соцсетей) |
+| Эпик | **E3** - Каналы (подключение соцсетей) |
 | ID | `US-3.2` |
 | Приоритет | **P0** |
 | Фаза | 1 (MVP) |
@@ -33,7 +33,7 @@ depends_on: [US-2.2]
    **Then** канал появляется со статусом `active`
 2. **Given** проверка прав бота
    **When** система валидирует подключение
-   **Then** требуются `can_post_messages`, `can_edit_messages`, `can_delete_messages`, `can_pin_messages`; при отсутствии — `insufficient_permissions` и инструкция
+   **Then** требуются `can_post_messages`, `can_edit_messages`, `can_delete_messages`, `can_pin_messages`; при отсутствии - `insufficient_permissions` и инструкция
 3. **Given** бот не в чате / неверный username
    **When** попытка подключить
    **Then** понятная ошибка без создания «битого» канала

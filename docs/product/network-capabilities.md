@@ -9,7 +9,7 @@
 | JSON Schema | [`docs/api/fixtures/network-capabilities.schema.json`](../api/fixtures/network-capabilities.schema.json) |
 | Валидация | `python3 docs/api/fixtures/validate-network-capabilities.py` |
 
-> Правило AN-2: **каждое** числовое/булево значение — со ссылкой на **официальную** документацию и датой проверки. Если официальный источник не публикует цифру — в YAML `status: unknown`, `value: null`. Не подставлять «народные» лимиты в прод-валидацию без решения владельца.
+> Правило AN-2: **каждое** числовое/булево значение - со ссылкой на **официальную** документацию и датой проверки. Если официальный источник не публикует цифру - в YAML `status: unknown`, `value: null`. Не подставлять «народные» лимиты в прод-валидацию без решения владельца.
 
 **Потребители:**
 - Бэк: `NetworkCapabilities` + `posts.ratelimit.<network>.*` (Bucket4j), `SocialAdapter.validate`.
@@ -77,7 +77,7 @@
 | Альбом | 2–10 | sendMediaGroup | 2026-11-17 |
 | Фото | ≤ 10 MB; width+height ≤ 10000 | sendPhoto | 2026-11-17 |
 | Видео / файл | до 50 MB | sendVideo / FAQ | 2026-11-17 |
-| Скачивание `getFile` | облачный Bot API **≤ 20 МБ**; Local Bot API Server — без лимита | getFile / Local Bot API | 2026-11-19 |
+| Скачивание `getFile` | облачный Bot API **≤ 20 МБ**; Local Bot API Server - без лимита | getFile / Local Bot API | 2026-11-19 |
 | Форматирование | HTML (`b,i,u,s,span,a,code,pre,blockquote`, spoiler…) | formatting options | 2026-11-17 |
 | Нативная отложка | нет | Bot API | 2026-11-17 |
 | Edit / delete / pin | editMessage*, deleteMessage, pinChatMessage | Bot API | 2026-11-17 |
@@ -106,12 +106,12 @@
 | Нативная отложка | `publishAt` / `publishAtMs` | mediatopic.post | 2026-11-17 |
 | Удаление | `mediatopic.deleteTopic` | deleteTopic | 2026-11-17 |
 | Закреп | unknown | список mediatopic | 2026-11-17 |
-| Первый комментарий | unknown | — | 2026-11-17 |
+| Первый комментарий | unknown | - | 2026-11-17 |
 | Моменты (истории) | `moments.*` | moments | 2026-11-17 |
 | disableComments | да (групповые темы) | mediatopic.post | 2026-11-17 |
 | RPS | не опубликован («почти нет ограничений») | limits | 2026-11-17 |
 | Токен | LONG_ACCESS_TOKEN **30 дней**, автопродление | oauth permissions | 2026-11-17 |
-| Webhooks | unknown | — | 2026-11-17 |
+| Webhooks | unknown | - | 2026-11-17 |
 
 **Конфиг (защита Posts, не лимит OK):** `posts.ratelimit.ok.token_rps=5`.
 
@@ -133,9 +133,9 @@
 | Форматирование | `html` / `markdown` (b/i/u/s/code/a/h*/blockquote/mark…) | text-formatting | 2026-11-17 |
 | Edit / delete | PUT/DELETE /messages (≤2/с на чат) | docs-api | 2026-11-17 |
 | Pin / unpin | PUT/DELETE `/chats/{chatId}/pin` | docs-api | 2026-11-17 |
-| Первый комментарий | unknown | — | 2026-11-17 |
-| Истории | unknown | — | 2026-11-17 |
-| notify | `notify` (каналы — без silent) | NewMessageBody | 2026-11-17 |
+| Первый комментарий | unknown | - | 2026-11-17 |
+| Истории | unknown | - | 2026-11-17 |
+| notify | `notify` (каналы - без silent) | NewMessageBody | 2026-11-17 |
 | Кнопки | inline_keyboard (≤7 в ряду, ≤30 рядов) | POST /messages | 2026-11-17 |
 | RPS | 30 глобально; 2 msg/с на чат | prepare / POST messages | 2026-11-17 |
 | Токен | bot access_token; TTL unknown | docs-api | 2026-11-17 |
@@ -187,15 +187,15 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 ## 8. Модерация и события (BE-33)
 
-Удалённые действия модерации / suggest идут через `SocialModerationPort` → очередь `social_remote_actions` → `actions.moderation.<network>`. Ниже — официальные методы и тип ключа доступа. **checked_at: 2026-11-18**.
+Удалённые действия модерации / suggest идут через `SocialModerationPort` → очередь `social_remote_actions` → `actions.moderation.<network>`. Ниже - официальные методы и тип ключа доступа. **checked_at: 2026-11-18**.
 
 ### VK (user vs community)
 
 | Действие | Метод(ы) | Ключ | Примечание |
 |---|---|---|---|
-| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества; **`post_id` принимает `message`/`attachments`** (правка текста при одобрении) — проверено по [wall.post](https://dev.vk.ru/ru/method/wall.post) **2026-11-19** (BE-34) |
+| `publish_suggested` | `wall.post` + `post_id` | **user** | публикация предложенного на стену сообщества; **`post_id` принимает `message`/`attachments`** (правка текста при одобрении) - проверено по [wall.post](https://dev.vk.ru/ru/method/wall.post) **2026-11-19** (BE-34) |
 | `delete_post` | `wall.delete` | **user** | |
-| `delete_comment` / `restore_comment` | `wall` / `photos` / `video` / `market` / `board` `.deleteComment` + `.restoreComment` | **user** | board/discussion — `group_id` + `topic_id` |
+| `delete_comment` / `restore_comment` | `wall` / `photos` / `video` / `market` / `board` `.deleteComment` + `.restoreComment` | **user** | board/discussion - `group_id` + `topic_id` |
 | `ban_user` / `unban_user` | `groups.ban` / `groups.unban` | **user** | права администратора группы |
 | `reply_comment` | `wall.createComment` (`reply_to_comment`) | **user** (fallback community) | |
 | `notify_author` | `messages.isMessagesFromGroupAllowed` + `messages.send` | **community** | |
@@ -209,7 +209,7 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 |---|---|---|
 | `delete_post` / `delete_comment` | `deleteMessage` / `deleteMessages` | окно **&lt; 48 ч** |
 | `ban_user` | `banChatMember` (`restrictChatMember` при restrict) | |
-| `restore_comment` | — | **false** (не поддерживается) |
+| `restore_comment` | - | **false** (не поддерживается) |
 | `reply_comment` | `sendMessage` (`reply_to_message_id`) | |
 | `notify_author` | `sendMessage` (DM / chat) | |
 
@@ -223,7 +223,7 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 | `delete_comment` | `DELETE …/comments` | **без restore** |
 | `reply_comment` | `POST …/comments` | |
 | `ban_user` | `DELETE /chats/{chatId}/members` | |
-| `restore_comment` / `unban_user` / `notify_author` / `publish_suggested` | — | не поддерживается |
+| `restore_comment` / `unban_user` / `notify_author` / `publish_suggested` | - | не поддерживается |
 
 **Лимит:** **30** rps глобально ([prepare](https://dev.max.ru/docs/chatbots/bots-coding/prepare)).
 
@@ -250,23 +250,23 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 | OK | Число символов текста (601) и max media blocks | валидация |
 | OK | Pin / first comment / webhooks | паритет фич |
 | Max | First comment / stories / native schedule | roadmap |
-| Max | Официально ли подтверждён soft-cap 100 МБ для входящих вложений кросспостинга (сейчас — паритет vposter) | BE-36 |
+| Max | Официально ли подтверждён soft-cap 100 МБ для входящих вложений кросспостинга (сейчас - паритет vposter) | BE-36 |
 | TG / Max / Rutube | Числовой TTL bot/partner refresh где не указан | token-refresh scheduler |
 | Все | Суточные лимиты публикаций | планирование пиков |
 | Max | Синхронизация удалений копий по `message_removed` (опция P2 кросспостинга) | BE-36 follow-up |
 
 ---
 
-## 11. Кросспостинг — ограничения медиа (BE-36, 2026-11-19)
+## 11. Кросспостинг - ограничения медиа (BE-36, 2026-11-19)
 
 | Сеть | Ограничение | Поведение Posts | Источник |
 |---|---|---|---|
-| Telegram | `getFile` облачного Bot API — **≤ 20 МБ** | без Local Bot API → `skipped_unsupported_media`; флаг `posts.telegram.local-bot-api-url` снимает лимит | Bot API 10.4 |
-| Telegram | Видео из источника (vposter) — до **40 МБ** | сверх лимита без Local Bot API → skip | паритет vposter |
+| Telegram | `getFile` облачного Bot API - **≤ 20 МБ** | без Local Bot API → `skipped_unsupported_media`; флаг `posts.telegram.local-bot-api-url` снимает лимит | Bot API 10.4 |
+| Telegram | Видео из источника (vposter) - до **40 МБ** | сверх лимита без Local Bot API → skip | паритет vposter |
 | VK | Видео/клипы **файлом не отдаются** API | опция `vk_video_as_link` или фильтр `exclude_video`/`exclude_clips`; аудио не переносится | dev.vk.com |
 | Max | Вложение-источник **≤ 100 МБ** (soft-cap) | сверх → `skipped_unsupported_media` | vposter + проверка docs 2026-11-19 |
 | Max | Посты от нашего бота | L7: не переносятся (`sender.user_id == bot`) | vposter / BE-36 |
-| Max | `message_removed` | синхронизация удалений копий — **не в v1** (опция P2) | BE-36 |
+| Max | `message_removed` | синхронизация удалений копий - **не в v1** (опция P2) | BE-36 |
 
 Петли: L1 реестр / L2 intent+15с / L3 lineage / L4 SimHash / L5 graph warning / L6 circuit / L7 bot identity. Идемпотентность: `xp:{rule}:{srcChannel}:{srcRemote}:{target}`.
 
@@ -276,10 +276,10 @@ python3 docs/api/fixtures/validate-network-capabilities.py
 
 | Сеть | Удаление | Восстановление | Бан | Ручная проверка последних 100 | Примечание |
 |---|---|---|---|---|---|
-| VK | wall/photo/video/market/board deleteComment | `wall.restoreComment` (срок не документирован VK → по ответу API; vposter ~5 ч) | `groups.ban` (user token) | `wall.get` + `wall.getComments` | разделы сообщений сообщества — P2 |
+| VK | wall/photo/video/market/board deleteComment | `wall.restoreComment` (срок не документирован VK → по ответу API; vposter ~5 ч) | `groups.ban` (user token) | `wall.get` + `wall.getComments` | разделы сообщений сообщества - P2 |
 | Telegram | `deleteMessage` &lt; 48 ч; нужны `can_delete_messages` / `can_restrict_members` | **нет** | `banChatMember` | **нет** (у ботов нет history API) | `is_automatic_forward` не трогать; боты не видят сообщения других ботов |
 | Max | `DELETE …/comments` | **нет** | удаление участника чата | ограниченно | бот-админ: `read_all_message`, `edit`, `write`, `delete`; события `comment_created` / `comment_edited` |
-| OK | — | — | — | — | вне объёма (как у vposter) |
+| OK | - | - | - | - | вне объёма (как у vposter) |
 
 Feature flag: `automation.antispam`. Idempotency: `antispam:{channelId}:{section}:{remoteCommentKey}:{action}`.
 
@@ -290,8 +290,8 @@ Feature flag: `automation.antispam`. Idempotency: `antispam:{channelId}:{section
 | Версия | Дата | Изменение |
 |---|---|---|
 | 1.3.2 | 2026-11-19 | BE-35: секция антиспама (VK/TG/Max capabilities) §12; merge с BE-34/BE-36 |
-| 1.3.1 | 2026-11-19 | BE-34: предложка VK — `publish_suggested` / wall.post `post_id` (правка текста); merge с BE-36 |
-| 1.3.0 | 2026-11-19 | BE-36: кросспостинг — лимиты медиа TG/VK/Max, soft-cap Max 100 МБ, §11 |
+| 1.3.1 | 2026-11-19 | BE-34: предложка VK - `publish_suggested` / wall.post `post_id` (правка текста); merge с BE-36 |
+| 1.3.0 | 2026-11-19 | BE-36: кросспостинг - лимиты медиа TG/VK/Max, soft-cap Max 100 МБ, §11 |
 | 1.2.0 | 2026-11-18 | BE-32: inbound Callback/webhook ограничения VK/TG/Max (§9) |
 | 1.1.0 | 2026-11-18 | BE-33: секция «Модерация и события» (VK/TG/Max методы, ключи, лимиты) |
 | 1.0.0 | 2026-11-17 | AN-2: первая матрица VK / Telegram / OK / Max / Rutube + YAML + JSON Schema |

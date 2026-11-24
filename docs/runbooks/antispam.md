@@ -12,7 +12,7 @@
 1. Feature flag `automation.antispam` включён для workspace (`feature_flags` / override).
 2. Правило `antispam_rules.status=active`, подписка `channel_event_subscriptions.consumers` содержит `antispam`.
 3. Очередь `social_remote_actions` (source=`antispam`): `pending` / `failed_*` / `unknown_outcome`.
-4. Лог `antispam_log` по `channel_id` — `state`, `reasons`, `remote_action_ids`.
+4. Лог `antispam_log` по `channel_id` - `state`, `reasons`, `remote_action_ids`.
 5. Для VK: есть user token у связанного `social_accounts` (иначе activate → 422 `antispam_vk_permissions_missing`).
 
 ## Спам-атака

@@ -1,11 +1,11 @@
-# FE-20 — дашборд, русификация, лендинг
+# FE-20 - дашборд, русификация, лендинг
 
 ## Скриншоты
 
 | Экран | Desktop (1440) | Mobile (390) |
 |---|---|---|
 | Лендинг | [landing-desktop.png](./landing-desktop.png) | [landing-mobile.png](./landing-mobile.png) |
-| Дашборд | [dashboard-desktop.png](./dashboard-desktop.png) | — |
+| Дашборд | [dashboard-desktop.png](./dashboard-desktop.png) | - |
 
 ## Проверка
 

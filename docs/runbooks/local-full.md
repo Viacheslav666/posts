@@ -44,7 +44,7 @@ make wait-full
 
 Через nginx gateway на `:3000` проксируются также `/s3/` → MinIO/s3mock и `/emulator/` → social-emulator.
 
-Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` — один образ `posts-publisher`, у каждого свой `POSTS_PUBLISHER_NETWORK` (`vk` / `tg` / `ok` / `max`).
+Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` - один образ `posts-publisher`, у каждого свой `POSTS_PUBLISHER_NETWORK` (`vk` / `tg` / `ok` / `max`).
 
 ## Порты приложений
 
@@ -59,13 +59,13 @@ make wait-full
 | media | 8086 |
 | ingest | 8087 |
 | notifications | 8088 |
-| web (внутренний) | — (только из compose-сети) |
+| web (внутренний) | - (только из compose-сети) |
 | gateway (браузер: web + `/api`, `/ws`) | 3000 |
 | social-emulator | 8090 |
 
 ## Troubleshooting
 
-- Distroless JVM-образы: healthcheck в compose только проверяет наличие Java; готовность API/web — с хоста (`make wait-full`).
+- Distroless JVM-образы: healthcheck в compose только проверяет наличие Java; готовность API/web - с хоста (`make wait-full`).
 - API стартует с `SPRING_PROFILES_ACTIVE=local`, datasource/redis/rabbit переопределены на имена сервисов compose.
 - Если `make up-full` падает на ping: `docker compose -f infra/docker-compose/docker-compose.yml --profile full logs api --tail=100`.
 - Если контейнеры не видят друг друга (timeout на `postgres:5432` при здоровом Postgres): на части окружений с Docker 29 + `bridge-nf-call-iptables=1` ICC режется правилами `DOCKER`. В `.cursor/environment.json` `start` выставляет `net.bridge.bridge-nf-call-iptables=0` (и ip6). Вручную: `sudo sysctl -w net.bridge.bridge-nf-call-iptables=0`.

@@ -1,9 +1,9 @@
-# E17 — Граббер / Ingest (TC-GRAB)
+# E17 - Граббер / Ingest (TC-GRAB)
 
 | | |
 |---|---|
 | Задача | QA-12 |
-| Эпик | E17 — RSS-импорт и граббер (единый Ingest) |
+| Эпик | E17 - RSS-импорт и граббер (единый Ingest) |
 | Спека | [`docs/product/features/grabber.md`](../../product/features/grabber.md) |
 | Источник AC | grabber.md §13; parity-matrix G1–G9; `02-backend.md` §10 |
 | Пайплайн | Публикации проверять как E5: **0 потерь / 0 дублей** |
@@ -38,7 +38,7 @@
 
 ---
 
-## TC-GRAB-01 — Создание правила grabber VK→VK и появление в активных
+## TC-GRAB-01 - Создание правила grabber VK→VK и появление в активных
 
 | Поле | Значение |
 |---|---|
@@ -54,11 +54,11 @@
 - Роль Editor (scope проекта).
 
 ### Ожидание
-`POST .../ingest/rules` с `type=grabber`, `source_ids`, `targetChannelId`, `userResponsibilityAccepted=true`, attribution в config → 201; если `publish_mode` не передан — в config **`moderate`** (Q-GRAB-02); правило в `GET` списке со статусом `draft` или `active` (если `activate=true`); UI «Активные правила» показывает канал и источники.
+`POST .../ingest/rules` с `type=grabber`, `source_ids`, `targetChannelId`, `userResponsibilityAccepted=true`, attribution в config → 201; если `publish_mode` не передан - в config **`moderate`** (Q-GRAB-02); правило в `GET` списке со статусом `draft` или `active` (если `activate=true`); UI «Активные правила» показывает канал и источники.
 
 ---
 
-## TC-GRAB-02 — Плановый скан по интервалу
+## TC-GRAB-02 - Плановый скан по интервалу
 
 | Поле | Значение |
 |---|---|
@@ -72,7 +72,7 @@
 
 ---
 
-## TC-GRAB-03 — Ручной «Проверить сейчас»
+## TC-GRAB-03 - Ручной «Проверить сейчас»
 
 | Поле | Значение |
 |---|---|
@@ -85,7 +85,7 @@
 
 ---
 
-## TC-GRAB-04 — История скопированных постов
+## TC-GRAB-04 - История скопированных постов
 
 | Поле | Значение |
 |---|---|
@@ -98,7 +98,7 @@
 
 ---
 
-## TC-GRAB-05 — Дедуп по remote_post_id
+## TC-GRAB-05 - Дедуп по remote_post_id
 
 | Поле | Значение |
 |---|---|
@@ -111,7 +111,7 @@
 
 ---
 
-## TC-GRAB-06 — Дедуп по content_hash (текст + медиа)
+## TC-GRAB-06 - Дедуп по content_hash (текст + медиа)
 
 | Поле | Значение |
 |---|---|
@@ -124,7 +124,7 @@
 
 ---
 
-## TC-GRAB-07 — Activate без атрибуции / чекбокса → 422
+## TC-GRAB-07 - Activate без атрибуции / чекбокса → 422
 
 | Поле | Значение |
 |---|---|
@@ -138,7 +138,7 @@
 
 ---
 
-## TC-GRAB-08 — Режим moderate (default): item в очереди
+## TC-GRAB-08 - Режим moderate (default): item в очереди
 
 | Поле | Значение |
 |---|---|
@@ -152,7 +152,7 @@
 
 ---
 
-## TC-GRAB-08b — Default publish_mode при создании правила
+## TC-GRAB-08b - Default publish_mode при создании правила
 
 | Поле | Значение |
 |---|---|
@@ -165,7 +165,7 @@ Create rule без поля `publish_mode` → в сохранённом config 
 
 ---
 
-## TC-GRAB-09 — Approve → ровно одна публикация в пайплайне
+## TC-GRAB-09 - Approve → ровно одна публикация в пайплайне
 
 | Поле | Значение |
 |---|---|
@@ -179,7 +179,7 @@ Approve → создан `posts` + variant с футером атрибуции;
 
 ---
 
-## TC-GRAB-10 — Пауза останавливает сканы
+## TC-GRAB-10 - Пауза останавливает сканы
 
 | Поле | Значение |
 |---|---|
@@ -188,11 +188,11 @@ Approve → создан `posts` + variant с футером атрибуции;
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-После `pause` новые scheduled runs не создаются; `resume` возвращает `active` и планирует `next_run_at`; уже pending publications не удаляются молча (поведение как pause поста — зафиксировать).
+После `pause` новые scheduled runs не создаются; `resume` возвращает `active` и планирует `next_run_at`; уже pending publications не удаляются молча (поведение как pause поста - зафиксировать).
 
 ---
 
-## TC-GRAB-11 — RSS 2.0 / Atom → item (default moderate) / опциональный auto
+## TC-GRAB-11 - RSS 2.0 / Atom → item (default moderate) / опциональный auto
 
 | Поле | Значение |
 |---|---|
@@ -202,11 +202,11 @@ Approve → создан `posts` + variant с футером атрибуции;
 | Фикстуры | локальный feed XML (WireMock / Testcontainers HTTP) |
 
 ### Ожидание
-Парсятся title/description/enclosure; `content_hash` стабилен; при default/`moderate` — item в очереди без публикации; при **явном** `publish_mode=auto` — пост в пайплайне; повтор опроса того же guid — дедуп.
+Парсятся title/description/enclosure; `content_hash` стабилен; при default/`moderate` - item в очереди без публикации; при **явном** `publish_mode=auto` - пост в пайплайне; повтор опроса того же guid - дедуп.
 
 ---
 
-## TC-GRAB-12 — SSRF: rss_url на private IP / metadata
+## TC-GRAB-12 - SSRF: rss_url на private IP / metadata
 
 | Поле | Значение |
 |---|---|
@@ -221,7 +221,7 @@ Approve → создан `posts` + variant с футером атрибуции;
 
 ---
 
-## TC-GRAB-13 — Redelivery сообщения run не дублирует публикации
+## TC-GRAB-13 - Redelivery сообщения run не дублирует публикации
 
 | Поле | Значение |
 |---|---|
@@ -231,11 +231,11 @@ Approve → создан `posts` + variant с футером атрибуции;
 | Уровень | integration (RabbitMQ redelivery) |
 
 ### Ожидание
-Повторная доставка `ingest.grabber.run` → items unique; при auto-publish — 1 remote post (как TC-PUB-06).
+Повторная доставка `ingest.grabber.run` → items unique; при auto-publish - 1 remote post (как TC-PUB-06).
 
 ---
 
-## TC-GRAB-14 — Ошибка публикации сети не теряет item/post
+## TC-GRAB-14 - Ошибка публикации сети не теряет item/post
 
 | Поле | Значение |
 |---|---|
@@ -249,7 +249,7 @@ Item/post живы; ретраи через publication attempts; финальн
 
 ---
 
-## TC-GRAB-15 — RBAC: Author/Viewer не manage/moderate
+## TC-GRAB-15 - RBAC: Author/Viewer не manage/moderate
 
 | Поле | Значение |
 |---|---|
@@ -262,7 +262,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-16 — IDOR: чужой workspace / ruleId
+## TC-GRAB-16 - IDOR: чужой workspace / ruleId
 
 | Поле | Значение |
 |---|---|
@@ -276,7 +276,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-17 — Аудит create / activate / approve
+## TC-GRAB-17 - Аудит create / activate / approve
 
 | Поле | Значение |
 |---|---|
@@ -289,7 +289,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-18 — Автопауза после N failed runs
+## TC-GRAB-18 - Автопауза после N failed runs
 
 | Поле | Значение |
 |---|---|
@@ -303,7 +303,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-19 — Фильтры: exclude_ads, exclude_reposts, keywords
+## TC-GRAB-19 - Фильтры: exclude_ads, exclude_reposts, keywords
 
 | Поле | Значение |
 |---|---|
@@ -316,7 +316,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-20 — Rate limit постов в час
+## TC-GRAB-20 - Rate limit постов в час
 
 | Поле | Значение |
 |---|---|
@@ -326,11 +326,11 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 | Config | `rate_limit_per_hour=2` |
 
 ### Ожидание
-Третий новый item в окне часа не публикуется сразу: остаётся в очереди/отложен (`skip_reason=rate_limit`) без потери; после окна — доступен.
+Третий новый item в окне часа не публикуется сразу: остаётся в очереди/отложен (`skip_reason=rate_limit`) без потери; после окна - доступен.
 
 ---
 
-## TC-GRAB-21 — Website OG-extract (P1)
+## TC-GRAB-21 - Website OG-extract (P1)
 
 | Поле | Значение |
 |---|---|
@@ -344,7 +344,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-22 — Нормализация source_ids (пробелы, @screen_name)
+## TC-GRAB-22 - Нормализация source_ids (пробелы, @screen_name)
 
 | Поле | Значение |
 |---|---|
@@ -357,7 +357,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-23 — Reject item
+## TC-GRAB-23 - Reject item
 
 | Поле | Значение |
 |---|---|
@@ -370,7 +370,7 @@ Author: `POST rules` / `approve` → 403; `GET rules/items` своего про�
 
 ---
 
-## TC-GRAB-24 — Bulk approve выбранных
+## TC-GRAB-24 - Bulk approve выбранных
 
 | Поле | Значение |
 |---|---|
@@ -383,7 +383,7 @@ N items → N posts / N successful publications (или в пределах rate
 
 ---
 
-## TC-GRAB-25 — Валидация лимитов целевой сети
+## TC-GRAB-25 - Валидация лимитов целевой сети
 
 | Поле | Значение |
 |---|---|
@@ -396,7 +396,7 @@ N items → N posts / N successful publications (или в пределах rate
 
 ---
 
-## TC-GRAB-26 — channel_reauth_required → auto_pause
+## TC-GRAB-26 - channel_reauth_required → auto_pause
 
 | Поле | Значение |
 |---|---|
@@ -405,11 +405,11 @@ N items → N posts / N successful publications (или в пределах rate
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Целевой канал переведён в reauth → правило `auto_paused`; runs не стартуют; после reconnect + resume — ок.
+Целевой канал переведён в reauth → правило `auto_paused`; runs не стартуют; после reconnect + resume - ок.
 
 ---
 
-## TC-GRAB-27 — Edit-and-approve меняет текст, сохраняет атрибуцию
+## TC-GRAB-27 - Edit-and-approve меняет текст, сохраняет атрибуцию
 
 | Поле | Значение |
 |---|---|
@@ -422,7 +422,7 @@ N items → N posts / N successful publications (или в пределах rate
 
 ---
 
-## TC-GRAB-28 — AI-rewrite (флаг E15) — smoke
+## TC-GRAB-28 - AI-rewrite (флаг E15) - smoke
 
 | Поле | Значение |
 |---|---|
@@ -431,11 +431,11 @@ N items → N posts / N successful publications (или в пределах rate
 | **Автоматизация** | **ручной** / кандидат |
 
 ### Ожидание
-При `ai_rewrite_enabled` и доступных кредитах текст уникализирован до публикации; при отказе LLM — item не теряется (fallback: оригинал + атрибуция или `failed_ingest` по политике).
+При `ai_rewrite_enabled` и доступных кредитах текст уникализирован до публикации; при отказе LLM - item не теряется (fallback: оригинал + атрибуция или `failed_ingest` по политике).
 
 ---
 
-## TC-GRAB-29 — UI настроек: группы фильтров / очистки / окна / лимитов (FE-17)
+## TC-GRAB-29 - UI настроек: группы фильтров / очистки / окна / лимитов (FE-17)
 
 | Поле | Значение |
 |---|---|
@@ -448,7 +448,7 @@ N items → N posts / N successful publications (или в пределах rate
 
 ---
 
-## TC-GRAB-30 — Импорт настроек (clone-config) и экспорт истории
+## TC-GRAB-30 - Импорт настроек (clone-config) и экспорт истории
 
 | Поле | Значение |
 |---|---|

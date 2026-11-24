@@ -6,13 +6,13 @@
 
 ## Контекст
 
-Публикационный конвейер (ADR-0004) и смежные контуры (медиа, ingest, уведомления, события) требуют предсказуемой топологии: изоляция сетей, DLQ, горизонтальное масштабирование потребителей (KEDA), отсутствие потери сообщений при отказе узла. Брокер — RabbitMQ 3.13, клиент — Spring AMQP. Источник: `02-backend.md` §5.2–5.5, `00-overview.md` §4.
+Публикационный конвейер (ADR-0004) и смежные контуры (медиа, ingest, уведомления, события) требуют предсказуемой топологии: изоляция сетей, DLQ, горизонтальное масштабирование потребителей (KEDA), отсутствие потери сообщений при отказе узла. Брокер - RabbitMQ 3.13, клиент - Spring AMQP. Источник: `02-backend.md` §5.2–5.5, `00-overview.md` §4.
 
 ## Решение
 
 ### Общие правила
 
-- Все рабочие очереди — **quorum queues** (репликация, безопаснее classic mirrored).
+- Все рабочие очереди - **quorum queues** (репликация, безопаснее classic mirrored).
 - Publisher confirms + `mandatory` на исходящих publish из scheduler/outbox-relay.
 - Consumers: manual ack, prefetch ограничен (publish: 50), virtual-thread executor.
 - Заголовок `traceparent` (W3C) пробрасывается во все сообщения.
@@ -51,15 +51,15 @@ Outbox-relay (scheduler) публикует доменные события по
 
 ### Именование и код
 
-- Декларация топологии — `libs/messaging` (beans `Declarables` / `RabbitAdmin`), переиспользуется apps.
-- Имя сети publisher’а — `posts.publisher.network` / env `POSTS_PUBLISHER_NETWORK`.
+- Декларация топологии - `libs/messaging` (beans `Declarables` / `RabbitAdmin`), переиспользуется apps.
+- Имя сети publisher’а - `posts.publisher.network` / env `POSTS_PUBLISHER_NETWORK`.
 - KEDA: ScaledObject по длине `publish.<network>` и `actions.<network>`.
 
 ## Альтернативы
 
-- **Classic queues + mirroring** — отвергнуто: quorum — рекомендуемый HA-путь RabbitMQ 3.13.
-- **Одна очередь на все сети** — отвергнуто: нет изоляции отказов и независимого масштабирования.
-- **Отдельный брокер на контур** — избыточно для MVP; при росте можно вынести `events`/аналитику.
+- **Classic queues + mirroring** - отвергнуто: quorum - рекомендуемый HA-путь RabbitMQ 3.13.
+- **Одна очередь на все сети** - отвергнуто: нет изоляции отказов и независимого масштабирования.
+- **Отдельный брокер на контур** - избыточно для MVP; при росте можно вынести `events`/аналитику.
 
 ## Последствия
 

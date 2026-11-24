@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Задача | QA-14 |
-| Эпик | BE-32 — входящие события VK Callback / TG webhook / Max webhook |
+| Эпик | BE-32 - входящие события VK Callback / TG webhook / Max webhook |
 | Спека | ADR-0013; `docs/runbooks/social-inbound.md`; p2 BE-32 «Приёмка» |
 | Источник AC | p2 spec **BE-32** §«Приёмка» (agent prompt `BE-32.txt`) |
 | Инварианты | **0 потерь / 0 дублей** на пути хук → очередь → handler; p99 хука &lt; 200 мс под нагрузкой |
@@ -26,7 +26,7 @@
 
 ---
 
-## TC-IN-01 — VK: ensure регистрирует Callback; confirmation отдаёт сохранённый код
+## TC-IN-01 - VK: ensure регистрирует Callback; confirmation отдаёт сохранённый код
 
 | Поле | Значение |
 |---|---|
@@ -43,7 +43,7 @@
 
 ---
 
-## TC-IN-02 — Дедуп VK Callback по `event_id` (повтор ×3)
+## TC-IN-02 - Дедуп VK Callback по `event_id` (повтор ×3)
 
 | Поле | Значение |
 |---|---|
@@ -52,11 +52,11 @@
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Эмулятор шлёт один `wall_post_new` с тем же `event_id` трижды → в `social_inbound_events` одна строка; тестовый `RecordingSocialEventHandler` / счётчик handler — **ровно 1** обработка; **0** лишних публикаций downstream.
+Эмулятор шлёт один `wall_post_new` с тем же `event_id` трижды → в `social_inbound_events` одна строка; тестовый `RecordingSocialEventHandler` / счётчик handler - **ровно 1** обработка; **0** лишних публикаций downstream.
 
 ---
 
-## TC-IN-03 — Неверный VK `secret` → 401, сообщение не в RabbitMQ
+## TC-IN-03 - Неверный VK `secret` → 401, сообщение не в RabbitMQ
 
 | Поле | Значение |
 |---|---|
@@ -70,7 +70,7 @@
 
 ---
 
-## TC-IN-04 — Telegram: альбом `media_group_id` (3 фото) → одно `POST_NEW`
+## TC-IN-04 - Telegram: альбом `media_group_id` (3 фото) → одно `POST_NEW`
 
 | Поле | Значение |
 |---|---|
@@ -84,7 +84,7 @@
 
 ---
 
-## TC-IN-05 — Один TG `chat.id` в двух workspace → fan-out по каналам
+## TC-IN-05 - Один TG `chat.id` в двух workspace → fan-out по каналам
 
 | Поле | Значение |
 |---|---|
@@ -97,7 +97,7 @@
 
 ---
 
-## TC-IN-06 — Max: подписка с секретом; `comment_created` нормализуется
+## TC-IN-06 - Max: подписка с секретом; `comment_created` нормализуется
 
 | Поле | Значение |
 |---|---|
@@ -111,7 +111,7 @@
 
 ---
 
-## TC-IN-07 — Max: неверный webhook secret → 401
+## TC-IN-07 - Max: неверный webhook secret → 401
 
 | Поле | Значение |
 |---|---|
@@ -125,7 +125,7 @@
 
 ---
 
-## TC-IN-08 — Chaos: RabbitMQ недоступен → 503; после восстановления 0 потерь
+## TC-IN-08 - Chaos: RabbitMQ недоступен → 503; после восстановления 0 потерь
 
 | Поле | Значение |
 |---|---|
@@ -140,7 +140,7 @@
 
 ---
 
-## TC-IN-09 — Нагрузка: 2000 webhook/s, p99 &lt; 200 мс
+## TC-IN-09 - Нагрузка: 2000 webhook/s, p99 &lt; 200 мс
 
 | Поле | Значение |
 |---|---|
@@ -154,7 +154,7 @@
 
 ---
 
-## TC-IN-10 — Нет хардкода секретов; `/_control` только в emulator-профиле
+## TC-IN-10 - Нет хардкода секретов; `/_control` только в emulator-профиле
 
 | Поле | Значение |
 |---|---|
@@ -164,11 +164,11 @@
 | **Автоматизация** | **авто** |
 
 ### Ожидание
-Статический аудит / `ProdProfileNoControlPathTest`; прод YAML без `/_control`; live social guard — `SocialLiveApiGuardTest`.
+Статический аудит / `ProdProfileNoControlPathTest`; прод YAML без `/_control`; live social guard - `SocialLiveApiGuardTest`.
 
 ---
 
-## TC-IN-11 — IDOR: чужой `channelId` на event-subscription → 404
+## TC-IN-11 - IDOR: чужой `channelId` на event-subscription → 404
 
 | Поле | Значение |
 |---|---|
@@ -181,7 +181,7 @@
 
 ---
 
-## TC-IN-12 — RBAC map / OpenAPI / squawk (регрессия BE-32 API)
+## TC-IN-12 - RBAC map / OpenAPI / squawk (регрессия BE-32 API)
 
 | Поле | Значение |
 |---|---|

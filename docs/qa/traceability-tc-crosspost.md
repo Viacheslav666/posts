@@ -18,9 +18,9 @@
 | **Автовыключатель** (L6) срабатывает | TC-XP-11 | `LoopGuardAndGraphTest`; unit `CircuitBreakerTest` | CI unit | **частично** |
 | Рекламный пост (**erid**) пропущен, `ad_post_excluded` | TC-XP-12 | `Qa14CrosspostPairsIT#eridPostSkipped`; `Qa14AntispamIT#crosspostEridExcluded` | CI | авто |
 | TG файл **&gt;20 МБ** без Local Bot API → `skipped_unsupported_media` | TC-XP-13 | `Qa14CrosspostLoopsIT#telegramFileOver20MbSkipped` | CI | авто |
-| Пост через Posts в A **не** переносится (default); опубликованная **suggest** — по опции | TC-XP-14 | `LoopGuardAndGraphTest` (unit) | CI unit | **частично** |
+| Пост через Posts в A **не** переносится (default); опубликованная **suggest** - по опции | TC-XP-14 | `LoopGuardAndGraphTest` (unit) | CI unit | **частично** |
 | Inbound restart **без потерь и дублей** | TC-IN-restart | `Qa14IngestRestartIT#pauseMidStreamThenResumeWithoutDupes` | nightly | авто |
-| Нагрузка: **1000** постов/мин × **3** приёмника — дублей **0**, петель **0**, p95 **&lt; 60 с** (хук) | TC-XP-17 | `tests/load/scenarios/l5-p2-crosspost-ingest.js` + IT сверху | nightly | **частично** |
+| Нагрузка: **1000** постов/мин × **3** приёмника - дублей **0**, петель **0**, p95 **&lt; 60 с** (хук) | TC-XP-17 | `tests/load/scenarios/l5-p2-crosspost-ingest.js` + IT сверху | nightly | **частично** |
 
 ## Запуск
 

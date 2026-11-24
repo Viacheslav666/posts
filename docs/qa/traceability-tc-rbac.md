@@ -30,6 +30,6 @@ cd backend && ./gradlew :libs:security:test :apps:api:test \
 
 ## Сведение с BE-6
 
-- Булева матрица YAML — только `RbacMatrixFullCoverageTest` (не дублировать CSV в evaluator-тесте).
-- HTTP-сценарии приглашений/аудита/удаления — только `WorkspaceRbacIntegrationTest`.
-- Полный перебор роль×operationId — только `RbacEndpointMatrixIT`.
+- Булева матрица YAML - только `RbacMatrixFullCoverageTest` (не дублировать CSV в evaluator-тесте).
+- HTTP-сценарии приглашений/аудита/удаления - только `WorkspaceRbacIntegrationTest`.
+- Полный перебор роль×operationId - только `RbacEndpointMatrixIT`.

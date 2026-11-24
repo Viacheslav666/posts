@@ -123,7 +123,7 @@ export function PreviewPanel({ ruleId, targets }: PreviewPanelProps) {
                   className="mt-3 space-y-2"
                 >
                   <p className="text-sm text-muted-foreground">
-                    {t('targetStatus', { status: target.status ?? '—' })}
+                    {t('targetStatus', { status: target.status ?? '-' })}
                   </p>
                   {target.reason ? (
                     <ReasonChips

@@ -30,7 +30,7 @@ describe('JournalTable (FE-24)', () => {
         sourceChannel={{
           id: CHANNEL_IDS.vkNews,
           network: 'vk',
-          title: 'Posts — новости',
+          title: 'Posts - новости',
           externalId: '123456',
         }}
         canModerate

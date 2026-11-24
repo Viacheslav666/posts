@@ -67,10 +67,10 @@ public final class GrabberModeRestrictions {
         int perDay = GrabberConfigSupport.rateLimitPerDay(config);
         int perSource = GrabberConfigSupport.rateLimitPerSourcePerDay(config);
         if (perDay < 0 || perDay > 500) {
-            throw new IllegalArgumentException("Суточный лимит по всем источникам: 0 — не ограничивать, максимум 500");
+            throw new IllegalArgumentException("Суточный лимит по всем источникам: 0 - не ограничивать, максимум 500");
         }
         if (perSource < 0 || perSource > 500) {
-            throw new IllegalArgumentException("Суточный лимит на источник: 0 — не ограничивать, максимум 500");
+            throw new IllegalArgumentException("Суточный лимит на источник: 0 - не ограничивать, максимум 500");
         }
     }
 

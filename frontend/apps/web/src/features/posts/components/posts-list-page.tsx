@@ -539,7 +539,7 @@ function PostListRow({
           <div className="truncate text-xs text-muted-foreground">
             {post.scheduledAt
               ? format(new Date(post.scheduledAt), 'd MMM yyyy, HH:mm', { locale: ru })
-              : '—'}
+              : '-'}
           </div>
         </div>
         <PostStatusBadge status={post.status ?? 'draft'} label={statusLabel} />

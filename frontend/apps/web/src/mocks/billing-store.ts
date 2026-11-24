@@ -299,7 +299,7 @@ function createInitialState(): BillingState {
 
   const personalTx = seedTransactions(PERSONAL_WORKSPACE_ID).map((tx) => ({
     ...tx,
-    // tag via details prefix for filtering in list — workspace filtered in handler by wallet scope
+    // tag via details prefix for filtering in list - workspace filtered in handler by wallet scope
   }));
 
   return {

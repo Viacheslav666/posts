@@ -43,7 +43,7 @@ describe('UI must not show raw English status enums', () => {
   it('does not hardcode English status words as JSX text near badges', () => {
     const files = walkTsx(join(WEB_SRC, 'features'));
     const offenders: string[] = [];
-    // e.g. >scheduled< or {'failed'} as visible badge children — skip i18n keys and imports
+    // e.g. >scheduled< or {'failed'} as visible badge children - skip i18n keys and imports
     const pattern = new RegExp(
       `>(${RAW_STATUS_ENUMS.join('|')})<`,
       'g',

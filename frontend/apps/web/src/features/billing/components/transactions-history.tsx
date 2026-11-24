@@ -14,7 +14,7 @@ type TransactionsHistoryProps = {
 
 function formatDate(iso?: string): string {
   if (!iso) {
-    return '—';
+    return '-';
   }
   try {
     return new Intl.DateTimeFormat('ru-RU', {
@@ -121,7 +121,7 @@ export function TransactionsHistory({ workspaceId }: TransactionsHistoryProps) {
                   <td className="px-2 py-2">
                     {tx.kind && TRANSACTION_KINDS.includes(tx.kind as (typeof TRANSACTION_KINDS)[number])
                       ? t(`kinds.${tx.kind as (typeof TRANSACTION_KINDS)[number]}`)
-                      : (tx.kind ?? '—')}
+                      : (tx.kind ?? '-')}
                   </td>
                   <td
                     className={`px-2 py-2 font-medium ${(tx.amountKopecks ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}`}
@@ -131,7 +131,7 @@ export function TransactionsHistory({ workspaceId }: TransactionsHistoryProps) {
                       <span className="ml-1 text-xs text-muted-foreground">{t('bonusTag')}</span>
                     ) : null}
                   </td>
-                  <td className="px-2 py-2">{tx.method ?? '—'}</td>
+                  <td className="px-2 py-2">{tx.method ?? '-'}</td>
                   <td className="px-2 py-2">
                     {isDownloadableReceiptUrl(tx.receiptUrl) ? (
                       <a
@@ -147,10 +147,10 @@ export function TransactionsHistory({ workspaceId }: TransactionsHistoryProps) {
                         {t('receiptIdOnly')}
                       </span>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </td>
-                  <td className="px-2 py-2 text-muted-foreground">{tx.details ?? '—'}</td>
+                  <td className="px-2 py-2 text-muted-foreground">{tx.details ?? '-'}</td>
                 </tr>
               ))}
             </tbody>

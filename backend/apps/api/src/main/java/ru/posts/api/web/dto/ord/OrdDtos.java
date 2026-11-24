@@ -268,7 +268,7 @@ public final class OrdDtos {
                     "Full advertiser / ORD marking block (feature spec §3.4, BE-25). Stored as posts.ad_payload jsonb.")
     public record AdMarking(
             @Schema(description = "Advertiser name / FIO") String advertiserName,
-            @Schema(description = "INN — 10 or 12 digits with checksum; foreign ids when isForeign") String inn,
+            @Schema(description = "INN - 10 or 12 digits with checksum; foreign ids when isForeign") String inn,
             @Schema(description = "KPP; required for juridical") String kpp,
             @Schema(
                             description = "physical | ip | juridical | foreign_physical | foreign_juridical",

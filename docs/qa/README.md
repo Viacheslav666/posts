@@ -1,8 +1,8 @@
 # QA docs
 
-Документы агента **Posts Тестировщик**. Источники правды по процессу: `docs/specs/05-qa.md`, `docs/specs/agent-tasks.md` (QA-\*), NFR — `docs/specs/00-overview.md`.
+Документы агента **Posts Тестировщик**. Источники правды по процессу: `docs/specs/05-qa.md`, `docs/specs/agent-tasks.md` (QA-\*), NFR - `docs/specs/00-overview.md`.
 
-Код автотестов живёт в `tests/` и рядом с продуктовым кодом (`backend/**/src/test`, `frontend/**/__tests__`). Здесь — стратегия, планы, кейсы и отчёты.
+Код автотестов живёт в `tests/` и рядом с продуктовым кодом (`backend/**/src/test`, `frontend/**/__tests__`). Здесь - стратегия, планы, кейсы и отчёты.
 
 ## Содержание
 
@@ -38,15 +38,15 @@
 
 - Seed-генератор: `tests/seed/`
 - Фикстуры форматирования: `docs/api/fixtures/formatting/` (≥ 50 кейсов)
-- Каркас автотестов (QA-2): `tests/e2e`, `tests/contract`, `tests/load`; nightly — `.github/workflows/nightly.yml`
+- Каркас автотестов (QA-2): `tests/e2e`, `tests/contract`, `tests/load`; nightly - `.github/workflows/nightly.yml`
 
 ## Быстрые ссылки на код тестов
 
-- `tests/e2e` — Playwright (smoke `/health` + `/api/v1/ping`, page objects)  
-- `tests/contract` — Schemathesis по `docs/api/openapi.yaml`  
-- `tests/load` — k6 (smoke + каркас L1/L2)  
-- `tests/chaos` — хаос/DR (`tc-p2-automations-chaos.md` — Rabbit / Redis QA-14)  
-- `tests/social-emulator` — эмулятор VK/TG/OK/Max  
-- `tests/seed` — генератор логических seed-данных (TODO SQL после BE-2)
+- `tests/e2e` - Playwright (smoke `/health` + `/api/v1/ping`, page objects)  
+- `tests/contract` - Schemathesis по `docs/api/openapi.yaml`  
+- `tests/load` - k6 (smoke + каркас L1/L2)  
+- `tests/chaos` - хаос/DR (`tc-p2-automations-chaos.md` - Rabbit / Redis QA-14)  
+- `tests/social-emulator` - эмулятор VK/TG/OK/Max  
+- `tests/seed` - генератор логических seed-данных (TODO SQL после BE-2)
 
 Локально: `make e2e-smoke` / `make contract-smoke` / `make load-smoke` (API должен отвечать на ping).

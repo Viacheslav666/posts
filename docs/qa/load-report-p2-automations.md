@@ -3,7 +3,7 @@
 Дата: 2026-11-19.  
 Инструмент: **k6** (`tests/load`).
 
-**Пороги p95/p99 заданы в k6** (`l4-p2-antispam-events.js`, `l5-p2-crosspost-ingest.js`); full-профиль в CI по умолчанию не гоняется — nightly smoke. Скриптов `l4-suggest-ingest.js`, `l5-antispam-verdicts.js`, `l6-crosspost-fanout.js` в репозитории нет.
+**Пороги p95/p99 заданы в k6** (`l4-p2-antispam-events.js`, `l5-p2-crosspost-ingest.js`); full-профиль в CI по умолчанию не гоняется - nightly smoke. Скриптов `l4-suggest-ingest.js`, `l5-antispam-verdicts.js`, `l6-crosspost-fanout.js` в репозитории нет.
 
 Nightly запускает только smoke и только если заданы `vars.QA14_CHANNEL_ID` и `secrets.QA14_VK_SECRET`. Без них шаг завершается ошибкой (прогон без цели не считается успешным). `|| true` не используется.
 
@@ -16,7 +16,7 @@ Nightly запускает только smoke и только если зада�
 | Crosspost hooks | `tests/load/scenarios/l5-p2-crosspost-ingest.js` | **1000** постов/мин × **3** приёмника, p95 &lt; **60 с**, дублей 0 | только хук `wall_post_new`. Дубли, петли и 3 приёмника не сверяет |
 | Suggest decisions | скрипта нет | **200** suggest/с, p95 &lt; **2 с** | не автоматизировано |
 
-## Inbound — 2000/s
+## Inbound - 2000/s
 
 | Метрика | Цель (full) | Smoke |
 |---|---|---|
@@ -36,7 +36,7 @@ PROFILE=full INBOUND_RATE=2000 INBOUND_DURATION=30s k6 run tests/load/scenarios/
 
 Сверки глубины очереди отдельным IT нет (`Qa14InboundLoadSmokeIT` не существует).
 
-## Antispam — 3000/s
+## Antispam - 3000/s
 
 | Метрика | Цель (full) | Smoke |
 |---|---|---|
@@ -52,7 +52,7 @@ PROFILE=full  ANTISPAM_RATE=3000 CHANNEL_ID=... VK_SECRET=... k6 run tests/load/
 
 `Qa14AntispamLoadIT` нет. Скрипт не проверяет очередь `actions.moderation.*`.
 
-## Crosspost — 1000/min × 3 приёмника
+## Crosspost - 1000/min × 3 приёмника
 
 | Метрика | Цель (full) | Smoke |
 |---|---|---|

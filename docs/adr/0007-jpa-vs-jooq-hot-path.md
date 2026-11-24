@@ -17,17 +17,17 @@ Hot-path требования:
 
 1. **Доменный CRUD (API, админка, биллинг, каналы, посты):** Spring Data JPA / Hibernate 6, `ddl-auto=validate`, сущности в `libs/persistence`.
 2. **Hot-path публикаций (dispatcher claim, reaper, точечные state transitions в publisher):** Spring **`JdbcClient`** (и при необходимости `NamedParameterJdbcTemplate`) с явным SQL в `libs/persistence` (пакеты `…jdbc` / `…hotpath`).
-3. **jOOQ в MVP не подключаем.** Пересмотр — если появятся сложные динамические SQL-отчёты/конструкторы запросов, где type-safe DSL окупит codegen и зависимость; тогда отдельный ADR (supersede).
+3. **jOOQ в MVP не подключаем.** Пересмотр - если появятся сложные динамические SQL-отчёты/конструкторы запросов, где type-safe DSL окупит codegen и зависимость; тогда отдельный ADR (supersede).
 4. Граница: сервисы `domain` зависят от портов (интерфейсов); JPA-репозитории и JdbcClient-адаптеры живут в `persistence` / apps. Domain не импортирует Hibernate/JPA (ArchUnit, ADR-0002).
 
 ## Альтернативы
 
-- **jOOQ сразу для hot-path** — отложено: выигрыш в type-safety меньше стоимости codegen/Flyway-синхронизации на старте; `JdbcClient` + тесты на Testcontainers достаточны для фиксированных SQL.
-- **Только JPA / Criteria / `@Query` native везде** — отвергнуто для dispatcher: `SKIP LOCKED` + `RETURNING` + минимальный mapping надёжнее и прозрачнее через JDBC.
-- **MyBatis** — лишняя абстракция при малом числе hot-query.
+- **jOOQ сразу для hot-path** - отложено: выигрыш в type-safety меньше стоимости codegen/Flyway-синхронизации на старте; `JdbcClient` + тесты на Testcontainers достаточны для фиксированных SQL.
+- **Только JPA / Criteria / `@Query` native везде** - отвергнуто для dispatcher: `SKIP LOCKED` + `RETURNING` + минимальный mapping надёжнее и прозрачнее через JDBC.
+- **MyBatis** - лишняя абстракция при малом числе hot-query.
 
 ## Последствия
 
-- Flyway — единственный источник схемы; Hibernate только валидирует.
+- Flyway - единственный источник схемы; Hibernate только валидирует.
 - SQL hot-path покрывается интеграционными тестами (BE-2/BE-4).
 - При введении jOOQ позже codegen должен брать схему из Flyway, без второй «истины».

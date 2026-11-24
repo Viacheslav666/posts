@@ -16,16 +16,16 @@
 4. **Данные и инфраструктурные клиенты:** PostgreSQL 16 + Flyway; Redis 7; RabbitMQ 3.13 (quorum); ClickHouse (фаза 2); S3 SDK v2; Resilience4j + Bucket4j; ShedLock; Micrometer + OpenTelemetry; Sentry.
 5. **Тесты:** JUnit 5, AssertJ, Mockito, Testcontainers (`@ServiceConnection`), WireMock, ArchUnit.
 
-Версии библиотек ведутся в `libs.versions.toml`; апгрейд минорных/патч-версий Spring Boot допустим без нового ADR, major — только новым ADR.
+Версии библиотек ведутся в `libs.versions.toml`; апгрейд минорных/патч-версий Spring Boot допустим без нового ADR, major - только новым ADR.
 
 ## Альтернативы
 
-- **Kotlin / Quarkus / Micronaut** — отвергнуто: экосистема Spring + найм/агентные навыки, зрелость AMQP/Security/JPA.
-- **Java 17** — отвергнуто: нужны virtual threads и LTS 21 как целевой рантайм.
-- **WebFlux / Netty повсюду** — отвергнуто: адаптеры соцсетей и JDBC удобнее на блокирующем I/O + virtual threads; изоляция отказов достигается очередями и CB, а не реактивным стеком.
+- **Kotlin / Quarkus / Micronaut** - отвергнуто: экосистема Spring + найм/агентные навыки, зрелость AMQP/Security/JPA.
+- **Java 17** - отвергнуто: нужны virtual threads и LTS 21 как целевой рантайм.
+- **WebFlux / Netty повсюду** - отвергнуто: адаптеры соцсетей и JDBC удобнее на блокирующем I/O + virtual threads; изоляция отказов достигается очередями и CB, а не реактивным стеком.
 
 ## Последствия
 
-- Единый toolchain для всех `apps/*` и `libs/*`; образы Jib/distroless; graceful shutdown и virtual threads — обязательные настройки приложений.
-- Hot-path диспетчера и выбор JPA vs JDBC/jOOQ — см. ADR-0007; топология очередей — ADR-0005; шифрование токенов — ADR-0006.
+- Единый toolchain для всех `apps/*` и `libs/*`; образы Jib/distroless; graceful shutdown и virtual threads - обязательные настройки приложений.
+- Hot-path диспетчера и выбор JPA vs JDBC/jOOQ - см. ADR-0007; топология очередей - ADR-0005; шифрование токенов - ADR-0006.
 - DEV-1 зафиксировал практические отклонения скелета (OpenAPI-экспорт, Testcontainers 1.21.4) в ADR-0008; они остаются в силе, пока не supersede.

@@ -64,7 +64,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 function formatAmount(amount?: number): string {
-  if (amount == null || Number.isNaN(amount)) return '—';
+  if (amount == null || Number.isNaN(amount)) return '-';
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
@@ -73,12 +73,12 @@ function formatAmount(amount?: number): string {
 }
 
 function formatPeriod(year?: number, month?: number): string {
-  if (!year || !month) return '—';
+  if (!year || !month) return '-';
   return `${String(month).padStart(2, '0')}.${year}`;
 }
 
 function providerLabel(provider: OrdProvider | undefined, labels: Record<string, string>): string {
-  if (!provider) return '—';
+  if (!provider) return '-';
   return labels[provider] ?? provider;
 }
 
@@ -474,19 +474,19 @@ export function OrdReportsPanel({ workspaceId }: OrdReportsPanelProps) {
                   >
                     <td className="px-2 py-2">{formatPeriod(row.periodYear, row.periodMonth)}</td>
                     <td className="px-2 py-2">{providerLabel(row.provider, providerLabels)}</td>
-                    <td className="px-2 py-2 font-mono text-xs">{row.erid ?? '—'}</td>
-                    <td className="px-2 py-2">{row.platformName ?? '—'}</td>
+                    <td className="px-2 py-2 font-mono text-xs">{row.erid ?? '-'}</td>
+                    <td className="px-2 py-2">{row.platformName ?? '-'}</td>
                     <td className="px-2 py-2">
                       {row.impressions != null
                         ? new Intl.NumberFormat('ru-RU').format(row.impressions)
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="px-2 py-2">{formatAmount(row.amount)}</td>
                     <td className="px-2 py-2">
                       <OrdReportStatusBadge status={row.status} />
                     </td>
                     <td className="max-w-[220px] px-2 py-2 text-xs text-muted-foreground">
-                      {erirError ?? '—'}
+                      {erirError ?? '-'}
                     </td>
                     <td className="px-2 py-2">
                       {canRun && row.invoiceId ? (
@@ -500,7 +500,7 @@ export function OrdReportsPanel({ workspaceId }: OrdReportsPanelProps) {
                           {tReports('delete')}
                         </Button>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
                   </tr>

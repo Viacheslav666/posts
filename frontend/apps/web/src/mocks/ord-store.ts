@@ -593,7 +593,7 @@ export function exportOrdReportsBinary(
 ): { body: Uint8Array; contentType: string; filename: string } {
   const { items } = listOrdReports(workspaceId, filters);
   if (format === 'xlsx') {
-    // Minimal zip marker for MSW — enough for download smoke tests.
+    // Minimal zip marker for MSW - enough for download smoke tests.
     const payload = new TextEncoder().encode(`PK\u0003\u0004ord-reports:${items.length}`);
     return {
       body: payload,

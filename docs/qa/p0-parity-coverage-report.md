@@ -21,14 +21,14 @@
 | 8 | TC-AD-08 | `traceability-tc-ad.md` | ✅ авто |
 | 9 | TC-AD-09 | `traceability-tc-ad.md` | ✅ авто |
 | 10 | TC-AD-10 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-11 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-12 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-13 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-14 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-15 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-16 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-17 | `traceability-tc-ad.md` | ✅ авто |
-| — | TC-AD-18 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-11 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-12 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-13 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-14 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-15 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-16 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-17 | `traceability-tc-ad.md` | ✅ авто |
+| - | TC-AD-18 | `traceability-tc-ad.md` | ✅ авто |
 
 ## E11
 
@@ -46,13 +46,13 @@
 | AC-STORY-11 | TC-STORY-13 | `traceability-tc-story.md` | ✅ авто |
 | AC-STORY-12 | TC-STORY-14 | `traceability-tc-story.md` | ✅ авто |
 | AC-STORY-13 | TC-STORY-15 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-17 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-19 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-20 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-23 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-24 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-27 | `traceability-tc-story.md` | ✅ авто |
-| — | TC-STORY-30 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-17 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-19 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-20 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-23 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-24 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-27 | `traceability-tc-story.md` | ✅ авто |
+| - | TC-STORY-30 | `traceability-tc-story.md` | ✅ авто |
 
 ## E17
 

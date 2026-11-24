@@ -47,7 +47,7 @@ export function OrdContractsPanel({ workspaceId }: OrdContractsPanelProps) {
             {contract.status ? <Badge variant="outline">{contract.status}</Badge> : null}
           </div>
           <p className="text-sm text-muted-foreground">
-            {contract.dateStart} — {contract.dateEnd}
+            {contract.dateStart} - {contract.dateEnd}
           </p>
         </li>
       ))}

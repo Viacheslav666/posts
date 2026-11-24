@@ -1,7 +1,7 @@
 # Настройки репозитория GitHub (branch protection, метки, доска)
 
 > **DEV-2.** Этот runbook описывает, что должен применить **владелец** репозитория `Viacheslav666/posts`.
-> Облачный агент **не** меняет настройки репозитория сам — только готовит конфиги и скрипты в Git.
+> Облачный агент **не** меняет настройки репозитория сам - только готовит конфиги и скрипты в Git.
 > После применения сверьтесь с чеклистом в конце.
 
 ## 1. Branch protection для `main`
@@ -28,7 +28,7 @@ Pattern: `main`
 
 ### 1.1. Обязательные status checks
 
-Имена сверены с `.github/workflows/ci.yml` (поле `jobs.<id>` — именно его показывает GitHub в списке checks):
+Имена сверены с `.github/workflows/ci.yml` (поле `jobs.<id>` - именно его показывает GitHub в списке checks):
 
 | Required check name | Workflow / job | Когда запускается |
 |---|---|---|
@@ -44,7 +44,7 @@ Pattern: `main`
 | `changes` | Служебный paths-filter job, не сигнализирует качество |
 | `Analyze (java)` / `Analyze (javascript-typescript)` | Job из `.github/workflows/codeql.yml` (`name: Analyze` + matrix); тяжёлый, идёт параллельно; включать в required позже по решению владельца |
 
-> **Path filters:** jobs `backend` / `frontend` / `contract` могут быть **skipped**, если paths-filter не сработал. В современных правилах GitHub skipped required checks **не блокируют** merge. Если защита начнёт требовать «зелёный» даже при skip — добавьте no-op success step или уберите path-filter для required jobs. На `main` эти три job всегда запускаются (`github.ref == refs/heads/main`).
+> **Path filters:** jobs `backend` / `frontend` / `contract` могут быть **skipped**, если paths-filter не сработал. В современных правилах GitHub skipped required checks **не блокируют** merge. Если защита начнёт требовать «зелёный» даже при skip - добавьте no-op success step или уберите path-filter для required jobs. На `main` эти три job всегда запускаются (`github.ref == refs/heads/main`).
 
 ### 1.2. Правила слияния PR
 
@@ -109,10 +109,10 @@ EOF
 | `role:frontend` | `B60205` | Задача агента «Разраб Фронт» |
 | `role:devops` | `0E8A16` | Задача агента «Devops» |
 | `role:qa` | `D93F0B` | Задача агента «Тестировщик» |
-| `phase:0` | `C5DEF5` | Фаза 0 — фундамент |
-| `phase:1` | `0075CA` | Фаза 1 — MVP |
-| `phase:2` | `0052CC` | Фаза 2 — превосходство |
-| `phase:3` | `0B3D91` | Фаза 3 — экосистема |
+| `phase:0` | `C5DEF5` | Фаза 0 - фундамент |
+| `phase:1` | `0075CA` | Фаза 1 - MVP |
+| `phase:2` | `0052CC` | Фаза 2 - превосходство |
+| `phase:3` | `0B3D91` | Фаза 3 - экосистема |
 | `P0` | `B60205` | Критичный приоритет |
 | `P1` | `FBCA04` | Высокий приоритет |
 | `P2` | `C2E0C6` | Обычный / позже |
@@ -120,12 +120,12 @@ EOF
 | `dependencies` | `0366D6` | PR от Renovate / обновления зависимостей |
 | `e2e` | `BFDADC` | Запуск e2e-джоба по метке (см. CI-план) |
 
-Правила из `00-overview.md`: каждая задача — Issue с `role:*`, `phase:*`, `P0|P1|P2`; breaking API — дополнительно `contract-change`.
+Правила из `00-overview.md`: каждая задача - Issue с `role:*`, `phase:*`, `P0|P1|P2`; breaking API - дополнительно `contract-change`.
 
 ## 3. GitHub Project (доска)
 
 1. **Projects → New project** → Board.
-2. Имя: `Posts` (или `Posts — Delivery`).
+2. Имя: `Posts` (или `Posts - Delivery`).
 3. Привязать к репозиторию `Viacheslav666/posts`.
 4. Колонки (Status), слева направо:
 
@@ -164,14 +164,14 @@ npx --yes --package renovate -c 'renovate-config-validator'
 |---|---|
 | Secret scanning | ✅ |
 | Push protection | ✅ |
-| Dependabot alerts | ✅ (даже при Renovate — для advisory) |
+| Dependabot alerts | ✅ (даже при Renovate - для advisory) |
 | CodeQL default setup | workflow `codeql.yml` уже в репо |
 
 ## 6. Чеклист применения владельцем
 
 - [ ] Branch protection `main`: PR + 1 approve + required checks `backend`, `frontend`, `contract`, `security`
 - [ ] Force-push и deletion на `main` запрещены
-- [ ] Squash — единственный merge-метод; linear history
+- [ ] Squash - единственный merge-метод; linear history
 - [ ] `./infra/scripts/gh-labels.sh` выполнен; метки на месте
 - [ ] GitHub Project с колонками Backlog → Ready → In progress → Review → QA → Done
 - [ ] Renovate App установлен; `renovate.json` подхвачен

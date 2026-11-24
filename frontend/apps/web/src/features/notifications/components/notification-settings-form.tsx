@@ -288,7 +288,7 @@ export function NotificationSettingsForm({ workspaceId }: NotificationSettingsFo
                         <input
                           type="checkbox"
                           className="h-4 w-4 accent-primary"
-                          aria-label={`${eventLabel(type)} — ${t(`channels.${channel}`)}`}
+                          aria-label={`${eventLabel(type)} - ${t(`channels.${channel}`)}`}
                           checked={Boolean(pref[channel])}
                           onChange={(e) => setPreference(type, channel, e.target.checked)}
                         />
@@ -307,7 +307,7 @@ export function NotificationSettingsForm({ workspaceId }: NotificationSettingsFo
         {draft.telegram?.linked ? (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-muted-foreground">
-              {t('telegram.linkedAs', { username: draft.telegram.username ?? '—' })}
+              {t('telegram.linkedAs', { username: draft.telegram.username ?? '-' })}
             </p>
             <Button
               type="button"

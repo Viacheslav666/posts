@@ -35,8 +35,8 @@ function toEditorOption(
     name: channel.title ?? channel.username ?? channel.id,
     network: channel.network,
     projectName: channel.projectId
-      ? (projectNames.get(channel.projectId) ?? '—')
-      : '—',
+      ? (projectNames.get(channel.projectId) ?? '-')
+      : '-',
     externalId: channel.externalId,
     storyConnectionStatus: channel.storyConnectionStatus,
     status: channel.status,

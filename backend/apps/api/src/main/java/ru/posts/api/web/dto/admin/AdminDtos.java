@@ -94,7 +94,7 @@ public final class AdminDtos {
             UUID targetUserId,
             String targetEmail,
             String reason,
-            @Schema(description = "Always true — FE shows «вы вошли как…» banner") boolean impersonating) {}
+            @Schema(description = "Always true - FE shows «вы вошли как…» banner") boolean impersonating) {}
 
     @Schema(name = "AdminPlanUpsertRequest")
     public record PlanUpsertRequest(

@@ -57,7 +57,7 @@ describe('PostEditor', () => {
     expect(screen.getByRole('tab', { name: 'Общий текст' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText('Posts — новости')).toBeInTheDocument();
+      expect(screen.getByText('Posts - новости')).toBeInTheDocument();
     });
   });
 
@@ -69,7 +69,7 @@ describe('PostEditor', () => {
 
     await screen.findByLabelText('Текст поста');
     await waitFor(() => {
-      expect(screen.getByText('Posts — новости')).toBeInTheDocument();
+      expect(screen.getByText('Posts - новости')).toBeInTheDocument();
     });
     const search = screen.getByPlaceholderText('Поиск каналов');
     search.focus();
@@ -91,9 +91,9 @@ describe('PostEditor', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Posts — новости')).toBeInTheDocument();
+      expect(screen.getByText('Posts - новости')).toBeInTheDocument();
     });
-    await screen.findByText('Ошибок нет — можно планировать.');
+    await screen.findByText('Ошибок нет - можно планировать.');
 
     const editor = screen.getByTestId('mock-tiptap');
     await user.clear(editor);

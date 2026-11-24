@@ -87,7 +87,7 @@ describe('ChannelEventStatus', () => {
     await waitFor(() => {
       expect(screen.getByTestId('channel-event-status')).toHaveAttribute('data-status', 'pending');
     });
-    expect(screen.getByTestId('channel-event-hint')).toHaveTextContent('Бот — администратор канала');
+    expect(screen.getByTestId('channel-event-hint')).toHaveTextContent('Бот - администратор канала');
   });
 
   it('shows load error when subscription is missing', async () => {
