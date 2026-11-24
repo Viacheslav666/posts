@@ -38,6 +38,9 @@ management:
         enabled: true
 
 posts:
+  crypto:
+    # POSTS_CRYPTO_KEK is what compose sets; POSTS_DEV_KEK matches api. Either may be unset.
+    kek: ${POSTS_CRYPTO_KEK:${POSTS_DEV_KEK:local-dev-posts-kek}}
   channels:
     social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
     vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:${POSTS_OAUTH_VK_CLIENT_ID:local-vk-channels}}

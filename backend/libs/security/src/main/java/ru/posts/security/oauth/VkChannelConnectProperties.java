@@ -50,7 +50,7 @@ public class VkChannelConnectProperties {
     public boolean vkIdMode() {
         String tokenUri = vkTokenUri();
         String authUri = vkAuthorizationUri();
-        return tokenUri.contains("id.vk.ru") || authUri.contains("id.vk.ru");
+        return tokenUri.contains("oauth2/auth") || tokenUri.contains("id.vk.ru") || authUri.contains("id.vk.ru");
     }
 
     private static String trim(String url) {
