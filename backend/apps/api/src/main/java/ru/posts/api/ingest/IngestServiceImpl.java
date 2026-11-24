@@ -14,6 +14,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.api.auth.ClientRequestContext;
 import ru.posts.api.channel.PlanLimitService;
@@ -37,6 +38,7 @@ import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
 import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.hash.ContentHasher;
+import ru.posts.grabber.media.UserAttachmentsSpec;
 import ru.posts.grabber.publish.GrabberPostFactory;
 import ru.posts.grabber.ssrf.SsrfBlockedException;
 import ru.posts.grabber.ssrf.SsrfGuard;
@@ -393,7 +395,13 @@ public class IngestServiceImpl implements IngestService {
         return toRuleDto(rule);
     }
 
+    /**
+     * No transaction on this entry point. A class-level transaction would stay open (and keep its
+     * pooled connection) across {@code GrabberRunProcessor}, including media upload. Controllers
+     * call this method with no transaction active, so nothing is suspended.
+     */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberRun startRun(UUID userId, UUID ruleId, String idempotencyKey, ClientRequestContext ctx) {
         return idempotencyService.execute(
                 userId,
@@ -491,7 +499,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}: approve/retry downloads media and must not hold a DB connection. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberItem approve(
             UUID userId,
             UUID itemId,
@@ -536,7 +546,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberItem editAndApprove(
             UUID userId,
             UUID itemId,
@@ -570,7 +582,9 @@ public class IngestServiceImpl implements IngestService {
         if (item.getPostId() != null) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Item already approved/published");
         }
-        if (!"pending_moderation".equals(item.getStatus()) && !"approved".equals(item.getStatus())) {
+        if (!"pending_moderation".equals(item.getStatus())
+                && !"approved".equals(item.getStatus())
+                && !"publish_failed".equals(item.getStatus())) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Item is not approvable");
         }
 
@@ -609,7 +623,9 @@ public class IngestServiceImpl implements IngestService {
         return toItemDto(item);
     }
 
+    /** See {@link #startRun}. Bulk approve calls {@link #approveOnce} on this instance, still outside a transaction. */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public IngestDtos.GrabberBulkModerationResponse bulk(
             UUID userId, IngestDtos.GrabberBulkModerationRequest request, ClientRequestContext ctx) {
         GrabberItemEntity first = requireItem(request.itemIds().getFirst());
@@ -803,6 +819,13 @@ public class IngestServiceImpl implements IngestService {
         } catch (IllegalArgumentException ex) {
             log.warn("Grabber config rejected type={} detail={}", type, ex.getMessage());
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
+        }
+        List<String> attachmentErrors = UserAttachmentsSpec.validate(GrabberConfigSupport.userAttachments(config));
+        if (!attachmentErrors.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    ProblemCodes.VALIDATION_FAILED,
+                    "transform.user_attachments: " + String.join("; ", attachmentErrors));
         }
         if (type == IngestDtos.RuleType.grabber) {
             try {

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import ru.posts.grabber.media.GrabbedAttachments;
 
 /** Reads VK wall posts for grabber sources (wall.get). */
 @Component
@@ -126,26 +127,10 @@ public class VkWallFetcher {
         JsonNode atts = item.path("attachments");
         if (atts.isArray()) {
             for (JsonNode att : atts) {
-                String type = att.path("type").asText("link");
-                Map<String, Object> mapped = new LinkedHashMap<>();
-                mapped.put("type", type);
-                JsonNode payload = att.path(type);
-                if (payload.has("id") && payload.has("owner_id")) {
-                    String cid = type + payload.path("owner_id").asText() + "_"
-                            + payload.path("id").asText();
-                    mapped.put("id", cid);
-                    canonical.add(cid);
-                }
-                if (payload.has("url")) {
-                    mapped.put("url", payload.path("url").asText());
-                }
-                if ("video".equals(type)) {
-                    String videoType = payload.path("type").asText("");
-                    if (videoType.toLowerCase(Locale.ROOT).contains("short")
-                            || payload.path("is_short_video").asBoolean(false)) {
-                        mapped.put("is_clip", true);
-                        mapped.put("video_type", "short_video");
-                    }
+                Map<String, Object> mapped = mapAttachment(att);
+                Object cid = mapped.get("id");
+                if (cid != null) {
+                    canonical.add(cid.toString());
                 }
                 attachments.add(mapped);
             }
@@ -184,5 +169,120 @@ public class VkWallFetcher {
                 signed,
                 fromGroup,
                 raw);
+    }
+
+    /**
+     * Normalizes one {@code wall.get} attachment into the map stored in {@code
+     * grabber_items.attachments}: {@code type}, precise {@code kind}, canonical {@code id}, plus the
+     * fields needed to re-reference or re-upload it ({@code owner_id}, {@code item_id}, {@code
+     * access_key}, {@code url}, {@code title}, video privacy).
+     */
+    static Map<String, Object> mapAttachment(JsonNode att) {
+        String type = att.path("type").asText("link");
+        JsonNode payload = att.path(type);
+        Map<String, Object> mapped = new LinkedHashMap<>();
+        mapped.put("type", type);
+
+        String owner = null;
+        if (payload.hasNonNull("owner_id")) {
+            owner = payload.path("owner_id").asText();
+        } else if ("page".equals(type) && payload.hasNonNull("group_id")) {
+            long groupId = Math.abs(payload.path("group_id").asLong());
+            owner = groupId == 0 ? null : "-" + groupId;
+        }
+        if (owner != null && payload.hasNonNull("id")) {
+            String itemId = payload.path("id").asText();
+            mapped.put("id", type + owner + "_" + itemId);
+            mapped.put("owner_id", owner);
+            mapped.put("item_id", itemId);
+        }
+        String accessKey = payload.path("access_key").asText("");
+        if (!accessKey.isBlank()) {
+            mapped.put("access_key", accessKey);
+        }
+        String title = payload.path("title").asText("");
+        if (!title.isBlank()) {
+            mapped.put("title", title);
+        }
+
+        switch (type) {
+            case "photo" -> {
+                String best = bestPhotoUrl(payload);
+                if (best != null) {
+                    mapped.put("url", best);
+                }
+            }
+            case "video", "clip", "short_video" -> {
+                String videoType = payload.path("type").asText("");
+                boolean clip = !"video".equals(type)
+                        || videoType.toLowerCase(Locale.ROOT).contains("short")
+                        || payload.path("is_short_video").asBoolean(false);
+                if (clip) {
+                    mapped.put("is_clip", true);
+                    mapped.put("video_type", "short_video");
+                }
+                if (payload.path("is_private").asInt(0) == 1) {
+                    mapped.put("is_private", true);
+                }
+                if (payload.hasNonNull("platform")) {
+                    mapped.put("platform", payload.path("platform").asText());
+                }
+                if (payload.hasNonNull("duration")) {
+                    mapped.put("duration", payload.path("duration").asInt());
+                }
+                String description = payload.path("description").asText("");
+                if (!description.isBlank()) {
+                    mapped.put("description", description);
+                }
+            }
+            case "doc" -> {
+                if (payload.hasNonNull("url")) {
+                    mapped.put("url", payload.path("url").asText());
+                }
+                if (payload.hasNonNull("size")) {
+                    mapped.put("size", payload.path("size").asLong());
+                }
+            }
+            case "link", "article" -> {
+                String url = payload.path("url").asText("");
+                if (url.isBlank()) {
+                    url = payload.path("view_url").asText("");
+                }
+                if (!url.isBlank()) {
+                    mapped.put("url", url);
+                }
+            }
+            default -> {
+                if (payload.hasNonNull("url")) {
+                    mapped.put("url", payload.path("url").asText());
+                }
+            }
+        }
+        mapped.put("kind", GrabbedAttachments.kindOf(mapped));
+        return mapped;
+    }
+
+    private static String bestPhotoUrl(JsonNode photo) {
+        String origUrl = photo.path("orig_photo").path("url").asText("");
+        if (!origUrl.isBlank()) {
+            return origUrl;
+        }
+        String best = null;
+        long bestArea = -1;
+        for (JsonNode size : photo.path("sizes")) {
+            String url = size.path("url").asText(size.path("src").asText(""));
+            if (url.isBlank()) {
+                continue;
+            }
+            long area = size.path("width").asLong(0) * size.path("height").asLong(0);
+            if (area > bestArea) {
+                bestArea = area;
+                best = url;
+            }
+        }
+        if (best == null && photo.hasNonNull("url")) {
+            best = photo.path("url").asText();
+        }
+        return best;
     }
 }

@@ -5,7 +5,7 @@ const ENTITY_MAP: Record<string, string> = {
   quot: '"',
   apos: "'",
   nbsp: '\u00A0',
-  mdash: '-',
+  mdash: '—',
   ndash: '–',
 };
 

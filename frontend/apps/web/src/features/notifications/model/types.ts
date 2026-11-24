@@ -7,6 +7,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   'channel.reauth_required',
   'channel.no_permissions',
   'grabber.moderation_queued',
+  'grabber.item_failed',
   'ord.error',
   'ord.erid_failed',
   'invitation.created',

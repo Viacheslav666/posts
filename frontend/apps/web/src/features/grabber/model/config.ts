@@ -87,6 +87,8 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
     skip_if_no_product: values.skipIfNoProduct,
     skip_if_no_file: values.skipIfNoFile,
     skip_if_no_poll: values.skipIfNoPoll,
+    skip_if_no_article: values.skipIfNoArticle,
+    skip_if_no_visual_media: values.skipIfNoVisualMedia,
     skip_if_has_article: values.skipIfHasArticle,
     skip_if_has_video: values.skipIfHasVideo,
     skip_if_has_clip: values.skipIfHasClip,
@@ -124,6 +126,9 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
     strip_phones: values.stripPhones,
     word_replacements: wordReplacementsFromText(values.wordReplacementsText),
     remove_keywords: keywordsFromText(values.removeKeywordsText),
+
+    user_attachments: values.userAttachmentsText.trim(),
+    reupload_video: values.reuploadVideo,
     append_author_signature: values.appendAuthorSignature,
     close_comments: values.closeComments,
     delete_after_enabled: values.deleteAfterEnabled,
@@ -138,7 +143,7 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
           }
         : {},
     ai_model: values.aiModel.trim() || 'stub',
-    attach_when_no_attachments: values.attachWhenNoAttachments,
+    ...(values.attachWhenNoAttachments ? { attach_when_no_attachments: true } : {}),
     attachments_mode: values.attachmentsMode,
     link_to_source: values.linkToSource,
     link_to_author: values.linkToAuthor,
@@ -173,7 +178,10 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
       ignore_edits: true,
       auto_pause_on_errors: values.autoPauseOnErrors,
       auto_pause_error_threshold: 5,
+
+      notify_on_errors: values.notifyOnErrors,
       notify_on_error: values.notifyOnError,
+
     } as unknown as GrabberConfig['reliability'],
     schedule: {
       enabled: values.scheduleEnabled,
@@ -253,6 +261,8 @@ export function formValuesFromRule(rule: GrabberRule): GrabberRuleFormValues {
     skipIfNoProduct: asBool(filters.skip_if_no_product, false),
     skipIfNoFile: asBool(filters.skip_if_no_file, false),
     skipIfNoPoll: asBool(filters.skip_if_no_poll, false),
+    skipIfNoArticle: asBool(filters.skip_if_no_article, false),
+    skipIfNoVisualMedia: asBool(filters.skip_if_no_visual_media, false),
     skipIfHasArticle: asBool(filters.skip_if_has_article, false),
     skipIfHasVideo: asBool(filters.skip_if_has_video, false),
     skipIfHasClip: asBool(filters.skip_if_has_clip, false),
@@ -319,11 +329,14 @@ export function formValuesFromRule(rule: GrabberRule): GrabberRuleFormValues {
 
     prependText: typeof transform.prepend_text === 'string' ? transform.prepend_text : '',
     appendText: typeof transform.append_text === 'string' ? transform.append_text : '',
+    userAttachmentsText: typeof transform.user_attachments === 'string' ? transform.user_attachments : '',
     attachWhenNoAttachments: asBool(transform.attach_when_no_attachments, false),
+    reuploadVideo: asBool(transform.reupload_video, false),
     attachmentsMode: transform.attachments_mode === 'carousel' ? 'carousel' : 'grid',
     linkToSource: asBool(transform.link_to_source, false),
     linkToAuthor: asBool(transform.link_to_author, false),
     autoPauseOnErrors: asBool(reliability.auto_pause_on_errors, true),
+    notifyOnErrors: asBool(reliability.notify_on_errors, true),
 
     attributionEnabled: true,
     attributionPlacement:
@@ -374,6 +387,8 @@ export function defaultFormValues(channelId?: string): GrabberRuleFormValues {
     skipIfNoProduct: false,
     skipIfNoFile: false,
     skipIfNoPoll: false,
+    skipIfNoArticle: false,
+    skipIfNoVisualMedia: false,
     skipIfHasArticle: false,
     skipIfHasVideo: false,
     skipIfHasClip: false,
@@ -437,11 +452,14 @@ export function defaultFormValues(channelId?: string): GrabberRuleFormValues {
 
     prependText: '',
     appendText: '',
+    userAttachmentsText: '',
     attachWhenNoAttachments: false,
+    reuploadVideo: false,
     attachmentsMode: 'grid',
     linkToSource: false,
     linkToAuthor: false,
     autoPauseOnErrors: true,
+    notifyOnErrors: true,
 
     attributionEnabled: true,
     attributionPlacement: 'footer',

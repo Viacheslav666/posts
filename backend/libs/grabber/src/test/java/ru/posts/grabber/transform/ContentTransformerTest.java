@@ -121,4 +121,48 @@ class ContentTransformerTest {
         assertThat(GrabberConfigSupport.firstComment(config).get("pending_be23"))
                 .isEqualTo(true);
     }
+
+    @Test
+    void stripVideoKeepsClipsAndViceVersa() {
+        List<Map<String, Object>> atts = List.of(
+                Map.of("type", "video", "id", "video-1_1"),
+                Map.of("type", "video", "id", "video-1_2", "is_clip", true));
+        ContentTransformer.TransformResult noVideo = ContentTransformer.transform(
+                "t",
+                atts,
+                GrabberConfigSupport.withDefaults(Map.of("transform", Map.of("strip_video", true))),
+                MacroExpander.Context.of("n", "id", "wall-1_1"));
+        assertThat(noVideo.attachments()).extracting(a -> a.get("id")).containsExactly("video-1_2");
+        ContentTransformer.TransformResult noClip = ContentTransformer.transform(
+                "t",
+                atts,
+                GrabberConfigSupport.withDefaults(Map.of("transform", Map.of("strip_clip", true))),
+                MacroExpander.Context.of("n", "id", "wall-1_1"));
+        assertThat(noClip.attachments()).extracting(a -> a.get("id")).containsExactly("video-1_1");
+    }
+
+    @Test
+    void stripWikiKeepsArticlesAndStripLinksRemovesLinkAttachments() {
+        List<Map<String, Object>> atts = List.of(
+                Map.of("type", "page"), Map.of("type", "article"), Map.of("type", "link"), Map.of("type", "photo"));
+        ContentTransformer.TransformResult result = ContentTransformer.transform(
+                "см https://example.com",
+                atts,
+                GrabberConfigSupport.withDefaults(
+                        Map.of("transform", Map.of("strip_wiki", true, "strip_all_links", true))),
+                MacroExpander.Context.of("n", "id", "wall-1_1"));
+        assertThat(result.attachments()).extracting(a -> a.get("type")).containsExactly("article", "photo");
+        assertThat(result.text()).doesNotContain("example.com");
+    }
+
+    @Test
+    void transformIsIdempotentForLegacyAttachedAttachments() {
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(Map.of(
+                "transform", Map.of("attached_attachments", List.of(Map.of("type", "photo", "id", "photo-1_9")))));
+        MacroExpander.Context ctx = MacroExpander.Context.of("n", "id", "wall-1_1");
+        ContentTransformer.TransformResult once = ContentTransformer.transform("t", List.of(), config, ctx);
+        ContentTransformer.TransformResult twice =
+                ContentTransformer.transform(once.text(), once.attachments(), config, ctx);
+        assertThat(twice.attachments()).hasSize(1);
+    }
 }

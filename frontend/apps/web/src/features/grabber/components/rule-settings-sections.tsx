@@ -33,9 +33,12 @@ type SectionsProps = {
   errors: FieldErrors<GrabberRuleFormValues>;
   scheduleEnabled: boolean;
   firstCommentEnabled: boolean;
+
+  userAttachmentsError?: string;
   caps: GrabberModeCaps;
   intervalError?: string;
   firstCommentError?: string;
+
 };
 
 export function RuleSettingsSections({
@@ -44,9 +47,12 @@ export function RuleSettingsSections({
   errors,
   scheduleEnabled,
   firstCommentEnabled,
+
+  userAttachmentsError,
   caps,
   intervalError,
   firstCommentError,
+
 }: SectionsProps) {
   const t = useTranslations('grabber.form');
   const settingError = (key: keyof GrabberRuleFormValues) => {
@@ -82,6 +88,11 @@ export function RuleSettingsSections({
           {SKIP_IF_NO_ATTACHMENT_FLAGS.map((flag) => (
             <CheckboxRow key={flag} label={t(`filters.${flag}`)} {...register(flag)} />
           ))}
+          <CheckboxRow
+            label={t('filters.skipIfNoVisualMedia')}
+            data-testid="grabber-skip-no-visual-media"
+            {...register('skipIfNoVisualMedia')}
+          />
         </div>
 
         <p className="text-xs font-medium text-muted-foreground">{t('filters.hasTypes')}</p>
@@ -377,6 +388,14 @@ export function RuleSettingsSections({
           </label>
         </div>
         <CheckboxRow label={t('limits.autoPause')} {...register('autoPauseOnErrors')} />
+        <div className="space-y-1">
+          <CheckboxRow
+            label={t('limits.notifyOnErrors')}
+            data-testid="grabber-notify-on-errors"
+            {...register('notifyOnErrors')}
+          />
+          <p className="text-xs text-muted-foreground">{t('limits.notifyOnErrorsHint')}</p>
+        </div>
       </SettingsSection>
 
       <SettingsSection
@@ -549,11 +568,34 @@ export function RuleSettingsSections({
           />
         </label>
         <MacroHints macros={TEXT_MACROS} label={t('macros.label')} />
-        <div className="flex flex-wrap gap-4">
-          <CheckboxRow
-            label={t('attached.attachWhenEmpty')}
-            {...register('attachWhenNoAttachments')}
+        <label className="block space-y-1 text-sm">
+          <span>{t('attached.userAttachments')}</span>
+          <textarea
+            className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+            placeholder={t('attached.userAttachmentsPlaceholder')}
+            aria-invalid={userAttachmentsError ? true : undefined}
+            aria-describedby="grabber-user-attachments-hint"
+            data-testid="grabber-user-attachments"
+            {...register('userAttachmentsText')}
           />
+          {userAttachmentsError ? (
+            <span className="block text-xs text-destructive" role="alert">
+              {userAttachmentsError}
+            </span>
+          ) : null}
+          <span id="grabber-user-attachments-hint" className="block text-xs text-muted-foreground">
+            {t('attached.userAttachmentsHint')}
+          </span>
+        </label>
+        <div className="space-y-1">
+          <CheckboxRow
+            label={t('attached.reuploadVideo')}
+            data-testid="grabber-reupload-video"
+            {...register('reuploadVideo')}
+          />
+          <p className="text-xs text-muted-foreground">{t('attached.reuploadVideoHint')}</p>
+        </div>
+        <div className="flex flex-wrap gap-4">
           <CheckboxRow label={t('attached.linkToSource')} {...register('linkToSource')} />
           <CheckboxRow label={t('attached.linkToAuthor')} {...register('linkToAuthor')} />
         </div>
@@ -586,7 +628,7 @@ export function RuleSettingsSections({
             )}
           />
         </fieldset>
-        <p className="text-xs text-muted-foreground">{t('attached.attachmentsNote')}</p>
+        <p className="text-xs text-muted-foreground">{t('attached.modeHint')}</p>
       </SettingsSection>
     </div>
   );

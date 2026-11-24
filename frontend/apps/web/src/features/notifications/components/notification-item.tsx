@@ -61,6 +61,7 @@ export function NotificationItem({
     'channel.reauth_required': t('types.channel.reauth_required'),
     'channel.no_permissions': t('types.channel.no_permissions'),
     'grabber.moderation_queued': t('types.grabber.moderation_queued'),
+    'grabber.item_failed': t('types.grabber.item_failed'),
     'grabber.setting_error': t('types.grabber.setting_error'),
     'ord.error': t('types.ord.error'),
     'ord.erid_failed': t('types.ord.erid_failed'),

@@ -18,8 +18,13 @@ describe('vk-string-attachments', () => {
   it('rejects malformed tokens', () => {
     expect(isValidVkStringAttachment('photo')).toBe(false);
     expect(isValidVkStringAttachment('photo_1')).toBe(false);
-    expect(isValidVkStringAttachment('http://example.com')).toBe(false);
+    expect(isValidVkStringAttachment('ftp://example.com')).toBe(false);
     expect(invalidVkStringAttachments(['photo-1_2', 'bad', 'video1_2'])).toEqual(['bad']);
+  });
+
+  it('accepts a link snippet (grabbed posts keep source links)', () => {
+    expect(isValidVkStringAttachment('https://example.com/news?id=1')).toBe(true);
+    expect(normalizeVkStringAttachments(['https://Example.com/A'])).toEqual(['https://Example.com/A']);
   });
 
   it('normalizes type casing', () => {

@@ -85,6 +85,25 @@ public class VkApiController {
         return dispatch(method, params, rawResponse);
     }
 
+    /**
+     * Stand-in for VK CDN (userapi.com / vkvideo) used by grabber media re-upload. {@code size}
+     * controls the body length so tests can exercise the 50 MB video limit with a lowered threshold.
+     */
+    @GetMapping({"/vk/media/{name:.+}", "/media/{name:.+}"})
+    public ResponseEntity<byte[]> media(
+            @PathVariable String name, @RequestParam(name = "size", required = false) Integer size) {
+        boolean video = name.endsWith(".mp4");
+        int length = size == null ? (video ? 4096 : 512) : Math.max(4, Math.min(size, 64 * 1024 * 1024));
+        byte[] body = new byte[length];
+        byte[] header = video
+                ? new byte[] {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}
+                : new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        System.arraycopy(header, 0, body, 0, Math.min(header.length, length));
+        return ResponseEntity.ok()
+                .contentType(video ? MediaType.parseMediaType("video/mp4") : MediaType.IMAGE_JPEG)
+                .body(body);
+    }
+
     @PostMapping(
             path = {"/vk/upload/{uploadId}", "/upload/{uploadId}"},
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -155,6 +174,7 @@ public class VkApiController {
             case "photos.getWallUploadServer" -> ResponseEntity.ok(getWallUploadServer(params));
             case "photos.saveWallPhoto" -> ResponseEntity.ok(saveWallPhoto(params));
             case "video.save" -> ResponseEntity.ok(videoSave(params));
+            case "video.get" -> ResponseEntity.ok(videoGet(params));
             case "docs.getWallUploadServer" -> ResponseEntity.ok(getDocUploadServer(params));
             case "docs.save" -> ResponseEntity.ok(docsSave(params));
             case "polls.create" -> ResponseEntity.ok(pollsCreate(params));
@@ -880,6 +900,41 @@ public class VkApiController {
         response.put("upload_url", emulatorProperties.absolute("/vk/upload/" + session.uploadId()));
         response.put("video_id", videoId);
         response.put("owner_id", -owner);
+        return Map.of("response", response);
+    }
+
+    /**
+     * Grabber video re-upload: resolves {@code videos=owner_id_video_id[_access_key]} against
+     * attachments seeded on emulated walls. Public videos without explicit {@code files} get an
+     * mp4 served by {@code /vk/media/}; private / external ones are returned as seeded.
+     */
+    private Map<String, Object> videoGet(MultiValueMap<String, String> params) {
+        String videos = first(params, "videos");
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (videos != null) {
+            for (String key : videos.split(",")) {
+                String[] parts = key.trim().split("_");
+                if (parts.length < 2) {
+                    continue;
+                }
+                String owner = parts[0];
+                String id = parts[1];
+                wallSourceStore.findAttachment("video", owner, id).ifPresent(video -> {
+                    boolean isPrivate = "1".equals(String.valueOf(video.get("is_private")));
+                    if (!video.containsKey("files") && !isPrivate && !video.containsKey("platform")) {
+                        video.put(
+                                "files",
+                                Map.of(
+                                        "mp4_480",
+                                        emulatorProperties.absolute("/vk/media/video" + owner + "_" + id + ".mp4")));
+                    }
+                    items.add(video);
+                });
+            }
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("count", items.size());
+        response.put("items", items);
         return Map.of("response", response);
     }
 

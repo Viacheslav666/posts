@@ -1035,29 +1035,29 @@
       "source": "US-4.3 / network-capabilities.yaml",
       "input": {
         "kind": "canonical-html",
-        "html": "цена&nbsp;-&nbsp;990&nbsp;₽"
+        "html": "цена&nbsp;—&nbsp;990&nbsp;₽"
       },
       "expected": {
         "telegram": {
-          "html": "цена&nbsp;-&nbsp;990&nbsp;₽",
-          "plain_text": "цена - 990 ₽",
+          "html": "цена&nbsp;—&nbsp;990&nbsp;₽",
+          "plain_text": "цена — 990 ₽",
           "plain_length": 12,
           "valid": true,
           "warnings": []
         },
         "max": {
-          "html": "цена&nbsp;-&nbsp;990&nbsp;₽",
-          "plain_text": "цена - 990 ₽",
+          "html": "цена&nbsp;—&nbsp;990&nbsp;₽",
+          "plain_text": "цена — 990 ₽",
           "plain_length": 12,
           "valid": true,
           "warnings": []
         },
         "vk": {
-          "plain": "цена - 990 ₽",
+          "plain": "цена — 990 ₽",
           "formatting_stripped": false
         },
         "ok": {
-          "plain": "цена - 990 ₽",
+          "plain": "цена — 990 ₽",
           "formatting_stripped": false
         }
       },
@@ -2335,30 +2335,30 @@
       "source": "US-4.3 / network-capabilities.yaml",
       "input": {
         "kind": "canonical-html",
-        "html": "Используйте <code>curl &amp; jq</code> - <a href=\"https://example.com\">docs</a>"
+        "html": "Используйте <code>curl &amp; jq</code> — <a href=\"https://example.com\">docs</a>"
       },
       "expected": {
         "telegram": {
-          "html": "Используйте <code>curl &amp; jq</code> - <a href=\"https://example.com\">docs</a>",
-          "plain_text": "Используйте curl & jq - docs",
+          "html": "Используйте <code>curl &amp; jq</code> — <a href=\"https://example.com\">docs</a>",
+          "plain_text": "Используйте curl & jq — docs",
           "plain_length": 28,
           "valid": true,
           "warnings": []
         },
         "max": {
-          "html": "Используйте <code>curl &amp; jq</code> - <a href=\"https://example.com\">docs</a>",
-          "plain_text": "Используйте curl & jq - docs",
+          "html": "Используйте <code>curl &amp; jq</code> — <a href=\"https://example.com\">docs</a>",
+          "plain_text": "Используйте curl & jq — docs",
           "plain_length": 28,
           "valid": true,
           "warnings": []
         },
         "vk": {
-          "plain": "Используйте curl & jq - docs",
+          "plain": "Используйте curl & jq — docs",
           "formatting_stripped": true,
           "warning": "Форматирование будет потеряно для VK/OK (plain text)."
         },
         "ok": {
-          "plain": "Используйте curl & jq - docs",
+          "plain": "Используйте curl & jq — docs",
           "formatting_stripped": true,
           "warning": "Форматирование будет потеряно для VK/OK (plain text)."
         }

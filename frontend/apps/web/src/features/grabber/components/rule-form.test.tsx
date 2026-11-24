@@ -153,4 +153,43 @@ describe('RuleForm (FE-14)', () => {
     );
     expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-scheduled-delete', 'false');
   });
+
+  it('validates user attachments syntax and saves media settings', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    expect(screen.getByText(/Публичные видео до 50 МБ/i)).toBeInTheDocument();
+    await user.type(screen.getByTestId('grabber-rule-name'), 'Media rule');
+    await user.type(screen.getByTestId('grabber-source-ids'), '-123456');
+    await user.click(screen.getByTestId('grabber-responsibility'));
+    await user.type(screen.getByTestId('grabber-user-attachments'), 'photo-1_2, picture');
+    await user.click(screen.getByTestId('grabber-rule-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Некорректное вложение/i);
+    });
+    expect(push).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByTestId('grabber-user-attachments'));
+    await user.type(screen.getByTestId('grabber-user-attachments'), 'photo-1_2');
+    await user.click(screen.getByTestId('grabber-reupload-video'));
+    await user.click(screen.getByTestId('grabber-skip-no-visual-media'));
+    await user.click(screen.getByTestId('grabber-rule-submit'));
+
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const saved = listRules({ workspaceId: PERSONAL_WORKSPACE_ID, projectId: DEFAULT_PROJECT_ID }).find(
+      (rule) => rule.name === 'Media rule',
+    );
+    expect(saved?.config?.transform).toMatchObject({
+      user_attachments: 'photo-1_2',
+      reupload_video: true,
+    });
+    expect(saved?.config?.filters).toMatchObject({ skip_if_no_visual_media: true });
+  });
 });
