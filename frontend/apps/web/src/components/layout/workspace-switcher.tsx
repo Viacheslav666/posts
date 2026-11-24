@@ -17,7 +17,9 @@ import {
 } from '@posts/ui';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { OPEN_CREATE_WORKSPACE_EVENT } from './nav-model';
 
 import { CreateWorkspaceForm } from '@/features/workspace/components/create-workspace-form';
 import { useMe } from '@/shared/hooks/use-me';
@@ -33,6 +35,12 @@ export function WorkspaceSwitcher({ currentWorkspaceId }: WorkspaceSwitcherProps
   const [open, setOpen] = useState(false);
 
   const memberships = data?.memberships ?? [];
+
+  useEffect(() => {
+    const openDialog = () => setOpen(true);
+    window.addEventListener(OPEN_CREATE_WORKSPACE_EVENT, openDialog);
+    return () => window.removeEventListener(OPEN_CREATE_WORKSPACE_EVENT, openDialog);
+  }, []);
   const value = memberships.some((m) => m.workspaceId === currentWorkspaceId)
     ? currentWorkspaceId
     : (memberships[0]?.workspaceId ?? currentWorkspaceId);

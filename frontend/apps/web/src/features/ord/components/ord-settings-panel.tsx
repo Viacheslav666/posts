@@ -11,11 +11,14 @@ import { OrdContractorsPanel } from './ord-contractors-panel';
 import { OrdContractsPanel } from './ord-contracts-panel';
 import { OrdReportsPanel } from './ord-reports-panel';
 
+type OrdTab = 'connection' | 'contractors' | 'contracts' | 'reports';
+
 type OrdSettingsPanelProps = {
   workspaceId: string;
+  initialTab?: OrdTab;
 };
 
-export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
+export function OrdSettingsPanel({ workspaceId, initialTab = 'connection' }: OrdSettingsPanelProps) {
   const t = useTranslations('ord');
   const canView = useCan('ord.view', workspaceId);
 
@@ -39,7 +42,7 @@ export function OrdSettingsPanel({ workspaceId }: OrdSettingsPanelProps) {
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
-      <Tabs defaultValue="connection">
+      <Tabs defaultValue={initialTab}>
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="connection">{t('tabs.connection')}</TabsTrigger>
           <TabsTrigger value="contractors">{t('tabs.contractors')}</TabsTrigger>

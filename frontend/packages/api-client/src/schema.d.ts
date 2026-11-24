@@ -6222,6 +6222,11 @@ export interface components {
             impersonation?: components["schemas"]["ImpersonationBanner"];
             /** @example ru */
             locale?: string;
+            /**
+             * @description How the current session signed in, or the provider used to create the account: vk, email, yandex, telegram
+             * @example email
+             */
+            loginMethod?: string;
             memberships?: components["schemas"]["MembershipSummary"][];
             /** @example Local Dev */
             name?: string;

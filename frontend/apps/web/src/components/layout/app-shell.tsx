@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
+import { CommandPalette } from './command-palette';
 
 type AppShellProps = {
   workspaceId: string;
@@ -11,6 +12,7 @@ type AppShellProps = {
 export function AppShell({ workspaceId, children }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
+      <CommandPalette workspaceId={workspaceId} />
       <AppHeader workspaceId={workspaceId} />
       <div className="flex min-h-0 flex-1">
         <div className="hidden md:block">

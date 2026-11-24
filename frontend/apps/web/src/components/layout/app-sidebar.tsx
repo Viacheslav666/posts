@@ -6,6 +6,7 @@ import {
   Ban,
   BarChart3,
   CalendarDays,
+  ChevronRight,
   CreditCard,
   FolderKanban,
   FolderOpen,
@@ -14,152 +15,270 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageSquarePlus,
+  MessagesSquare,
+  PenLine,
   Radio,
+  Search,
   Settings,
   Sparkles,
+  Star,
+  Terminal,
   Users,
   Workflow,
+  type LucideIcon,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo, type ComponentType } from 'react';
-
-import { useAutomationFeatureFlags } from '@/features/automations-common/hooks/use-feature-flag';
-import { useCan } from '@/shared/hooks/use-can';
+import { useEffect, useMemo, useState } from 'react';
 
 import { WorkspaceSwitcher } from './workspace-switcher';
+import { UserAccountMenu } from './user-account-menu';
+import { NavSubmenu } from './nav-submenu';
+import { useNavAccess } from './use-nav-access';
+import { useNavBadges } from './use-nav-badges';
+import {
+  activeItemId,
+  buildNav,
+  filterNav,
+  formatBadge,
+  quickActions,
+  readFavorites,
+  requestCreateWorkspace,
+  requestOpenCommandPalette,
+  toggleFavorite,
+  toggleOpenId,
+  type NavBadgeKey,
+  type NavIcon,
+  type NavItem,
+} from './nav-model';
+
+const ICONS: Record<NavIcon, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  calendar: CalendarDays,
+  inbox: Inbox,
+  messenger: MessagesSquare,
+  'create-post': PenLine,
+  'create-story': Sparkles,
+  posts: Megaphone,
+  stories: Sparkles,
+  communities: Users,
+  analytics: BarChart3,
+  automations: Workflow,
+  grabber: Workflow,
+  suggest: MessageSquarePlus,
+  antispam: Ban,
+  crosspost: GitBranch,
+  ord: BadgeCheck,
+  scripts: Terminal,
+  channels: Radio,
+  media: FolderOpen,
+  projects: FolderKanban,
+  team: Users,
+  settings: Settings,
+  billing: CreditCard,
+};
 
 type AppSidebarProps = {
   workspaceId: string;
   className?: string;
+  mode?: 'sidebar' | 'drawer';
 };
 
-type NavItem = {
-  key: string;
-  href: string;
-  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  permission?: 'analytics.view' | 'ord.view' | 'billing.view';
+type OpenMenu = {
+  id: string;
+  anchor: HTMLElement;
 };
 
-const NAV_ITEMS_BEFORE_AUTOMATIONS: NavItem[] = [
-  { key: 'dashboard', href: '', icon: LayoutDashboard },
-  { key: 'calendar', href: '/calendar', icon: CalendarDays },
-  { key: 'posts', href: '/posts', icon: Megaphone },
-  { key: 'stories', href: '/stories', icon: Sparkles },
-  { key: 'channels', href: '/channels', icon: Radio },
-  { key: 'media', href: '/media', icon: FolderOpen },
-  { key: 'analytics', href: '/analytics', icon: BarChart3, permission: 'analytics.view' },
-  { key: 'inbox', href: '/inbox', icon: Inbox },
-];
+export function AppSidebar({ workspaceId, className, mode = 'sidebar' }: AppSidebarProps) {
+  const pathname = usePathname() ?? '';
+  const access = useNavAccess(workspaceId);
+  const items = useMemo(() => filterNav(buildNav(workspaceId), access), [access, workspaceId]);
+  const actions = useMemo(() => quickActions(workspaceId, access), [access, workspaceId]);
+  const suggestVisible = items.some((item) => item.badge === 'suggest');
+  const badges = useNavBadges(workspaceId, suggestVisible);
+  const counts: Partial<Record<NavBadgeKey, number | undefined>> = { suggest: badges.suggest };
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-const NAV_ITEMS_AFTER_AUTOMATIONS: NavItem[] = [
-  { key: 'ord', href: '/ord', icon: BadgeCheck, permission: 'ord.view' },
-  { key: 'projects', href: '/projects', icon: FolderKanban },
-  { key: 'team', href: '/team', icon: Users },
-  { key: 'settings', href: '/settings', icon: Settings },
-  { key: 'billing', href: '/billing', icon: CreditCard, permission: 'billing.view' },
-];
+  useEffect(() => {
+    setFavorites(readFavorites());
+  }, []);
 
-export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
-  const t = useTranslations('nav');
-  const tAuto = useTranslations('automations');
-  const pathname = usePathname();
-  const base = `/app/${workspaceId}`;
-  const canViewAnalytics = useCan('analytics.view', workspaceId);
-  const canViewOrd = useCan('ord.view', workspaceId);
-  const canViewBilling = useCan('billing.view', workspaceId);
-  const canViewAutomations = useCan('automations.view', workspaceId);
-  const flags = useAutomationFeatureFlags();
+  useEffect(() => {
+    setOpenId(null);
+    setAnchor(null);
+  }, [pathname]);
 
-  const before = useMemo(() => {
-    return NAV_ITEMS_BEFORE_AUTOMATIONS.filter((item) => {
-      if (!item.permission) return true;
-      if (item.permission === 'analytics.view') return canViewAnalytics;
-      if (item.permission === 'ord.view') return canViewOrd;
-      if (item.permission === 'billing.view') return canViewBilling;
-      return true;
-    });
-  }, [canViewAnalytics, canViewBilling, canViewOrd]);
-
-  const after = useMemo(() => {
-    return NAV_ITEMS_AFTER_AUTOMATIONS.filter((item) => {
-      if (!item.permission) return true;
-      if (item.permission === 'analytics.view') return canViewAnalytics;
-      if (item.permission === 'ord.view') return canViewOrd;
-      if (item.permission === 'billing.view') return canViewBilling;
-      return true;
-    });
-  }, [canViewAnalytics, canViewBilling, canViewOrd]);
-
-  const automationChildren = useMemo(() => {
-    const children: Array<{
-      key: string;
-      href: string;
-      label: string;
-      icon: typeof Workflow;
-    }> = [
-      {
-        key: 'grabber',
-        href: `${base}/automations/grabber`,
-        label: tAuto('grabber.title'),
-        icon: Workflow,
-      },
-    ];
-    if (flags.suggest) {
-      children.push({
-        key: 'suggest',
-        href: `${base}/automations/suggest`,
-        label: tAuto('suggest.title'),
-        icon: MessageSquarePlus,
-      });
+  useEffect(() => {
+    if (!openId) {
+      return;
     }
-    if (flags.antispam) {
-      children.push({
-        key: 'antispam',
-        href: `${base}/automations/antispam`,
-        label: tAuto('antispam.title'),
-        icon: Ban,
-      });
-    }
-    if (flags.crosspost) {
-      children.push({
-        key: 'crosspost',
-        href: `${base}/automations/crosspost`,
-        label: tAuto('crosspost.title'),
-        icon: GitBranch,
-      });
-    }
-    return children;
-  }, [base, flags.antispam, flags.crosspost, flags.suggest, tAuto]);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenId(null);
+        setAnchor(null);
+      }
+    };
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest('[data-nav-menu], [data-nav-chevron]')) {
+        return;
+      }
+      setOpenId(null);
+      setAnchor(null);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onPointer);
+    };
+  }, [openId]);
 
-  const automationsHref = `${base}/automations`;
+  const activeId = activeItemId(items, pathname);
+  const pinned = favorites
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is NavItem => Boolean(item));
+  const p0 = items.filter((item) => item.priority === 'p0');
+  const p1 = items.filter((item) => item.priority === 'p1');
+  const p2 = items.filter((item) => item.priority === 'p2');
+  const openItem = items.find((item) => item.id === openId);
 
-  const renderLink = (item: NavItem) => {
-    const href = `${base}${item.href}`;
-    const isActive =
-      item.href === ''
-        ? pathname === base || pathname === `${base}/`
-        : pathname === href || pathname.startsWith(`${href}/`);
-    const Icon = item.icon;
+  const closeMenu = () => {
+    setOpenId(null);
+    setAnchor(null);
+  };
 
+  const renderItem = (item: NavItem) => {
+    const Icon = ICONS[item.icon];
+    const active = item.id === activeId;
+    const open = openId === item.id;
+    const menuId = `nav-menu-${item.id}`;
+    const badge = item.badge ? formatBadge(counts[item.badge]) : null;
+    const pinnedOn = favorites.includes(item.id);
+    const hasChildren = (item.children?.length ?? 0) > 0;
     return (
-      <Link
-        key={item.key}
-        href={href}
-        className={cn(
-          'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          isActive
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-        )}
-        aria-current={isActive ? 'page' : undefined}
-      >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-        <span>{t(item.key as 'dashboard')}</span>
-      </Link>
+      <div key={item.id} data-testid={item.testId}>
+        <div
+          className={cn(
+            'flex h-8 items-center gap-0.5 rounded-md pr-1 text-sm',
+            active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <Link
+            href={item.href}
+            data-testid={`nav-item-${item.id}`}
+            aria-current={active ? 'page' : undefined}
+            className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={closeMenu}
+          >
+            <Icon className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="truncate">{item.label}</span>
+            {badge ? (
+              <span
+                className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground"
+                data-testid={`nav-badge-${item.id}`}
+              >
+                {badge}
+              </span>
+            ) : null}
+          </Link>
+          <button
+            type="button"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-pressed={pinnedOn}
+            aria-label={pinnedOn ? `Открепить: ${item.label}` : `Закрепить: ${item.label}`}
+            data-testid={`nav-pin-${item.id}`}
+            onClick={() => setFavorites(toggleFavorite(item.id))}
+          >
+            <Star className={cn('h-3.5 w-3.5', pinnedOn && 'fill-current text-primary')} aria-hidden />
+          </button>
+          {hasChildren ? (
+            <button
+              type="button"
+              data-nav-chevron
+              data-testid={`nav-chevron-${item.id}`}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-haspopup="menu"
+              aria-expanded={open}
+              aria-controls={open ? menuId : undefined}
+              aria-label={`Подпункты: ${item.label}`}
+              onClick={(event) => {
+                const row = event.currentTarget.parentElement;
+                if (!row) {
+                  return;
+                }
+                const next = toggleOpenId(openId, item.id);
+                setOpenId(next);
+                setAnchor(next ? row : null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' && !open) {
+                  event.preventDefault();
+                  const row = event.currentTarget.parentElement;
+                  if (!row) {
+                    return;
+                  }
+                  setOpenId(item.id);
+                  setAnchor(row);
+                }
+              }}
+            >
+              <ChevronRight
+                className={cn('h-4 w-4', mode === 'drawer' && open && 'rotate-90')}
+                aria-hidden
+              />
+            </button>
+          ) : (
+            <span className="inline-flex h-7 w-7 shrink-0" aria-hidden />
+          )}
+        </div>
+        {mode === 'drawer' && open && item.children ? (
+          <ul
+            id={menuId}
+            role="menu"
+            aria-label={item.label}
+            data-nav-menu
+            className="ml-4 border-l border-border py-1 pl-2"
+            onKeyDown={(event) => {
+              const links = event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]');
+              const current = Array.from(links).indexOf(document.activeElement as HTMLElement);
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                links[(current + 1) % links.length]?.focus();
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                links[(current - 1 + links.length) % links.length]?.focus();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                closeMenu();
+              }
+            }}
+          >
+            {item.children.map((child) => (
+              <li key={child.id}>
+                <Link
+                  href={child.href}
+                  role="menuitem"
+                  data-testid={`nav-child-${child.id}`}
+                  className="block rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={closeMenu}
+                >
+                  {child.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     );
   };
+
+  const openMenu: OpenMenu | null =
+    mode === 'sidebar' && openItem && anchor && openItem.children && openItem.children.length > 0
+      ? { id: openItem.id, anchor }
+      : null;
 
   return (
     <aside
@@ -169,57 +288,79 @@ export function AppSidebar({ workspaceId, className }: AppSidebarProps) {
       )}
       aria-label="Sidebar"
     >
-      <div className="border-b border-border p-4">
+      <div className={cn('shrink-0 space-y-3 border-b border-border p-3', mode === 'drawer' && 'pr-10')}>
+        <UserAccountMenu workspaceId={workspaceId} />
         <WorkspaceSwitcher currentWorkspaceId={workspaceId} />
+        <button
+          type="button"
+          onClick={requestOpenCommandPalette}
+          className="flex h-8 w-full items-center gap-2 rounded-md border border-border px-2 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="nav-search"
+        >
+          <Search className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="flex-1 text-left">Поиск</span>
+          <span className="text-[10px] tracking-wide">Ctrl K</span>
+        </button>
+        <div className="flex flex-col gap-1" data-testid="nav-quick-actions">
+          {actions.map((action) =>
+            action.href ? (
+              <Link
+                key={action.id}
+                href={action.href}
+                className="flex h-8 items-center rounded-md px-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {action.label}
+              </Link>
+            ) : (
+              <button
+                key={action.id}
+                type="button"
+                className="flex h-8 items-center rounded-md px-2 text-left text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={requestCreateWorkspace}
+              >
+                {action.label}
+              </button>
+            ),
+          )}
+        </div>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Main">
-        {before.map(renderLink)}
-
-        {canViewAutomations ? (
-          <div className="pt-1" data-testid="nav-automations-group">
-            <Link
-              href={automationsHref}
-              className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                pathname === automationsHref
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-              aria-current={pathname === automationsHref ? 'page' : undefined}
-            >
-              <Workflow className="h-4 w-4 shrink-0" aria-hidden />
-              <span>{t('automations')}</span>
-            </Link>
-            <ul className="ml-4 mt-1 space-y-0.5 border-l border-border pl-2" role="list">
-              {automationChildren.map((child) => {
-                const Icon = child.icon;
-                const isActive =
-                  pathname === child.href || pathname.startsWith(`${child.href}/`);
-                return (
-                  <li key={child.key}>
-                    <Link
-                      href={child.href}
-                      data-testid={`nav-automations-${child.key}`}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                      aria-current={isActive ? 'page' : undefined}
-                    >
-                      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>{child.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2" aria-label="Main">
+        {pinned.length > 0 ? (
+          <div className="mb-2" data-testid="nav-pinned">
+            <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Закреплено
+            </p>
+            {pinned.map((item) => {
+              const Icon = ICONS[item.icon];
+              return (
+                <Link
+                  key={`pin-${item.id}`}
+                  href={item.href}
+                  data-testid={`nav-pinned-${item.id}`}
+                  className="flex h-8 items-center gap-2 rounded-md px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
           </div>
         ) : null}
-
-        {after.map(renderLink)}
+        <div data-testid="nav-p0">{p0.map(renderItem)}</div>
+        <div data-testid="nav-p1">{p1.map(renderItem)}</div>
+        {p2.length > 0 ? <div role="separator" className="my-2 border-t border-border" data-testid="nav-p2-divider" /> : null}
+        <div data-testid="nav-p2">{p2.map(renderItem)}</div>
       </nav>
+      {openMenu && openItem?.children ? (
+        <NavSubmenu
+          items={openItem.children}
+          label={openItem.label}
+          menuId={`nav-menu-${openItem.id}`}
+          anchor={openMenu.anchor}
+          pathname={pathname}
+          onClose={closeMenu}
+        />
+      ) : null}
     </aside>
   );
 }

@@ -51,13 +51,19 @@ export function BillingPage({ workspaceId }: BillingPageProps) {
 
       <TopupForm workspaceId={workspaceId} canManage={canManage} />
 
-      <PlanPicker workspaceId={workspaceId} currentPlanCode={usage.planCode} canManage={canManage} />
+      <div id="billing-plan">
+        <PlanPicker workspaceId={workspaceId} currentPlanCode={usage.planCode} canManage={canManage} />
+      </div>
 
       <AutopayForm workspaceId={workspaceId} canManage={canManage} />
 
-      <TransactionsHistory workspaceId={workspaceId} />
+      <div id="billing-payments">
+        <TransactionsHistory workspaceId={workspaceId} />
+      </div>
 
-      <InvoicesPanel workspaceId={workspaceId} canManage={canManage} />
+      <div id="billing-documents">
+        <InvoicesPanel workspaceId={workspaceId} canManage={canManage} />
+      </div>
 
       <UsageLimits metrics={usage.metrics} isLoading={usage.isLoading} />
 

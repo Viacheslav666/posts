@@ -201,7 +201,7 @@ public class AuthServiceImpl implements AuthService {
         }
         assertSecondFactor(user, request.totpCode());
         loginRateLimiter.reset(rateKey);
-        return issueSession(user, ctx);
+        return issueSession(user, ctx, LoginProfile.EMAIL);
     }
 
     @Override
@@ -222,7 +222,7 @@ public class AuthServiceImpl implements AuthService {
                     .orElseThrow(
                             () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "User not found"));
             session.setRevokedAt(Instant.now());
-            return rotateSession(user, session.getFamilyId(), ctx);
+            return rotateSession(user, session.getFamilyId(), ctx, session.getLoginProvider());
         }
 
         Optional<SessionEntity> reused = sessionRepository.findByRefreshTokenHash(hash);
@@ -308,11 +308,16 @@ public class AuthServiceImpl implements AuthService {
         Optional<UserIdentityEntity> identity =
                 userIdentityRepository.findByProviderAndProviderUserId(providerKey, profile.providerUserId());
         if (identity.isPresent()) {
+            UserIdentityEntity linked = identity.get();
             UserEntity user = userRepository
-                    .findById(identity.get().getUserId())
+                    .findById(linked.getUserId())
                     .orElseThrow(
                             () -> new ApiException(HttpStatus.NOT_FOUND, ProblemCodes.NOT_FOUND, "User not found"));
-            return issueSession(user, ctx);
+            if (profile.raw() != null) {
+                linked.setProfile(profile.raw());
+            }
+            applyAvatar(user, profile.raw());
+            return issueSession(user, ctx, providerKey);
         }
 
         boolean hasEmail = profile.email() != null && !profile.email().isBlank();
@@ -354,10 +359,11 @@ public class AuthServiceImpl implements AuthService {
         user.setName(profile.name() == null || profile.name().isBlank() ? "User" : profile.name());
         user.setTimezone("Europe/Moscow");
         user.setLocale("ru");
+        applyAvatar(user, profile.raw());
         user = userRepository.save(user);
         createPersonalWorkspace(user);
         saveIdentity(user.getId(), providerKey, profile);
-        return issueSession(user, ctx);
+        return issueSession(user, ctx, providerKey);
     }
 
     @Override
@@ -381,6 +387,7 @@ public class AuthServiceImpl implements AuthService {
         identity.setProfile(challenge.getProfile());
         userIdentityRepository.save(identity);
         challenge.setConsumedAt(Instant.now());
+        userRepository.findById(userId).ifPresent(user -> applyAvatar(user, challenge.getProfile()));
         return new AuthDtos.MessageResponse("oauth_linked");
     }
 
@@ -609,12 +616,12 @@ public class AuthServiceImpl implements AuthService {
         throw new ApiException(HttpStatus.UNAUTHORIZED, ProblemCodes.UNAUTHORIZED, "Invalid TOTP code");
     }
 
-    private TokenPair issueSession(UserEntity user, ClientRequestContext ctx) {
+    private TokenPair issueSession(UserEntity user, ClientRequestContext ctx, String loginProvider) {
         UUID familyId = UuidV7.generate();
-        return rotateSession(user, familyId, ctx);
+        return rotateSession(user, familyId, ctx, loginProvider);
     }
 
-    private TokenPair rotateSession(UserEntity user, UUID familyId, ClientRequestContext ctx) {
+    private TokenPair rotateSession(UserEntity user, UUID familyId, ClientRequestContext ctx, String loginProvider) {
         String refresh = SecureTokens.urlSafe(48);
         SessionEntity session = new SessionEntity();
         session.setUserId(user.getId());
@@ -622,6 +629,7 @@ public class AuthServiceImpl implements AuthService {
         session.setRefreshTokenHash(TokenHasher.sha256Hex(refresh));
         session.setUserAgent(truncate(ctx.userAgent(), 512));
         session.setIp(normalizeIp(ctx.ip()));
+        session.setLoginProvider(LoginProfile.loginMethod(loginProvider, List.of(), false));
         session = sessionRepository.save(session);
         JwtService.IssuedAccessToken access = jwtService.issueAccessToken(user.getId(), session.getId());
         session.setLastUsedAt(Instant.now());
@@ -680,7 +688,37 @@ public class AuthServiceImpl implements AuthService {
         userIdentityRepository.save(identity);
     }
 
+    private void applyAvatar(UserEntity user, Map<String, Object> raw) {
+        String avatar = LoginProfile.avatarUrl(raw);
+        if (avatar != null && !avatar.equals(user.getAvatarUrl())) {
+            user.setAvatarUrl(avatar);
+            user.setUpdatedAt(Instant.now());
+        }
+    }
+
     private UserDtos.UserProfile toProfile(UserEntity user, PostsPrincipal principal) {
+        List<UserIdentityEntity> identities = userIdentityRepository.findByUserIdOrderByCreatedAtAsc(user.getId());
+        String sessionProvider = null;
+        if (principal != null && principal.sessionId() != null) {
+            sessionProvider = sessionRepository
+                    .findById(principal.sessionId())
+                    .map(SessionEntity::getLoginProvider)
+                    .orElse(null);
+        }
+        String loginMethod = LoginProfile.loginMethod(
+                sessionProvider,
+                identities.stream().map(UserIdentityEntity::getProvider).toList(),
+                user.getPasswordHash() != null && !user.getPasswordHash().isBlank());
+        String avatarUrl = user.getAvatarUrl();
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            for (UserIdentityEntity identity : identities) {
+                String extracted = LoginProfile.avatarUrl(identity.getProfile());
+                if (extracted != null) {
+                    avatarUrl = extracted;
+                    break;
+                }
+            }
+        }
         List<UserDtos.MembershipSummary> memberships = workspaceMemberRepository.findByUserId(user.getId()).stream()
                 .map(member -> {
                     WorkspaceEntity workspace = workspaceRepository
@@ -709,7 +747,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail(),
                 user.getEmailVerifiedAt() != null,
                 user.getName(),
-                user.getAvatarUrl(),
+                avatarUrl,
+                loginMethod,
                 user.getTimezone(),
                 user.getLocale(),
                 user.isTotpEnabled(),

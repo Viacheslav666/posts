@@ -20972,6 +20972,11 @@ components:
         locale:
           type: string
           example: ru
+        loginMethod:
+          type: string
+          description: "How the current session signed in, or the provider used to\
+            \ create the account: vk, email, yandex, telegram"
+          example: email
         memberships:
           type: array
           items:

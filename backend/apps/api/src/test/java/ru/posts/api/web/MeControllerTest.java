@@ -37,7 +37,8 @@ class MeControllerTest {
                 "user@example.com",
                 true,
                 "User",
-                null,
+                "https://sun.vk.example/me.jpg",
+                "vk",
                 "Europe/Moscow",
                 "ru",
                 false,
@@ -57,6 +58,8 @@ class MeControllerTest {
             mocked.when(SecurityAuthSupport::requirePrincipal).thenReturn(principal);
             UserDtos.UserProfile profile = controller.me();
             assertThat(profile.email()).isEqualTo("user@example.com");
+            assertThat(profile.avatarUrl()).isEqualTo("https://sun.vk.example/me.jpg");
+            assertThat(profile.loginMethod()).isEqualTo("vk");
             assertThat(profile.memberships()).hasSize(1);
         }
     }

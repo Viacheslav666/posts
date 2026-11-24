@@ -20,15 +20,20 @@ import { listPosts } from '@/features/posts/api/posts-api';
 import { queryKeys } from '@/shared/api-client';
 import { useCan } from '@/shared/hooks/use-can';
 
+const STORY_STATUSES = new Set(['draft', 'scheduled', 'published', 'failed', 'paused']);
+
 type StoriesListPageProps = {
   workspaceId: string;
+  initialStatus?: string;
 };
 
-export function StoriesListPage({ workspaceId }: StoriesListPageProps) {
+export function StoriesListPage({ workspaceId, initialStatus }: StoriesListPageProps) {
   const t = useTranslations('stories');
   const canView = useCan('posts.view', workspaceId);
   const canCreate = useCan('posts.create', workspaceId);
-  const [status, setStatus] = useState<string | undefined>();
+  const [status, setStatus] = useState<string | undefined>(
+    initialStatus && STORY_STATUSES.has(initialStatus) ? initialStatus : undefined,
+  );
 
   const listQuery = useQuery({
     queryKey: queryKeys.posts.list(workspaceId, {

@@ -20,6 +20,11 @@ public final class UserDtos {
             boolean emailVerified,
             @Schema(example = "Local Dev") String name,
             String avatarUrl,
+            @Schema(
+                            description =
+                                    "How the current session signed in, or the provider used to create the account: vk, email, yandex, telegram",
+                            example = "email")
+                    String loginMethod,
             @Schema(example = "Europe/Moscow") String timezone,
             @Schema(example = "ru") String locale,
             boolean totpEnabled,

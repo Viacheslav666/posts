@@ -164,6 +164,7 @@ function createInitialState(): WorkspaceStoreState {
     email: 'demo@posts.app',
     emailVerified: true,
     name: 'Demo User',
+    loginMethod: 'email',
     timezone: 'Europe/Moscow',
     locale: 'ru',
     totpEnabled: false,

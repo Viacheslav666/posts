@@ -2,9 +2,16 @@ import { OrdSettingsPanel } from '@/features/ord/components/ord-settings-panel';
 
 type OrdSettingsPageProps = {
   params: Promise<{ workspace: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 };
 
-export default async function OrdSettingsPage({ params }: OrdSettingsPageProps) {
+const TABS = ['connection', 'contractors', 'contracts', 'reports'] as const;
+
+export default async function OrdSettingsPage({ params, searchParams }: OrdSettingsPageProps) {
   const { workspace } = await params;
-  return <OrdSettingsPanel workspaceId={workspace} />;
+  const query = await searchParams;
+  const raw = query.tab;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const tab = TABS.find((item) => item === value) ?? 'connection';
+  return <OrdSettingsPanel workspaceId={workspace} initialTab={tab} />;
 }
