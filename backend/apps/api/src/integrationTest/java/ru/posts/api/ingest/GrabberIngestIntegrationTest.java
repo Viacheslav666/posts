@@ -700,8 +700,7 @@ class GrabberIngestIntegrationTest {
                                         "firstComment",
                                         Map.of("enabled", true, "text", "не должен уйти"))))))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.containsString("Первый комментарий")));
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Первый комментарий")));
     }
 
     @Test
