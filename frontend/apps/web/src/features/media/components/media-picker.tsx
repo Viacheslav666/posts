@@ -25,6 +25,7 @@ import { useCan } from '@/shared/hooks/use-can';
 
 import { useMediaLibrary } from '../hooks/use-media-library';
 import { useUploadQueue } from '../hooks/use-upload-queue';
+import { UPLOAD_ACCEPT } from '../lib/upload-mime';
 import type { MediaKind, MediaLibraryItem } from '../model/types';
 import { MediaGrid } from './media-grid';
 import { MediaQuotaBar } from './media-quota-bar';
@@ -54,6 +55,7 @@ export function MediaPicker({
   onConfirm,
 }: MediaPickerProps) {
   const t = useTranslations('media.picker');
+  const tQueue = useTranslations('media.queue');
   const canManage = useCan('media.manage', workspaceId);
   const canView = useCan('media.view', workspaceId);
   const queryClient = useQueryClient();
@@ -61,7 +63,7 @@ export function MediaPicker({
     workspaceId,
     open && canView,
   );
-  const { items: uploads, enqueue, cancel } = useUploadQueue(workspaceId);
+  const { items: uploads, enqueue, cancel, retry } = useUploadQueue(workspaceId);
   const [selected, setSelected] = useState<Map<string, MediaLibraryItem>>(new Map());
 
   const filtered = useMemo(() => {
@@ -131,20 +133,38 @@ export function MediaPicker({
               <FileDropzone
                 label={t('dropLabel')}
                 hint={t('dropHint')}
-                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,application/pdf"
+                accept={UPLOAD_ACCEPT}
                 onFiles={onFiles}
               />
             ) : null}
             {uploads.length > 0 ? (
               <ul className="space-y-1 text-xs" data-testid="media-picker-uploads">
                 {uploads.slice(0, 5).map((item) => (
-                  <li key={item.localId} className="flex items-center justify-between gap-2">
-                    <span className="truncate">
-                      {item.file.name} — {Math.round(item.progress * 100)}% ({item.status})
+                  <li key={item.localId} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate">
+                      {item.file.name} - {Math.round(item.progress * 100)}% ({item.status})
                     </span>
-                    {item.status === 'uploading' ? (
+                    {item.status === 'failed' && item.error ? (
+                      <span className="text-destructive" role="alert" data-testid={`upload-error-${item.localId}`}>
+                        {item.error === 'unsupported_format'
+                          ? tQueue('unsupported_format')
+                          : item.error === 'upload_timeout'
+                            ? tQueue('upload_timeout')
+                            : item.error === 'etag_unavailable'
+                              ? tQueue('etag_unavailable')
+                              : item.error === 'upload_network'
+                                ? tQueue('upload_network')
+                                : item.error}
+                      </span>
+                    ) : null}
+                    {item.status === 'uploading' || item.status === 'queued' ? (
                       <Button type="button" size="sm" variant="ghost" onClick={() => cancel(item.localId)}>
                         {t('cancel')}
+                      </Button>
+                    ) : null}
+                    {item.status === 'failed' || item.status === 'cancelled' ? (
+                      <Button type="button" size="sm" variant="outline" onClick={() => retry(item.localId)}>
+                        {tQueue('retry')}
                       </Button>
                     ) : null}
                   </li>

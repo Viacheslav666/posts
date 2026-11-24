@@ -23,6 +23,19 @@ public interface MediaAssetRepository extends JpaRepository<MediaAssetEntity, UU
             """)
     long sumSizeBytesByWorkspaceId(@Param("workspaceId") UUID workspaceId);
 
+    long countByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId);
+
+    @Query(
+            """
+            select distinct m.folder from MediaAssetEntity m
+            where m.workspaceId = :workspaceId
+              and m.deletedAt is null
+              and m.folder is not null
+              and m.folder <> ''
+            order by m.folder asc
+            """)
+    List<String> findDistinctFoldersByWorkspaceId(@Param("workspaceId") UUID workspaceId);
+
     @Query(
             value =
                     """

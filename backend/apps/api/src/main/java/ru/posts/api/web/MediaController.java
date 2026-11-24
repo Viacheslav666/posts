@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
@@ -37,6 +39,13 @@ import ru.posts.security.auth.SecurityAuthSupport;
 @OpenApiResponses
 public class MediaController {
 
+    /**
+     * UUID-only so {@code /folders} and {@code /quota} are not captured as {@code mediaId} (that parse
+     * fails with 400).
+     */
+    private static final String MEDIA_ID =
+            "{mediaId:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}";
+
     private final MediaService mediaService;
 
     public MediaController(MediaService mediaService) {
@@ -52,10 +61,39 @@ public class MediaController {
             @RequestParam(required = false) ApiEnums.MediaStatus status,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String folder,
+            @RequestParam(required = false) String folderId,
             @RequestParam(required = false) String tag,
             @Valid @ParameterObject CursorPage.Params page) {
+        String resolvedFolder = folder != null && !folder.isBlank() ? folder : folderId;
         return mediaService.list(
-                SecurityAuthSupport.requirePrincipal().userId(), workspaceId, kind, status, q, folder, tag, page);
+                SecurityAuthSupport.requirePrincipal().userId(),
+                workspaceId,
+                kind,
+                status,
+                q,
+                resolvedFolder,
+                tag,
+                page);
+    }
+
+    @GetMapping("/folders")
+    @Operation(operationId = "mediaListFolders", summary = "List distinct media folders in a workspace")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Folders",
+            content = @Content(schema = @Schema(implementation = MediaDtos.MediaFolderList.class)))
+    public MediaDtos.MediaFolderList folders(@RequestParam UUID workspaceId) {
+        return mediaService.listFolders(SecurityAuthSupport.requirePrincipal().userId(), workspaceId);
+    }
+
+    @GetMapping("/quota")
+    @Operation(operationId = "mediaGetQuota", summary = "Workspace media storage quota")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Used and plan limit",
+            content = @Content(schema = @Schema(implementation = MediaDtos.MediaQuota.class)))
+    public MediaDtos.MediaQuota quota(@RequestParam UUID workspaceId) {
+        return mediaService.quota(SecurityAuthSupport.requirePrincipal().userId(), workspaceId);
     }
 
     @PostMapping("/import-url")
@@ -76,7 +114,7 @@ public class MediaController {
                 ClientRequestContexts.from(httpRequest));
     }
 
-    @GetMapping("/{mediaId}")
+    @GetMapping("/" + MEDIA_ID)
     @Operation(operationId = "mediaGet", summary = "Get media asset metadata")
     @ApiResponse(
             responseCode = "200",
@@ -86,7 +124,7 @@ public class MediaController {
         return mediaService.get(SecurityAuthSupport.requirePrincipal().userId(), mediaId);
     }
 
-    @DeleteMapping("/{mediaId}")
+    @DeleteMapping("/" + MEDIA_ID)
     @Operation(operationId = "mediaDelete", summary = "Soft-delete a media asset")
     @ApiResponse(
             responseCode = "200",
@@ -118,7 +156,21 @@ public class MediaController {
                 ClientRequestContexts.from(httpRequest));
     }
 
-    @PostMapping("/{mediaId}/complete")
+    @PostMapping("/" + MEDIA_ID + "/parts/{partNumber}")
+    @Operation(
+            operationId = "mediaPresignPart",
+            summary = "Presign one multipart upload part",
+            description = "Returns a fresh presigned URL for a part. PUT the bytes to that URL unchanged.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Presigned part URL",
+            content = @Content(schema = @Schema(implementation = MediaDtos.UploadPart.class)))
+    public MediaDtos.UploadPart presignPart(
+            @PathVariable UUID mediaId, @PathVariable @Min(1) @Max(10_000) int partNumber) {
+        return mediaService.presignPart(SecurityAuthSupport.requirePrincipal().userId(), mediaId, partNumber);
+    }
+
+    @PostMapping("/" + MEDIA_ID + "/complete")
     @Operation(operationId = "mediaCompleteUpload", summary = "Mark upload complete and enqueue processing")
     @ApiResponse(
             responseCode = "200",

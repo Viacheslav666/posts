@@ -8359,6 +8359,11 @@ paths:
         schema:
           type: string
       - in: query
+        name: folderId
+        required: false
+        schema:
+          type: string
+      - in: query
         name: tag
         required: false
         schema:
@@ -8438,6 +8443,69 @@ paths:
       summary: List media assets in a workspace
       tags:
       - Media
+  /api/v1/media/folders:
+    get:
+      operationId: mediaListFolders
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaFolderList"
+          description: Folders
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: List distinct media folders in a workspace
+      tags:
+      - Media
   /api/v1/media/import-url:
     post:
       operationId: mediaImportUrl
@@ -8504,6 +8572,69 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Import a remote media URL into the library
+      tags:
+      - Media
+  /api/v1/media/quota:
+    get:
+      operationId: mediaGetQuota
+      parameters:
+      - in: query
+        name: workspaceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaQuota"
+          description: Used and plan limit
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Workspace media storage quota
       tags:
       - Media
   /api/v1/media/uploads:
@@ -8766,6 +8897,79 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: Stub — not implemented yet (BE-3)
       summary: Mark upload complete and enqueue processing
+      tags:
+      - Media
+  /api/v1/media/{mediaId}/parts/{partNumber}:
+    post:
+      description: Returns a fresh presigned URL for a part. PUT the bytes to that
+        URL unchanged.
+      operationId: mediaPresignPart
+      parameters:
+      - in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: partNumber
+        required: true
+        schema:
+          type: integer
+          format: int32
+          maximum: 10000
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadPart"
+          description: Presigned part URL
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Presign one multipart upload part
       tags:
       - Media
   /api/v1/networks/capabilities:
@@ -17469,12 +17673,19 @@ components:
         mediaId:
           type: string
           format: uuid
+        parts:
+          type: array
+          description: One presigned URL per part when multipart is used. Empty for
+            a single PUT.
+          items:
+            $ref: "#/components/schemas/UploadPart"
         uploadId:
           type: string
-          description: S3 multipart upload id when multipart is used
+          description: S3 multipart upload id. Null for a single presigned PUT.
         uploadUrl:
           type: string
-          description: Presigned multipart/PUT upload URL
+          description: "Presigned PUT URL. For a single upload (uploadId null) PUT\
+            \ the whole file to this URL unchanged. For multipart, prefer parts[].url."
     CreateWorkspaceRequest:
       type: object
       properties:
@@ -18551,6 +18762,23 @@ components:
         workspaceId:
           type: string
           format: uuid
+    MediaFolder:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+    MediaFolderList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaFolder"
     MediaLimits:
       type: object
       properties:
@@ -18577,6 +18805,24 @@ components:
             $ref: "#/components/schemas/MediaAsset"
         nextCursor:
           type: string
+    MediaQuota:
+      type: object
+      properties:
+        limitBytes:
+          type: integer
+          format: int64
+        limitCount:
+          type: integer
+          format: int64
+        usedBytes:
+          type: integer
+          format: int64
+        usedCount:
+          type: integer
+          format: int64
+        workspaceId:
+          type: string
+          format: uuid
     MediaUsage:
       type: object
       properties:
@@ -20893,6 +21139,17 @@ components:
           minLength: 1
       required:
       - name
+    UploadPart:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+          format: int32
+          description: 1-based S3 part number
+        url:
+          type: string
+          description: Presigned UploadPart URL. PUT the part bytes to this URL exactly;
+            do not add query parameters.
     UpsertOrdConnectionRequest:
       type: object
       properties:

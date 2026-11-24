@@ -1126,7 +1126,7 @@
     "emptyTitle": "Медиа пока нет",
     "emptyBody": "Загрузите фото или видео — или импортируйте по URL.",
     "dropLabel": "Перетащите файлы сюда или выберите",
-    "dropHint": "JPG, PNG, WEBP, GIF, MP4, MOV, PDF. Можно вставить из буфера (Ctrl+V).",
+    "dropHint": "JPG, PNG, WEBP, GIF, HEIC, MP4, MOV, PDF. Можно вставить из буфера (Ctrl+V).",
     "importUrl": "Импорт по URL",
     "search": "Поиск по имени и тегам",
     "filterKind": "Тип",
@@ -1151,12 +1151,17 @@
     },
     "quota": {
       "label": "Квота тарифа",
-      "usage": "{used} из {limit} · {count}/{max} файлов"
+      "usage": "{used} из {limit} · {count}/{max} файлов",
+      "usageBytes": "{used} из {limit}"
     },
     "queue": {
       "label": "Очередь загрузок",
       "cancel": "Отменить",
-      "retry": "Повторить"
+      "retry": "Повторить",
+      "unsupported_format": "Неподдерживаемый формат файла",
+      "upload_timeout": "Превышено время ожидания загрузки",
+      "etag_unavailable": "Не удалось подтвердить часть загрузки (нет ETag)",
+      "upload_network": "Сеть прервала загрузку"
     },
     "details": {
       "subtitle": "Метаданные и использование",
@@ -1191,7 +1196,7 @@
       "description": "Медиатека пространства — для постов, историй 9:16 и граббера.",
       "forbidden": "Нет доступа к медиатеке",
       "dropLabel": "Загрузить в медиатеку",
-      "dropHint": "Файлы уйдут в S3 multipart",
+      "dropHint": "Фото и видео уходят напрямую в хранилище. Прогресс и ошибки видны в списке.",
       "search": "Поиск",
       "filterKind": "Тип",
       "kinds": {

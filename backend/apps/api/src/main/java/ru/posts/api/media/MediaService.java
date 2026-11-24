@@ -21,6 +21,12 @@ public interface MediaService {
 
     MediaDtos.MediaAsset get(UUID userId, UUID mediaId);
 
+    MediaDtos.MediaFolderList listFolders(UUID userId, UUID workspaceId);
+
+    MediaDtos.MediaQuota quota(UUID userId, UUID workspaceId);
+
+    MediaDtos.UploadPart presignPart(UUID userId, UUID mediaId, int partNumber);
+
     MediaDtos.CreateUploadResponse createUpload(
             UUID userId, MediaDtos.CreateUploadRequest request, String idempotencyKey, ClientRequestContext ctx);
 

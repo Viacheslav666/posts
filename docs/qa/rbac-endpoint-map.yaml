@@ -853,6 +853,22 @@ endpoints:
   action: media.view
   query:
     workspaceId: '{workspaceId}'
+- operationId: mediaListFolders
+  method: GET
+  path: /api/v1/media/folders
+  implementedHint: true
+  rbac: matrix
+  action: media.view
+  query:
+    workspaceId: '{workspaceId}'
+- operationId: mediaGetQuota
+  method: GET
+  path: /api/v1/media/quota
+  implementedHint: true
+  rbac: matrix
+  action: media.view
+  query:
+    workspaceId: '{workspaceId}'
 - operationId: mediaImportUrl
   method: POST
   path: /api/v1/media/import-url
@@ -894,6 +910,15 @@ endpoints:
   action: media.manage
   pathParams:
     mediaId: '{mediaId}'
+- operationId: mediaPresignPart
+  method: POST
+  path: /api/v1/media/{mediaId}/parts/{partNumber}
+  implementedHint: true
+  rbac: matrix
+  action: media.manage
+  pathParams:
+    mediaId: '{mediaId}'
+    partNumber: '1'
 - operationId: networksCapabilities
   method: GET
   path: /api/v1/networks/capabilities

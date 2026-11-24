@@ -44,6 +44,8 @@ make wait-full
 
 Через nginx gateway на `:3000` проксируются также `/s3/` → MinIO/s3mock и `/emulator/` → social-emulator.
 
+Браузер загружает файлы прямым PUT на presigned URL (`POSTS_S3_PRESIGN_PUBLIC_BASE_URL`, обычно `{origin}/s3/...`). URL нельзя менять: лишние `partNumber` / `uploadId` ломают подпись. Для multipart каждый ответ части должен отдавать `ETag`, и Safari прочитает его только если прокси выставляет `Access-Control-Expose-Headers: ETag` (см. `infra/docker-compose/nginx/full-gateway.conf`). На проде (socialposts.ru) то же требование для location `/s3/` перед s3mock или MinIO. `client_max_body_size` должен быть больше размера части (5 МиБ).
+
 Сервисы `publisher-vk`, `publisher-tg`, `publisher-ok`, `publisher-max` — один образ `posts-publisher`, у каждого свой `POSTS_PUBLISHER_NETWORK` (`vk` / `tg` / `ok` / `max`).
 
 ## Порты приложений

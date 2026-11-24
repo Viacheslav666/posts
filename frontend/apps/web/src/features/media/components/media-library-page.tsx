@@ -23,6 +23,7 @@ import { useCan } from '@/shared/hooks/use-can';
 import { deleteMedia, importMediaUrl } from '../api/media-api';
 import { useMediaLibrary } from '../hooks/use-media-library';
 import { useUploadQueue } from '../hooks/use-upload-queue';
+import { UPLOAD_ACCEPT } from '../lib/upload-mime';
 import type { MediaKind, MediaLibraryItem } from '../model/types';
 import { DeleteMediaDialog } from './delete-media-dialog';
 import { ImportUrlDialog } from './import-url-dialog';
@@ -115,7 +116,7 @@ export function MediaLibraryPage({ workspaceId }: MediaLibraryPageProps) {
         <FileDropzone
           label={t('dropLabel')}
           hint={t('dropHint')}
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,application/pdf,audio/mpeg"
+          accept={UPLOAD_ACCEPT}
           onFiles={(files) => {
             enqueue(files);
             window.setTimeout(invalidate, 600);
@@ -132,8 +133,21 @@ export function MediaLibraryPage({ workspaceId }: MediaLibraryPageProps) {
                 key={item.localId}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
               >
-                <span className="truncate">
-                  {item.file.name} — {Math.round(item.progress * 100)}% · {item.status}
+                <span className="min-w-0 flex-1 truncate">
+                  {item.file.name} - {Math.round(item.progress * 100)}% ({item.status})
+                  {item.status === 'failed' && item.error ? (
+                    <span className="mt-0.5 block text-destructive" role="alert">
+                      {item.error === 'unsupported_format'
+                        ? t('queue.unsupported_format')
+                        : item.error === 'upload_timeout'
+                          ? t('queue.upload_timeout')
+                          : item.error === 'etag_unavailable'
+                            ? t('queue.etag_unavailable')
+                            : item.error === 'upload_network'
+                              ? t('queue.upload_network')
+                              : item.error}
+                    </span>
+                  ) : null}
                 </span>
                 <div className="flex gap-2">
                   {item.status === 'uploading' || item.status === 'queued' ? (

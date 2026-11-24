@@ -2,6 +2,7 @@ package ru.posts.api.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.posts.api.error.ProblemCodes;
@@ -57,5 +59,26 @@ public class OpenApiConfig {
                                                 .bearerFormat("JWT")
                                                 .description(
                                                         "Access token (ES256). Issued by Posts auth; JWKS at /.well-known/jwks.json.")));
+    }
+
+    /**
+     * {@code {mediaId:uuid-regex}} keeps literal routes like {@code /folders} from binding as an id.
+     * Publish the path as {@code {mediaId}} so the generated client stays stable.
+     */
+    @Bean
+    OpenApiCustomizer normalizeMediaIdPaths() {
+        return OpenApiConfig::rewriteMediaIdPaths;
+    }
+
+    static void rewriteMediaIdPaths(OpenAPI openApi) {
+        if (openApi.getPaths() == null) {
+            return;
+        }
+        Paths next = new Paths();
+        openApi.getPaths().forEach((path, item) -> {
+            String normalized = path.replaceAll("\\{mediaId:[^}]*}", "{mediaId}");
+            next.addPathItem(normalized, item);
+        });
+        openApi.setPaths(next);
     }
 }
