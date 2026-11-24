@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":libs:common"))
     implementation(project(":libs:persistence"))
     implementation(project(":libs:messaging"))
+    implementation(project(":libs:security"))
     implementation(project(":libs:grabber"))
     implementation(project(":libs:automation-suggest"))
     implementation(project(":libs:crosspost"))

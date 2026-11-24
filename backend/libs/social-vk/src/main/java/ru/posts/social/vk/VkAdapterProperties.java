@@ -8,7 +8,8 @@ import ru.posts.social.api.ReconciliationMode;
 public class VkAdapterProperties {
 
     private String baseUrl = "https://api.vk.com";
-    private String tokenUrl = "https://id.vk.com/oauth2/auth";
+    private String tokenUrl = "https://id.vk.ru/oauth2/auth";
+    private String clientId = "";
     private String apiVersion = "5.199";
     private Duration readTimeout = Duration.ofSeconds(15);
     /** {@code emulator} for local/IT against social-emulator; {@code api} for production. */
@@ -32,6 +33,14 @@ public class VkAdapterProperties {
 
     public void setTokenUrl(String tokenUrl) {
         this.tokenUrl = tokenUrl;
+    }
+
+    public String clientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 
     public String apiVersion() {

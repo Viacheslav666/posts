@@ -32,4 +32,23 @@ class ChannelPropertiesTest {
         props.setSocialPublicBaseUrl("http://100.102.9.56:3000/emulator");
         assertThat(props.vkAuthorizationUri()).isEqualTo("http://100.102.9.56:3000/emulator/oauth/vk/authorize");
     }
+
+    @Test
+    void vkIdModeUsesRealApiBaseAndScopesWithoutOffline() {
+        ChannelProperties props = new ChannelProperties();
+        props.setVkTokenUri("https://id.vk.ru/oauth2/auth");
+        props.setVkAuthorizationUri("https://id.vk.ru/authorize");
+        assertThat(props.vkIdMode()).isTrue();
+        assertThat(props.vkApiBaseUrl()).isEqualTo("https://api.vk.com");
+        assertThat(props.vkScopes()).isEqualTo("groups wall");
+    }
+
+    @Test
+    void emulatorModeKeepsSocialBaseForVkApi() {
+        ChannelProperties props = new ChannelProperties();
+        props.setSocialBaseUrl("http://127.0.0.1:8090");
+        assertThat(props.vkIdMode()).isFalse();
+        assertThat(props.vkApiBaseUrl()).isEqualTo("http://127.0.0.1:8090");
+        assertThat(props.vkScopes()).contains("offline");
+    }
 }

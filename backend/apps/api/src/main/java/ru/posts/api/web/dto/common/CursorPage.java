@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.UUID;
 import ru.posts.api.web.dto.admin.AdminDtos;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.billing.BillingDtos;
@@ -51,7 +52,12 @@ public final class CursorPage {
     public record ProjectPage(List<ProjectDtos.Project> items, String nextCursor, boolean hasMore) {}
 
     @Schema(name = "ChannelPage")
-    public record ChannelPage(List<ChannelDtos.Channel> items, String nextCursor, boolean hasMore) {}
+    public record ChannelPage(
+            List<ChannelDtos.Channel> items,
+            String nextCursor,
+            boolean hasMore,
+            @Schema(nullable = true, description = "Workspace context after channel connect (static VK callback)")
+                    UUID workspaceId) {}
 
     @Schema(name = "ChannelSetPage")
     public record ChannelSetPage(List<ChannelDtos.ChannelSet> items, String nextCursor, boolean hasMore) {}

@@ -93,8 +93,10 @@ public final class ChannelDtos {
     public record ChannelConnectCallbackRequest(
             @Schema(description = "OAuth authorization code (VK/OK)") String code,
             @Schema(description = "OAuth state (VK/OK)") String state,
-            @NotNull UUID workspaceId,
+            @Schema(description = "Workspace for connect; may be omitted for VK static redirect — resolved from state")
+                    UUID workspaceId,
             UUID projectId,
+            @Schema(description = "VK ID device_id from redirect (required for VK ID channel connect)") String deviceId,
             @Schema(description = "Telegram/Max channel or chat @username", example = "@brand_news") String username,
             @Schema(description = "External chat/channel id when known") String chatId,
             @Schema(description = "Forwarded message reference for bot attach flows")

@@ -11,9 +11,12 @@ public class ChannelProperties {
     private String appBaseUrl = "http://localhost:3000";
     private String vkAuthorizationUri;
     private String vkTokenUri;
+    private String vkApiBaseUrl;
     private String vkClientId = "local-vk-channels";
     private String vkClientSecret = "local-vk-channels-secret";
     private String vkRedirectUri;
+    private String vkScopes;
+    private String vkApiVersion = "5.199";
     private String okAuthorizationUri;
     private String okTokenUri;
     private String okClientId = "local-ok-channels";
@@ -68,6 +71,20 @@ public class ChannelProperties {
         this.vkTokenUri = vkTokenUri;
     }
 
+    public String vkApiBaseUrl() {
+        if (vkApiBaseUrl != null && !vkApiBaseUrl.isBlank()) {
+            return trimSlash(vkApiBaseUrl);
+        }
+        if (vkIdMode()) {
+            return "https://api.vk.com";
+        }
+        return trimSlash(socialBaseUrl);
+    }
+
+    public void setVkApiBaseUrl(String vkApiBaseUrl) {
+        this.vkApiBaseUrl = vkApiBaseUrl;
+    }
+
     public String vkClientId() {
         return vkClientId;
     }
@@ -90,6 +107,31 @@ public class ChannelProperties {
 
     public void setVkRedirectUri(String vkRedirectUri) {
         this.vkRedirectUri = vkRedirectUri;
+    }
+
+    public String vkScopes() {
+        if (vkScopes != null && !vkScopes.isBlank()) {
+            return vkScopes.trim();
+        }
+        return vkIdMode() ? "groups wall" : "groups wall offline";
+    }
+
+    public void setVkScopes(String vkScopes) {
+        this.vkScopes = vkScopes;
+    }
+
+    public String vkApiVersion() {
+        return firstNonBlank(vkApiVersion, "5.199");
+    }
+
+    public void setVkApiVersion(String vkApiVersion) {
+        this.vkApiVersion = vkApiVersion;
+    }
+
+    public boolean vkIdMode() {
+        String tokenUri = vkTokenUri();
+        String authUri = vkAuthorizationUri();
+        return tokenUri.contains("oauth2/auth") || tokenUri.contains("id.vk.ru") || authUri.contains("id.vk.ru");
     }
 
     public String okAuthorizationUri() {
@@ -211,5 +253,12 @@ public class ChannelProperties {
 
     private static String firstNonBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private static String trimSlash(String url) {
+        if (url == null || url.isBlank()) {
+            return "http://127.0.0.1:8090";
+        }
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }

@@ -93,9 +93,14 @@ posts:
     social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
     social-public-base-url: ${POSTS_SOCIAL_PUBLIC_BASE_URL:}
     app-base-url: ${POSTS_APP_BASE_URL:http://localhost:3000}
-    vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:local-vk-channels}
+    vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:${POSTS_OAUTH_VK_CLIENT_ID:local-vk-channels}}
     vk-client-secret: ${POSTS_CHANNELS_VK_CLIENT_SECRET:local-vk-channels-secret}
+    vk-authorization-uri: ${POSTS_CHANNELS_VK_AUTHORIZATION_URI:}
+    vk-token-uri: ${POSTS_CHANNELS_VK_TOKEN_URI:}
+    vk-api-base-url: ${POSTS_CHANNELS_VK_API_BASE_URL:${POSTS_SOCIAL_VK_BASE_URL:${POSTS_VK_API_BASE_URL:}}}
     vk-redirect-uri: ${POSTS_CHANNELS_VK_REDIRECT_URI:}
+    vk-scopes: ${POSTS_CHANNELS_VK_SCOPES:}
+    vk-api-version: ${POSTS_CHANNELS_VK_API_VERSION:5.199}
     ok-client-id: ${POSTS_CHANNELS_OK_CLIENT_ID:local-ok-channels}
     ok-client-secret: ${POSTS_CHANNELS_OK_CLIENT_SECRET:local-ok-channels-secret}
     ok-redirect-uri: ${POSTS_CHANNELS_OK_REDIRECT_URI:}
