@@ -4865,6 +4865,8 @@ export interface components {
              */
             kind?: "image" | "video" | "doc" | "audio" | "clip";
             mime?: string;
+            /** @description Presigned GET URL for playback of a ready video or clip (derivatives.mp4_16x9). Null otherwise. */
+            playbackUrl?: string | null;
             /** @description Presigned GET URL for the card preview. Null when none applies or presign failed. */
             previewUrl?: string;
             sha256?: string;

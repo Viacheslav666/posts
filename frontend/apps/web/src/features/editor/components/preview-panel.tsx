@@ -10,6 +10,7 @@ import { AdMarkingSlot, Button, PostPreview, type PostPreviewNetwork } from '@po
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { hasPlayback, MediaPlayback } from '@/features/media/components/media-playback';
 import type { EditorMediaItem } from '@/features/media/model/types';
 
 import { previewPost } from '../api/posts-api';
@@ -220,7 +221,15 @@ export function PreviewPanel({
           aria-label={t('media')}
         >
           {deferredMedia.slice(0, 4).map((item) =>
-            item.previewUrl ? (
+            hasPlayback(item.kind, item.playbackUrl) ? (
+              <MediaPlayback
+                key={item.id}
+                src={item.playbackUrl}
+                poster={item.previewUrl}
+                label={item.filename}
+                className="aspect-square w-full rounded-md object-cover"
+              />
+            ) : item.previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={item.id}

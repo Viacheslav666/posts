@@ -31,6 +31,7 @@ function toEditorItem(asset: MediaLibraryItem): EditorMediaItem {
     mime: asset.mime ?? 'application/octet-stream',
     filename: asset.filename ?? asset.id!,
     previewUrl: asset.previewUrl,
+    playbackUrl: asset.playbackUrl || undefined,
     width: asset.width,
     height: asset.height,
     sizeBytes: asset.sizeBytes,

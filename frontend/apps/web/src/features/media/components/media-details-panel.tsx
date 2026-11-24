@@ -4,6 +4,7 @@ import { Badge, Button, Sheet, SheetContent, SheetDescription, SheetHeader, Shee
 import { useTranslations } from 'next-intl';
 
 import type { MediaLibraryItem } from '../model/types';
+import { hasPlayback, MediaPlayback } from './media-playback';
 
 function formatBytes(value?: number): string {
   if (value === undefined) return '—';
@@ -48,7 +49,14 @@ export function MediaDetailsPanel({
               <SheetDescription>{t('subtitle')}</SheetDescription>
             </SheetHeader>
             <div className="mt-4 space-y-4">
-              {item.previewUrl ? (
+              {hasPlayback(item.kind, item.playbackUrl) ? (
+                <MediaPlayback
+                  src={item.playbackUrl}
+                  poster={item.previewUrl}
+                  label={item.filename}
+                  className="max-h-56 w-full rounded-md bg-muted object-contain"
+                />
+              ) : item.previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={item.previewUrl}

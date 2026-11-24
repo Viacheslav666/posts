@@ -90,6 +90,7 @@ class MediaControllerRoutingTest {
                 List.of(),
                 null,
                 List.of(),
+                null,
                 null);
     }
 }

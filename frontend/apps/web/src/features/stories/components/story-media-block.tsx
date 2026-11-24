@@ -5,6 +5,7 @@ import { ImagePlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { hasPlayback, MediaPlayback } from '@/features/media/components/media-playback';
 import { MediaPicker } from '@/features/media/components/media-picker';
 import type { EditorMediaItem, MediaLibraryItem } from '@/features/media/model/types';
 import { useCan } from '@/shared/hooks/use-can';
@@ -23,6 +24,7 @@ function toEditorItem(asset: MediaLibraryItem): EditorMediaItem {
     mime: asset.mime ?? 'application/octet-stream',
     filename: asset.filename ?? asset.id!,
     previewUrl: asset.previewUrl,
+    playbackUrl: asset.playbackUrl || undefined,
     width: asset.width,
     height: asset.height,
     sizeBytes: asset.sizeBytes,
@@ -44,7 +46,14 @@ export function StoryMediaBlock({ workspaceId, media, onChange }: StoryMediaBloc
       {media ? (
         <div className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
           <div className="relative aspect-[9/16] w-28 overflow-hidden rounded-md bg-background">
-            {media.previewUrl ? (
+            {hasPlayback(media.kind, media.playbackUrl) ? (
+              <MediaPlayback
+                src={media.playbackUrl}
+                poster={media.previewUrl}
+                label={media.filename}
+                className="h-full w-full object-cover"
+              />
+            ) : media.previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={media.previewUrl}
