@@ -43,6 +43,16 @@ describe('MediaPicker', () => {
       expect(screen.getByText('cover-autumn.jpg')).toBeInTheDocument();
     });
 
+    const photo = screen.getByTestId('media-card-019a0000-00m0-7000-8000-000000000001');
+    expect(photo.querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('data:image'),
+    );
+    expect(photo.querySelector('img')).toHaveClass('object-cover');
+    const doc = await screen.findByTestId('media-card-019a0000-00m0-7000-8000-000000000003');
+    expect(doc.querySelector('img')).toBeNull();
+    expect(doc.querySelector('[data-testid="media-preview-fallback"]')).toBeTruthy();
+
     await user.click(screen.getByTestId('media-card-019a0000-00m0-7000-8000-000000000001'));
     await user.click(screen.getByTestId('media-picker-confirm'));
     expect(onConfirm).toHaveBeenCalled();

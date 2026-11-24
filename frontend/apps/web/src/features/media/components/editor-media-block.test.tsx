@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,5 +47,49 @@ describe('EditorMediaBlock', () => {
     expect(await screen.findByTestId('editor-media-block')).toBeInTheDocument();
     expect(await screen.findByTestId('editor-media-issues')).toBeInTheDocument();
     expect(screen.getByText(/не более 10 вложений/i)).toBeInTheDocument();
+  });
+
+  it('shows the preview image and falls back to the icon', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const items: EditorMediaItem[] = [
+      {
+        id: 'with-preview',
+        mediaId: 'm-preview',
+        kind: 'image',
+        mime: 'image/jpeg',
+        filename: 'photo.jpg',
+        previewUrl: 'https://cdn.example/preview.jpg',
+      },
+      {
+        id: 'without-preview',
+        mediaId: 'm-plain',
+        kind: 'video',
+        mime: 'video/mp4',
+        filename: 'clip.mp4',
+      },
+    ];
+
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="ru" messages={messages}>
+          <EditorMediaBlock
+            workspaceId="019a0000-0002-7000-8000-000000000002"
+            items={items}
+            selectedNetworks={[]}
+            onChange={() => undefined}
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+
+    const img = await screen.findByTestId('media-preview-image');
+    expect(img).toHaveAttribute('src', 'https://cdn.example/preview.jpg');
+    expect(img).toHaveAttribute('loading', 'lazy');
+    expect(img).toHaveClass('object-cover');
+    expect(screen.getByTestId('media-preview-fallback')).toBeInTheDocument();
+
+    fireEvent.error(img);
+    expect(screen.queryByTestId('media-preview-image')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('media-preview-fallback')).toHaveLength(2);
   });
 });

@@ -37,7 +37,9 @@ public final class MediaDtos {
             String folder,
             List<String> tags,
             String errorMessage,
-            List<MediaUsage> usedIn) {}
+            List<MediaUsage> usedIn,
+            @Schema(description = "Presigned GET URL for the card preview. Null when none applies or presign failed.")
+                    String previewUrl) {}
 
     @Schema(name = "CreateUploadRequest")
     public record CreateUploadRequest(

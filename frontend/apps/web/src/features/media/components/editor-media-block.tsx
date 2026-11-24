@@ -17,6 +17,7 @@ import { validateMediaAgainstCapabilities } from '../lib/media-limits';
 import type { CropPreset, EditorMediaItem, MediaLibraryItem } from '../model/types';
 import { ImageCropper } from './image-cropper';
 import { MediaPicker } from './media-picker';
+import { MediaPreview } from './media-preview';
 
 type EditorMediaBlockProps = {
   workspaceId: string;
@@ -260,18 +261,13 @@ export function EditorMediaBlock({
               }}
             >
               <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              {item.previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.previewUrl}
-                  alt=""
-                  className="h-12 w-12 rounded object-cover"
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-muted text-muted-foreground">
+                <MediaPreview
+                  previewUrl={item.previewUrl}
+                  kind={item.kind}
+                  iconClassName="h-5 w-5"
                 />
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded bg-muted text-xs">
-                  {item.kind}
-                </div>
-              )}
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.filename}</p>
                 <p className="text-xs text-muted-foreground">

@@ -398,9 +398,9 @@ export function toMediaAsset(item: MediaLibraryItem): MediaAsset {
     height: item.height,
     durationMs: item.durationMs,
     createdAt: item.createdAt,
+    previewUrl: item.previewUrl,
     derivatives: {
       filename: { value: item.filename ?? '' } as unknown as Record<string, never>,
-      previewUrl: { value: item.previewUrl ?? '' } as unknown as Record<string, never>,
     },
   };
 }

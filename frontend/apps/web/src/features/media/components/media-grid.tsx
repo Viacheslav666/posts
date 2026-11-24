@@ -2,11 +2,11 @@
 
 import { Badge, cn } from '@posts/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { FileText, Film, Image as ImageIcon, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useRef } from 'react';
 
 import type { MediaLibraryItem } from '../model/types';
+import { MediaPreview } from './media-preview';
 
 const COLUMNS = 4;
 const ROW_HEIGHT = 168;
@@ -20,13 +20,6 @@ type MediaGridProps = {
   onOpen?: (item: MediaLibraryItem) => void;
   selectable?: boolean;
 };
-
-function KindIcon({ kind }: { kind?: string }) {
-  if (kind === 'video') return <Film className="h-8 w-8" aria-hidden />;
-  if (kind === 'audio') return <Music className="h-8 w-8" aria-hidden />;
-  if (kind === 'doc') return <FileText className="h-8 w-8" aria-hidden />;
-  return <ImageIcon className="h-8 w-8" aria-hidden />;
-}
 
 function MediaCard({
   item,
@@ -63,13 +56,8 @@ function MediaCard({
       aria-pressed={selectable ? selected : undefined}
       data-testid={`media-card-${id}`}
     >
-      <div className="relative flex h-24 items-center justify-center bg-muted/40 text-muted-foreground">
-        {item.previewUrl && (item.kind === 'image' || item.kind === 'video') ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <KindIcon kind={item.kind} />
-        )}
+      <div className="relative h-24 overflow-hidden bg-muted/40 text-muted-foreground">
+        <MediaPreview previewUrl={item.previewUrl} kind={item.kind} />
         <Badge
           variant={
             item.status === 'ready'
