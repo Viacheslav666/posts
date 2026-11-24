@@ -673,58 +673,35 @@ class GrabberIngestIntegrationTest {
     }
 
     @Test
-    @DisplayName("postponed mode skips first comment and notifies once")
-    void postponedModeSkipsFirstComment() throws Exception {
+    @DisplayName("postponed mode rejects first comment on save")
+    void postponedModeRejectsFirstCommentOnSave() throws Exception {
         Fixture fx = bootstrap();
-        JsonNode rule = createRule(
-                fx,
-                Map.of(
-                        "type",
-                        "grabber",
-                        "name",
-                        "Later",
-                        "targetChannelId",
-                        fx.channelId.toString(),
-                        "userResponsibilityAccepted",
-                        true,
-                        "activate",
-                        true,
-                        "config",
-                        Map.of(
-                                "sourceIds",
-                                List.of("-123"),
-                                "scanIntervalMinutes",
-                                15,
-                                "targetMode",
-                                "vk_postponed_post",
-                                "firstComment",
-                                Map.of("enabled", true, "text", "не должен уйти"))));
-        UUID ruleId = UUID.fromString(rule.get("id").asText());
-        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
                         .with(csrf())
                         .header("Authorization", bearer(fx.token))
-                        .header("Idempotency-Key", "run-late-" + UUID.randomUUID()))
-                .andExpect(status().isAccepted());
-        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
-                        .header("Authorization", bearer(fx.token))
-                        .param("status", "pending_moderation"))
-                .andExpect(status().isOk())
-                .andReturn());
-        UUID itemId = UUID.fromString(items.get("items").get(0).get("id").asText());
-        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + "/approve")
-                        .with(csrf())
-                        .header("Authorization", bearer(fx.token))
-                        .header("Idempotency-Key", "approve-late-" + itemId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isOk())
-                .andReturn());
-        UUID postId = UUID.fromString(approved.get("postId").asText());
-        PostVariantEntity variant = postVariantRepository.findByPostId(postId).getFirst();
-        assertThat(variant.getOptions()).doesNotContainKey("firstComment");
-        assertThat(notificationRepository.findAll())
-                .anyMatch(note ->
-                        "grabber.setting_error".equals(note.getType()) && fx.workspaceId.equals(note.getWorkspaceId()));
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Later",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        15,
+                                        "targetMode",
+                                        "vk_postponed_post",
+                                        "firstComment",
+                                        Map.of("enabled", true, "text", "не должен уйти"))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.containsString("Первый комментарий")));
     }
 
     @Test
