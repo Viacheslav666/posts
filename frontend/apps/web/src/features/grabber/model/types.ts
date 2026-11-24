@@ -1,5 +1,21 @@
 export type IngestRuleType = 'grabber' | 'rss' | 'website';
 export type PublishMode = 'moderate' | 'auto' | 'draft';
+export type TargetMode = 'wall_now' | 'vk_postponed_post' | 'wall_repost' | 'vk_postponed_repost';
+
+export const TARGET_MODES: TargetMode[] = [
+  'wall_now',
+  'vk_postponed_post',
+  'wall_repost',
+  'vk_postponed_repost',
+];
+
+export function isPostponedTarget(mode: TargetMode | undefined): boolean {
+  return mode === 'vk_postponed_post' || mode === 'vk_postponed_repost';
+}
+
+export function isRepostTarget(mode: TargetMode | undefined): boolean {
+  return mode === 'wall_repost' || mode === 'vk_postponed_repost';
+}
 export type ScheduleMode = 'immediate' | 'delay' | 'slot';
 export type RuleStatus = 'draft' | 'active' | 'paused' | 'auto_paused' | 'archived';
 export type ItemStatus =
@@ -72,10 +88,15 @@ export const TEXT_MACROS = [
   '[id_of_the_source]',
   '[post_id_of_the_source]',
   '[rand]вариант1|вариант2[/rand]',
-  '[keyText]',
-  '[keyTextEntry]',
-  '[keyTextEntryNotFound]',
+  '[keyText]#юмор|прикол,приколы[/keyText]',
+  '[keyTextEntry]скидка,акция[/keyTextEntry]',
+  '[keyTextEntryNotFound]реклама,без рекламы[/keyTextEntryNotFound]',
 ] as const;
+
+/** True only when the public flag is exactly "true". The server flag defaults to off. */
+export function isGrabberActionButtonEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_GRABBER_ACTION_BUTTON_ENABLED === 'true';
+}
 
 export function isWebsiteSourceEnabled(): boolean {
   if (process.env.NEXT_PUBLIC_GRABBER_WEBSITE_ENABLED === 'true') {

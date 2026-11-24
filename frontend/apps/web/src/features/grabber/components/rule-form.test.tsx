@@ -92,7 +92,7 @@ describe('RuleForm (FE-14)', () => {
     expect(screen.getByTestId('grabber-auto-warning')).toBeInTheDocument();
   });
 
-  it('renders FE-17 settings groups including pending first-comment notice', async () => {
+  it('renders FE-17 settings groups including VK publish options and copyright warning', async () => {
     renderWithProviders(
       <RuleForm
         workspaceId={PERSONAL_WORKSPACE_ID}
@@ -108,9 +108,50 @@ describe('RuleForm (FE-14)', () => {
     expect(screen.getByTestId('grabber-section-limits')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-section-first-comment')).toBeInTheDocument();
     expect(screen.getByTestId('grabber-section-attached')).toBeInTheDocument();
-    expect(screen.getByTestId('pending-feature-notice')).toHaveTextContent(
-      /появится позже/i,
+    expect(screen.getByTestId('grabber-section-vk-publish')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-only-these')).toBeInTheDocument();
+    expect(screen.getByTestId('grabber-copyright-warning')).toHaveTextContent(/авторск/i);
+    expect(screen.getByTestId('grabber-action-button-title')).toBeDisabled();
+    expect(screen.getByTestId('grabber-action-button-hint')).toHaveTextContent(
+      'Скоро: требует проверки на VK',
     );
+    expect(screen.queryByTestId('pending-feature-notice')).not.toBeInTheDocument();
+  });
+
+  it('shows the group-id help link and disables interval in postponed mode', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RuleForm
+        workspaceId={PERSONAL_WORKSPACE_ID}
+        project={{ id: DEFAULT_PROJECT_ID, workspaceId: PERSONAL_WORKSPACE_ID, name: 'Основной' }}
+        channels={channels}
+      />,
+    );
+
+    expect(screen.getByTestId('grabber-postponed-repost-unavailable')).toHaveTextContent(
+      'Скоро: требует проверки на VK',
+    );
+    expect(screen.getByTestId('grabber-source-id-help')).toHaveTextContent('Как узнать ID группы?');
+    expect(screen.getByTestId('grabber-target-mode')).toHaveTextContent(/Сразу на стену \(пост\)/);
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-interval', 'true');
+    expect(screen.getByTestId('grabber-max-age-days')).toHaveValue(60);
+    expect(screen.getByTestId('grabber-notify-on-error')).toBeChecked();
+
+    await user.click(screen.getByTestId('grabber-target-mode'));
+    await user.click(await screen.findByRole('option', { name: 'В отложенные записи VK (пост)' }));
+
+    expect(screen.getByTestId('grabber-min-interval')).toBeDisabled();
+    expect(screen.getByTestId('grabber-min-interval-hint')).toHaveTextContent(
+      'Интервал между постами недоступен в отложенных записях VK',
+    );
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-interval', 'false');
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-action-button', 'false');
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-first-comment', 'false');
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute(
+      'data-comment-attachments',
+      'false',
+    );
+    expect(screen.getByTestId('grabber-mode-capabilities')).toHaveAttribute('data-scheduled-delete', 'false');
   });
 
   it('validates user attachments syntax and saves media settings', async () => {

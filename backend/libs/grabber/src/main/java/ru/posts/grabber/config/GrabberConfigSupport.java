@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import ru.posts.grabber.target.GrabberModeMatrix;
+import ru.posts.grabber.target.GrabberTargetMode;
 
 /** Defaults and accessors for automation_rules.config jsonb (grabber.md §5.1 + BE-27). */
 public final class GrabberConfigSupport {
@@ -14,8 +16,8 @@ public final class GrabberConfigSupport {
     public static final String PUBLISH_MODE_AUTO = "auto";
     public static final String PUBLISH_MODE_DRAFT = "draft";
 
-    /** BE-27 config schema version. Older configs are migrated on read via {@link #withDefaults}. */
-    public static final int CURRENT_CONFIG_VERSION = 2;
+    /** Config schema version. Older configs are migrated on read via {@link #withDefaults}. */
+    public static final int CURRENT_CONFIG_VERSION = 3;
 
     public static final int MAX_SOURCES_PER_RULE = 20;
 
@@ -35,6 +37,7 @@ public final class GrabberConfigSupport {
         config.putIfAbsent("source_ids", List.of());
         config.putIfAbsent("scan_interval_minutes", 180);
         config.putIfAbsent("publish_mode", PUBLISH_MODE_MODERATE);
+        config.putIfAbsent("target_mode", GrabberTargetMode.DEFAULT);
         config.putIfAbsent("schedule_mode", "immediate");
         config.putIfAbsent("publish_delay_minutes", 0);
 
@@ -60,10 +63,11 @@ public final class GrabberConfigSupport {
         filters.putIfAbsent("require_phone_or_signature", false);
         filters.putIfAbsent("only_group_posts", false);
         filters.putIfAbsent("skip_if_missing_attachment_types", List.of());
-        filters.putIfAbsent("skip_if_has_attachment_types", List.of());
         filters.putIfAbsent("skip_if_no_visual_media", false);
         filters.putIfAbsent("skip_if_no_article", false);
-        filters.putIfAbsent("max_age_days", null);
+        if (!filters.containsKey("max_age_days")) {
+            filters.put("max_age_days", GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS);
+        }
         config.put("filters", filters);
 
         Map<String, Object> transform = map(config.get("transform"));
@@ -100,6 +104,13 @@ public final class GrabberConfigSupport {
         transform.putIfAbsent("reupload_video", false);
         transform.putIfAbsent("link_to_source", false);
         transform.putIfAbsent("link_to_author", false);
+        transform.putIfAbsent("append_author_signature", true);
+        transform.putIfAbsent("close_comments", false);
+        transform.putIfAbsent("delete_after_enabled", false);
+        transform.putIfAbsent("delete_after_amount", 24);
+        transform.putIfAbsent("delete_after_unit", "hours");
+        transform.putIfAbsent("action_button", Map.of());
+        transform.putIfAbsent("ai_model", "stub");
         transform.putIfAbsent("text_max_length", null);
         config.put("transform", transform);
 
@@ -126,6 +137,7 @@ public final class GrabberConfigSupport {
         reliability.putIfAbsent("auto_pause_on_errors", true);
         reliability.putIfAbsent("auto_pause_error_threshold", 5);
         reliability.putIfAbsent("notify_on_errors", true);
+        reliability.putIfAbsent("notify_on_error", true);
         config.put("reliability", reliability);
 
         Map<String, Object> schedule = map(config.get("schedule"));
@@ -139,9 +151,9 @@ public final class GrabberConfigSupport {
         Map<String, Object> firstComment = map(config.get("first_comment"));
         firstComment.putIfAbsent("enabled", false);
         firstComment.putIfAbsent("text", "");
-        firstComment.putIfAbsent("attachments", List.of());
-        // Stub until BE-23 wires VK comment adapters
-        firstComment.putIfAbsent("pending_be23", true);
+        firstComment.putIfAbsent("attachments", "");
+        // Kept for old rows. Publishing no longer waits on this flag.
+        firstComment.putIfAbsent("pending_be23", false);
         config.put("first_comment", firstComment);
 
         config.putIfAbsent("macros", Map.of());
@@ -157,8 +169,16 @@ public final class GrabberConfigSupport {
         if (fromVersion >= CURRENT_CONFIG_VERSION) {
             return;
         }
-        // v1 → v2: introduce schedule / first_comment / similarity defaults (applied by putIfAbsent)
+        // v1 → v3: schedule / first_comment / similarity / target_mode defaults (applied by putIfAbsent)
         config.put("config_version", CURRENT_CONFIG_VERSION);
+    }
+
+    public static String targetMode(Map<String, Object> config) {
+        Object mode = config == null ? null : config.get("target_mode");
+        if (mode == null || mode.toString().isBlank()) {
+            return GrabberTargetMode.DEFAULT;
+        }
+        return mode.toString().trim().toLowerCase(Locale.ROOT);
     }
 
     public static String publishMode(Map<String, Object> config) {
@@ -283,6 +303,19 @@ public final class GrabberConfigSupport {
         return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
     }
 
+    /** When false, setting failures are only logged — no {@code grabber.setting_error} notification. */
+    public static boolean notifyOnError(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object enabled = reliability.get("notify_on_error");
+        if (enabled == null) {
+            return true;
+        }
+        if (enabled instanceof Boolean b) {
+            return b;
+        }
+        return !"false".equalsIgnoreCase(enabled.toString());
+    }
+
     public static boolean reuploadVideo(Map<String, Object> config) {
         Object enabled = transform(config).get("reupload_video");
         return Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
@@ -296,6 +329,26 @@ public final class GrabberConfigSupport {
     public static boolean carouselMode(Map<String, Object> config) {
         Object mode = transform(config).get("attachments_mode");
         return mode != null && "carousel".equalsIgnoreCase(mode.toString().trim());
+    }
+
+    /**
+     * {@code 0} (and an explicit JSON null) means the age filter is off. A missing key defaults to
+     * {@link GrabberModeMatrix#DEFAULT_MAX_AGE_DAYS}.
+     */
+    public static int maxAgeDays(Map<String, Object> config) {
+        Map<String, Object> filters = map(config == null ? null : config.get("filters"));
+        if (!filters.containsKey("max_age_days") || filters.get("max_age_days") == null) {
+            return filters.containsKey("max_age_days") ? 0 : GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS;
+        }
+        Object value = filters.get("max_age_days");
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException ex) {
+            return GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS;
+        }
     }
 
     public static int rateLimitPerHour(Map<String, Object> config) {
@@ -316,11 +369,39 @@ public final class GrabberConfigSupport {
         return value instanceof Number n ? n.intValue() : 0;
     }
 
-    public static int minIntervalMinutes(Map<String, Object> config) {
+    /** Stored interval before the 0–120 clamp. Validation uses this so a value above 120 is rejected. */
+    public static int declaredMinIntervalMinutes(Map<String, Object> config) {
         Map<String, Object> limits = map(config == null ? null : config.get("limits"));
         Object value = limits.get("min_interval_minutes");
-        int n = value instanceof Number num ? num.intValue() : 0;
+        if (value instanceof Number num) {
+            return num.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        return 0;
+    }
+
+    public static int minIntervalMinutes(Map<String, Object> config) {
+        int n = declaredMinIntervalMinutes(config);
         return Math.max(0, Math.min(n, 120));
+    }
+
+    /** IANA zone from {@code schedule.timezone}, or {@code Europe/Moscow} when missing or invalid. */
+    public static String scheduleTimezone(Map<String, Object> config) {
+        Object raw = schedule(config).get("timezone");
+        String value = raw == null || raw.toString().isBlank()
+                ? "Europe/Moscow"
+                : raw.toString().trim();
+        try {
+            return java.time.ZoneId.of(value).getId();
+        } catch (java.time.DateTimeException ex) {
+            return "Europe/Moscow";
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -341,6 +422,154 @@ public final class GrabberConfigSupport {
     @SuppressWarnings("unchecked")
     public static Map<String, Object> firstComment(Map<String, Object> config) {
         return map(config == null ? null : config.get("first_comment"));
+    }
+
+    public static boolean bool(Object value, boolean defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        return Boolean.parseBoolean(value.toString());
+    }
+
+    public static boolean aiRewriteEnabled(Map<String, Object> config) {
+        Object enabled = config == null ? null : config.get("ai_rewrite_enabled");
+        return bool(enabled, false);
+    }
+
+    public static String aiModel(Map<String, Object> config) {
+        Object value = transform(config).get("ai_model");
+        if (value == null || value.toString().isBlank()) {
+            return "stub";
+        }
+        return value.toString().trim();
+    }
+
+    public static boolean appendAuthorSignature(Map<String, Object> config) {
+        return bool(transform(config).get("append_author_signature"), true);
+    }
+
+    /** {@code null} when the timer is off or the amount/unit is not usable. */
+    public static java.time.Duration deleteAfter(Map<String, Object> config) {
+        Map<String, Object> transform = transform(config);
+        if (!bool(transform.get("delete_after_enabled"), false)) {
+            return null;
+        }
+        int amount = intVal(transform.get("delete_after_amount"), 0);
+        String unit = transform.get("delete_after_unit") == null
+                ? ""
+                : transform.get("delete_after_unit").toString().trim().toLowerCase(java.util.Locale.ROOT);
+        if (amount <= 0) {
+            return null;
+        }
+        return switch (unit) {
+            case "minutes" -> amount > 525_600 ? null : java.time.Duration.ofMinutes(amount);
+            case "hours" -> amount > 8_760 ? null : java.time.Duration.ofHours(amount);
+            case "days" -> amount > 365 ? null : java.time.Duration.ofDays(amount);
+            default -> null;
+        };
+    }
+
+    /**
+     * Rejects settings that cannot be stored. Mode skips are not errors: they are applied at
+     * publish time and reported as notifications.
+     */
+    public static void validateSettings(Map<String, Object> config) {
+        stripClientAiPrice(config);
+        Map<String, Object> transform = transform(config);
+        if (bool(transform.get("delete_after_enabled"), false) && deleteAfter(config) == null) {
+            throw new IllegalArgumentException(
+                    "Таймер удаления: укажите положительное число и единицу minutes, hours или days "
+                            + "(не больше года).");
+        }
+        Object button = transform.get("action_button");
+        if (button instanceof Map<?, ?> map && !map.isEmpty()) {
+            Map<String, Object> copy = new java.util.LinkedHashMap<>();
+            map.forEach((k, v) -> {
+                if (k != null && v != null) {
+                    copy.put(String.valueOf(k), v);
+                }
+            });
+            String error = ru.posts.grabber.publish.GrabberPublishOptions.actionButtonError(copy);
+            if (error != null) {
+                throw new IllegalArgumentException(error);
+            }
+        }
+        Map<String, Object> firstComment = firstComment(config);
+        Object attachments = firstComment.get("attachments");
+        String attachmentText = attachmentText(attachments);
+        java.util.List<String> invalid = ru.posts.grabber.publish.CommentAttachments.invalidTokens(attachmentText);
+        if (!invalid.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Вложения комментария: допустимы photo-ID_ID и video-ID_ID, в том числе внутри [rand]. Неверно: "
+                            + String.join(", ", invalid));
+        }
+        if (aiRewriteEnabled(config)) {
+            String model = aiModel(config);
+            if (!model.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")) {
+                throw new IllegalArgumentException("Модель нейросети: латиница, цифры и . _ : - , до 64 символов.");
+            }
+        }
+        if (bool(firstComment.get("enabled"), false)) {
+            String text = firstComment.get("text") == null
+                    ? ""
+                    : firstComment.get("text").toString().trim();
+            if (text.isEmpty() && attachmentText.isBlank()) {
+                throw new IllegalArgumentException("Первый комментарий включён, но текст пустой.");
+            }
+        }
+    }
+
+    /** The client cannot set the neural price. The charge is {@code posts.grabber.ai.cost-kopecks}. */
+    private static void stripClientAiPrice(Map<String, Object> config) {
+        if (config == null) {
+            return;
+        }
+        Object raw = config.get("transform");
+        if (!(raw instanceof Map<?, ?> transform) || !transform.containsKey("ai_cost_kopecks")) {
+            return;
+        }
+        try {
+            transform.remove("ai_cost_kopecks");
+        } catch (UnsupportedOperationException ex) {
+            Map<String, Object> copy = new java.util.LinkedHashMap<>();
+            transform.forEach((k, v) -> {
+                if (k != null && !"ai_cost_kopecks".equals(String.valueOf(k))) {
+                    copy.put(String.valueOf(k), v);
+                }
+            });
+            config.put("transform", copy);
+        }
+    }
+
+    private static String attachmentText(Object raw) {
+        if (raw == null) {
+            return "";
+        }
+        if (raw instanceof java.util.List<?> list) {
+            return list.stream()
+                    .filter(item -> item != null && !item.toString().isBlank())
+                    .map(Object::toString)
+                    .reduce((a, b) -> a + "," + b)
+                    .orElse("");
+        }
+        return raw.toString();
+    }
+
+    private static int intVal(Object value, int defaultValue) {
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        if (value != null && !value.toString().isBlank()) {
+            try {
+                return Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
 
     @SuppressWarnings("unchecked")

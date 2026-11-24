@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.SourceIdNormalizer;
+import ru.posts.grabber.fetch.GrabberSourceScan;
 import ru.posts.grabber.fetch.RssFetcher;
 import ru.posts.grabber.fetch.SourceCandidate;
 import ru.posts.grabber.fetch.VkWallFetcher;
@@ -27,7 +29,10 @@ import ru.posts.grabber.fetch.WebsiteFetcher;
 import ru.posts.grabber.filter.GrabberFilters;
 import ru.posts.grabber.hash.ContentHasher;
 import ru.posts.grabber.hash.SimHasher;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.grabber.publish.GrabberPostFactory;
+import ru.posts.grabber.target.GrabberDailyWindow;
+import ru.posts.grabber.target.GrabberPublishSchedule;
 import ru.posts.grabber.token.GrabberTokenProvider;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
@@ -48,7 +53,6 @@ public class GrabberRunProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(GrabberRunProcessor.class);
     private static final List<String> DEDUP_EXCLUDED = List.of("rejected", "suppressed_dedup", "filtered_out");
-    private static final List<String> PUBLISHED_STATUSES = List.of("scheduled", "published", "approved");
 
     private final AutomationRuleRepository ruleRepository;
     private final GrabberRunRepository runRepository;
@@ -62,6 +66,7 @@ public class GrabberRunProcessor {
     private final MeterRegistry meterRegistry;
     private final OutboxRepository outboxRepository;
     private final TransactionTemplate tx;
+    private final GrabberSettingReporter settingReporter;
 
     public GrabberRunProcessor(
             AutomationRuleRepository ruleRepository,
@@ -75,7 +80,8 @@ public class GrabberRunProcessor {
             GrabberPostFactory postFactory,
             MeterRegistry meterRegistry,
             OutboxRepository outboxRepository,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            GrabberSettingReporter settingReporter) {
         this.ruleRepository = ruleRepository;
         this.runRepository = runRepository;
         this.itemRepository = itemRepository;
@@ -88,6 +94,7 @@ public class GrabberRunProcessor {
         this.meterRegistry = meterRegistry;
         this.outboxRepository = outboxRepository;
         this.tx = new TransactionTemplate(transactionManager);
+        this.settingReporter = settingReporter;
     }
 
     /**
@@ -134,6 +141,9 @@ public class GrabberRunProcessor {
             int itemsPublished = 0;
             String publishMode = GrabberConfigSupport.publishMode(rule.getConfig());
             List<GrabberItemEntity> recentSim = loadRecentSimhash(rule);
+            Map<String, Integer> settingSkips = new LinkedHashMap<>();
+            Instant anchor = GrabberPublishSchedule.spacedBase(rule.getConfig(), now, lastAcceptedAt(rule));
+            int slot = 0;
 
             for (SourceCandidate candidate : candidates) {
                 String skip = GrabberFilters.skipReason(candidate, rule.getConfig(), now);
@@ -141,12 +151,17 @@ public class GrabberRunProcessor {
                         candidate.contentText(), candidate.mediaHashes(), candidate.attachmentCanonicalIds());
                 long simhash = SimHasher.fingerprint(candidate.contentText());
 
-                if (itemRepository
-                        .findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
-                                rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId())
-                        .isPresent()) {
-                    itemsDeduped++;
-                    continue;
+                var existing = itemRepository.findByRuleIdAndSourceNetworkAndSourceIdAndRemotePostId(
+                        rule.getId(), candidate.sourceNetwork(), candidate.sourceId(), candidate.remotePostId());
+                if (existing.isPresent()) {
+                    GrabberItemEntity prior = existing.get();
+                    if (GrabberDailyWindow.isReopenableRateLimit(prior.getStatus(), prior.getSkipReason())) {
+                        itemRepository.delete(prior);
+                        itemRepository.flush();
+                    } else {
+                        itemsDeduped++;
+                        continue;
+                    }
                 }
 
                 if (GrabberConfigSupport.dedupEnabled(rule.getConfig())
@@ -168,24 +183,37 @@ public class GrabberRunProcessor {
                 }
 
                 if (skip != null) {
+                    noteSettingSkip(settingSkips, skip);
                     persistItem(rule, run, candidate, contentHash, simhash, "filtered_out", skip, now);
                     continue;
                 }
 
-                String limitReason = quotaSkipReason(rule, candidate, now);
+                String limitReason = quotaSkipReasonUnderRuleLock(rule, candidate, now);
                 if (limitReason != null) {
-                    persistItem(rule, run, candidate, contentHash, simhash, "filtered_out", limitReason, now);
+                    noteSettingSkip(settingSkips, limitReason);
+                    log.info(
+                            "Grabber limit ruleId={} setting={} sourceId={} remotePostId={}",
+                            rule.getId(),
+                            limitReason,
+                            candidate.sourceId(),
+                            candidate.remotePostId());
+                    // No filtered_out row: a terminal skip would dedupe the post forever, past the reset.
                     continue;
                 }
 
                 MacroExpander.Context macroCtx = MacroExpander.Context.of(
-                        candidate.sourceName(), candidate.sourceId(), candidate.remotePostId());
+                        candidate.sourceName(),
+                        candidate.sourceId(),
+                        candidate.remotePostId(),
+                        candidate.contentText());
+                // Attachment stripping is stored for moderation. The text stays the raw source so
+                // publishItem is the only place that applies prepend, append and word replacement.
                 ContentTransformer.TransformResult transformed = ContentTransformer.transform(
                         candidate.contentText(), candidate.attachments(), rule.getConfig(), macroCtx);
+                applyAuthorSignature(rule, candidate, candidate.contentText());
 
                 GrabberItemEntity item =
                         persistItem(rule, run, candidate, contentHash, simhash, initialStatus(publishMode), null, now);
-                item.setContentText(transformed.text());
                 item.setAttachmentsJson(transformed.attachments());
                 itemRepository.save(item);
                 recentSim.add(0, item);
@@ -212,7 +240,12 @@ public class GrabberRunProcessor {
                 }
                 try {
                     GrabberPostFactory.PublishResult published =
-                            postFactory.publishItem(rule, item, rule.getCreatedBy(), null, now);
+                            postFactory.publishItem(rule, item, rule.getCreatedBy(), null, anchor, slot);
+                    if (published.postId() != null) {
+                        slot++;
+                    } else if (item.getSkipReason() != null) {
+                        noteSettingSkip(settingSkips, item.getSkipReason());
+                    }
                     itemRepository.save(item);
                     itemsNew++;
                     if (published.postId() != null) {
@@ -231,6 +264,8 @@ public class GrabberRunProcessor {
                     itemsDeduped++;
                 }
             }
+
+            reportSettingSkips(rule, settingSkips);
 
             int newCount = itemsNew;
             int dedupedCount = itemsDeduped;
@@ -304,39 +339,60 @@ public class GrabberRunProcessor {
         return false;
     }
 
+    private String quotaSkipReasonUnderRuleLock(AutomationRuleEntity rule, SourceCandidate candidate, Instant now) {
+        return tx.execute(status -> {
+            AutomationRuleEntity locked = ruleRepository
+                    .findByIdForUpdate(rule.getId())
+                    .orElseThrow(() -> new IllegalStateException("Rule not found: " + rule.getId()));
+            return quotaSkipReason(locked, candidate, now);
+        });
+    }
+
     private String quotaSkipReason(AutomationRuleEntity rule, SourceCandidate candidate, Instant now) {
+        Instant dayStart = GrabberDailyWindow.start(rule.getConfig(), now);
         int perDay = GrabberConfigSupport.rateLimitPerDay(rule.getConfig());
         if (perDay > 0) {
             long count = itemRepository.countByRuleIdAndStatusInAndDetectedAtAfter(
-                    rule.getId(), PUBLISHED_STATUSES, now.minus(1, ChronoUnit.DAYS));
-            count += itemRepository.countByRuleIdAndStatusAndDetectedAtAfter(
-                    rule.getId(), "pending_moderation", now.minus(1, ChronoUnit.DAYS));
+                    rule.getId(), GrabberDailyWindow.QUOTA_STATUSES, dayStart);
             if (count >= perDay) {
-                return "rate_limit_per_day";
+                return GrabberDailyWindow.RATE_LIMIT_PER_DAY;
             }
         }
         int perSource = GrabberConfigSupport.rateLimitPerSourcePerDay(rule.getConfig());
         if (perSource > 0) {
             long count = itemRepository.countByRuleIdAndSourceIdAndStatusInAndDetectedAtAfter(
-                    rule.getId(),
-                    candidate.sourceId(),
-                    List.of("scheduled", "published", "approved", "pending_moderation"),
-                    now.minus(1, ChronoUnit.DAYS));
+                    rule.getId(), candidate.sourceId(), GrabberDailyWindow.QUOTA_STATUSES, dayStart);
             if (count >= perSource) {
-                return "rate_limit_per_source_per_day";
-            }
-        }
-        int minInterval = GrabberConfigSupport.minIntervalMinutes(rule.getConfig());
-        if (minInterval > 0) {
-            Optional<GrabberItemEntity> last = itemRepository.findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
-                    rule.getId(), List.of("scheduled", "published", "approved", "pending_moderation"));
-            if (last.isPresent()
-                    && last.get().getDetectedAt() != null
-                    && last.get().getDetectedAt().isAfter(now.minus(minInterval, ChronoUnit.MINUTES))) {
-                return "min_interval_minutes";
+                return GrabberDailyWindow.RATE_LIMIT_PER_SOURCE;
             }
         }
         return null;
+    }
+
+    private Instant lastAcceptedAt(AutomationRuleEntity rule) {
+        return itemRepository
+                .findFirstByRuleIdAndStatusInOrderByDetectedAtDesc(
+                        rule.getId(), List.of("scheduled", "published", "approved", "pending_moderation"))
+                .map(GrabberItemEntity::getDetectedAt)
+                .orElse(null);
+    }
+
+    private static void noteSettingSkip(Map<String, Integer> skips, String reason) {
+        if (GrabberSettingReporter.settingForReason(reason) == null) {
+            return;
+        }
+        skips.merge(reason, 1, Integer::sum);
+    }
+
+    private void reportSettingSkips(AutomationRuleEntity rule, Map<String, Integer> skips) {
+        for (Map.Entry<String, Integer> entry : skips.entrySet()) {
+            String setting = GrabberSettingReporter.settingForReason(entry.getKey());
+            settingReporter.report(
+                    rule,
+                    setting,
+                    entry.getKey(),
+                    GrabberSettingReporter.detailForReason(entry.getKey(), entry.getValue()));
+        }
     }
 
     private List<SourceCandidate> fetchCandidates(AutomationRuleEntity rule) {
@@ -355,11 +411,21 @@ public class GrabberRunProcessor {
         if (token.isEmpty()) {
             throw new IllegalStateException("No VK token available for grabber sources");
         }
-        List<SourceCandidate> all = new ArrayList<>();
-        for (String sourceId : sourceIds) {
-            all.addAll(vkWallFetcher.fetch(sourceId, token.get(), 20));
+        String accessToken = token.get();
+        List<String> failed = new ArrayList<>();
+        List<SourceCandidate> found = GrabberSourceScan.collect(
+                sourceIds, sourceId -> vkWallFetcher.fetch(sourceId, accessToken, 20), (sourceId, ex) -> {
+                    failed.add(sourceId);
+                    log.warn(
+                            "Grabber source skipped ruleId={} sourceId={} detail={}",
+                            rule.getId(),
+                            sourceId,
+                            GrabberSourceScan.redact(ex.getMessage(), accessToken));
+                });
+        if (!sourceIds.isEmpty() && failed.size() == sourceIds.size()) {
+            throw new IllegalStateException("VK wall.get failed for every source");
         }
-        return all;
+        return found;
     }
 
     private GrabberItemEntity persistItem(
@@ -393,7 +459,7 @@ public class GrabberRunProcessor {
                         : candidate.mediaHashes().toArray(String[]::new));
         item.setStatus(status);
         item.setSkipReason(skipReason);
-        item.setRawPayload(truncateRaw(candidate.rawPayload()));
+        item.setRawPayload(truncateRaw(withSourceMarkers(candidate)));
         item.setDetectedAt(now);
         item.setCreatedAt(now);
         item.setUpdatedAt(now);
@@ -408,6 +474,43 @@ public class GrabberRunProcessor {
         }
     }
 
+    private String applyAuthorSignature(AutomationRuleEntity rule, SourceCandidate candidate, String text) {
+        if (!GrabberConfigSupport.appendAuthorSignature(rule.getConfig())) {
+            return text == null ? "" : text;
+        }
+        String name = signerName(candidate);
+        if (candidate.signed() && name.isBlank()) {
+            settingReporter.reportUserNotice(
+                    rule.getCreatedBy(),
+                    rule,
+                    "author_signature",
+                    "signer_missing",
+                    "У поста есть подпись автора, но имя не пришло из VK. Подпись не добавлена.");
+            return text == null ? "" : text;
+        }
+        return ContentTransformer.appendAuthorSignature(text, name);
+    }
+
+    private static String signerName(SourceCandidate candidate) {
+        Map<String, Object> raw = candidate.rawPayload();
+        if (raw == null || raw.get("signer_name") == null) {
+            return "";
+        }
+        return raw.get("signer_name").toString().trim();
+    }
+
+    private static Map<String, Object> withSourceMarkers(SourceCandidate candidate) {
+        Map<String, Object> raw = new LinkedHashMap<>();
+        if (candidate.rawPayload() != null) {
+            raw.putAll(candidate.rawPayload());
+        }
+        if (candidate.contentText() != null) {
+            raw.putIfAbsent("source_text", candidate.contentText());
+        }
+        raw.put("signed", candidate.signed());
+        return raw;
+    }
+
     private Map<String, Object> truncateRaw(Map<String, Object> raw) {
         if (raw == null) {
             return null;
@@ -415,7 +518,15 @@ public class GrabberRunProcessor {
         if (raw.size() <= 32) {
             return raw;
         }
-        return Map.of("truncated", true, "keys", raw.keySet().stream().limit(16).toList());
+        Map<String, Object> kept = new LinkedHashMap<>();
+        for (String key : List.of("source_text", "signer_name", "signed")) {
+            if (raw.containsKey(key)) {
+                kept.put(key, raw.get(key));
+            }
+        }
+        kept.put("truncated", true);
+        kept.put("keys", raw.keySet().stream().limit(16).toList());
+        return kept;
     }
 
     private GrabberRunEntity createRun(AutomationRuleEntity rule, String trigger, String traceId) {

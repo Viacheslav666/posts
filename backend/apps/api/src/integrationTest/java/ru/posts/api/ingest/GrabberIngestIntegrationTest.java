@@ -41,11 +41,16 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.entity.PlanEntity;
+import ru.posts.persistence.entity.PostVariantEntity;
 import ru.posts.persistence.entity.PublicationEntity;
 import ru.posts.persistence.entity.WorkspaceEntity;
+import ru.posts.persistence.jdbc.WalletLedgerJdbc;
 import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.GrabberItemRepository;
+import ru.posts.persistence.repository.LedgerEntryRepository;
+import ru.posts.persistence.repository.NotificationRepository;
 import ru.posts.persistence.repository.PlanRepository;
+import ru.posts.persistence.repository.PostVariantRepository;
 import ru.posts.persistence.repository.PublicationRepository;
 import ru.posts.persistence.repository.WorkspaceRepository;
 
@@ -74,6 +79,9 @@ class GrabberIngestIntegrationTest {
         registry.add("posts.grabber.vk.base-url", wireMock::baseUrl);
         registry.add("posts.grabber.inline-runs", () -> "true");
         registry.add("posts.grabber.vk.access-token", () -> "test-token");
+        registry.add("posts.grabber.ai.enabled", () -> "true");
+        registry.add("posts.grabber.ai.cost-kopecks", () -> "100");
+        registry.add("posts.grabber.action-button.enabled", () -> "true");
         // WireMock binds to localhost; production SSRF still blocks 10.x / metadata.
         registry.add("posts.grabber.ssrf.allowed-hosts", () -> "localhost,127.0.0.1");
     }
@@ -101,6 +109,18 @@ class GrabberIngestIntegrationTest {
 
     @Autowired
     WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    PostVariantRepository postVariantRepository;
+
+    @Autowired
+    WalletLedgerJdbc walletLedger;
+
+    @Autowired
+    LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    NotificationRepository notificationRepository;
 
     @BeforeEach
     void setUp() {
@@ -519,6 +539,461 @@ class GrabberIngestIntegrationTest {
         UUID ruleId = UUID.fromString(rule.get("id").asText());
         mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId).header("Authorization", bearer(b.token)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("first comment, action button, delete timer, author and AI debit")
+    void publishOptionsAndNeuralCharge() throws Exception {
+        Fixture fx = bootstrap();
+        walletLedger.credit(fx.workspaceId, 10_000, "payment", false, "topup-" + fx.workspaceId, null, "test");
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":10,"owner_id":-123,"from_id":55,"signer_id":55,"text":"Grabbed post A #юмор","marked_as_ads":0,"attachments":[]}
+                ],"profiles":[{"id":55,"first_name":"Иван","last_name":"Петров"}]}}
+                """);
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Options",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("-123"),
+                                "scanIntervalMinutes",
+                                15,
+                                "aiRewriteEnabled",
+                                true,
+                                "transform",
+                                Map.of(
+                                        "close_comments",
+                                        true,
+                                        "append_author_signature",
+                                        true,
+                                        "delete_after_enabled",
+                                        true,
+                                        "delete_after_amount",
+                                        2,
+                                        "delete_after_unit",
+                                        "hours",
+                                        "ai_model",
+                                        "stub",
+                                        "ai_cost_kopecks",
+                                        1,
+                                        "action_button",
+                                        Map.of("type", "open_url", "title", "Открыть", "url", "https://example.com/a")),
+                                "firstComment",
+                                Map.of(
+                                        "enabled",
+                                        true,
+                                        "text",
+                                        "Коммент [keyText]#юмор,смешно[/keyText]",
+                                        "attachments",
+                                        "photo-123_456"))));
+        assertThat(rule.toString()).doesNotContain("ai_cost_kopecks");
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "run-opt-" + UUID.randomUUID()))
+                .andExpect(status().isAccepted());
+        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID itemId = UUID.fromString(items.get("items").get(0).get("id").asText());
+        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + "/approve")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "approve-opt-" + itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID postId = UUID.fromString(approved.get("postId").asText());
+        PostVariantEntity variant = postVariantRepository.findByPostId(postId).getFirst();
+        assertThat(variant.getOptions()).containsEntry("closeComments", true);
+        assertThat(variant.getOptions().get("firstComment").toString()).contains("смешно");
+        assertThat(variant.getOptions()).containsKey("deleteAfter");
+        assertThat(variant.getOptions()).containsKey("actionButton");
+        assertThat(variant.getContent().get("text").toString())
+                .contains("[ai:stub]")
+                .contains("Иван Петров");
+
+        assertThat(ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(fx.workspaceId))
+                .anyMatch(entry -> "neural".equals(entry.getKind())
+                        && entry.getAmountKopecks() == -100L
+                        && entry.getDescription() != null
+                        && entry.getDescription().startsWith("Нейросеть"));
+        assertThat(occurrences(variant.getContent().get("text").toString(), "[ai:stub]"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("prepend and append run once for AI off, AI on, edit-approve and low balance")
+    void transformMarkersOnceOnEveryPath() throws Exception {
+        Fixture fx = bootstrap();
+        String plain = publishText(fx, false, "foo alpha", 21, null);
+        assertThat(occurrences(plain, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(plain, "<POST")).isEqualTo(1);
+        assertThat(occurrences(plain, "BAR")).isEqualTo(1);
+        assertThat(plain).doesNotContain("[ai:stub]");
+
+        walletLedger.credit(fx.workspaceId, 10_000, "payment", false, "topup-once-" + fx.workspaceId, null, "test");
+        String rewritten = publishText(fx, true, "foo beta", 22, null);
+        assertThat(occurrences(rewritten, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "<POST")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "BAR")).isEqualTo(1);
+        assertThat(occurrences(rewritten, "[ai:stub]")).isEqualTo(1);
+
+        String edited = publishText(fx, false, "foo gamma", 23, "PRE>\nfoo kept\n<POST");
+        assertThat(occurrences(edited, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(edited, "<POST")).isEqualTo(1);
+        assertThat(edited).contains("foo kept");
+        assertThat(occurrences(edited, "BAR")).isZero();
+
+        Fixture broke = bootstrap();
+        String fallback = publishText(broke, true, "foo delta", 24, null);
+        assertThat(occurrences(fallback, "PRE>")).isEqualTo(1);
+        assertThat(occurrences(fallback, "<POST")).isEqualTo(1);
+        assertThat(occurrences(fallback, "BAR")).isEqualTo(1);
+        assertThat(fallback).doesNotContain("[ai:stub]");
+        assertThat(ledgerEntryRepository.findByWorkspaceIdOrderByCreatedAtDesc(broke.workspaceId))
+                .noneMatch(entry -> "neural".equals(entry.getKind()));
+    }
+
+    @Test
+    @DisplayName("postponed mode rejects first comment on save")
+    void postponedModeRejectsFirstCommentOnSave() throws Exception {
+        Fixture fx = bootstrap();
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Later",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        15,
+                                        "targetMode",
+                                        "vk_postponed_post",
+                                        "firstComment",
+                                        Map.of("enabled", true, "text", "не должен уйти"))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Первый комментарий")));
+    }
+
+    @Test
+    @DisplayName("target mode matrix, postponed interval rejected, club/public sources and zero limits")
+    void targetModeMatrixAndValidation() throws Exception {
+        Fixture fx = bootstrap();
+        mockMvc.perform(get("/api/v1/ingest/mode-matrix").header("Authorization", bearer(fx.token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modes.length()").value(4))
+                .andExpect(jsonPath("$.intervalDisables[0]").value("commentAttachments"))
+                .andExpect(jsonPath("$.postponedHorizonDays").value(7))
+                .andExpect(jsonPath("$.defaultMaxAgeDays").value(60))
+                .andExpect(jsonPath("$.maxIntervalMinutes").value(120))
+                .andExpect(jsonPath("$.modes[1].id").value("vk_postponed_post"))
+                .andExpect(jsonPath("$.modes[1].interval").value(false))
+                .andExpect(jsonPath("$.modes[1].firstComment").value(false))
+                .andExpect(jsonPath("$.modes[1].actionButton").value(false))
+                .andExpect(jsonPath("$.modes[1].scheduledDelete").value(false))
+                .andExpect(jsonPath("$.modes[3].id").value("vk_postponed_repost"))
+                .andExpect(jsonPath("$.modes[3].available").value(false));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad interval",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "vk_postponed_post",
+                                        "limits",
+                                        Map.of("min_interval_minutes", 10))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Интервал")));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Interval too wide",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "wall_now",
+                                        "limits",
+                                        Map.of("min_interval_minutes", 121))))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("120")));
+
+        String pastedToken = "vk1.a." + "secretTOKEN".repeat(8);
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad source",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of("sourceIds", List.of(pastedToken), "scanIntervalMinutes", 60)))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(pastedToken))));
+
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Postponed repost",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        60,
+                                        "targetMode",
+                                        "vk_postponed_repost")))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Скоро")));
+
+        JsonNode created = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Wall repost",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("club123", "https://vk.com/public77", "12345", "https://vk.com/team"),
+                                "scanIntervalMinutes",
+                                60,
+                                "targetMode",
+                                "wall_repost",
+                                "filters",
+                                Map.of("max_age_days", 0),
+                                "limits",
+                                Map.of(
+                                        "rate_limit_per_day",
+                                        0,
+                                        "rate_limit_per_source_per_day",
+                                        0,
+                                        "min_interval_minutes",
+                                        0))));
+        assertThat(created.get("config").get("targetMode").asText()).isEqualTo("wall_repost");
+        assertThat(created.get("config").get("filters").get("max_age_days").asInt())
+                .isZero();
+        assertThat(created.get("config").get("limits").get("rate_limit_per_day").asInt())
+                .isZero();
+        assertThat(created.get("config").get("sourceIds").toString())
+                .contains("-123")
+                .contains("-77")
+                .contains("-12345")
+                .contains("team");
+
+        JsonNode defaults = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Defaults",
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "config",
+                        Map.of("sourceIds", List.of("-1"), "scanIntervalMinutes", 60)));
+        assertThat(defaults.get("config").get("targetMode").asText()).isEqualTo("wall_now");
+        assertThat(defaults.get("config").get("filters").get("max_age_days").asInt())
+                .isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("invalid action button is rejected on save")
+    void invalidActionButtonRejected() throws Exception {
+        Fixture fx = bootstrap();
+        mockMvc.perform(post("/api/v1/workspaces/" + fx.workspaceId + "/projects/" + fx.projectId + "/ingest/rules")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "type",
+                                "grabber",
+                                "name",
+                                "Bad button",
+                                "targetChannelId",
+                                fx.channelId.toString(),
+                                "userResponsibilityAccepted",
+                                true,
+                                "config",
+                                Map.of(
+                                        "sourceIds",
+                                        List.of("-123"),
+                                        "scanIntervalMinutes",
+                                        15,
+                                        "transform",
+                                        Map.of(
+                                                "action_button",
+                                                Map.of("type", "open_url", "title", "x", "url", "not-a-url")))))))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    private String publishText(Fixture fx, boolean ai, String sourceText, int wallPostId, String editText)
+            throws Exception {
+        stubVkWall(
+                """
+                {"response":{"count":1,"items":[
+                  {"id":%d,"owner_id":-123,"text":"%s","marked_as_ads":0,"attachments":[]}
+                ]}}
+                """
+                        .formatted(wallPostId, sourceText));
+        Map<String, Object> transform = new java.util.LinkedHashMap<>();
+        transform.put("prepend_text", "PRE>");
+        transform.put("append_text", "<POST");
+        transform.put("word_replacements", Map.of("foo", "BAR"));
+        transform.put("ai_model", "stub");
+        JsonNode rule = createRule(
+                fx,
+                Map.of(
+                        "type",
+                        "grabber",
+                        "name",
+                        "Once " + ai + " " + (editText != null),
+                        "targetChannelId",
+                        fx.channelId.toString(),
+                        "userResponsibilityAccepted",
+                        true,
+                        "activate",
+                        true,
+                        "config",
+                        Map.of(
+                                "sourceIds",
+                                List.of("-123"),
+                                "scanIntervalMinutes",
+                                15,
+                                "aiRewriteEnabled",
+                                ai,
+                                "transform",
+                                transform)));
+        UUID ruleId = UUID.fromString(rule.get("id").asText());
+        mockMvc.perform(post("/api/v1/ingest/rules/" + ruleId + "/runs")
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "run-once-" + UUID.randomUUID()))
+                .andExpect(status().isAccepted());
+        JsonNode items = readJson(mockMvc.perform(get("/api/v1/ingest/rules/" + ruleId + "/items")
+                        .header("Authorization", bearer(fx.token))
+                        .param("status", "pending_moderation"))
+                .andExpect(status().isOk())
+                .andReturn());
+        assertThat(items.path("items").isArray()).as(items.toString()).isTrue();
+        assertThat(items.path("items").size()).as(items.toString()).isPositive();
+        JsonNode pending = items.path("items").get(0);
+        UUID itemId = UUID.fromString(pending.path("id").asText());
+        GrabberItemEntity stored = itemRepository.findById(itemId).orElseThrow();
+        if (editText == null) {
+            assertThat(stored.getContentText()).isEqualTo(sourceText);
+        }
+        String path = editText == null ? "/approve" : "/edit-and-approve";
+        String body = editText == null ? "{}" : objectMapper.writeValueAsString(Map.of("contentText", editText));
+        JsonNode approved = readJson(mockMvc.perform(post("/api/v1/ingest/items/" + itemId + path)
+                        .with(csrf())
+                        .header("Authorization", bearer(fx.token))
+                        .header("Idempotency-Key", "once-" + itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andReturn());
+        UUID postId = UUID.fromString(approved.get("postId").asText());
+        return postVariantRepository
+                .findByPostId(postId)
+                .getFirst()
+                .getContent()
+                .get("text")
+                .toString();
+    }
+
+    private static int occurrences(String text, String needle) {
+        int count = 0;
+        int from = 0;
+        while (from <= text.length() - needle.length()) {
+            int index = text.indexOf(needle, from);
+            if (index < 0) {
+                break;
+            }
+            count++;
+            from = index + needle.length();
+        }
+        return count;
     }
 
     private void stubVkWall(String body) {

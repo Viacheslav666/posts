@@ -92,6 +92,26 @@ class ScheduledActionsFactoryTest {
         assertThat(runAtCaptor.getValue()).isEqualTo(expected);
     }
 
+    @Test
+    void firstCommentPayloadIncludesAttachments() {
+        UUID publicationId = UUID.randomUUID();
+        Instant runAt = Instant.parse("2026-06-01T10:00:00Z");
+        PublicationClaim claim = claim(
+                publicationId,
+                runAt,
+                "{\"firstComment\":\"привет\",\"firstCommentAttachments\":[\"photo-1_2\",\"video-3_4\"]}",
+                false,
+                0,
+                false);
+
+        factory.createAfterSuccess(claim, "remote-9");
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(actionsJdbc)
+                .insertAction(eq(publicationId), eq(runAt), any(), eq("first_comment"), any(), payload.capture());
+        assertThat(payload.getValue()).contains("привет").contains("photo-1_2").contains("video-3_4");
+    }
+
     private static PublicationClaim claim(
             UUID id, Instant runAt, String optionsJson, boolean ad, int displayDays, boolean autoDelete) {
         return new PublicationClaim(

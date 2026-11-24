@@ -53,6 +53,11 @@ class VkSocialAdapterBe23WireMockTest {
     @Test
     void publishSendsOptionsAndAttachments() {
         stubWallPost();
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.closeComments"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"response\":1}")));
         Map<String, Object> options = new LinkedHashMap<>();
         options.put("signed", true);
         options.put("mute", true);
@@ -82,6 +87,57 @@ class VkSocialAdapterBe23WireMockTest {
                 .withRequestBody(containing("lat=55.75"))
                 .withRequestBody(containing("attachments="))
                 .withRequestBody(containing("guid=guid-opts")));
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.closeComments"))
+                .withRequestBody(containing("post_id=42"))
+                .withRequestBody(containing("owner_id=-100")));
+    }
+
+    @Test
+    void publishSendsActionButton() {
+        stubWallPost();
+        Map<String, Object> options =
+                Map.of("actionButton", Map.of("type", "open_url", "title", "Открыть", "url", "https://example.com/a"));
+        Map<String, Object> meta = Map.of(PostVariantMeta.OPTIONS, options);
+
+        adapter.publish(ctx, new PostVariantContent("hello", null, null, null, null, meta), "guid-btn");
+
+        assertThat(adapter.capabilities().features().get("actionButton")).isTrue();
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
+                .withRequestBody(containing("action_button="))
+                .withRequestBody(containing("open_url"))
+                .withRequestBody(containing("%22action%22")));
+    }
+
+    @Test
+    void commentSendsScheduledActionIdAsGuid() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.createComment"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"response\":{\"comment_id\":9}}")));
+
+        adapter.comment(ctx, "42", "first", List.of("photo-100_7"), "action-guid-1");
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.createComment"))
+                .withRequestBody(containing("guid=action-guid-1"))
+                .withRequestBody(containing("photo-100_7")));
+    }
+
+    @Test
+    void commentSendsAttachmentsFromGroup() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.createComment"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"response\":{\"comment_id\":9}}")));
+
+        adapter.comment(ctx, "42", "first", List.of("photo-100_7", "video-100_8"));
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.createComment"))
+                .withRequestBody(containing("from_group=100"))
+                .withRequestBody(containing("post_id=42"))
+                .withRequestBody(containing("attachments="))
+                .withRequestBody(containing("photo-100_7")));
     }
 
     @Test

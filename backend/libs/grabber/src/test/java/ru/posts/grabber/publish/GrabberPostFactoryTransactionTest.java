@@ -21,8 +21,11 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.media.GrabberMediaResolver;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
@@ -57,6 +60,13 @@ class GrabberPostFactoryTransactionTest {
     @Mock
     GrabberMediaResolver mediaResolver;
 
+    @Mock
+    GrabberAiRewriteService aiRewriteService;
+
+    @Mock
+    GrabberSettingReporter settingReporter;
+
+    private final GrabberProperties grabberProperties = new GrabberProperties();
     private GrabberPostFactory factory;
     private ChannelEntity channel;
     private AutomationRuleEntity rule;
@@ -72,6 +82,9 @@ class GrabberPostFactoryTransactionTest {
                 itemRepository,
                 outboxRepository,
                 mediaResolver,
+                aiRewriteService,
+                settingReporter,
+                grabberProperties,
                 new FlaggingTransactionManager());
         channel = new ChannelEntity();
         channel.setId(UUID.randomUUID());
@@ -89,6 +102,9 @@ class GrabberPostFactoryTransactionTest {
         row.setId(UUID.randomUUID());
         row.setContentText("hello");
         row.setAttachmentsJson(List.of());
+        org.mockito.Mockito.lenient()
+                .when(aiRewriteService.prepare(any(), any(), any(), any()))
+                .thenReturn(GrabberAiRewriteService.Attempt.unchanged("hello"));
         when(channelRepository.findByIdAndDeletedAtIsNull(channel.getId())).thenReturn(Optional.of(channel));
         when(itemRepository.findByIdForUpdate(row.getId())).thenAnswer(invocation -> Optional.of(row));
         when(itemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

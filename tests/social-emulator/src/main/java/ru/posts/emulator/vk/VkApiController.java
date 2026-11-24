@@ -151,9 +151,11 @@ public class VkApiController {
         String normalized = method == null ? "" : method.trim();
         return switch (normalized) {
             case "wall.post" -> wallPost(params, rawResponse);
+            case "wall.repost" -> wallRepost(params, rawResponse);
             case "wall.delete" -> moderation(rawResponse, () -> wallDelete(params));
             case "wall.pin", "wall.unpin" -> ResponseEntity.ok(Map.of("response", 1));
             case "wall.createComment" -> moderation(rawResponse, () -> wallCreateComment(params));
+            case "wall.closeComments" -> moderation(rawResponse, () -> wallCloseComments(params));
             case "wall.deleteComment" -> moderation(rawResponse, () -> deleteComment("wall", params));
             case "wall.restoreComment" -> moderation(rawResponse, () -> restoreComment("wall", params));
             case "photos.deleteComment" -> moderation(rawResponse, () -> deleteComment("photo", params));
@@ -396,11 +398,13 @@ public class VkApiController {
             metadata.put("signed", first(params, "signed"));
             metadata.put("mute_notifications", first(params, "mute_notifications"));
             metadata.put("close_comments", first(params, "close_comments"));
+            metadata.put("action_button", first(params, "action_button"));
             metadata.put("copyright", first(params, "copyright"));
             metadata.put("lat", first(params, "lat"));
             metadata.put("long", first(params, "long"));
             metadata.put("donut_paid_duration", first(params, "donut_paid_duration"));
             metadata.put("primary_attachments_mode", first(params, "primary_attachments_mode"));
+            metadata.put("publish_date", first(params, "publish_date"));
             metadata.put("guid", guid);
             metadata.put("access_token_present", first(params, "access_token") != null);
 
@@ -431,13 +435,24 @@ public class VkApiController {
                 return ResponseEntity.ok(Map.of("response", response));
             }
 
+            ResponseEntity<?> publishDateError = rejectPublishDate(params);
+            if (publishDateError != null) {
+                return publishDateError;
+            }
+
             PostStore.CreateResult result = postStore.createOrGet(Network.VK, owner, guid, message, metadata);
 
             // Mirror into wall.get fixtures so API-mode findExisting works against the emulator.
             Map<String, Object> wallItem = new LinkedHashMap<>();
             wallItem.put("id", Long.parseLong(result.post().remotePostId()));
             wallItem.put("text", message == null ? "" : message);
-            wallItem.put("date", System.currentTimeMillis() / 1000L);
+            String publishDate = first(params, "publish_date");
+            long date = System.currentTimeMillis() / 1000L;
+            if (publishDate != null && !publishDate.isBlank()) {
+                date = Long.parseLong(publishDate);
+                wallItem.put("postponed", 1);
+            }
+            wallItem.put("date", date);
             wallSourceStore.add(owner, wallItem);
 
             Map<String, Object> response = new LinkedHashMap<>();
@@ -447,6 +462,93 @@ public class VkApiController {
             }
             return ResponseEntity.ok(Map.of("response", response));
         });
+    }
+
+    private ResponseEntity<?> wallRepost(MultiValueMap<String, String> params, HttpServletResponse rawResponse)
+            throws IOException {
+        return publishSupport.execute(Network.VK, rawResponse, () -> wallRepostNested(params));
+    }
+
+    private ResponseEntity<?> wallRepostNested(MultiValueMap<String, String> params) {
+        String object = first(params, "object");
+        String groupId = first(params, "group_id");
+        if (object == null || !object.startsWith("wall") || groupId == null || groupId.isBlank()) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of(
+                            "error_code",
+                            100,
+                            "error_msg",
+                            "object and group_id are required",
+                            "request_params",
+                            List.of())));
+        }
+        ResponseEntity<?> publishDateError = rejectPublishDate(params);
+        if (publishDateError != null) {
+            return publishDateError;
+        }
+        String owner = groupId.startsWith("-") ? groupId : "-" + groupId;
+        String message = first(params, "message");
+        String guid = first(params, "guid");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("object", object);
+        metadata.put("repost", 1);
+        metadata.put("publish_date", first(params, "publish_date"));
+        metadata.put("guid", guid);
+        metadata.put("group_id", groupId);
+        PostStore.CreateResult result =
+                postStore.createOrGet(Network.VK, owner, guid == null ? object + ":" + owner : guid, message, metadata);
+        Map<String, Object> wallItem = new LinkedHashMap<>();
+        wallItem.put("id", Long.parseLong(result.post().remotePostId()));
+        wallItem.put("text", message == null ? "" : message);
+        wallItem.put("copy_history", List.of(Map.of("object", object)));
+        String publishDate = first(params, "publish_date");
+        long date = System.currentTimeMillis() / 1000L;
+        if (publishDate != null && !publishDate.isBlank()) {
+            date = Long.parseLong(publishDate);
+            wallItem.put("postponed", 1);
+        }
+        wallItem.put("date", date);
+        wallSourceStore.add(owner, wallItem);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", 1);
+        response.put("post_id", Long.parseLong(result.post().remotePostId()));
+        response.put("reposts_count", 1);
+        response.put("likes_count", 0);
+        if (!result.created()) {
+            response.put("post_already_exists", 1);
+        }
+        return ResponseEntity.ok(Map.of("response", response));
+    }
+
+    /** VK postponed posts: publish_date must be in the future and at most 7 days ahead. */
+    private ResponseEntity<?> rejectPublishDate(MultiValueMap<String, String> params) {
+        String raw = first(params, "publish_date");
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        long epoch;
+        try {
+            epoch = Long.parseLong(raw.trim());
+        } catch (NumberFormatException ex) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of("error_code", 100, "error_msg", "publish_date is invalid", "request_params", List.of())));
+        }
+        long now = System.currentTimeMillis() / 1000L;
+        long max = now + 7L * 24 * 3600;
+        if (epoch <= now || epoch > max) {
+            return ResponseEntity.ok(Map.of(
+                    "error",
+                    Map.of(
+                            "error_code",
+                            100,
+                            "error_msg",
+                            "publish_date must be within 7 days",
+                            "request_params",
+                            List.of())));
+        }
+        return null;
     }
 
     private ResponseEntity<?> wallDelete(MultiValueMap<String, String> params) {
@@ -463,12 +565,30 @@ public class VkApiController {
         return ResponseEntity.ok(Map.of("response", 1));
     }
 
+    private ResponseEntity<?> wallCloseComments(MultiValueMap<String, String> params) {
+        String ownerId = first(params, "owner_id");
+        String postId = first(params, "post_id");
+        boolean updated = postStore.mergeMetadata(
+                Network.VK, ownerId, postId, Map.of("close_comments", "1", "comments_closed", true));
+        if (!updated) {
+            return ResponseEntity.ok(Map.of(
+                    "error", Map.of("error_code", 100, "error_msg", "post not found", "request_params", List.of())));
+        }
+        return ResponseEntity.ok(Map.of("response", 1));
+    }
+
     private ResponseEntity<?> wallCreateComment(MultiValueMap<String, String> params) {
         String ownerId = first(params, "owner_id");
         String text = first(params, "message", "text");
         String replyTo = first(params, "reply_to_comment");
         ModerationStore.EmulatedComment comment =
                 moderationStore.putComment(Network.VK, ownerId, null, "wall", text, null, false);
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("post_id", first(params, "post_id"));
+        meta.put("from_group", first(params, "from_group"));
+        meta.put("attachments", first(params, "attachments"));
+        meta.put("guid", first(params, "guid"));
+        moderationStore.putCommentMeta(comment.commentId(), meta);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("comment_id", Long.parseLong(comment.commentId()));
         response.put("parents_stack", List.of());
@@ -662,6 +782,7 @@ public class VkApiController {
         return switch (normalized) {
             case "wall.delete" -> wallDelete(params);
             case "wall.createComment" -> wallCreateComment(params);
+            case "wall.closeComments" -> wallCloseComments(params);
             case "wall.deleteComment" -> deleteComment("wall", params);
             case "wall.restoreComment" -> restoreComment("wall", params);
             case "photos.deleteComment" -> deleteComment("photo", params);
@@ -678,6 +799,7 @@ public class VkApiController {
             case "messages.isMessagesFromGroupAllowed" -> messagesAllowed(params);
             case "wall.get" -> ResponseEntity.ok(wallGet(params));
             case "wall.getById" -> ResponseEntity.ok(wallGetById(params));
+            case "wall.repost" -> wallRepostNested(params);
             case "wall.post" -> {
                 // Nested wall.post without publishSupport (fault already applied on execute).
                 try {

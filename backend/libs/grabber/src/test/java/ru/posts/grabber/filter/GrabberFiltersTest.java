@@ -203,6 +203,16 @@ class GrabberFiltersTest {
         }
 
         @Test
+        void requirePhone() {
+            Map<String, Object> config =
+                    filters(Map.of("exclude_ads", false, "exclude_reposts", false, "require_phone", true));
+            assertThat(GrabberFilters.skipReason(candidate("просто текст", false, false), config))
+                    .isEqualTo("require_phone");
+            assertThat(GrabberFilters.skipReason(candidate("тел +79991234567", false, false), config))
+                    .isNull();
+        }
+
+        @Test
         void requirePhoneOrSignature() {
             Map<String, Object> config =
                     filters(Map.of("exclude_ads", false, "exclude_reposts", false, "require_phone_or_signature", true));
@@ -258,7 +268,9 @@ class GrabberFiltersTest {
                         "hours_to",
                         10)));
         assertThat(GrabberFilters.skipReason(candidate("x", false, false), config, wednesdayNoonUtc))
-                .isEqualTo("outside_working_window");
+                .isNull();
+        assertThat(ru.posts.grabber.schedule.WorkingWindow.nextOpen(config, wednesdayNoonUtc))
+                .isEqualTo(java.time.Instant.parse("2026-11-19T09:00:00Z"));
     }
 
     @Nested

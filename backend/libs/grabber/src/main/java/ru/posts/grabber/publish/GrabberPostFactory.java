@@ -14,9 +14,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.common.uuid.UuidV7;
+import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
 import ru.posts.grabber.media.GrabberMediaResolver;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.grabber.ssrf.UrlRedactor;
+import ru.posts.grabber.target.GrabberPublishSchedule;
+import ru.posts.grabber.target.GrabberRepostObject;
+import ru.posts.grabber.target.GrabberTargetMode;
+import ru.posts.grabber.target.PostponedHorizonException;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -50,6 +57,9 @@ public class GrabberPostFactory {
     private final GrabberItemRepository itemRepository;
     private final OutboxRepository outboxRepository;
     private final GrabberMediaResolver mediaResolver;
+    private final GrabberAiRewriteService aiRewriteService;
+    private final GrabberSettingReporter settingReporter;
+    private final GrabberProperties grabberProperties;
     private final TransactionTemplate tx;
 
     public GrabberPostFactory(
@@ -60,6 +70,9 @@ public class GrabberPostFactory {
             GrabberItemRepository itemRepository,
             OutboxRepository outboxRepository,
             GrabberMediaResolver mediaResolver,
+            GrabberAiRewriteService aiRewriteService,
+            GrabberSettingReporter settingReporter,
+            GrabberProperties grabberProperties,
             PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
@@ -68,6 +81,9 @@ public class GrabberPostFactory {
         this.itemRepository = itemRepository;
         this.outboxRepository = outboxRepository;
         this.mediaResolver = mediaResolver;
+        this.aiRewriteService = aiRewriteService;
+        this.settingReporter = settingReporter;
+        this.grabberProperties = grabberProperties;
         this.tx = new TransactionTemplate(transactionManager);
     }
 
@@ -77,6 +93,16 @@ public class GrabberPostFactory {
      */
     public PublishResult publishItem(
             AutomationRuleEntity rule, GrabberItemEntity item, UUID actorId, String overrideText, Instant runAt) {
+        return publishItem(rule, item, actorId, overrideText, runAt, 0);
+    }
+
+    public PublishResult publishItem(
+            AutomationRuleEntity rule,
+            GrabberItemEntity item,
+            UUID actorId,
+            String overrideText,
+            Instant runAt,
+            int slotIndex) {
         if (item.getPostId() != null) {
             return alreadyPublished(item);
         }
@@ -86,68 +112,126 @@ public class GrabberPostFactory {
         if ("reauth_required".equals(channel.getStatus())) {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
         }
-
-        MacroExpander.Context macroCtx =
-                MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId());
-        String baseText = overrideText != null ? overrideText : item.getContentText();
-        ContentTransformer.TransformResult transformed =
-                ContentTransformer.transform(baseText, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
-        String finalText = ContentTransformer.withAttribution(
-                transformed.text(), rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
-
-        // Network text limit (VK ~4096) — fail validation without wall.post
-        int maxLen = 4096;
-        if (finalText != null && finalText.length() > maxLen) {
-            return tx.execute(status -> {
-                GrabberItemEntity locked = lockItem(item);
-                if (locked.getPostId() != null) {
-                    return alreadyPublished(locked, item);
-                }
-                locked.setStatus("failed_validation");
-                locked.setSkipReason("text_too_long");
-                locked.setUpdatedAt(Instant.now());
-                itemRepository.save(locked);
-                copyPublishState(locked, item);
-                return new PublishResult(null, List.of(), false);
-            });
+        String targetModeEarly = GrabberConfigSupport.targetMode(rule.getConfig());
+        if (GrabberTargetMode.VK_POSTPONED_REPOST.wire().equals(targetModeEarly)
+                && !grabberProperties.isPostponedRepostEnabled()) {
+            return failValidation(item, "postponed_repost_unavailable");
         }
 
-        Instant scheduledAt = runAt == null ? Instant.now() : runAt;
+        String sourceText = sourceText(item);
+        String signerName = signerName(item);
+        MacroExpander.Context macroCtx =
+                MacroExpander.Context.of(item.getSourceName(), item.getSourceId(), item.getRemotePostId(), sourceText);
+        UUID actor = actorId == null ? rule.getCreatedBy() : actorId;
+        GrabberAiRewriteService.Attempt ai;
+        ContentTransformer.TransformResult transformed;
+        String finalText;
+        if (overrideText != null) {
+            ai = GrabberAiRewriteService.Attempt.unchanged(overrideText);
+            transformed = transformOnce(rule, item, sourceText, macroCtx);
+            finalText = finish(rule, item, overrideText, signerName, actor);
+        } else {
+            ai = aiRewriteService.prepare(rule, item, sourceText, actor);
+            String body = ai.applied() ? ai.text() : sourceText;
+            transformed = transformOnce(rule, item, body, macroCtx);
+            finalText = finish(rule, item, transformed.text(), signerName, actor);
+        }
+
+        int maxLen = 4096;
+        if (finalText.length() > maxLen) {
+            return failValidation(item, "text_too_long");
+        }
+        if (ai.applied() && !aiRewriteService.charge(rule, item, ai, actor)) {
+            transformed = transformOnce(rule, item, sourceText, macroCtx);
+            finalText = finish(rule, item, transformed.text(), signerName, actor);
+            if (finalText.length() > maxLen) {
+                return failValidation(item, "text_too_long");
+            }
+        }
+
+        Instant now = Instant.now();
+        GrabberPublishSchedule.Plan plan;
+        try {
+            plan = GrabberPublishSchedule.plan(rule.getConfig(), now, runAt, slotIndex);
+        } catch (PostponedHorizonException ex) {
+            return failValidation(item, "postponed_horizon");
+        }
+        String targetMode = GrabberConfigSupport.targetMode(rule.getConfig());
+        String repostObject = null;
+        if (GrabberTargetMode.isRepost(targetMode)) {
+            repostObject = GrabberRepostObject.from(item.getSourceId(), item.getRemotePostId(), item.getRawPayload());
+            if (repostObject == null) {
+                return failValidation(item, "repost_object_missing");
+            }
+        }
+        Instant scheduledAt = plan.pipelineRunAt();
         ensurePublicationPartition(scheduledAt);
 
-        // Network I/O. Callers must not hold a transaction across this line.
-        GrabberMediaResolver.Resolution media =
-                mediaResolver.resolve(rule, channel, transformed.attachments(), transformed.text());
-        if (media.failed()) {
-            return tx.execute(status -> failLocked(rule, item, media));
+        List<String> stringAttachments;
+        boolean carousel;
+        if (GrabberTargetMode.isRepost(targetMode)) {
+            stringAttachments = List.of();
+            carousel = false;
+        } else {
+            // Network I/O. Callers must not hold a transaction across this line.
+            GrabberMediaResolver.Resolution media =
+                    mediaResolver.resolve(rule, channel, transformed.attachments(), transformed.text());
+            if (media.failed()) {
+                return tx.execute(status -> failLocked(rule, item, media));
+            }
+            stringAttachments = media.attachments();
+            carousel = media.carousel();
         }
-        List<String> stringAttachments = media.attachments();
-        boolean carousel = media.carousel();
 
+        final String finalTextLocked = finalText;
+        final List<String> stringAttachmentsLocked = stringAttachments;
+        final boolean carouselLocked = carousel;
+        final String repostObjectLocked = repostObject;
         return tx.execute(status -> persistPublished(
                 rule,
                 item,
                 channel,
-                actorId,
+                actor,
                 overrideText,
-                finalText,
+                finalTextLocked,
                 macroCtx,
-                stringAttachments,
-                carousel,
-                scheduledAt));
+                stringAttachmentsLocked,
+                carouselLocked,
+                scheduledAt,
+                targetMode,
+                repostObjectLocked,
+                plan));
+    }
+
+    private PublishResult failValidation(GrabberItemEntity item, String skipReason) {
+        return tx.execute(status -> {
+            GrabberItemEntity locked = lockItem(item);
+            if (locked.getPostId() != null) {
+                return alreadyPublished(locked, item);
+            }
+            locked.setStatus("failed_validation");
+            locked.setSkipReason(skipReason);
+            locked.setUpdatedAt(Instant.now());
+            itemRepository.save(locked);
+            copyPublishState(locked, item);
+            return new PublishResult(null, List.of(), false);
+        });
     }
 
     private PublishResult persistPublished(
             AutomationRuleEntity rule,
             GrabberItemEntity passed,
             ChannelEntity channel,
-            UUID actorId,
+            UUID actor,
             String overrideText,
             String finalText,
             MacroExpander.Context macroCtx,
             List<String> stringAttachments,
             boolean carousel,
-            Instant scheduledAt) {
+            Instant scheduledAt,
+            String targetMode,
+            String repostObject,
+            GrabberPublishSchedule.Plan plan) {
         GrabberItemEntity item = lockItem(passed);
         if (item.getPostId() != null) {
             return alreadyPublished(item, passed);
@@ -162,13 +246,20 @@ public class GrabberPostFactory {
         post.setId(UuidV7.generate());
         post.setWorkspaceId(rule.getWorkspaceId());
         post.setProjectId(rule.getProjectId());
-        post.setAuthorId(actorId == null ? rule.getCreatedBy() : actorId);
+        post.setAuthorId(actor);
         post.setTitle(truncate(finalText, 80));
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
         baseContent.put("mediaIds", List.of());
         if (!stringAttachments.isEmpty()) {
             baseContent.put("stringAttachments", stringAttachments);
+        }
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("comment", finalText == null ? "" : finalText);
+            repost.put("network", "vk");
+            baseContent.put("repost", repost);
         }
         post.setBaseContent(baseContent);
         post.setStatus("scheduled");
@@ -186,26 +277,33 @@ public class GrabberPostFactory {
         sourceRef.put("contentHash", item.getContentHash());
         post.setSourceRef(sourceRef);
         post.setModerationStatus("approved");
-        post.setTimezone("Europe/Moscow");
+        post.setTimezone(GrabberConfigSupport.scheduleTimezone(rule.getConfig()));
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         postRepository.save(post);
 
-        Map<String, Object> options = new LinkedHashMap<>();
+        GrabberPublishOptions.Built built = GrabberPublishOptions.build(
+                rule.getConfig(),
+                macroCtx,
+                scheduledAt,
+                grabberProperties.getActionButton().isEnabled());
+        for (GrabberPublishOptions.Notice notice : built.notices()) {
+            settingReporter.reportUserNotice(actor, rule, notice.setting(), notice.code(), notice.message());
+        }
+        Map<String, Object> options = new LinkedHashMap<>(built.options());
+        options.remove("primaryAttachmentsMode");
         if (carousel) {
             options.put("primaryAttachmentsMode", "carousel");
         }
-        // BE-23 stub: do NOT set "firstComment" (that would schedule VK comment via adapters).
-        // Keep draft under grabberFirstComment* until BE-23 wires comment adapters.
-        String firstComment = ContentTransformer.firstCommentDraft(rule.getConfig(), macroCtx);
-        if (firstComment != null && !firstComment.isBlank()) {
-            options.put("grabberFirstComment", firstComment);
-            options.put("grabberFirstCommentPendingBe23", true);
-            Map<String, Object> fc = GrabberConfigSupport.firstComment(rule.getConfig());
-            Object atts = fc.get("attachments");
-            if (atts != null) {
-                options.put("grabberFirstCommentAttachments", atts);
-            }
+        options.put("grabberTargetMode", targetMode);
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("message", finalText == null ? "" : finalText);
+            options.put("repost", repost);
+        }
+        if (plan.vkPublishDateEpoch() != null) {
+            options.put("vkPublishDate", plan.vkPublishDateEpoch());
         }
 
         PostVariantEntity variant = new PostVariantEntity();
@@ -302,10 +400,6 @@ public class GrabberPostFactory {
         to.setUpdatedAt(from.getUpdatedAt());
     }
 
-    /**
-     * Required media could not be prepared (e.g. "Перезалить видео" is on and the re-upload failed):
-     * the post is not published; the item is marked failed and, per rule setting, users are notified.
-     */
     private void failItem(AutomationRuleEntity rule, GrabberItemEntity item, GrabberMediaResolver.Resolution media) {
         Instant now = Instant.now();
         String reason = media.failureReason() + (media.failureCode() == null ? "" : ":" + media.failureCode());
@@ -343,6 +437,66 @@ public class GrabberPostFactory {
         outbox.setPayload(payload);
         outbox.setCreatedAt(now);
         outboxRepository.save(outbox);
+    }
+
+    private static ContentTransformer.TransformResult transformOnce(
+            AutomationRuleEntity rule, GrabberItemEntity item, String body, MacroExpander.Context macroCtx) {
+        return ContentTransformer.transform(body, item.getAttachmentsJson(), rule.getConfig(), macroCtx);
+    }
+
+    private String finish(
+            AutomationRuleEntity rule, GrabberItemEntity item, String body, String signerName, UUID actor) {
+        String signed = applyAuthorSignature(rule, item, body, signerName, actor);
+        String text = ContentTransformer.withAttribution(
+                signed, rule.getConfig(), item.getSourceName(), item.getSourcePermalink());
+        return text == null ? "" : text;
+    }
+
+    private String applyAuthorSignature(
+            AutomationRuleEntity rule, GrabberItemEntity item, String text, String signerName, UUID actor) {
+        if (!GrabberConfigSupport.appendAuthorSignature(rule.getConfig())) {
+            return text == null ? "" : text;
+        }
+        if (signed(item) && (signerName == null || signerName.isBlank())) {
+            settingReporter.reportUserNotice(
+                    actor,
+                    rule,
+                    "author_signature",
+                    "signer_missing",
+                    "У поста есть подпись автора, но имя не пришло из VK. Подпись не добавлена.");
+            return text == null ? "" : text;
+        }
+        return ContentTransformer.appendAuthorSignature(text, signerName);
+    }
+
+    private static String sourceText(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw != null
+                && raw.get("source_text") != null
+                && !raw.get("source_text").toString().isBlank()) {
+            return raw.get("source_text").toString();
+        }
+        return item.getContentText() == null ? "" : item.getContentText();
+    }
+
+    private static String signerName(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw == null || raw.get("signer_name") == null) {
+            return "";
+        }
+        return raw.get("signer_name").toString().trim();
+    }
+
+    private static boolean signed(GrabberItemEntity item) {
+        Map<String, Object> raw = item.getRawPayload();
+        if (raw == null || raw.get("signed") == null) {
+            return false;
+        }
+        Object value = raw.get("signed");
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        return Boolean.parseBoolean(value.toString());
     }
 
     private static void ensurePublicationPartition(Instant runAt) {

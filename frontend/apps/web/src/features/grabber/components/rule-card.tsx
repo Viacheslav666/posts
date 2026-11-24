@@ -15,6 +15,7 @@ import {
   resumeIngestRule,
   startIngestRun,
 } from '../api/grabber-api';
+import { DeleteGrabberButton } from './delete-grabber-button';
 import { RuleStatusBadge } from './rule-status-badge';
 
 type RuleCardProps = {
@@ -136,6 +137,9 @@ export function RuleCard({ rule, workspaceId, channel, canManage }: RuleCardProp
               {t('open')}
             </Link>
           </Button>
+          {rule.status !== 'archived' && rule.id ? (
+            <DeleteGrabberButton ruleId={rule.id} workspaceId={workspaceId} />
+          ) : null}
         </div>
       ) : (
         <Button size="sm" variant="ghost" asChild>

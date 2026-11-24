@@ -4,6 +4,8 @@ import {
   DEFAULT_ATTRIBUTION_TEMPLATE,
   MAX_SOURCES_PER_RULE,
   SCAN_INTERVALS,
+  isPostponedTarget,
+  isRepostTarget,
 } from './types';
 import { isValidSourceId, normalizeSourceIds } from './source-ids';
 import { USER_ATTACHMENTS_MAX_LENGTH, validateUserAttachments } from './user-attachments';
@@ -21,6 +23,8 @@ export const grabberRuleFormSchema = z
     websiteSelector: z.string(),
     scanIntervalMinutes: z.number().refine((value) => (SCAN_INTERVALS as readonly number[]).includes(value)),
     publishMode: z.enum(['moderate', 'auto', 'draft']),
+    targetMode: z.enum(['wall_now', 'vk_postponed_post', 'wall_repost', 'vk_postponed_repost']),
+    notifyOnError: z.boolean(),
     scheduleMode: z.enum(['immediate', 'delay', 'slot']),
     publishDelayMinutes: z.number().int().min(0).max(10080),
 
@@ -96,18 +100,29 @@ export const grabberRuleFormSchema = z
 
     // Limits
     rateLimitPerHour: z.number().int().min(1).max(60),
-    rateLimitPerDay: z.number().int().min(1).max(500),
+    rateLimitPerDay: z.number().int().min(0).max(500),
     rateLimitPerSourcePerDay: z.number().int().min(0).max(500),
     minIntervalMinutes: z.number().int().min(0).max(120),
 
-    // First comment (pending_be23)
+    // First comment, posted from the community after publish
     firstCommentEnabled: boolField,
     firstCommentText: z.string().max(4000),
+    firstCommentAttachments: z.string().max(2000),
+    closeComments: boolField,
+    actionButtonTitle: z.string().max(40),
+    actionButtonUrl: z.string().max(2048, 'actionButtonUrl'),
+    deleteAfterEnabled: boolField,
+    deleteAfterAmount: z.number().int().min(1).max(525600),
+    deleteAfterUnit: z.enum(['minutes', 'hours', 'days']),
+    appendAuthorSignature: boolField,
+    aiRewriteEnabled: boolField,
+    aiModel: z.string().max(64),
 
     // Attached text / attachments
     prependText: z.string().max(4000),
     appendText: z.string().max(4000),
     userAttachmentsText: z.string().max(USER_ATTACHMENTS_MAX_LENGTH, 'userAttachmentsTooLong'),
+    attachWhenNoAttachments: boolField,
     reuploadVideo: boolField,
     attachmentsMode: z.enum(['grid', 'carousel']),
     linkToSource: boolField,
@@ -160,9 +175,31 @@ export const grabberRuleFormSchema = z
         }
       }
     }
+
     const userAttachmentsError = validateUserAttachments(values.userAttachmentsText);
     if (userAttachmentsError) {
       ctx.addIssue({ code: 'custom', path: ['userAttachmentsText'], message: userAttachmentsError });
+    }
+    if (isPostponedTarget(values.targetMode) && values.minIntervalMinutes > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['minIntervalMinutes'],
+        message: 'intervalUnavailable',
+      });
+    }
+    if (isPostponedTarget(values.targetMode) && values.firstCommentEnabled) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['firstCommentEnabled'],
+        message: 'firstCommentUnavailable',
+      });
+    }
+    if (isRepostTarget(values.targetMode) && values.type !== 'grabber') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['targetMode'],
+        message: 'repostGrabberOnly',
+      });
     }
     if (values.activate && !values.userResponsibilityAccepted) {
       ctx.addIssue({
@@ -181,9 +218,65 @@ export const grabberRuleFormSchema = z
     if (values.scheduleEnabled && values.hoursFrom === values.hoursTo && values.hoursTo !== 0) {
       // equal hours = full day on backend; allowed
     }
+    if (
+      values.firstCommentEnabled &&
+      !values.firstCommentText.trim() &&
+      !values.firstCommentAttachments.trim()
+    ) {
+      ctx.addIssue({ code: 'custom', path: ['firstCommentText'], message: 'firstCommentRequired' });
+    }
+    const badAttachments = invalidCommentAttachments(values.firstCommentAttachments);
+    if (badAttachments.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['firstCommentAttachments'],
+        message: 'commentAttachmentsInvalid',
+      });
+    }
+    if (values.deleteAfterEnabled) {
+      const max =
+        values.deleteAfterUnit === 'days' ? 365 : values.deleteAfterUnit === 'hours' ? 8760 : 525600;
+      if (values.deleteAfterAmount < 1 || values.deleteAfterAmount > max) {
+        ctx.addIssue({ code: 'custom', path: ['deleteAfterAmount'], message: 'deleteAfterInvalid' });
+      }
+    }
+    const buttonTitle = values.actionButtonTitle.trim();
+    const buttonUrl = values.actionButtonUrl.trim();
+    if (buttonTitle || buttonUrl) {
+      if (!buttonTitle || buttonTitle.length > 40) {
+        ctx.addIssue({ code: 'custom', path: ['actionButtonTitle'], message: 'actionButtonTitle' });
+      }
+      if (!/^https?:\/\/\S+$/i.test(buttonUrl) || buttonUrl.length > 2048) {
+        ctx.addIssue({ code: 'custom', path: ['actionButtonUrl'], message: 'actionButtonUrl' });
+      }
+    }
+    if (values.aiRewriteEnabled && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(values.aiModel.trim())) {
+      ctx.addIssue({ code: 'custom', path: ['aiModel'], message: 'aiModel' });
+    }
   });
 
 export type GrabberRuleFormValues = z.infer<typeof grabberRuleFormSchema>;
+
+const COMMENT_ATTACHMENT = /^(photo|video)-?\d+_\d+$/i;
+const RAND_BLOCK = /\[rand]([\s\S]*?)\[\/rand]/gi;
+
+/** photo-ID_ID / video-ID_ID, including each [rand] alternative. */
+export function invalidCommentAttachments(raw: string | undefined): string[] {
+  const text = raw ?? '';
+  const invalid: string[] = [];
+  for (const match of text.matchAll(RAND_BLOCK)) {
+    for (const option of (match[1] ?? '').split('|')) {
+      const token = option.trim();
+      if (token && !COMMENT_ATTACHMENT.test(token)) invalid.push(token);
+    }
+  }
+  const loose = text.replace(RAND_BLOCK, ' ');
+  for (const part of loose.split(/[,\s]+/)) {
+    const token = part.trim();
+    if (token && !COMMENT_ATTACHMENT.test(token)) invalid.push(token);
+  }
+  return invalid.slice(0, 10);
+}
 
 export function keywordsFromText(raw: string | undefined): string[] {
   return (raw ?? '')

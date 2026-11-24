@@ -2129,6 +2129,64 @@ export const handlers = [
     return HttpResponse.json(result);
   }),
 
+  http.get('/api/v1/ingest/mode-matrix', ({ request }) => {
+    const unauthorized = requireBearer(request);
+    if (unauthorized) return unauthorized;
+    return HttpResponse.json({
+      modes: [
+        {
+          id: 'wall_now',
+          postponed: false,
+          repost: false,
+          available: true,
+          actionButton: true,
+          firstComment: true,
+          commentAttachments: true,
+          scheduledDelete: true,
+          interval: true,
+        },
+        {
+          id: 'vk_postponed_post',
+          postponed: true,
+          repost: false,
+          available: true,
+          actionButton: false,
+          firstComment: false,
+          commentAttachments: false,
+          scheduledDelete: false,
+          interval: false,
+        },
+        {
+          id: 'wall_repost',
+          postponed: false,
+          repost: true,
+          available: true,
+          actionButton: true,
+          firstComment: true,
+          commentAttachments: true,
+          scheduledDelete: true,
+          interval: true,
+        },
+        {
+          id: 'vk_postponed_repost',
+          postponed: true,
+          repost: true,
+          available: false,
+          actionButton: false,
+          firstComment: false,
+          commentAttachments: false,
+          scheduledDelete: false,
+          interval: false,
+        },
+      ],
+      intervalDisables: ['commentAttachments'],
+      postponedHorizonDays: 7,
+      maxIntervalMinutes: 120,
+      maxSources: 20,
+      defaultMaxAgeDays: 60,
+    });
+  }),
+
   // --- Ingest / Grabber (FE-14) ---
   http.get('/api/v1/workspaces/:workspaceId/projects/:projectId/ingest/rules', ({ request, params }) => {
     const workspaceId = String(params.workspaceId);

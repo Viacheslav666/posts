@@ -29,6 +29,7 @@ import {
   resumeIngestRule,
   startIngestRun,
 } from '../api/grabber-api';
+import { DeleteGrabberButton } from './delete-grabber-button';
 import { HistoryExportButtons } from './history-export-buttons';
 import { ModerationQueue } from './moderation-queue';
 import { RuleForm } from './rule-form';
@@ -159,6 +160,9 @@ export function RuleDetailPage({ workspaceId, ruleId }: RuleDetailPageProps) {
             <Button size="sm" variant="outline" onClick={() => actionMutation.mutate('resume')}>
               {t('rules.resume')}
             </Button>
+          ) : null}
+          {rule.status !== 'archived' ? (
+            <DeleteGrabberButton ruleId={ruleId} workspaceId={workspaceId} redirectToList />
           ) : null}
         </div>
       ) : null}
