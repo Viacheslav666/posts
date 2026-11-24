@@ -200,12 +200,10 @@ public class ChannelServiceImpl implements ChannelService {
             ApiEnums.Network network,
             ChannelDtos.ChannelConnectCallbackRequest request,
             ClientRequestContext ctx) {
-        if (network != ApiEnums.Network.vk && network != ApiEnums.Network.ok) {
-            if (request.workspaceId() == null) {
-                throw new ApiException(
-                        HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "workspaceId is required");
-            }
+        if (request.workspaceId() != null) {
             access.requirePermission(request.workspaceId(), userId, "channels.manage");
+        } else if (network != ApiEnums.Network.vk && network != ApiEnums.Network.ok) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "workspaceId is required");
         }
         return switch (network) {
             case vk, ok -> finishOAuth(userId, network.name(), request, ctx);
