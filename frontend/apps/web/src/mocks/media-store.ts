@@ -11,9 +11,11 @@ import type {
 const DEMO_WORKSPACE = '019a0000-0002-7000-8000-000000000002';
 const DEMO_USER = '019a0000-0001-7000-8000-000000000001';
 
+const MULTIPART_THRESHOLD_BYTES = 5 * 1024 * 1024;
+
 type UploadSession = {
   mediaId: string;
-  uploadId: string;
+  uploadId: string | null;
   partSize: number;
   receivedParts: Map<number, string>;
   sizeBytes: number;
@@ -208,13 +210,25 @@ export function createUpload(input: {
   uploadUrl: string;
   expiresAt: string;
   headers: Record<string, string>;
-  uploadId: string;
+  uploadId: string | null;
   partSize: number;
+  parts: Array<{ partNumber: number; url: string }>;
 } {
   const mediaId = nextId();
-  const uploadId = `upload-${mediaId}`;
-  const partSize = 5 * 1024 * 1024;
+  const multipart = input.sizeBytes >= MULTIPART_THRESHOLD_BYTES;
+  const uploadId = multipart ? `mpu-${mediaId}` : null;
+  const partSize = MULTIPART_THRESHOLD_BYTES;
   const filename = input.filename ?? `file-${mediaId}`;
+  const partCount = Math.max(1, Math.ceil(input.sizeBytes / partSize));
+  const parts = multipart
+    ? Array.from({ length: partCount }, (_, index) => {
+        const partNumber = index + 1;
+        return {
+          partNumber,
+          url: `/mock-s3/${mediaId}/upload?partNumber=${partNumber}&uploadId=${uploadId}`,
+        };
+      })
+    : [];
 
   const asset: MediaLibraryItem = {
     id: mediaId,
@@ -248,16 +262,16 @@ export function createUpload(input: {
 
   return {
     mediaId,
-    uploadUrl: `/mock-s3/${mediaId}/upload`,
+    uploadUrl: multipart
+      ? parts[0]!.url
+      : `/mock-s3/${mediaId}/upload?X-Amz-Signature=mock&X-Amz-Algorithm=AWS4-HMAC-SHA256`,
     expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     uploadId,
     partSize,
-    headers: {
-      'x-amz-upload-id': uploadId,
-      'x-posts-upload-id': uploadId,
-      'x-posts-part-size': String(partSize),
-      'Content-Type': input.mime,
-    },
+    parts,
+    headers: multipart
+      ? { 'x-posts-part-size': String(partSize) }
+      : { 'Content-Type': input.mime },
   };
 }
 

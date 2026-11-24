@@ -12,6 +12,7 @@ import { useCan } from '@/shared/hooks/use-can';
 
 import { useUploadQueue } from '../hooks/use-upload-queue';
 import { kindFromMime } from '../lib/kind-from-mime';
+import { resolveUploadMime, UPLOAD_ACCEPT } from '../lib/upload-mime';
 import { validateMediaAgainstCapabilities } from '../lib/media-limits';
 import type { CropPreset, EditorMediaItem, MediaLibraryItem } from '../model/types';
 import { ImageCropper } from './image-cropper';
@@ -66,20 +67,19 @@ export function EditorMediaBlock({
     onReady: (upload) => {
       if (!upload.mediaId || attachedLocalIds.current.has(upload.localId)) return;
       attachedLocalIds.current.add(upload.localId);
+      const mime = resolveUploadMime(upload.file);
       const kind =
-        publicationKind === 'clip' && upload.file.type.startsWith('video/')
+        publicationKind === 'clip' && mime.startsWith('video/')
           ? 'clip'
-          : kindFromMime(upload.file.type);
+          : kindFromMime(mime);
       const next: EditorMediaItem = {
         id: crypto.randomUUID(),
         mediaId: upload.mediaId,
         kind,
-        mime: upload.file.type || 'application/octet-stream',
+        mime,
         filename: upload.file.name,
         sizeBytes: upload.file.size,
-        previewUrl: upload.file.type.startsWith('image/')
-          ? URL.createObjectURL(upload.file)
-          : undefined,
+        previewUrl: mime.startsWith('image/') ? URL.createObjectURL(upload.file) : undefined,
       };
       onChangeRef.current([...itemsRef.current, next]);
     },
@@ -181,8 +181,8 @@ export function EditorMediaBlock({
           }
           accept={
             publicationKind === 'clip'
-              ? 'video/mp4,video/quicktime'
-              : 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime'
+              ? 'video/mp4,video/quicktime,.mp4,.mov'
+              : UPLOAD_ACCEPT
           }
           multiple
           onFiles={(files) => enqueue(files)}
@@ -210,7 +210,13 @@ export function EditorMediaBlock({
                   <span className="text-destructive" role="alert">
                     {item.error === 'unsupported_format'
                       ? t('unsupportedFormat')
-                      : item.error || tStatus('failed')}
+                      : item.error === 'upload_timeout'
+                        ? tQueue('upload_timeout')
+                        : item.error === 'etag_unavailable'
+                          ? tQueue('etag_unavailable')
+                          : item.error === 'upload_network'
+                            ? tQueue('upload_network')
+                            : item.error || tStatus('failed')}
                   </span>
                   <Button
                     type="button"

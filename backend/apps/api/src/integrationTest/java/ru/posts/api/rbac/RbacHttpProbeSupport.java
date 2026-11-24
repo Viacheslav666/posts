@@ -358,6 +358,7 @@ final class RbacHttpProbeSupport {
         path = path.replace("{botId}", values.getOrDefault("{botId}", randomUuid()));
         path = path.replace("{postId}", values.get("{postId}"));
         path = path.replace("{mediaId}", values.get("{mediaId}"));
+        path = path.replace("{partNumber}", "1");
         path = path.replace("{publicationId}", values.get("{publicationId}"));
         path = path.replace("{sessionId}", values.get("{sessionId}"));
         path = path.replace("{contractorId}", randomUuid());

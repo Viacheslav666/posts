@@ -138,6 +138,10 @@ class MediaApiIntegrationTest {
                 .andExpect(jsonPath("$.uploadUrl").exists())
                 .andReturn());
 
+        assertThat(created.path("uploadId").isNull()).isTrue();
+        assertThat(created.path("parts").size()).isZero();
+        assertThat(created.path("headers").path("Content-Type").asText()).isEqualTo("image/jpeg");
+
         String uploadUrl = created.get("uploadUrl").asText();
         HttpClient client = HttpClient.newHttpClient();
         HttpResponse<String> put = client.send(
@@ -156,6 +160,105 @@ class MediaApiIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("processing"));
+    }
+
+    @Test
+    void multipartPresignsEveryPartAndCompletes() throws Exception {
+        String token = registerVerifyLogin("media-mpu-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+        long size = S3MultipartUrls.PART_SIZE_BYTES + 1;
+        JsonNode created = readJson(mockMvc.perform(post("/api/v1/media/uploads")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "workspaceId", workspaceId.toString(),
+                                "kind", "video",
+                                "mime", "video/mp4",
+                                "sizeBytes", size,
+                                "filename", "clip.mp4"))))
+                .andExpect(status().isCreated())
+                .andReturn());
+
+        String uploadId = created.path("uploadId").asText();
+        assertThat(uploadId).isNotBlank();
+        assertThat(uploadId).doesNotStartWith("upload-");
+        assertThat(created.path("parts")).hasSize(2);
+        UUID mediaId = UUID.fromString(created.path("mediaId").asText());
+        mockMvc.perform(post("/api/v1/media/" + mediaId + "/parts/2")
+                        .with(csrf())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.partNumber").value(2))
+                .andExpect(jsonPath("$.url").isNotEmpty());
+
+        HttpClient client = HttpClient.newHttpClient();
+        java.util.List<String> etags = new java.util.ArrayList<>();
+        byte[][] bodies = new byte[][] {new byte[(int) S3MultipartUrls.PART_SIZE_BYTES], new byte[] {7}};
+        bodies[0][0] = 1;
+        for (int i = 0; i < 2; i++) {
+            JsonNode part = created.path("parts").get(i);
+            assertThat(part.path("partNumber").asInt()).isEqualTo(i + 1);
+            String url = part.path("url").asText();
+            assertThat(url).contains("partNumber=" + (i + 1));
+            assertThat(url).contains(uploadId);
+            HttpResponse<String> put = client.send(
+                    HttpRequest.newBuilder(URI.create(url))
+                            .PUT(HttpRequest.BodyPublishers.ofByteArray(bodies[i]))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertThat(put.statusCode()).isBetween(200, 299);
+            String etag = put.headers().firstValue("etag").orElse("");
+            assertThat(etag).isNotBlank();
+            etags.add(etag);
+        }
+
+        mockMvc.perform(post("/api/v1/media/" + mediaId + "/complete")
+                        .with(csrf())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("uploadId", uploadId, "etags", etags))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("processing"));
+    }
+
+    @Test
+    void foldersAndQuotaDoNotBindAsMediaId() throws Exception {
+        String token = registerVerifyLogin("media-quota-" + UUID.randomUUID() + "@example.com", "Owner");
+        UUID workspaceId = firstWorkspaceId(token);
+
+        MediaAssetEntity asset = new MediaAssetEntity();
+        asset.setId(ru.posts.common.uuid.UuidV7.generate());
+        asset.setWorkspaceId(workspaceId);
+        asset.setKind("image");
+        asset.setMime("image/jpeg");
+        asset.setFilename("foldered.jpg");
+        asset.setFolder("Кампании");
+        asset.setS3Key("workspaces/" + workspaceId + "/media/" + asset.getId() + "/foldered.jpg");
+        asset.setSizeBytes(20L);
+        asset.setStatus("ready");
+        asset.setDerivatives(Map.of());
+        asset.setTags(java.util.List.of());
+        asset.setCreatedAt(Instant.now());
+        asset.setUpdatedAt(Instant.now());
+        mediaAssetRepository.save(asset);
+
+        mockMvc.perform(get("/api/v1/media/folders")
+                        .header("Authorization", bearer(token))
+                        .param("workspaceId", workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].name").value("Кампании"));
+
+        mockMvc.perform(get("/api/v1/media/quota")
+                        .header("Authorization", bearer(token))
+                        .param("workspaceId", workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").value(workspaceId.toString()))
+                .andExpect(jsonPath("$.usedBytes").isNumber())
+                .andExpect(jsonPath("$.limitBytes").isNumber());
+
+        mockMvc.perform(get("/api/v1/media/not-a-uuid").header("Authorization", bearer(token)))
+                .andExpect(status().isNotFound());
     }
 
     @Test

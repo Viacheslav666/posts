@@ -50,13 +50,35 @@ public final class MediaDtos {
             String folder,
             List<String> tags) {}
 
+    @Schema(name = "UploadPart")
+    public record UploadPart(
+            @Schema(description = "1-based S3 part number") int partNumber,
+            @Schema(
+                            description =
+                                    "Presigned UploadPart URL. PUT the part bytes to this URL exactly; do not add query parameters.")
+                    String url) {}
+
     @Schema(name = "CreateUploadResponse")
     public record CreateUploadResponse(
             UUID mediaId,
-            @Schema(description = "Presigned multipart/PUT upload URL") String uploadUrl,
+            @Schema(
+                            description =
+                                    "Presigned PUT URL. For a single upload (uploadId null) PUT the whole file to this URL unchanged. For multipart, prefer parts[].url.")
+                    String uploadUrl,
             Map<String, String> headers,
             Instant expiresAt,
-            @Schema(description = "S3 multipart upload id when multipart is used") String uploadId) {}
+            @Schema(description = "S3 multipart upload id. Null for a single presigned PUT.") String uploadId,
+            @Schema(description = "One presigned URL per part when multipart is used. Empty for a single PUT.")
+                    List<UploadPart> parts) {}
+
+    @Schema(name = "MediaFolder")
+    public record MediaFolder(String id, String name, UUID workspaceId) {}
+
+    @Schema(name = "MediaFolderList")
+    public record MediaFolderList(List<MediaFolder> items) {}
+
+    @Schema(name = "MediaQuota")
+    public record MediaQuota(UUID workspaceId, long usedBytes, long limitBytes, long usedCount, long limitCount) {}
 
     @Schema(name = "CompleteUploadRequest")
     public record CompleteUploadRequest(

@@ -1797,6 +1797,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List distinct media folders in a workspace */
+        get: operations["mediaListFolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/import-url": {
         parameters: {
             query?: never;
@@ -1808,6 +1825,23 @@ export interface paths {
         put?: never;
         /** Import a remote media URL into the library */
         post: operations["mediaImportUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace media storage quota */
+        get: operations["mediaGetQuota"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1863,6 +1897,26 @@ export interface paths {
         put?: never;
         /** Mark upload complete and enqueue processing */
         post: operations["mediaCompleteUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{mediaId}/parts/{partNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Presign one multipart upload part
+         * @description Returns a fresh presigned URL for a part. PUT the bytes to that URL unchanged.
+         */
+        post: operations["mediaPresignPart"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4246,9 +4300,11 @@ export interface components {
             };
             /** Format: uuid */
             mediaId?: string;
-            /** @description S3 multipart upload id when multipart is used */
+            /** @description One presigned URL per part when multipart is used. Empty for a single PUT. */
+            parts?: components["schemas"]["UploadPart"][];
+            /** @description S3 multipart upload id. Null for a single presigned PUT. */
             uploadId?: string;
-            /** @description Presigned multipart/PUT upload URL */
+            /** @description Presigned PUT URL. For a single upload (uploadId null) PUT the whole file to this URL unchanged. For multipart, prefer parts[].url. */
             uploadUrl?: string;
         };
         CreateWorkspaceRequest: {
@@ -4826,6 +4882,15 @@ export interface components {
             /** Format: uuid */
             workspaceId?: string;
         };
+        MediaFolder: {
+            id?: string;
+            name?: string;
+            /** Format: uuid */
+            workspaceId?: string;
+        };
+        MediaFolderList: {
+            items?: components["schemas"]["MediaFolder"][];
+        };
         MediaLimits: {
             /**
              * Format: int32
@@ -4843,6 +4908,18 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["MediaAsset"][];
             nextCursor?: string;
+        };
+        MediaQuota: {
+            /** Format: int64 */
+            limitBytes?: number;
+            /** Format: int64 */
+            limitCount?: number;
+            /** Format: int64 */
+            usedBytes?: number;
+            /** Format: int64 */
+            usedCount?: number;
+            /** Format: uuid */
+            workspaceId?: string;
         };
         MediaUsage: {
             /** Format: uuid */
@@ -6188,6 +6265,15 @@ export interface components {
         };
         UpdateWorkspaceRequest: {
             name: string;
+        };
+        UploadPart: {
+            /**
+             * Format: int32
+             * @description 1-based S3 part number
+             */
+            partNumber?: number;
+            /** @description Presigned UploadPart URL. PUT the part bytes to this URL exactly; do not add query parameters. */
+            url?: string;
         };
         UpsertOrdConnectionRequest: {
             /** @description Publisher address; required when activating connection */
@@ -16767,6 +16853,7 @@ export interface operations {
                 status?: "uploading" | "processing" | "ready" | "failed";
                 q?: string;
                 folder?: string;
+                folderId?: string;
                 tag?: string;
                 /**
                  * @description Opaque cursor from a previous response `nextCursor`
@@ -16859,6 +16946,91 @@ export interface operations {
             };
         };
     };
+    mediaListFolders: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Folders */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaFolderList"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     mediaImportUrl: {
         parameters: {
             query?: never;
@@ -16881,6 +17053,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportUrlResponse"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mediaGetQuota: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Used and plan limit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaQuota"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */
@@ -17229,6 +17486,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaAsset"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mediaPresignPart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaId: string;
+                partNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Presigned part URL */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadPart"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

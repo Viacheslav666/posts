@@ -28,12 +28,17 @@ export function MediaQuotaBar({ quota }: MediaQuotaBarProps) {
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{t('label')}</span>
         <span>
-          {t('usage', {
-            used: formatBytes(quota.usedBytes),
-            limit: formatBytes(quota.limitBytes),
-            count: quota.usedCount,
-            max: quota.limitCount,
-          })}
+          {quota.limitCount > 0
+            ? t('usage', {
+                used: formatBytes(quota.usedBytes),
+                limit: formatBytes(quota.limitBytes),
+                count: quota.usedCount,
+                max: quota.limitCount,
+              })
+            : t('usageBytes', {
+                used: formatBytes(quota.usedBytes),
+                limit: formatBytes(quota.limitBytes),
+              })}
         </span>
       </div>
       <div

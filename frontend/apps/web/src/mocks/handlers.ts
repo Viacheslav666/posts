@@ -1249,7 +1249,7 @@ export const handlers = [
       kind: kind ?? undefined,
       status: status ?? undefined,
       q: url.searchParams.get('q') ?? undefined,
-      folderId: url.searchParams.get('folderId'),
+      folderId: url.searchParams.get('folderId') ?? url.searchParams.get('folder'),
       tag: url.searchParams.get('tag') ?? undefined,
       cursor: url.searchParams.get('cursor') ?? undefined,
       limit: url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : 20,
@@ -1287,6 +1287,8 @@ export const handlers = [
         uploadUrl: created.uploadUrl,
         expiresAt: created.expiresAt,
         headers: created.headers,
+        uploadId: created.uploadId,
+        parts: created.parts,
       },
       { status: 201 },
     );
@@ -1354,6 +1356,15 @@ export const handlers = [
       return problem(404, 'not_found', 'Media not found', 'Not found');
     }
     return HttpResponse.json(asset);
+  }),
+
+  http.post('/api/v1/media/:mediaId/parts/:partNumber', ({ params }) => {
+    const mediaId = String(params.mediaId);
+    const partNumber = Number(params.partNumber);
+    return HttpResponse.json({
+      partNumber,
+      url: `/mock-s3/${mediaId}/upload?partNumber=${partNumber}&uploadId=mpu-${mediaId}`,
+    });
   }),
 
   http.post('/api/v1/media/:mediaId/complete', async ({ request, params }) => {

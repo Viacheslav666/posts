@@ -39,6 +39,21 @@ public class OpenApiMediaStubConfig {
             }
 
             @Override
+            public MediaDtos.MediaFolderList listFolders(UUID userId, UUID workspaceId) {
+                return new MediaDtos.MediaFolderList(java.util.List.of());
+            }
+
+            @Override
+            public MediaDtos.MediaQuota quota(UUID userId, UUID workspaceId) {
+                return new MediaDtos.MediaQuota(workspaceId, 0, 0, 0, 0);
+            }
+
+            @Override
+            public MediaDtos.UploadPart presignPart(UUID userId, UUID mediaId, int partNumber) {
+                throw new NotImplementedException("openapi");
+            }
+
+            @Override
             public MediaDtos.CreateUploadResponse createUpload(
                     UUID userId,
                     MediaDtos.CreateUploadRequest request,

@@ -7,17 +7,4 @@ export function kindFromMime(mime: string): MediaKind {
   return 'doc';
 }
 
-export function isSupportedUploadMime(mime: string): boolean {
-  const allowed = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'video/mp4',
-    'video/quicktime',
-    'application/pdf',
-    'audio/mpeg',
-    'audio/mp4',
-  ];
-  return allowed.includes(mime);
-}
+export { isSupportedUploadMime } from './upload-mime';

@@ -52,7 +52,10 @@ export async function listMedia(filters: MediaListFilters): Promise<MediaPage & 
     if (filters.kind) params.set('kind', filters.kind);
     if (filters.status) params.set('status', filters.status);
     if (filters.q) params.set('q', filters.q);
-    if (filters.folderId) params.set('folderId', filters.folderId);
+    if (filters.folderId) {
+      params.set('folderId', filters.folderId);
+      params.set('folder', filters.folderId);
+    }
     if (filters.tag) params.set('tag', filters.tag);
     if (filters.cursor) params.set('cursor', filters.cursor);
     if (filters.limit) params.set('limit', String(filters.limit));
@@ -112,6 +115,15 @@ export async function importMediaUrl(input: {
       headers: { 'Idempotency-Key': crypto.randomUUID() },
     }),
   ) as MediaLibraryItem;
+}
+
+export async function presignUploadPart(
+  mediaId: string,
+  partNumber: number,
+): Promise<{ partNumber: number; url: string }> {
+  return unwrapFetch(
+    await apiFetch(`/api/v1/media/${mediaId}/parts/${partNumber}`, { method: 'POST' }),
+  );
 }
 
 export async function getMediaQuota(workspaceId: string): Promise<MediaQuota> {

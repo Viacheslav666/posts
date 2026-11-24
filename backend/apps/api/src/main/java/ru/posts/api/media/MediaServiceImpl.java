@@ -53,24 +53,20 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
-import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
 @Service
 @Profile("!openapi")
 @Transactional
 public class MediaServiceImpl implements MediaService {
 
-    private static final long MULTIPART_THRESHOLD_BYTES = 5L * 1024 * 1024;
     private static final int MAX_REDIRECTS = 5;
+    private static final String META_UPLOAD_ID = "s3UploadId";
     private static final long MAX_IMPORT_BYTES = 1024L * 1024 * 1024;
     static final String IDEMPOTENCY_SCOPE_UPLOAD = "POST /api/v1/media/uploads";
     static final String IDEMPOTENCY_SCOPE_IMPORT = "POST /api/v1/media/import-url";
@@ -154,6 +150,68 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public MediaDtos.MediaFolderList listFolders(UUID userId, UUID workspaceId) {
+        access.requirePermission(workspaceId, userId, "media.view");
+        List<MediaDtos.MediaFolder> items = mediaAssetRepository.findDistinctFoldersByWorkspaceId(workspaceId).stream()
+                .map(name -> new MediaDtos.MediaFolder(name, name, workspaceId))
+                .toList();
+        return new MediaDtos.MediaFolderList(items);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MediaDtos.MediaQuota quota(UUID userId, UUID workspaceId) {
+        access.requirePermission(workspaceId, userId, "media.view");
+        WorkspaceEntity workspace = access.requireWorkspace(workspaceId);
+        long used = mediaAssetRepository.sumSizeBytesByWorkspaceId(workspaceId);
+        long limit = resolveStorageLimit(workspace);
+        long usedCount = mediaAssetRepository.countByWorkspaceIdAndDeletedAtIsNull(workspaceId);
+        long limitCount = resolveMediaCountLimit(workspace);
+        return new MediaDtos.MediaQuota(workspaceId, used, limit, usedCount, limitCount);
+    }
+
+    @Override
+    public MediaDtos.UploadPart presignPart(UUID userId, UUID mediaId, int partNumber) {
+        MediaAssetEntity asset = requireMedia(mediaId);
+        access.requirePermission(asset.getWorkspaceId(), userId, "media.manage");
+        if (partNumber < 1 || partNumber > S3MultipartUrls.MAX_PARTS) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Invalid part number");
+        }
+        String uploadId = storedUploadId(asset);
+        if (uploadId == null) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT, ProblemCodes.CONFLICT, "Multipart upload is not open for this asset");
+        }
+        long size = asset.getSizeBytes() == null ? 0L : asset.getSizeBytes();
+        int expected;
+        try {
+            expected = S3MultipartUrls.partCount(size);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
+        }
+        if (partNumber > expected) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Part number is outside the file");
+        }
+        try {
+            String url = S3MultipartUrls.presignPart(
+                    s3Presigner,
+                    s3Properties.getBucket(),
+                    asset.getS3Key(),
+                    uploadId,
+                    partNumber,
+                    s3Properties.getPresignTtl(),
+                    s3Properties.getPresignPublicBaseUrl());
+            return new MediaDtos.UploadPart(partNumber, url);
+        } catch (software.amazon.awssdk.core.exception.SdkClientException
+                | software.amazon.awssdk.services.s3.model.S3Exception ex) {
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
+        }
+    }
+
+    @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MediaDtos.CreateUploadResponse createUpload(
             UUID userId, MediaDtos.CreateUploadRequest request, String idempotencyKey, ClientRequestContext ctx) {
@@ -200,26 +258,27 @@ public class MediaServiceImpl implements MediaService {
         String uploadId = null;
         String uploadUrl;
         Map<String, String> headers = new LinkedHashMap<>();
+        List<MediaDtos.UploadPart> parts = List.of();
 
         try {
-            if (request.sizeBytes() >= MULTIPART_THRESHOLD_BYTES) {
-                var created = s3Client.createMultipartUpload(CreateMultipartUploadRequest.builder()
-                        .bucket(s3Properties.getBucket())
-                        .key(s3Key)
-                        .contentType(request.mime())
-                        .build());
-                uploadId = created.uploadId();
-                PresignedUploadPartRequest presigned = s3Presigner.presignUploadPart(UploadPartPresignRequest.builder()
-                        .signatureDuration(s3Properties.getPresignTtl())
-                        .uploadPartRequest(UploadPartRequest.builder()
-                                .bucket(s3Properties.getBucket())
-                                .key(s3Key)
-                                .uploadId(uploadId)
-                                .partNumber(1)
-                                .build())
-                        .build());
-                uploadUrl = presigned.url().toString();
-                headers.put("Content-Type", request.mime());
+            if (S3MultipartUrls.usesMultipart(request.sizeBytes())) {
+                S3MultipartUrls.Session session = S3MultipartUrls.begin(
+                        s3Client,
+                        s3Presigner,
+                        s3Properties.getBucket(),
+                        s3Key,
+                        request.mime(),
+                        request.sizeBytes(),
+                        s3Properties.getPresignTtl(),
+                        s3Properties.getPresignPublicBaseUrl());
+                uploadId = session.uploadId();
+                parts = session.parts().stream()
+                        .map(part -> new MediaDtos.UploadPart(part.partNumber(), part.url()))
+                        .toList();
+                uploadUrl = parts.get(0).url();
+                headers.put("x-posts-part-size", Long.toString(S3MultipartUrls.PART_SIZE_BYTES));
+                asset.setMeta(Map.of(META_UPLOAD_ID, uploadId, "partSize", S3MultipartUrls.PART_SIZE_BYTES));
+                asset = mediaAssetRepository.save(asset);
             } else {
                 PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(PutObjectPresignRequest.builder()
                         .signatureDuration(s3Properties.getPresignTtl())
@@ -229,15 +288,17 @@ public class MediaServiceImpl implements MediaService {
                                 .contentType(request.mime())
                                 .build())
                         .build());
-                uploadUrl = presigned.url().toString();
+                uploadUrl =
+                        S3PresignUrls.toPublicUrl(presigned.url().toString(), s3Properties.getPresignPublicBaseUrl());
                 headers.put("Content-Type", request.mime());
             }
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, ex.getMessage());
         } catch (software.amazon.awssdk.core.exception.SdkClientException
                 | software.amazon.awssdk.services.s3.model.S3Exception ex) {
             throw new ApiException(
                     HttpStatus.SERVICE_UNAVAILABLE, ProblemCodes.CONFLICT, "Object storage is unavailable");
         }
-        uploadUrl = S3PresignUrls.toPublicUrl(uploadUrl, s3Properties.getPresignPublicBaseUrl());
 
         auditRecorder.record(
                 request.workspaceId(),
@@ -248,7 +309,7 @@ public class MediaServiceImpl implements MediaService {
                 Map.of("filename", filename, "sizeBytes", request.sizeBytes()),
                 ctx == null ? null : ctx.ip());
 
-        return new MediaDtos.CreateUploadResponse(asset.getId(), uploadUrl, headers, expiresAt, uploadId);
+        return new MediaDtos.CreateUploadResponse(asset.getId(), uploadUrl, headers, expiresAt, uploadId, parts);
     }
 
     @Override
@@ -411,8 +472,10 @@ public class MediaServiceImpl implements MediaService {
         }
         List<CompletedPart> parts = new ArrayList<>();
         for (int i = 0; i < etags.size(); i++) {
-            parts.add(
-                    CompletedPart.builder().partNumber(i + 1).eTag(etags.get(i)).build());
+            parts.add(CompletedPart.builder()
+                    .partNumber(i + 1)
+                    .eTag(S3MultipartUrls.quoteEtag(etags.get(i)))
+                    .build());
         }
         s3Client.completeMultipartUpload(CompleteMultipartUploadRequest.builder()
                 .bucket(s3Properties.getBucket())
@@ -445,6 +508,32 @@ public class MediaServiceImpl implements MediaService {
                     "Workspace storage limit exceeded",
                     Map.of("limit", "storage_bytes", "storage_bytes", limit, "used_bytes", used));
         }
+    }
+
+    private long resolveMediaCountLimit(WorkspaceEntity workspace) {
+        if (workspace.getPlanId() == null) {
+            return 0L;
+        }
+        PlanEntity plan = planRepository.findById(workspace.getPlanId()).orElse(null);
+        if (plan == null || plan.getLimits() == null) {
+            return 0L;
+        }
+        Object value = plan.getLimits().get("media_count");
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private static String storedUploadId(MediaAssetEntity asset) {
+        if (asset.getMeta() == null) {
+            return null;
+        }
+        Object value = asset.getMeta().get(META_UPLOAD_ID);
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
     }
 
     private long resolveStorageLimit(WorkspaceEntity workspace) {

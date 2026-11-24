@@ -2,15 +2,16 @@
 
 import { useCallback, useRef, useState } from 'react';
 
-import { completeUpload, createUpload } from '../api/media-api';
-import { isSupportedUploadMime, kindFromMime } from '../lib/kind-from-mime';
+import { completeUpload, createUpload, presignUploadPart } from '../api/media-api';
+import { kindFromMime } from '../lib/kind-from-mime';
 import {
-  parseUploadSessionHeaders,
+  resolveUploadSession,
   sha256Hex,
   UploadCancelledError,
   uploadMultipart,
   type CompletedPart,
 } from '../lib/multipart-uploader';
+import { isSupportedUploadMime, resolveUploadMime } from '../lib/upload-mime';
 import type { MediaKind, UploadQueueItem } from '../model/types';
 
 function localId(): string {
@@ -43,7 +44,8 @@ export function useUploadQueue(workspaceId: string, options: UploadQueueOptions 
       controllers.current.set(item.localId, controller);
 
       try {
-        if (!isSupportedUploadMime(item.file.type)) {
+        const mime = resolveUploadMime(item.file);
+        if (!isSupportedUploadMime(mime)) {
           patch(item.localId, {
             status: 'failed',
             error: 'unsupported_format',
@@ -54,7 +56,7 @@ export function useUploadQueue(workspaceId: string, options: UploadQueueOptions 
         patch(item.localId, { status: 'hashing', progress: 0 });
         const sha256 = await sha256Hex(item.file);
 
-        const mimeKind = kindFromMime(item.file.type);
+        const mimeKind = kindFromMime(mime);
         const preferred = optionsRef.current.preferredKind;
         const kind =
           preferred === 'clip' && mimeKind === 'video'
@@ -67,36 +69,38 @@ export function useUploadQueue(workspaceId: string, options: UploadQueueOptions 
         const sessionResponse = await createUpload({
           workspaceId: item.workspaceId,
           kind,
-          mime: item.file.type,
+          mime,
           sizeBytes: item.file.size,
           filename: item.file.name,
           sha256,
         });
 
-        const { uploadId, partSize } = parseUploadSessionHeaders(sessionResponse.headers);
-        const mediaId = sessionResponse.mediaId!;
-        const uploadUrl = sessionResponse.uploadUrl!;
-        const resolvedUploadId = uploadId || `upload-${mediaId}`;
+        const session = resolveUploadSession(sessionResponse, mime);
+        const mediaId = session.mediaId;
 
         patch(item.localId, {
           status: 'uploading',
           mediaId,
-          uploadId: resolvedUploadId,
-          uploadUrl,
-          partSize,
+          uploadId: session.uploadId ?? undefined,
+          uploadUrl: session.uploadUrl,
+          partSize: session.partSize,
+          progress: 0,
         });
 
         const completed = await uploadMultipart({
           file: item.file,
-          session: {
-            mediaId,
-            uploadUrl,
-            uploadId: resolvedUploadId,
-            partSize,
-            headers: sessionResponse.headers,
-          },
+          session,
           completedParts: resumeParts.current.get(item.localId) ?? item.completedParts,
           signal: controller.signal,
+          refreshPartUrl: session.uploadId
+            ? async (partNumber) => {
+                const part = await presignUploadPart(mediaId, partNumber);
+                if (!part.url) {
+                  throw new Error('missing_part_url');
+                }
+                return part.url;
+              }
+            : undefined,
           onProgress: (progress) => {
             resumeParts.current.set(item.localId, progress.completedParts);
             patch(item.localId, {
@@ -107,10 +111,12 @@ export function useUploadQueue(workspaceId: string, options: UploadQueueOptions 
         });
 
         patch(item.localId, { status: 'completing', progress: 1 });
-        await completeUpload(mediaId, {
-          uploadId: completed.uploadId,
-          etags: completed.etags,
-        });
+        await completeUpload(
+          mediaId,
+          completed.uploadId
+            ? { uploadId: completed.uploadId, etags: completed.etags }
+            : {},
+        );
 
         patch(item.localId, { status: 'processing', progress: 1 });
         // Polling for ready is handled by library consumers / media list invalidation.
