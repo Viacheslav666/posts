@@ -172,6 +172,7 @@
       "loading": "Завершаем подключение…",
       "successTitle": "Канал подключён",
       "successBody": "Можно вернуться к списку каналов.",
+      "accessDenied": "Вы отменили авторизацию VK. Попробуйте подключить канал снова.",
       "errorTitle": "OAuth не завершён",
       "invalidNetwork": "Неизвестная сеть",
       "invalidNetworkBody": "Поддерживаются только VK и OK для OAuth-callback.",

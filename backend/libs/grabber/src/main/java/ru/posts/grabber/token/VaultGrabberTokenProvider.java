@@ -11,6 +11,7 @@ import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.repository.WorkspaceDataKeyRepository;
 import ru.posts.security.crypto.TokenCryptoService;
+import ru.posts.security.oauth.VkIdUserTokenRefresher;
 
 /**
  * Source walls are read with the configured service token; media is uploaded into the target
@@ -26,6 +27,7 @@ public final class VaultGrabberTokenProvider implements GrabberTokenProvider {
     private final SocialAccountRepository socialAccounts;
     private final WorkspaceDataKeyRepository keys;
     private final TokenCryptoService crypto;
+    private final VkIdUserTokenRefresher vkTokenRefresher;
 
     public VaultGrabberTokenProvider(
             String serviceToken,
@@ -33,11 +35,22 @@ public final class VaultGrabberTokenProvider implements GrabberTokenProvider {
             SocialAccountRepository socialAccounts,
             WorkspaceDataKeyRepository keys,
             TokenCryptoService crypto) {
+        this(serviceToken, channels, socialAccounts, keys, crypto, null);
+    }
+
+    public VaultGrabberTokenProvider(
+            String serviceToken,
+            ChannelRepository channels,
+            SocialAccountRepository socialAccounts,
+            WorkspaceDataKeyRepository keys,
+            TokenCryptoService crypto,
+            VkIdUserTokenRefresher vkTokenRefresher) {
         this.serviceToken = new StaticGrabberTokenProvider(serviceToken);
         this.channels = channels;
         this.socialAccounts = socialAccounts;
         this.keys = keys;
         this.crypto = crypto;
+        this.vkTokenRefresher = vkTokenRefresher;
     }
 
     @Override
@@ -56,6 +69,12 @@ public final class VaultGrabberTokenProvider implements GrabberTokenProvider {
                     channelId == null ? null : channels.findById(channelId).orElse(null);
             if (channel == null || channel.getSocialAccountId() == null || channel.getWorkspaceId() == null) {
                 return Optional.empty();
+            }
+            if (vkTokenRefresher != null) {
+                Optional<String> refreshed = vkTokenRefresher.refreshedAccessToken(channel.getSocialAccountId());
+                if (refreshed.isPresent()) {
+                    return refreshed;
+                }
             }
             SocialAccountEntity account =
                     socialAccounts.findById(channel.getSocialAccountId()).orElse(null);

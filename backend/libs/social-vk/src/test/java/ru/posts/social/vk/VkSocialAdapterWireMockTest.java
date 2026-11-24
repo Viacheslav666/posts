@@ -269,15 +269,19 @@ class VkSocialAdapterWireMockTest {
                                 aResponse()
                                         .withHeader("Content-Type", "application/json")
                                         .withBody(
-                                                "{\"access_token\":\"new-access\",\"refresh_token\":\"new-refresh\",\"expires_in\":3600}")));
+                                                "{\"access_token\":\"new-access\",\"refresh_token\":\"new-refresh\",\"expires_in\":3600,\"state\":\"state-32-chars-aaaaaaaaaaaa\"}")));
 
-        var tokens = adapter.refreshToken(new TokenRefreshRequest("old-refresh", "vk", "user-1"));
+        var tokens = adapter.refreshToken(new TokenRefreshRequest(
+                "old-refresh", "vk", "user-1", "54917886", "device-1", "state-32-chars-aaaaaaaaaaaa"));
 
         assertThat(tokens).isPresent();
         assertThat(tokens.get().accessToken()).isEqualTo("new-access");
         assertThat(tokens.get().refreshToken()).isEqualTo("new-refresh");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/oauth2/auth"))
                 .withRequestBody(containing("grant_type=refresh_token"))
-                .withRequestBody(containing("refresh_token=old-refresh")));
+                .withRequestBody(containing("refresh_token=old-refresh"))
+                .withRequestBody(containing("client_id=54917886"))
+                .withRequestBody(containing("device_id=device-1"))
+                .withRequestBody(containing("state=state-32-chars-aaaaaaaaaaaa")));
     }
 }

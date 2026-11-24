@@ -4088,6 +4088,8 @@ export interface components {
             chatId?: string;
             /** @description OAuth authorization code (VK/OK) */
             code?: string;
+            /** @description VK ID device_id from redirect (required for VK ID channel connect) */
+            deviceId?: string;
             /** @description Forwarded message reference for bot attach flows */
             forwardedMessage?: components["schemas"]["ForwardedMessageRef"];
             /** Format: uuid */
@@ -4104,8 +4106,11 @@ export interface components {
              * @example @brand_news
              */
             username?: string;
-            /** Format: uuid */
-            workspaceId: string;
+            /**
+             * Format: uuid
+             * @description Workspace for connect; may be omitted for VK static redirect — resolved from state
+             */
+            workspaceId?: string;
         };
         /** @description Dedicated bot-flow confirm for Telegram/Max after the bot is added as admin */
         ChannelConnectConfirmRequest: {
@@ -4136,6 +4141,11 @@ export interface components {
             hasMore?: boolean;
             items?: components["schemas"]["Channel"][];
             nextCursor?: string;
+            /**
+             * Format: uuid
+             * @description Workspace context after channel connect (static VK callback)
+             */
+            workspaceId?: string;
         };
         ChannelPreference: {
             email?: boolean;

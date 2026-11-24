@@ -17303,6 +17303,9 @@ components:
         code:
           type: string
           description: OAuth authorization code (VK/OK)
+        deviceId:
+          type: string
+          description: VK ID device_id from redirect (required for VK ID channel connect)
         forwardedMessage:
           $ref: "#/components/schemas/ForwardedMessageRef"
           description: Forwarded message reference for bot attach flows
@@ -17323,8 +17326,8 @@ components:
         workspaceId:
           type: string
           format: uuid
-      required:
-      - workspaceId
+          description: Workspace for connect; may be omitted for VK static redirect
+            — resolved from state
     ChannelConnectConfirmRequest:
       type: object
       description: Dedicated bot-flow confirm for Telegram/Max after the bot is added
@@ -17374,6 +17377,10 @@ components:
             $ref: "#/components/schemas/Channel"
         nextCursor:
           type: string
+        workspaceId:
+          type: string
+          format: uuid
+          description: Workspace context after channel connect (static VK callback)
     ChannelPreference:
       type: object
       properties:
