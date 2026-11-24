@@ -214,6 +214,29 @@ class ChannelConnectIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-CH-01c VK callback rejects connect state for another user")
+    void tcCh01c_vkCallbackRejectsForeignUser() throws Exception {
+        Session owner = session();
+        Session other = session();
+        JsonNode start = readJson(mockMvc.perform(post("/api/v1/channels/connect/vk/start")
+                        .with(csrf())
+                        .header("Authorization", bearer(owner.token))
+                        .param("workspaceId", owner.workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(other.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin",
+                                "state", start.get("state").asText()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_token"));
+    }
+
+    @Test
     @DisplayName("TC-CH-02 VK no admin → insufficient_permissions")
     void tcCh02_vkNoAdmin() throws Exception {
         Session s = session();
