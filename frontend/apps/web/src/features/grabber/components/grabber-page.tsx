@@ -30,9 +30,10 @@ import { RuleCard } from './rule-card';
 
 type GrabberPageProps = {
   workspaceId: string;
+  initialTab?: 'queue' | 'rules';
 };
 
-export function GrabberPage({ workspaceId }: GrabberPageProps) {
+export function GrabberPage({ workspaceId, initialTab = 'queue' }: GrabberPageProps) {
   const t = useTranslations('grabber');
   const canView = useCan('automations.view', workspaceId);
   const canManage = useCan('automations.manage', workspaceId);
@@ -43,7 +44,7 @@ export function GrabberPage({ workspaceId }: GrabberPageProps) {
   const atGrabberLimit = grabberMetric
     ? isAtLimit(grabberMetric.used, grabberMetric.limit)
     : false;
-  const [tab, setTab] = useState('queue');
+  const [tab, setTab] = useState(initialTab === 'rules' ? 'rules' : 'queue');
 
   const projectsQuery = useQuery({
     queryKey: queryKeys.projects.list(workspaceId),

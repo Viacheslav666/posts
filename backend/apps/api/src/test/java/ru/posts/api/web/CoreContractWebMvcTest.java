@@ -53,7 +53,8 @@ class CoreContractWebMvcTest {
                         "local@posts.test",
                         true,
                         "Local Dev",
-                        null,
+                        "https://sun.vk.example/local.jpg",
+                        "vk",
                         "Europe/Moscow",
                         "ru",
                         false,
@@ -73,6 +74,8 @@ class CoreContractWebMvcTest {
             mockMvc.perform(get("/api/v1/me"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.email").value("local@posts.test"))
+                    .andExpect(jsonPath("$.avatarUrl").value("https://sun.vk.example/local.jpg"))
+                    .andExpect(jsonPath("$.loginMethod").value("vk"))
                     .andExpect(jsonPath("$.memberships[0].role").value("owner"));
         }
     }

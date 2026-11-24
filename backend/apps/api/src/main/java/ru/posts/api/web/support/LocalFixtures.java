@@ -22,6 +22,7 @@ public final class LocalFixtures {
                 true,
                 "Local Dev",
                 null,
+                "email",
                 "Europe/Moscow",
                 "ru",
                 false,

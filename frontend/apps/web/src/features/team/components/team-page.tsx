@@ -40,6 +40,7 @@ import { InviteMemberForm } from './invite-member-form';
 
 type TeamPageProps = {
   workspaceId: string;
+  initialTab?: 'members' | 'invitations';
 };
 
 function MemberRow({
@@ -145,7 +146,7 @@ function MemberRow({
   );
 }
 
-export function TeamPage({ workspaceId }: TeamPageProps) {
+export function TeamPage({ workspaceId, initialTab = 'members' }: TeamPageProps) {
   const t = useTranslations('team');
   const tRoles = useTranslations('roles');
   const queryClient = useQueryClient();
@@ -208,7 +209,7 @@ export function TeamPage({ workspaceId }: TeamPageProps) {
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
-      <Tabs defaultValue="members">
+      <Tabs defaultValue={initialTab === 'invitations' ? 'invitations' : 'members'}>
         <TabsList>
           <TabsTrigger value="members">{t('tabs.members')}</TabsTrigger>
           <TabsTrigger value="invitations">{t('tabs.invitations')}</TabsTrigger>

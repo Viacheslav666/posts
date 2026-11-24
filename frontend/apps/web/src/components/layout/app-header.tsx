@@ -17,8 +17,8 @@ import { NotificationsBell } from '@/features/notifications/components/notificat
 import { useMe } from '@/shared/hooks/use-me';
 
 import { AppSidebar } from './app-sidebar';
+import { requestOpenCommandPalette } from './nav-model';
 import { ThemeToggle } from './theme-toggle';
-import { UserAccountMenu } from './user-account-menu';
 
 type AppHeaderProps = {
   workspaceId: string;
@@ -42,7 +42,7 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
             <SheetHeader className="sr-only">
               <SheetTitle>{t('menu')}</SheetTitle>
             </SheetHeader>
-            <AppSidebar workspaceId={workspaceId} className="border-0" />
+            <AppSidebar workspaceId={workspaceId} className="border-0" mode="drawer" />
           </SheetContent>
         </Sheet>
       </div>
@@ -61,7 +61,13 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
             </Link>
           </Button>
         ) : null}
-        <Button variant="ghost" size="icon" aria-label={t('search')} className="hidden sm:inline-flex">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('search')}
+          className="hidden sm:inline-flex"
+          onClick={requestOpenCommandPalette}
+        >
           <Search aria-hidden />
         </Button>
         <Button className="hidden sm:inline-flex" size="sm" asChild>
@@ -72,7 +78,6 @@ export function AppHeader({ workspaceId }: AppHeaderProps) {
         </Button>
         <NotificationsBell workspaceId={workspaceId} />
         <ThemeToggle />
-        <UserAccountMenu workspaceId={workspaceId} />
       </div>
     </header>
   );

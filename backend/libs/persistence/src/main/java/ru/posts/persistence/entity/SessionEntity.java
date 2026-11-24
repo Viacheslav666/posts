@@ -37,6 +37,10 @@ public class SessionEntity extends BaseUuidEntity {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    /** vk, email, yandex, or telegram. Null on sessions created before V35. */
+    @Column(name = "login_provider")
+    private String loginProvider;
+
     public UUID getUserId() {
         return userId;
     }
@@ -99,5 +103,13 @@ public class SessionEntity extends BaseUuidEntity {
 
     public void setRevokedAt(Instant revokedAt) {
         this.revokedAt = revokedAt;
+    }
+
+    public String getLoginProvider() {
+        return loginProvider;
+    }
+
+    public void setLoginProvider(String loginProvider) {
+        this.loginProvider = loginProvider;
     }
 }
