@@ -6769,6 +6769,66 @@ paths:
       summary: Reject grabber item
       tags:
       - Ingest
+  /api/v1/ingest/mode-matrix:
+    get:
+      description: "Единый источник ограничений: в отложенных режимах VK недоступн\
+        ы кнопка, первый комментарий, вложения комментария, отложенное удаление и\
+        \ интервал. Вложения комментария также недоступны при интервале между пост\
+        ами больше 0."
+      operationId: ingestModeMatrix
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrabberModeMatrixResponse"
+          description: Capability matrix
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Validation failed (`validation_failed`)
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Unauthorized (`unauthorized`)
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`)"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Not found or IDOR (`not_found`)
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`,\
+            \ `idempotency_conflict`)"
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Rate limited (`rate_limited`)
+        "501":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Stub — not implemented yet (BE-3)
+      summary: Матрица возможностей режимов публикации граббера
+      tags:
+      - Ingest
   /api/v1/ingest/preview:
     post:
       operationId: ingestPreview
@@ -17877,6 +17937,15 @@ components:
           type: array
           items:
             type: string
+        targetMode:
+          type: string
+          description: "wall_now | vk_postponed_post (publish_date, ≤7 дней) | wall_repost\
+            \ | vk_postponed_repost"
+          enum:
+          - wall_now
+          - vk_postponed_post
+          - wall_repost
+          - vk_postponed_repost
         transform:
           type: object
           additionalProperties:
@@ -17982,6 +18051,52 @@ components:
           type: string
           maxLength: 500
           minLength: 0
+    GrabberModeMatrixResponse:
+      type: object
+      properties:
+        defaultMaxAgeDays:
+          type: integer
+          format: int32
+        intervalDisables:
+          type: array
+          description: Features forced off when min_interval_minutes > 0
+          items:
+            type: string
+        maxIntervalMinutes:
+          type: integer
+          format: int32
+        maxSources:
+          type: integer
+          format: int32
+        modes:
+          type: array
+          description: One row per target mode. Interval interaction is in intervalDisables.
+          items:
+            $ref: "#/components/schemas/GrabberModeRow"
+        postponedHorizonDays:
+          type: integer
+          format: int32
+    GrabberModeRow:
+      type: object
+      properties:
+        actionButton:
+          type: boolean
+        available:
+          type: boolean
+        commentAttachments:
+          type: boolean
+        firstComment:
+          type: boolean
+        id:
+          type: string
+        interval:
+          type: boolean
+        postponed:
+          type: boolean
+        repost:
+          type: boolean
+        scheduledDelete:
+          type: boolean
     GrabberRule:
       type: object
       properties:

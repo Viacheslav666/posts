@@ -1,5 +1,21 @@
 export type IngestRuleType = 'grabber' | 'rss' | 'website';
 export type PublishMode = 'moderate' | 'auto' | 'draft';
+export type TargetMode = 'wall_now' | 'vk_postponed_post' | 'wall_repost' | 'vk_postponed_repost';
+
+export const TARGET_MODES: TargetMode[] = [
+  'wall_now',
+  'vk_postponed_post',
+  'wall_repost',
+  'vk_postponed_repost',
+];
+
+export function isPostponedTarget(mode: TargetMode | undefined): boolean {
+  return mode === 'vk_postponed_post' || mode === 'vk_postponed_repost';
+}
+
+export function isRepostTarget(mode: TargetMode | undefined): boolean {
+  return mode === 'wall_repost' || mode === 'vk_postponed_repost';
+}
 export type ScheduleMode = 'immediate' | 'delay' | 'slot';
 export type RuleStatus = 'draft' | 'active' | 'paused' | 'auto_paused' | 'archived';
 export type ItemStatus =

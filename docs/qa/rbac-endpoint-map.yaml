@@ -688,6 +688,11 @@ endpoints:
   action: automations.moderate
   pathParams:
     itemId: '{itemId}'
+- operationId: ingestModeMatrix
+  method: GET
+  path: /api/v1/ingest/mode-matrix
+  implementedHint: true
+  rbac: none
 - operationId: ingestPreview
   method: POST
   path: /api/v1/ingest/preview

@@ -4,6 +4,8 @@ import {
   DEFAULT_ATTRIBUTION_TEMPLATE,
   MAX_SOURCES_PER_RULE,
   SCAN_INTERVALS,
+  isPostponedTarget,
+  isRepostTarget,
 } from './types';
 import { isValidSourceId, normalizeSourceIds } from './source-ids';
 
@@ -20,6 +22,8 @@ export const grabberRuleFormSchema = z
     websiteSelector: z.string(),
     scanIntervalMinutes: z.number().refine((value) => (SCAN_INTERVALS as readonly number[]).includes(value)),
     publishMode: z.enum(['moderate', 'auto', 'draft']),
+    targetMode: z.enum(['wall_now', 'vk_postponed_post', 'wall_repost', 'vk_postponed_repost']),
+    notifyOnError: z.boolean(),
     scheduleMode: z.enum(['immediate', 'delay', 'slot']),
     publishDelayMinutes: z.number().int().min(0).max(10080),
 
@@ -93,7 +97,7 @@ export const grabberRuleFormSchema = z
 
     // Limits
     rateLimitPerHour: z.number().int().min(1).max(60),
-    rateLimitPerDay: z.number().int().min(1).max(500),
+    rateLimitPerDay: z.number().int().min(0).max(500),
     rateLimitPerSourcePerDay: z.number().int().min(0).max(500),
     minIntervalMinutes: z.number().int().min(0).max(120),
 
@@ -154,6 +158,27 @@ export const grabberRuleFormSchema = z
           break;
         }
       }
+    }
+    if (isPostponedTarget(values.targetMode) && values.minIntervalMinutes > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['minIntervalMinutes'],
+        message: 'intervalUnavailable',
+      });
+    }
+    if (isPostponedTarget(values.targetMode) && values.firstCommentEnabled) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['firstCommentEnabled'],
+        message: 'firstCommentUnavailable',
+      });
+    }
+    if (isRepostTarget(values.targetMode) && values.type !== 'grabber') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['targetMode'],
+        message: 'repostGrabberOnly',
+      });
     }
     if (values.activate && !values.userResponsibilityAccepted) {
       ctx.addIssue({

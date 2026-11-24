@@ -59,6 +59,27 @@ public final class WorkingWindow {
         return isOpen(config, now) ? null : "outside_working_window";
     }
 
+    /**
+     * Earliest instant at or after {@code from} that falls inside the window. When the window is
+     * disabled, returns {@code from}. Searches up to eight days so a weekly window always resolves.
+     */
+    public static Instant nextOpen(Map<String, Object> config, Instant from) {
+        Instant start = from == null ? Instant.now() : from;
+        if (isOpen(config, start)) {
+            return start;
+        }
+        Instant cursor =
+                start.truncatedTo(java.time.temporal.ChronoUnit.MINUTES).plusSeconds(60);
+        Instant limit = start.plus(8, java.time.temporal.ChronoUnit.DAYS);
+        while (!cursor.isAfter(limit)) {
+            if (isOpen(config, cursor)) {
+                return cursor;
+            }
+            cursor = cursor.plusSeconds(60);
+        }
+        return start;
+    }
+
     private static ZoneId zoneId(String raw) {
         try {
             return ZoneId.of(raw);

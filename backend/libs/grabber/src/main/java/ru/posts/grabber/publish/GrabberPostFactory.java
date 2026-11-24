@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.config.GrabberProperties;
+import ru.posts.grabber.target.GrabberPublishSchedule;
+import ru.posts.grabber.target.GrabberRepostObject;
+import ru.posts.grabber.target.GrabberTargetMode;
+import ru.posts.grabber.target.PostponedHorizonException;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -40,23 +45,37 @@ public class GrabberPostFactory {
     private final PublicationRepository publicationRepository;
     private final ChannelRepository channelRepository;
     private final OutboxRepository outboxRepository;
+    private final GrabberProperties grabberProperties;
 
     public GrabberPostFactory(
             PostRepository postRepository,
             PostVariantRepository postVariantRepository,
             PublicationRepository publicationRepository,
             ChannelRepository channelRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            GrabberProperties grabberProperties) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
         this.outboxRepository = outboxRepository;
+        this.grabberProperties = grabberProperties;
     }
 
     @Transactional
     public PublishResult publishItem(
             AutomationRuleEntity rule, GrabberItemEntity item, UUID actorId, String overrideText, Instant runAt) {
+        return publishItem(rule, item, actorId, overrideText, runAt, 0);
+    }
+
+    @Transactional
+    public PublishResult publishItem(
+            AutomationRuleEntity rule,
+            GrabberItemEntity item,
+            UUID actorId,
+            String overrideText,
+            Instant runAt,
+            int slotIndex) {
         if (item.getPostId() != null) {
             UUID[] existing = item.getPublicationIds();
             List<UUID> pubs = existing == null ? List.of() : List.of(existing);
@@ -67,6 +86,14 @@ public class GrabberPostFactory {
                 .orElseThrow(() -> new IllegalStateException("Target channel not found"));
         if ("reauth_required".equals(channel.getStatus())) {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
+        }
+        String targetModeEarly = GrabberConfigSupport.targetMode(rule.getConfig());
+        if (GrabberTargetMode.VK_POSTPONED_REPOST.wire().equals(targetModeEarly)
+                && !grabberProperties.isPostponedRepostEnabled()) {
+            item.setStatus("failed_validation");
+            item.setSkipReason("postponed_repost_unavailable");
+            item.setUpdatedAt(Instant.now());
+            return new PublishResult(null, List.of(), false);
         }
 
         MacroExpander.Context macroCtx =
@@ -87,7 +114,27 @@ public class GrabberPostFactory {
         }
 
         Instant now = Instant.now();
-        Instant scheduledAt = runAt == null ? now : runAt;
+        GrabberPublishSchedule.Plan plan;
+        try {
+            plan = GrabberPublishSchedule.plan(rule.getConfig(), now, runAt, slotIndex);
+        } catch (PostponedHorizonException ex) {
+            item.setStatus("failed_validation");
+            item.setSkipReason("postponed_horizon");
+            item.setUpdatedAt(now);
+            return new PublishResult(null, List.of(), false);
+        }
+        String targetMode = GrabberConfigSupport.targetMode(rule.getConfig());
+        String repostObject = null;
+        if (GrabberTargetMode.isRepost(targetMode)) {
+            repostObject = GrabberRepostObject.from(item.getSourceId(), item.getRemotePostId(), item.getRawPayload());
+            if (repostObject == null) {
+                item.setStatus("failed_validation");
+                item.setSkipReason("repost_object_missing");
+                item.setUpdatedAt(now);
+                return new PublishResult(null, List.of(), false);
+            }
+        }
+        Instant scheduledAt = plan.pipelineRunAt();
         ensurePublicationPartition(scheduledAt);
 
         PostEntity post = new PostEntity();
@@ -99,6 +146,13 @@ public class GrabberPostFactory {
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
         baseContent.put("mediaIds", List.of());
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("comment", finalText == null ? "" : finalText);
+            repost.put("network", "vk");
+            baseContent.put("repost", repost);
+        }
         post.setBaseContent(baseContent);
         post.setStatus("scheduled");
         post.setScheduledAt(scheduledAt);
@@ -115,12 +169,22 @@ public class GrabberPostFactory {
         sourceRef.put("contentHash", item.getContentHash());
         post.setSourceRef(sourceRef);
         post.setModerationStatus("approved");
-        post.setTimezone("Europe/Moscow");
+        post.setTimezone(GrabberConfigSupport.scheduleTimezone(rule.getConfig()));
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         postRepository.save(post);
 
         Map<String, Object> options = new LinkedHashMap<>();
+        options.put("grabberTargetMode", targetMode);
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("message", finalText == null ? "" : finalText);
+            options.put("repost", repost);
+        }
+        if (plan.vkPublishDateEpoch() != null) {
+            options.put("vkPublishDate", plan.vkPublishDateEpoch());
+        }
         Object mode = GrabberConfigSupport.transform(rule.getConfig()).get("attachments_mode");
         if (mode != null && !mode.toString().isBlank()) {
             options.put("primaryAttachmentsMode", mode.toString());

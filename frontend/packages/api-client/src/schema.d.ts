@@ -1463,6 +1463,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ingest/mode-matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Матрица возможностей режимов публикации граббера
+         * @description Единый источник ограничений: в отложенных режимах VK недоступны кнопка, первый комментарий, вложения комментария, отложенное удаление и интервал. Вложения комментария также недоступны при интервале между постами больше 0.
+         */
+        get: operations["ingestModeMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest/preview": {
         parameters: {
             query?: never;
@@ -4464,6 +4484,11 @@ export interface components {
             };
             scheduleMode?: string;
             sourceIds?: string[];
+            /**
+             * @description wall_now | vk_postponed_post (publish_date, ≤7 дней) | wall_repost | vk_postponed_repost
+             * @enum {string}
+             */
+            targetMode?: "wall_now" | "vk_postponed_post" | "wall_repost" | "vk_postponed_repost";
             transform?: {
                 [key: string]: Record<string, never>;
             };
@@ -4516,6 +4541,31 @@ export interface components {
         };
         GrabberItemRejectRequest: {
             reason?: string;
+        };
+        GrabberModeMatrixResponse: {
+            /** Format: int32 */
+            defaultMaxAgeDays?: number;
+            /** @description Features forced off when min_interval_minutes > 0 */
+            intervalDisables?: string[];
+            /** Format: int32 */
+            maxIntervalMinutes?: number;
+            /** Format: int32 */
+            maxSources?: number;
+            /** @description One row per target mode. Interval interaction is in intervalDisables. */
+            modes?: components["schemas"]["GrabberModeRow"][];
+            /** Format: int32 */
+            postponedHorizonDays?: number;
+        };
+        GrabberModeRow: {
+            actionButton?: boolean;
+            available?: boolean;
+            commentAttachments?: boolean;
+            firstComment?: boolean;
+            id?: string;
+            interval?: boolean;
+            postponed?: boolean;
+            repost?: boolean;
+            scheduledDelete?: boolean;
         };
         GrabberRule: {
             config?: components["schemas"]["GrabberConfig"];
@@ -14630,6 +14680,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GrabberItem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unauthorized (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Forbidden / insufficient permissions (`forbidden`, `insufficient_permissions`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not found or IDOR (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict (`conflict`, `optimistic_lock_conflict`, `trial_already_used`, `idempotency_conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Rate limited (`rate_limited`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Stub — not implemented yet (BE-3) */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    ingestModeMatrix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Capability matrix */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabberModeMatrixResponse"];
                 };
             };
             /** @description Validation failed (`validation_failed`) */

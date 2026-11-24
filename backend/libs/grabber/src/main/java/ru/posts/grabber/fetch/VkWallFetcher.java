@@ -41,9 +41,27 @@ public class VkWallFetcher {
                 RestClient.builder().baseUrl(normalized).requestFactory(factory).build();
     }
 
+    /**
+     * Numeric ids are community owner ids (a bare positive id is negated). Screen names and
+     * {@code vk.com/team} go out as {@code domain} with no {@code owner_id}.
+     */
+    public static WallLookup lookup(String sourceId) {
+        String value = sourceId == null ? "" : sourceId.trim();
+        if (value.matches("-?\\d+")) {
+            if (!value.startsWith("-")) {
+                value = "-" + value;
+            }
+            return new WallLookup("owner_id", value);
+        }
+        return new WallLookup("domain", value);
+    }
+
+    public record WallLookup(String param, String value) {}
+
     public List<SourceCandidate> fetch(String sourceId, String accessToken, int count) {
+        WallLookup lookup = lookup(sourceId);
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("owner_id", toOwnerId(sourceId));
+        form.add(lookup.param(), lookup.value());
         form.add("count", String.valueOf(Math.max(1, Math.min(count, 50))));
         form.add("filter", "owner");
         form.add("access_token", accessToken);
@@ -135,14 +153,5 @@ public class VkWallFetcher {
                 signed,
                 fromGroup,
                 raw);
-    }
-
-    private static String toOwnerId(String sourceId) {
-        if (sourceId.startsWith("-") || sourceId.chars().allMatch(Character::isDigit)) {
-            return sourceId;
-        }
-        // screen name unresolved — pass as domain via wall.get owner_id requires numeric;
-        // callers should resolve; keep negative numeric when possible.
-        return sourceId;
     }
 }
