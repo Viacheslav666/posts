@@ -83,16 +83,47 @@ class SocialConnectClientTest {
         socialServer
                 .expect(requestTo(VK_ID_TOKEN))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(request -> assertThat(request.getBody().toString()).contains("grant_type=refresh_token"))
+                .andExpect(request -> {
+                    String body = request.getBody().toString();
+                    assertThat(body).contains("grant_type=refresh_token");
+                    assertThat(body).contains("state=state-32-chars-aaaaaaaaaaaa");
+                    assertThat(body).contains("device_id=device-1");
+                    assertThat(body).doesNotContain("client_secret");
+                })
                 .andRespond(withSuccess(
                         """
-                        {"access_token":"new-at","refresh_token":"new-rt","expires_in":3600,"user_id":"42"}
+                        {"access_token":"new-at","refresh_token":"new-rt","expires_in":3600,"user_id":"42","state":"state-32-chars-aaaaaaaaaaaa"}
                         """,
                         MediaType.APPLICATION_JSON));
 
-        SocialConnectClient.OAuthToken token = client.refreshVk("old-rt", "device-1", null);
+        SocialConnectClient.OAuthToken token = client.refreshVk("old-rt", "device-1", "state-32-chars-aaaaaaaaaaaa");
         assertThat(token.accessToken()).isEqualTo("new-at");
         assertThat(token.refreshToken()).isEqualTo("new-rt");
+    }
+
+    @Test
+    void vkIdRefreshRejectsEchoedStateMismatch() {
+        socialServer
+                .expect(requestTo(VK_ID_TOKEN))
+                .andRespond(withSuccess(
+                        "{\"access_token\":\"new-at\",\"refresh_token\":\"new-rt\",\"expires_in\":3600,\"state\":\"other\"}",
+                        MediaType.APPLICATION_JSON));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> client.refreshVk("old-rt", "device-1", "state-32-chars-aaaaaaaaaaaa"))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void probeProfileUsesUsersGet() {
+        vkApiServer
+                .expect(requestTo(VK_API + "/method/users.get"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(request -> assertThat(request.getBody().toString()).contains("user_ids=1001"))
+                .andRespond(withSuccess("{\"response\":[{\"id\":1001}]}", MediaType.APPLICATION_JSON));
+
+        assertThat(client.probeToken("vk", "user-token", "1001")).isTrue();
+        vkApiServer.verify();
     }
 
     @Test

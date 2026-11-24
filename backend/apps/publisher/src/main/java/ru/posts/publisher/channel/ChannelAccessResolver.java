@@ -1,11 +1,15 @@
 package ru.posts.publisher.channel;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import ru.posts.security.crypto.TokenCryptoService;
+import ru.posts.security.oauth.VkIdUserTokenRefresher;
 import ru.posts.social.api.AccessTokenKind;
 import ru.posts.social.api.ChannelContext;
 import ru.posts.social.api.ModerationTarget;
@@ -26,14 +30,23 @@ public class ChannelAccessResolver {
     private final JdbcClient jdbcClient;
     private final TokenCryptoService crypto;
     private final String fallbackToken;
+    private final VkIdUserTokenRefresher vkTokenRefresher;
 
+    @Autowired
     public ChannelAccessResolver(
             JdbcClient jdbcClient,
             TokenCryptoService crypto,
-            @Value("${posts.publisher.fallback-bot-token:emulator-token}") String fallbackToken) {
+            @Value("${posts.publisher.fallback-bot-token:emulator-token}") String fallbackToken,
+            ObjectProvider<VkIdUserTokenRefresher> vkTokenRefresher) {
+        this(jdbcClient, crypto, fallbackToken, vkTokenRefresher == null ? null : vkTokenRefresher.getIfAvailable());
+    }
+
+    ChannelAccessResolver(
+            JdbcClient jdbcClient, TokenCryptoService crypto, String fallbackToken, VkIdUserTokenRefresher refresher) {
         this.jdbcClient = jdbcClient;
         this.crypto = crypto;
         this.fallbackToken = fallbackToken == null || fallbackToken.isBlank() ? "emulator-token" : fallbackToken;
+        this.vkTokenRefresher = refresher;
     }
 
     /** BOT preference (publish / scheduled_actions) — existing behavior. */
@@ -90,13 +103,14 @@ public class ChannelAccessResolver {
         };
     }
 
-    private AccessRow load(UUID channelId) {
+    protected AccessRow load(UUID channelId) {
         return jdbcClient
                 .sql(
                         """
                         SELECT c.thread_id,
                                c.external_id,
                                c.bot_token_enc,
+                               sa.id AS social_account_id,
                                sa.access_token_enc,
                                wdk.dek_enc
                         FROM channels c
@@ -109,6 +123,7 @@ public class ChannelAccessResolver {
                         rs.getString("thread_id"),
                         rs.getString("external_id"),
                         rs.getBytes("bot_token_enc"),
+                        (UUID) rs.getObject("social_account_id"),
                         rs.getBytes("access_token_enc"),
                         rs.getBytes("dek_enc")))
                 .optional()
@@ -120,7 +135,7 @@ public class ChannelAccessResolver {
             return fallbackToken;
         }
         if (kind == AccessTokenKind.USER) {
-            String account = unseal(row.dekEnc(), row.accessTokenEnc());
+            String account = accountToken(row);
             if (account != null && !account.isBlank()) {
                 return account;
             }
@@ -135,11 +150,21 @@ public class ChannelAccessResolver {
         if (custom != null && !custom.isBlank()) {
             return custom;
         }
-        String account = unseal(row.dekEnc(), row.accessTokenEnc());
+        String account = accountToken(row);
         if (account != null && !account.isBlank()) {
             return account;
         }
         return fallbackToken;
+    }
+
+    private String accountToken(AccessRow row) {
+        if (vkTokenRefresher != null && row.socialAccountId() != null) {
+            Optional<String> refreshed = vkTokenRefresher.refreshedAccessToken(row.socialAccountId());
+            if (refreshed.isPresent()) {
+                return refreshed.get();
+            }
+        }
+        return unseal(row.dekEnc(), row.accessTokenEnc());
     }
 
     private String unseal(byte[] dekEnc, byte[] blob) {
@@ -161,6 +186,11 @@ public class ChannelAccessResolver {
     }
 
     @SuppressWarnings("ArrayRecordComponent")
-    private record AccessRow(
-            String threadId, String externalId, byte[] botTokenEnc, byte[] accessTokenEnc, byte[] dekEnc) {}
+    record AccessRow(
+            String threadId,
+            String externalId,
+            byte[] botTokenEnc,
+            UUID socialAccountId,
+            byte[] accessTokenEnc,
+            byte[] dekEnc) {}
 }

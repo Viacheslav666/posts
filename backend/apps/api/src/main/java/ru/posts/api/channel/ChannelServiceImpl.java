@@ -200,10 +200,12 @@ public class ChannelServiceImpl implements ChannelService {
             ApiEnums.Network network,
             ChannelDtos.ChannelConnectCallbackRequest request,
             ClientRequestContext ctx) {
-        if (request.workspaceId() != null) {
+        if (network != ApiEnums.Network.vk && network != ApiEnums.Network.ok) {
+            if (request.workspaceId() == null) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "workspaceId is required");
+            }
             access.requirePermission(request.workspaceId(), userId, "channels.manage");
-        } else if (network != ApiEnums.Network.vk) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "workspaceId is required");
         }
         return switch (network) {
             case vk, ok -> finishOAuth(userId, network.name(), request, ctx);
@@ -448,11 +450,10 @@ public class ChannelServiceImpl implements ChannelService {
                     HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "code and state are required");
         }
         ChannelConnectStateEntity state = connectStateRepository
-                .findById(request.state())
+                .lockByState(request.state())
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state"));
         UUID workspaceId = request.workspaceId() != null ? request.workspaceId() : state.getWorkspaceId();
-        access.requirePermission(workspaceId, userId, "channels.manage");
         if (!state.getUserId().equals(userId)
                 || !state.getWorkspaceId().equals(workspaceId)
                 || !state.getNetwork().equals(network)
@@ -460,14 +461,13 @@ public class ChannelServiceImpl implements ChannelService {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state");
         }
+        access.requirePermission(workspaceId, userId, "channels.manage");
         if ("vk".equals(network) && properties.vkIdMode()) {
             if (request.deviceId() == null || request.deviceId().isBlank()) {
                 throw new ApiException(
                         HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "device_id is required for VK ID");
             }
         }
-        connectStateRepository.delete(state);
-
         SocialConnectClient.OAuthToken token;
         try {
             token = network.equals("vk")
@@ -481,6 +481,7 @@ public class ChannelServiceImpl implements ChannelService {
         } catch (IllegalStateException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, ProblemCodes.UNAUTHORIZED, "OAuth token exchange failed");
         }
+        connectStateRepository.delete(state);
 
         List<SocialConnectClient.RemoteChannel> remotes = network.equals("vk")
                 ? connectClient.listVkAdminTargets(token.accessToken())

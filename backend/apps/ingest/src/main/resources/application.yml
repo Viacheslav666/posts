@@ -38,6 +38,11 @@ management:
         enabled: true
 
 posts:
+  channels:
+    social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+    vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:${POSTS_OAUTH_VK_CLIENT_ID:local-vk-channels}}
+    vk-authorization-uri: ${POSTS_CHANNELS_VK_AUTHORIZATION_URI:}
+    vk-token-uri: ${POSTS_CHANNELS_VK_TOKEN_URI:}
   grabber:
     inline-runs: false
     vk:

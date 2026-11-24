@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import ru.posts.api.auth.ClientRequestContext;
-import ru.posts.api.channel.ChannelProperties;
 import ru.posts.api.channel.ChannelService;
 import ru.posts.api.channel.ChannelSetService;
 import ru.posts.api.channel.VkSocialAccountTokenRefreshService;
@@ -24,7 +23,7 @@ public class OpenApiChannelStubConfig {
 
     @Bean
     VkSocialAccountTokenRefreshService vkSocialAccountTokenRefreshService() {
-        return new VkSocialAccountTokenRefreshService(new ChannelProperties(), null, null, null) {
+        return new VkSocialAccountTokenRefreshService(null) {
             @Override
             public SocialAccountEntity ensureFresh(SocialAccountEntity account) {
                 return account;

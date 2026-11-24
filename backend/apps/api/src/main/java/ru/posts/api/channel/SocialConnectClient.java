@@ -68,7 +68,7 @@ public class SocialConnectClient {
         } else {
             fields.put("client_secret", properties.vkClientSecret());
         }
-        JsonNode body = postForm(resolveTokenUri(), fields);
+        JsonNode body = postForm("vk", resolveTokenUri(), fields);
         if (properties.vkIdMode()) {
             validateReturnedState(body, state);
         }
@@ -89,16 +89,18 @@ public class SocialConnectClient {
         fields.put("refresh_token", refreshToken);
         fields.put("client_id", properties.vkClientId());
         if (properties.vkIdMode()) {
-            if (deviceId != null && !deviceId.isBlank()) {
-                fields.put("device_id", deviceId);
+            if (state == null || state.isBlank()) {
+                throw new IllegalArgumentException("state is required for VK ID refresh");
             }
-            if (state != null && !state.isBlank()) {
-                fields.put("state", state);
-            }
+            fields.put("device_id", deviceId == null ? "" : deviceId);
+            fields.put("state", state);
         } else {
             fields.put("client_secret", properties.vkClientSecret());
         }
-        JsonNode body = postForm(resolveTokenUri(), fields);
+        JsonNode body = postForm("vk", resolveTokenUri(), fields);
+        if (properties.vkIdMode()) {
+            requireEchoedState(body, state);
+        }
         return parseOAuth(body, "vk");
     }
 
@@ -130,6 +132,7 @@ public class SocialConnectClient {
 
     public OAuthToken exchangeOk(String code, String redirectUri) {
         JsonNode body = postForm(
+                "ok",
                 properties.okTokenUri(),
                 Map.of(
                         "grant_type",
@@ -251,23 +254,41 @@ public class SocialConnectClient {
         try {
             return switch (network) {
                 case "vk" -> {
+                    boolean profile = isVkProfile(externalId);
                     JsonNode body = properties.vkIdMode()
                             ? vkApiForm(
-                                    "/method/groups.getById",
-                                    Map.of(
-                                            "access_token",
-                                            accessToken,
-                                            "v",
-                                            properties.vkApiVersion(),
-                                            "group_id",
-                                            externalId.replace("-", "")))
+                                    profile ? "/method/users.get" : "/method/groups.getById",
+                                    profile
+                                            ? Map.of(
+                                                    "access_token",
+                                                    accessToken,
+                                                    "v",
+                                                    properties.vkApiVersion(),
+                                                    "user_ids",
+                                                    externalId)
+                                            : Map.of(
+                                                    "access_token",
+                                                    accessToken,
+                                                    "v",
+                                                    properties.vkApiVersion(),
+                                                    "group_id",
+                                                    externalId.replace("-", "")))
                             : socialClient
                                     .get()
-                                    .uri(uriBuilder -> uriBuilder
-                                            .path("/method/groups.getById")
-                                            .queryParam("access_token", accessToken)
-                                            .queryParam("group_id", externalId.replace("-", ""))
-                                            .build())
+                                    .uri(uriBuilder -> {
+                                        if (profile) {
+                                            return uriBuilder
+                                                    .path("/method/users.get")
+                                                    .queryParam("access_token", accessToken)
+                                                    .queryParam("user_ids", externalId)
+                                                    .build();
+                                        }
+                                        return uriBuilder
+                                                .path("/method/groups.getById")
+                                                .queryParam("access_token", accessToken)
+                                                .queryParam("group_id", externalId.replace("-", ""))
+                                                .build();
+                                    })
                                     .retrieve()
                                     .body(JsonNode.class);
                     yield body != null && !body.has("error");
@@ -345,7 +366,7 @@ public class SocialConnectClient {
                 .body(JsonNode.class);
     }
 
-    private JsonNode postForm(String uri, Map<String, String> fields) {
+    private JsonNode postForm(String provider, String uri, Map<String, String> fields) {
         try {
             JsonNode body = socialClient
                     .post()
@@ -356,16 +377,21 @@ public class SocialConnectClient {
                     .body(JsonNode.class);
             if (body != null && (body.has("error") || body.has("error_code"))) {
                 log.warn(
-                        "OAuth vk request failed: error={} description={}",
+                        "OAuth {} request failed: error={} description={}",
+                        provider,
                         text(body, "error"),
                         text(body, "error_description"));
-                throw new IllegalStateException("OAuth token exchange failed for vk");
+                throw new IllegalStateException("OAuth token exchange failed for " + provider);
             }
             return body;
         } catch (RestClientResponseException ex) {
-            log.warn("OAuth vk HTTP {} {}", ex.getStatusCode().value(), ex.getMessage());
-            throw new IllegalStateException("OAuth token exchange failed for vk");
+            log.warn("OAuth {} HTTP {} {}", provider, ex.getStatusCode().value(), ex.getMessage());
+            throw new IllegalStateException("OAuth token exchange failed for " + provider);
         }
+    }
+
+    private static boolean isVkProfile(String externalId) {
+        return externalId != null && !externalId.isBlank() && !externalId.startsWith("-");
     }
 
     private String resolveTokenUri() {
@@ -382,6 +408,13 @@ public class SocialConnectClient {
         }
         String returned = text(body, "state");
         if (returned != null && !returned.equals(expectedState)) {
+            throw new IllegalStateException("OAuth state mismatch for vk");
+        }
+    }
+
+    private void requireEchoedState(JsonNode body, String expectedState) {
+        String returned = body == null ? null : text(body, "state");
+        if (returned == null || !returned.equals(expectedState)) {
             throw new IllegalStateException("OAuth state mismatch for vk");
         }
     }
