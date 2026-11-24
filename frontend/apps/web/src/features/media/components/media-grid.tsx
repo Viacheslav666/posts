@@ -2,6 +2,7 @@
 
 import { Badge, cn } from '@posts/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Play } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useRef } from 'react';
 
@@ -58,6 +59,15 @@ function MediaCard({
     >
       <div className="relative h-24 overflow-hidden bg-muted/40 text-muted-foreground">
         <MediaPreview previewUrl={item.previewUrl} kind={item.kind} />
+        {item.kind === 'video' || item.kind === 'clip' ? (
+          <span
+            className="pointer-events-none absolute bottom-1.5 right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white shadow-sm"
+            data-testid="media-play-badge"
+            aria-hidden
+          >
+            <Play className="h-3 w-3 translate-x-px fill-current" />
+          </span>
+        ) : null}
         <Badge
           variant={
             item.status === 'ready'

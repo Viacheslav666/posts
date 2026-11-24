@@ -113,6 +113,74 @@ class MediaPreviewUrlTest {
                 .contains("posts-media/workspaces/a/photo.jpg/derivatives/preview.jpg")
                 .contains("X-Amz-Expires=3600")
                 .doesNotContain("minio");
+        assertThat(dto.playbackUrl()).isNull();
+    }
+
+    @Test
+    void readyVideoPresignsPlaybackFromMp4AndPreviewFromThumbnail() {
+        MediaAssetEntity entity = asset(
+                "video",
+                "workspaces/a/original.MOV",
+                Map.of(
+                        "thumbnail",
+                                Map.of(
+                                        "s3Key",
+                                        "workspaces/a/original.MOV/derivatives/thumb.jpg",
+                                        "mime",
+                                        "image/jpeg"),
+                        "mp4_16x9",
+                                Map.of(
+                                        "s3Key",
+                                        "workspaces/a/original.MOV/derivatives/mp4-16x9.mp4",
+                                        "mime",
+                                        "video/mp4"),
+                        "mp4_9x16",
+                                Map.of(
+                                        "s3Key",
+                                        "workspaces/a/original.MOV/derivatives/mp4-9x16.mp4",
+                                        "mime",
+                                        "video/mp4")));
+
+        MediaDtos.MediaAsset dto = service.toDto(entity, List.of());
+
+        assertThat(dto.previewUrl())
+                .startsWith(PUBLIC_BASE + "/")
+                .contains("posts-media/workspaces/a/original.MOV/derivatives/thumb.jpg")
+                .contains("X-Amz-Expires=3600")
+                .doesNotContain("minio");
+        assertThat(dto.playbackUrl())
+                .startsWith(PUBLIC_BASE + "/")
+                .contains("posts-media/workspaces/a/original.MOV/derivatives/mp4-16x9.mp4")
+                .contains("X-Amz-Expires=3600")
+                .doesNotContain("minio")
+                .doesNotContain("mp4-9x16");
+        int query = dto.playbackUrl().indexOf('?');
+        assertThat(query).isGreaterThan(0);
+        assertThat(dto.playbackUrl().substring(0, query)).endsWith("derivatives/mp4-16x9.mp4");
+    }
+
+    @Test
+    void playbackKeyIsLandscapeDerivativeForReadyVideoOrClipOnly() {
+        Map<String, Object> derivatives = Map.of(
+                "thumbnail", Map.of("s3Key", "deriv/thumb.jpg"),
+                "mp4_16x9", Map.of("s3Key", "deriv/wide.mp4"),
+                "mp4_9x16", Map.of("s3Key", "deriv/tall.mp4"));
+
+        assertThat(MediaServiceImpl.selectPlaybackKey("video", "ready", "original.MOV", derivatives))
+                .isEqualTo("deriv/wide.mp4");
+        assertThat(MediaServiceImpl.selectPlaybackKey("clip", "ready", "original.MOV", derivatives))
+                .isEqualTo("deriv/wide.mp4");
+        assertThat(MediaServiceImpl.selectPlaybackKey("video", "processing", "original.MOV", derivatives))
+                .isNull();
+        assertThat(MediaServiceImpl.selectPlaybackKey("video", "failed", "original.MOV", derivatives))
+                .isNull();
+        assertThat(MediaServiceImpl.selectPlaybackKey("image", "ready", "photo.jpg", derivatives))
+                .isNull();
+        assertThat(MediaServiceImpl.selectPlaybackKey("video", "ready", "original.MOV", Map.of()))
+                .isNull();
+        assertThat(MediaServiceImpl.selectPlaybackKey(
+                        "video", "ready", "original.MOV", Map.of("mp4_16x9", Map.of("s3Key", "original.MOV"))))
+                .isNull();
     }
 
     @Test
@@ -124,10 +192,16 @@ class MediaPreviewUrlTest {
         properties.setPresignPublicBaseUrl(PUBLIC_BASE);
         MediaServiceImpl failingService = newService(failing, properties);
         MediaAssetEntity entity = asset(
-                "video", "original.mp4", Map.of("thumbnail", Map.of("s3Key", "deriv/thumb.jpg", "mime", "image/jpeg")));
+                "video",
+                "original.MOV",
+                Map.of(
+                        "thumbnail", Map.of("s3Key", "deriv/thumb.jpg", "mime", "image/jpeg"),
+                        "mp4_16x9", Map.of("s3Key", "deriv/wide.mp4", "mime", "video/mp4")));
 
         assertThatCode(() -> failingService.toDto(entity, List.of())).doesNotThrowAnyException();
-        assertThat(failingService.toDto(entity, List.of()).previewUrl()).isNull();
+        MediaDtos.MediaAsset dto = failingService.toDto(entity, List.of());
+        assertThat(dto.previewUrl()).isNull();
+        assertThat(dto.playbackUrl()).isNull();
     }
 
     private static MediaServiceImpl newService(S3Presigner s3Presigner, S3Properties properties) {

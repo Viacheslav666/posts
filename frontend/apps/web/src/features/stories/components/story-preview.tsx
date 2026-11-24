@@ -3,6 +3,7 @@
 import { AdMarkingSlot } from '@posts/ui';
 import { useTranslations } from 'next-intl';
 
+import { hasPlayback, MediaPlayback } from '@/features/media/components/media-playback';
 import type { EditorMediaItem } from '@/features/media/model/types';
 
 import { STORY_LINK_TEXTS } from '../model/link-texts';
@@ -41,7 +42,14 @@ export function StoryPreview({
       </div>
       <div className="mx-auto w-full max-w-[240px]">
         <div className="relative aspect-[9/16] overflow-hidden rounded-[1.5rem] border border-border bg-zinc-900 shadow-inner">
-          {media?.previewUrl ? (
+          {media && hasPlayback(media.kind, media.playbackUrl) ? (
+            <MediaPlayback
+              src={media.playbackUrl}
+              poster={media.previewUrl}
+              label={media.filename}
+              className="h-full w-full object-cover"
+            />
+          ) : media?.previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={media.previewUrl} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -49,11 +57,11 @@ export function StoryPreview({
               {t('empty')}
             </div>
           )}
-          <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent p-3">
+          <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent p-3">
             <p className="truncate text-xs font-medium text-white">{channelName ?? t('channel')}</p>
           </div>
           {adEnabled ? (
-            <div className="absolute inset-x-0 top-10 px-3">
+            <div className="pointer-events-none absolute inset-x-0 top-10 px-3">
               <AdMarkingSlot
                 enabled
                 erid={erid}
@@ -63,7 +71,7 @@ export function StoryPreview({
             </div>
           ) : null}
           {cta ? (
-            <div className="absolute inset-x-0 bottom-4 flex justify-center px-4">
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
               <span className="rounded-full bg-white/95 px-4 py-1.5 text-xs font-semibold text-zinc-900">
                 {cta}
               </span>

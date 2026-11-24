@@ -39,7 +39,13 @@ public final class MediaDtos {
             String errorMessage,
             List<MediaUsage> usedIn,
             @Schema(description = "Presigned GET URL for the card preview. Null when none applies or presign failed.")
-                    String previewUrl) {}
+                    String previewUrl,
+            @Schema(
+                            description =
+                                    "Presigned GET URL for playback of a ready video or clip (derivatives.mp4_16x9). Null otherwise.",
+                            nullable = true,
+                            types = {"string", "null"})
+                    String playbackUrl) {}
 
     @Schema(name = "CreateUploadRequest")
     public record CreateUploadRequest(

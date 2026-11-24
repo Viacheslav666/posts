@@ -399,6 +399,7 @@ export function toMediaAsset(item: MediaLibraryItem): MediaAsset {
     durationMs: item.durationMs,
     createdAt: item.createdAt,
     previewUrl: item.previewUrl,
+    playbackUrl: item.playbackUrl,
     derivatives: {
       filename: { value: item.filename ?? '' } as unknown as Record<string, never>,
     },

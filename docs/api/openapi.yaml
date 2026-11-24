@@ -18739,6 +18739,12 @@ components:
           - clip
         mime:
           type: string
+        playbackUrl:
+          type:
+          - string
+          - "null"
+          description: Presigned GET URL for playback of a ready video or clip (derivatives.mp4_16x9).
+            Null otherwise.
         previewUrl:
           type: string
           description: Presigned GET URL for the card preview. Null when none applies

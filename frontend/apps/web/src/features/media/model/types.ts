@@ -17,6 +17,7 @@ export type CropPreset = keyof typeof CROP_PRESETS;
  * MediaAsset plus the folder picker id.
  * `previewUrl` comes from the API (presigned card thumbnail) and may be a local
  * object URL while an upload is still only in the editor.
+ * `playbackUrl` is a presigned mp4 for a ready video or clip. Library cards stay still.
  */
 export type MediaLibraryItem = MediaAsset & {
   folderId?: string | null;
@@ -56,6 +57,8 @@ export type EditorMediaItem = {
   mime: string;
   filename: string;
   previewUrl?: string;
+  /** Presigned mp4 for a ready video or clip. Absent while an upload is local-only. */
+  playbackUrl?: string;
   width?: number;
   height?: number;
   sizeBytes?: number;

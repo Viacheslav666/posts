@@ -37,6 +37,27 @@ describe('MediaGrid previews', () => {
     expect(img).toHaveAttribute('loading', 'lazy');
     expect(img).toHaveClass('object-cover');
     expect(screen.queryByTestId('media-preview-fallback')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('media-play-badge')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('media-playback')).not.toBeInTheDocument();
+  });
+
+  it('keeps a video card as a still thumbnail with a play badge', () => {
+    renderGrid([
+      ready({
+        id: 'video-still',
+        filename: 'reel.mp4',
+        kind: 'video',
+        previewUrl: 'https://cdn.example/poster.jpg',
+        playbackUrl: 'https://cdn.example/play.mp4',
+      }),
+    ]);
+
+    expect(screen.getByTestId('media-preview-image')).toHaveAttribute(
+      'src',
+      'https://cdn.example/poster.jpg',
+    );
+    expect(screen.getByTestId('media-play-badge')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-playback')).not.toBeInTheDocument();
   });
 
   it('renders the kind icon when previewUrl is null', () => {

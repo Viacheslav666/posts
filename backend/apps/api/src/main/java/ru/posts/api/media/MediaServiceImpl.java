@@ -712,7 +712,8 @@ public class MediaServiceImpl implements MediaService {
                 entity.getTags() == null ? List.of() : List.copyOf(entity.getTags()),
                 entity.getErrorMessage(),
                 usedIn,
-                presignPreviewUrl(entity));
+                presignPreviewUrl(entity),
+                presignPlaybackUrl(entity));
     }
 
     /**
@@ -734,8 +735,41 @@ public class MediaServiceImpl implements MediaService {
         return null;
     }
 
+    /**
+     * Playable object for a ready video or clip: {@code derivatives.mp4_16x9} only (aspect-preserving
+     * H.264/AAC faststart). Never the original upload.
+     */
+    static String selectPlaybackKey(String kind, String status, String originalKey, Map<String, Object> derivatives) {
+        if (!"ready".equals(status)) {
+            return null;
+        }
+        if (!"video".equals(kind) && !"clip".equals(kind)) {
+            return null;
+        }
+        String key = derivativeS3Key(derivatives, "mp4_16x9");
+        if (key == null) {
+            return null;
+        }
+        String original = blankToNull(originalKey);
+        if (original != null && original.equals(key)) {
+            return null;
+        }
+        return key;
+    }
+
     private String presignPreviewUrl(MediaAssetEntity entity) {
-        String key = selectPreviewKey(entity.getKind(), entity.getS3Key(), entity.getDerivatives());
+        return presignGetUrl(
+                entity, selectPreviewKey(entity.getKind(), entity.getS3Key(), entity.getDerivatives()), "preview");
+    }
+
+    private String presignPlaybackUrl(MediaAssetEntity entity) {
+        return presignGetUrl(
+                entity,
+                selectPlaybackKey(entity.getKind(), entity.getStatus(), entity.getS3Key(), entity.getDerivatives()),
+                "playback");
+    }
+
+    private String presignGetUrl(MediaAssetEntity entity, String key, String label) {
         if (key == null) {
             return null;
         }
@@ -752,7 +786,7 @@ public class MediaServiceImpl implements MediaService {
                     .toString();
             return S3PresignUrls.toPublicUrl(signed, s3Properties.getPresignPublicBaseUrl());
         } catch (RuntimeException ex) {
-            log.warn("Failed to presign media preview for {}: {}", entity.getId(), ex.toString());
+            log.warn("Failed to presign media {} for {}: {}", label, entity.getId(), ex.toString());
             return null;
         }
     }
