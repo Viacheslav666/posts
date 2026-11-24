@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { Control, FieldErrors, UseFormRegister } from 'react-hook-form';
 import { Controller, useWatch } from 'react-hook-form';
 
+import type { GrabberModeCaps } from '../model/mode-capabilities';
 import type { GrabberRuleFormValues } from '../model/schemas';
 import {
   DAYS_OF_WEEK,
@@ -16,12 +17,25 @@ import {
 } from '../model/types';
 import { CheckboxRow } from './checkbox-row';
 
+const TIMEZONE_PRESETS = [
+  'Europe/Kaliningrad',
+  'Europe/Moscow',
+  'Europe/Samara',
+  'Asia/Yekaterinburg',
+  'Asia/Novosibirsk',
+  'Asia/Vladivostok',
+  'UTC',
+];
+
 type SectionsProps = {
   register: UseFormRegister<GrabberRuleFormValues>;
   control: Control<GrabberRuleFormValues>;
   errors: FieldErrors<GrabberRuleFormValues>;
   scheduleEnabled: boolean;
   firstCommentEnabled: boolean;
+  caps: GrabberModeCaps;
+  intervalError?: string;
+  firstCommentError?: string;
 };
 
 export function RuleSettingsSections({
@@ -30,6 +44,9 @@ export function RuleSettingsSections({
   errors,
   scheduleEnabled,
   firstCommentEnabled,
+  caps,
+  intervalError,
+  firstCommentError,
 }: SectionsProps) {
   const t = useTranslations('grabber.form');
   const settingError = (key: keyof GrabberRuleFormValues) => {
@@ -38,7 +55,7 @@ export function RuleSettingsSections({
   };
   const deleteAfterEnabled = useWatch({ control, name: 'deleteAfterEnabled' });
   const aiRewriteEnabled = useWatch({ control, name: 'aiRewriteEnabled' });
-  const actionButtonEnabled = isGrabberActionButtonEnabled();
+  const actionButtonEnabled = isGrabberActionButtonEnabled() && caps.actionButton;
 
   return (
     <div className="space-y-4" data-testid="grabber-settings-sections">
@@ -229,8 +246,14 @@ export function RuleSettingsSections({
               <input
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 data-testid="grabber-schedule-timezone"
+                list="grabber-timezone-presets"
                 {...register('scheduleTimezone')}
               />
+              <datalist id="grabber-timezone-presets">
+                {TIMEZONE_PRESETS.map((zone) => (
+                  <option key={zone} value={zone} />
+                ))}
+              </datalist>
             </label>
             <fieldset>
               <legend className="mb-2 text-sm font-medium">{t('schedule.days')}</legend>
@@ -312,12 +335,13 @@ export function RuleSettingsSections({
             <span>{t('limits.perDay')}</span>
             <input
               type="number"
-              min={1}
+              min={0}
               max={500}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               data-testid="grabber-limit-day"
               {...register('rateLimitPerDay', { valueAsNumber: true })}
             />
+            <span className="block text-xs text-muted-foreground">{t('limits.zeroMeansIgnore')}</span>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t('limits.perSourceDay')}</span>
@@ -337,10 +361,19 @@ export function RuleSettingsSections({
               type="number"
               min={0}
               max={120}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              disabled={!caps.interval}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="grabber-min-interval"
               {...register('minIntervalMinutes', { valueAsNumber: true })}
             />
+            <span className="block text-xs text-muted-foreground" data-testid="grabber-min-interval-hint">
+              {caps.interval ? t('limits.minIntervalHint') : t('limits.minIntervalDisabled')}
+            </span>
+            {intervalError ? (
+              <span role="alert" className="block text-xs text-destructive">
+                {intervalError}
+              </span>
+            ) : null}
           </label>
         </div>
         <CheckboxRow label={t('limits.autoPause')} {...register('autoPauseOnErrors')} />
@@ -352,7 +385,26 @@ export function RuleSettingsSections({
         data-testid="grabber-section-first-comment"
       >
         <p className="text-xs text-muted-foreground">{t('publish.modeHint')}</p>
-        <CheckboxRow label={t('firstComment.enabled')} {...register('firstCommentEnabled')} />
+        <CheckboxRow
+          label={t('firstComment.enabled')}
+          {...register('firstCommentEnabled')}
+          disabled={!caps.firstComment}
+        />
+        {!caps.firstComment ? (
+          <p className="text-xs text-muted-foreground" data-testid="grabber-first-comment-disabled">
+            {t('firstComment.unavailable')}
+          </p>
+        ) : null}
+        {!caps.commentAttachments ? (
+          <p className="text-xs text-muted-foreground" data-testid="grabber-comment-attachments-disabled">
+            {t('firstComment.attachmentsUnavailable')}
+          </p>
+        ) : null}
+        {firstCommentError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {firstCommentError}
+          </p>
+        ) : null}
         {firstCommentEnabled ? (
           <div className="space-y-3">
             <label className="block space-y-1 text-sm">
@@ -426,7 +478,11 @@ export function RuleSettingsSections({
         <p className="text-xs text-muted-foreground" data-testid="grabber-action-button-hint">
           {actionButtonEnabled ? t('publish.actionButtonHint') : t('publish.actionButtonSoon')}
         </p>
-        <CheckboxRow label={t('publish.deleteAfter')} {...register('deleteAfterEnabled')} />
+        <CheckboxRow
+          label={t('publish.deleteAfter')}
+          {...register('deleteAfterEnabled')}
+          disabled={!caps.scheduledDelete}
+        />
         {deleteAfterEnabled ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">

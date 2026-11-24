@@ -20,6 +20,7 @@ import type {
 import { getApiBaseUrl, getAccessToken, getApiClient, unwrapApi } from '@/shared/api-client';
 import { toApiProblemError } from '@/shared/lib/errors';
 
+import type { GrabberModeMatrix } from '../model/mode-capabilities';
 import type { IngestRuleType, ItemStatus } from '../model/types';
 
 function idempotencyKey(): string {
@@ -313,4 +314,26 @@ export async function exportIngestItems(
       : 'text/csv; charset=utf-8');
   const blob = await response.blob();
   return { blob, filename, contentType };
+}
+
+/** Canonical grabber target-mode matrix (`GET /api/v1/ingest/mode-matrix`). */
+export async function getGrabberModeMatrix(): Promise<GrabberModeMatrix> {
+  const headers = new Headers({ Accept: 'application/json' });
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/ingest/mode-matrix`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    let problem: unknown = { title: response.statusText };
+    try {
+      problem = await response.json();
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw toApiProblemError(problem, response.status);
+  }
+  return (await response.json()) as GrabberModeMatrix;
 }

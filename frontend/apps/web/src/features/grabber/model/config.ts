@@ -46,6 +46,13 @@ function deleteAfterUnit(value: unknown): GrabberRuleFormValues['deleteAfterUnit
   return value === 'minutes' || value === 'days' || value === 'hours' ? value : 'hours';
 }
 
+function readMaxAgeDays(filters: Record<string, unknown>): number {
+  if (!Object.prototype.hasOwnProperty.call(filters, 'max_age_days') || filters.max_age_days == null) {
+    return Object.prototype.hasOwnProperty.call(filters, 'max_age_days') ? 0 : 60;
+  }
+  return asNumber(filters.max_age_days, 60);
+}
+
 function asDayList(value: unknown): number[] {
   if (!Array.isArray(value) || value.length === 0) return [1, 2, 3, 4, 5, 6, 7];
   return value
@@ -88,7 +95,7 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
     skip_if_has_file: values.skipIfHasFile,
     skip_if_has_product: values.skipIfHasProduct,
     skip_if_has_poll: values.skipIfHasPoll,
-    max_age_days: values.maxAgeDays > 0 ? values.maxAgeDays : null,
+    max_age_days: values.maxAgeDays,
   };
 
   const transform = {
@@ -138,9 +145,10 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
   };
 
   const config: GrabberConfig = {
-    configVersion: 2,
+    configVersion: 3,
     scanIntervalMinutes: values.scanIntervalMinutes,
     publishMode: values.publishMode,
+    targetMode: values.targetMode,
     scheduleMode: values.scheduleMode,
     publishDelayMinutes: values.publishDelayMinutes,
     filters: filters as unknown as GrabberConfig['filters'],
@@ -165,6 +173,7 @@ export function buildGrabberConfig(values: GrabberRuleFormValues): GrabberConfig
       ignore_edits: true,
       auto_pause_on_errors: values.autoPauseOnErrors,
       auto_pause_error_threshold: 5,
+      notify_on_error: values.notifyOnError,
     } as unknown as GrabberConfig['reliability'],
     schedule: {
       enabled: values.scheduleEnabled,
@@ -218,6 +227,8 @@ export function formValuesFromRule(rule: GrabberRule): GrabberRuleFormValues {
     websiteSelector: config.websiteSelector ?? '',
     scanIntervalMinutes: (config.scanIntervalMinutes as GrabberRuleFormValues['scanIntervalMinutes']) ?? 180,
     publishMode: config.publishMode ?? 'moderate',
+    targetMode: config.targetMode ?? 'wall_now',
+    notifyOnError: asBool(reliability.notify_on_error, true),
     scheduleMode: (config.scheduleMode as GrabberRuleFormValues['scheduleMode']) ?? 'immediate',
     publishDelayMinutes: config.publishDelayMinutes ?? 0,
 
@@ -250,7 +261,7 @@ export function formValuesFromRule(rule: GrabberRule): GrabberRuleFormValues {
     skipIfHasFile: asBool(filters.skip_if_has_file, false),
     skipIfHasProduct: asBool(filters.skip_if_has_product, false),
     skipIfHasPoll: asBool(filters.skip_if_has_poll, false),
-    maxAgeDays: asNumber(filters.max_age_days, 0),
+    maxAgeDays: readMaxAgeDays(filters),
     keywordIncludeText: asStringList(filters.keyword_include).join(', '),
     keywordExcludeText: asStringList(filters.keyword_exclude).join(', '),
     stopWordsText: asStringList(filters.stop_words).join(', '),
@@ -337,6 +348,8 @@ export function defaultFormValues(channelId?: string): GrabberRuleFormValues {
     websiteSelector: '',
     scanIntervalMinutes: 180,
     publishMode: 'moderate',
+    targetMode: 'wall_now',
+    notifyOnError: true,
     scheduleMode: 'immediate',
     publishDelayMinutes: 0,
 
@@ -369,7 +382,7 @@ export function defaultFormValues(channelId?: string): GrabberRuleFormValues {
     skipIfHasFile: false,
     skipIfHasProduct: false,
     skipIfHasPoll: false,
-    maxAgeDays: 0,
+    maxAgeDays: 60,
     keywordIncludeText: '',
     keywordExcludeText: '',
     stopWordsText: '',

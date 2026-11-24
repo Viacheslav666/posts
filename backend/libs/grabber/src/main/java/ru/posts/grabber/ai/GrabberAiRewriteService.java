@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.GrabberProperties;
-import ru.posts.grabber.publish.GrabberSettingNotifier;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.jdbc.WalletLedgerJdbc;
@@ -26,17 +26,17 @@ public class GrabberAiRewriteService {
     private final GrabberProperties properties;
     private final ObjectProvider<GrabberRewriteProvider> providers;
     private final WalletLedgerJdbc ledger;
-    private final GrabberSettingNotifier notifier;
+    private final GrabberSettingReporter settingReporter;
 
     public GrabberAiRewriteService(
             GrabberProperties properties,
             ObjectProvider<GrabberRewriteProvider> providers,
             WalletLedgerJdbc ledger,
-            GrabberSettingNotifier notifier) {
+            GrabberSettingReporter settingReporter) {
         this.properties = properties;
         this.providers = providers;
         this.ledger = ledger;
-        this.notifier = notifier;
+        this.settingReporter = settingReporter;
     }
 
     public record Attempt(boolean applied, String text, long costKopecks, String model) {
@@ -112,6 +112,6 @@ public class GrabberAiRewriteService {
 
     private void notify(AutomationRuleEntity rule, UUID userId, String code, String message) {
         UUID actor = userId != null ? userId : rule.getCreatedBy();
-        notifier.notify(actor, rule.getWorkspaceId(), rule.getId(), "ai_rewrite", code, message);
+        settingReporter.reportUserNotice(actor, rule, "ai_rewrite", code, message);
     }
 }

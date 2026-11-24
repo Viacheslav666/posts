@@ -17,6 +17,12 @@ public class GrabberProperties {
      */
     private final ActionButton actionButton = new ActionButton();
 
+    /**
+     * {@code posts.grabber.postponed-repost.enabled}. Off until {@code wall.repost} publish_date is
+     * confirmed on real VK. The publish path stays in code and runs only when this is true.
+     */
+    private PostponedRepost postponedRepost = new PostponedRepost();
+
     public boolean isWebsiteEnabled() {
         return websiteEnabled;
     }
@@ -31,6 +37,18 @@ public class GrabberProperties {
 
     public ActionButton getActionButton() {
         return actionButton;
+    }
+
+    public boolean isPostponedRepostEnabled() {
+        return postponedRepost != null && postponedRepost.isEnabled();
+    }
+
+    public PostponedRepost getPostponedRepost() {
+        return postponedRepost;
+    }
+
+    public void setPostponedRepost(PostponedRepost postponedRepost) {
+        this.postponedRepost = postponedRepost == null ? new PostponedRepost() : postponedRepost;
     }
 
     public static class Ai {
@@ -55,6 +73,18 @@ public class GrabberProperties {
     }
 
     public static class ActionButton {
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    public static class PostponedRepost {
         private boolean enabled = false;
 
         public boolean isEnabled() {

@@ -18,8 +18,10 @@ describe('grabber config helpers', () => {
       userResponsibilityAccepted: true,
     });
     expect(config.publishMode).toBe('moderate');
-    expect(config.sourceIds).toEqual(['-1', 'club2']);
-    expect(config.configVersion).toBe(2);
+    expect(config.targetMode).toBe('wall_now');
+    expect(config.sourceIds).toEqual(['-1', '-2']);
+    expect(config.configVersion).toBe(3);
+    expect(config.filters).toMatchObject({ max_age_days: 60 });
     expect(config.firstComment).toMatchObject({ pending_be23: false, enabled: false });
     expect(config.aiRewriteEnabled).toBe(false);
   });

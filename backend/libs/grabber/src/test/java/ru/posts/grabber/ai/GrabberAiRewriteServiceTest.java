@@ -18,7 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import ru.posts.grabber.config.GrabberProperties;
-import ru.posts.grabber.publish.GrabberSettingNotifier;
+import ru.posts.grabber.notify.GrabberSettingReporter;
 import ru.posts.persistence.entity.AutomationRuleEntity;
 import ru.posts.persistence.entity.GrabberItemEntity;
 import ru.posts.persistence.jdbc.WalletLedgerJdbc;
@@ -33,7 +33,7 @@ class GrabberAiRewriteServiceTest {
     private WalletLedgerJdbc ledger;
 
     @Mock
-    private GrabberSettingNotifier notifier;
+    private GrabberSettingReporter settingReporter;
 
     private GrabberProperties properties;
     private GrabberAiRewriteService service;
@@ -45,7 +45,7 @@ class GrabberAiRewriteServiceTest {
         properties = new GrabberProperties();
         properties.getAi().setEnabled(true);
         properties.getAi().setCostKopecks(100);
-        service = new GrabberAiRewriteService(properties, providers, ledger, notifier);
+        service = new GrabberAiRewriteService(properties, providers, ledger, settingReporter);
         rule = new AutomationRuleEntity();
         rule.setId(UUID.randomUUID());
         rule.setWorkspaceId(UUID.randomUUID());
@@ -98,7 +98,7 @@ class GrabberAiRewriteServiceTest {
                 .thenReturn(WalletLedgerJdbc.DebitOutcome.insufficient(rule.getWorkspaceId(), 0, 100));
         GrabberAiRewriteService.Attempt attempt = service.prepare(rule, item, "исходный", rule.getCreatedBy());
         assertThat(service.charge(rule, item, attempt, rule.getCreatedBy())).isFalse();
-        verify(notifier).notify(any(), any(), eq(rule.getId()), eq("ai_rewrite"), eq("insufficient_funds"), any());
+        verify(settingReporter).reportUserNotice(any(), eq(rule), eq("ai_rewrite"), eq("insufficient_funds"), any());
     }
 
     @Test
@@ -108,7 +108,7 @@ class GrabberAiRewriteServiceTest {
         assertThat(attempt.applied()).isFalse();
         assertThat(attempt.text()).isEqualTo("исходный");
         verify(ledger, never()).tryDebit(any(), anyLong(), any(), any(), any(), any());
-        verify(notifier).notify(any(), any(), eq(rule.getId()), eq("ai_rewrite"), eq("unknown_model"), any());
+        verify(settingReporter).reportUserNotice(any(), eq(rule), eq("ai_rewrite"), eq("unknown_model"), any());
     }
 
     @Test
@@ -116,6 +116,6 @@ class GrabberAiRewriteServiceTest {
         properties.getAi().setEnabled(false);
         GrabberAiRewriteService.Attempt attempt = service.prepare(rule, item, "исходный", rule.getCreatedBy());
         assertThat(attempt.applied()).isFalse();
-        verify(notifier).notify(any(), any(), eq(rule.getId()), eq("ai_rewrite"), eq("disabled"), any());
+        verify(settingReporter).reportUserNotice(any(), eq(rule), eq("ai_rewrite"), eq("disabled"), any());
     }
 }

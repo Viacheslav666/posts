@@ -17,8 +17,9 @@ import { profileSchema, type ProfileFormValues } from '../model/schemas';
 import { SettingsShell } from './settings-shell';
 
 const TIMEZONES = [
-  'Europe/Moscow',
   'Europe/Kaliningrad',
+  'Europe/Moscow',
+  'Europe/Samara',
   'Asia/Yekaterinburg',
   'Asia/Novosibirsk',
   'Asia/Vladivostok',

@@ -268,7 +268,9 @@ class GrabberFiltersTest {
                         "hours_to",
                         10)));
         assertThat(GrabberFilters.skipReason(candidate("x", false, false), config, wednesdayNoonUtc))
-                .isEqualTo("outside_working_window");
+                .isNull();
+        assertThat(ru.posts.grabber.schedule.WorkingWindow.nextOpen(config, wednesdayNoonUtc))
+                .isEqualTo(java.time.Instant.parse("2026-11-19T09:00:00Z"));
     }
 
     private static Map<String, Object> filters(Map<String, Object> filters) {

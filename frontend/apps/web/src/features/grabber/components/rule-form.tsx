@@ -14,7 +14,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { FormField } from '@/features/auth/components/form-field';
@@ -41,8 +41,17 @@ import {
   formValuesFromRule,
 } from '../model/config';
 import { grabberRuleFormSchema, type GrabberRuleFormValues } from '../model/schemas';
+import { isTargetModeAvailable } from '../model/mode-capabilities';
 import { normalizeSourceIds } from '../model/source-ids';
-import { isWebsiteSourceEnabled, MAX_SOURCES_PER_RULE, SCAN_INTERVALS } from '../model/types';
+import { useGrabberModeCapabilities } from '../model/use-grabber-mode-capabilities';
+import {
+  isPostponedTarget,
+  isRepostTarget,
+  isWebsiteSourceEnabled,
+  MAX_SOURCES_PER_RULE,
+  SCAN_INTERVALS,
+  TARGET_MODES,
+} from '../model/types';
 import { AutoModeWarning } from './auto-mode-warning';
 import { CloneConfigControl } from './clone-config-control';
 import { RuleSettingsSections } from './rule-settings-sections';
@@ -80,17 +89,37 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
 
   const type = watch('type');
   const publishMode = watch('publishMode');
+  const targetMode = watch('targetMode');
+  const minIntervalMinutes = watch('minIntervalMinutes');
   const scheduleEnabled = watch('scheduleEnabled');
   const firstCommentEnabled = watch('firstCommentEnabled');
-  const vkChannels = useMemo(
-    () => channels.filter((channel) => channel.network === 'vk' && channel.status === 'active'),
+  const adminCommunities = useMemo(
+    () =>
+      channels.filter(
+        (channel) =>
+          channel.network === 'vk' &&
+          channel.status === 'active' &&
+          channel.type !== 'profile' &&
+          channel.type !== 'chat',
+      ),
     [channels],
   );
+
+  const { caps, matrix } = useGrabberModeCapabilities(targetMode, minIntervalMinutes || 0);
+
+  useEffect(() => {
+    if (!caps.interval && minIntervalMinutes > 0) {
+      setValue('minIntervalMinutes', 0);
+    }
+    if (!caps.firstComment && firstCommentEnabled) {
+      setValue('firstCommentEnabled', false);
+    }
+  }, [caps.interval, caps.firstComment, minIntervalMinutes, firstCommentEnabled, setValue]);
 
   const siblingRulesQuery = useQuery({
     queryKey: queryKeys.ingest.rules(workspaceId, project.id!),
     queryFn: () => listIngestRules({ workspaceId, projectId: project.id! }),
-    enabled: Boolean(rule?.id && project.id),
+    enabled: Boolean(project.id),
   });
 
   const saveMutation = useMutation({
@@ -204,7 +233,12 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
             void queryClient.invalidateQueries({ queryKey: queryKeys.ingest.all(workspaceId) });
           }}
         />
-      ) : null}
+      ) : (
+        <LocalImportControl
+          siblingRules={(siblingRulesQuery.data?.items ?? []).filter((item) => item.config)}
+          onImport={(imported) => reset(applyClonedConfigToForm(watch(), imported))}
+        />
+      )}
 
       <FormField
         label={t('name')}
@@ -255,7 +289,7 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
                   <SelectValue placeholder={t('channelPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {vkChannels.map((channel) => (
+                  {adminCommunities.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id!}>
                       {channel.title}
                     </SelectItem>
@@ -264,6 +298,12 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
               </Select>
             )}
           />
+          <p className="text-xs text-muted-foreground">{t('channelHint')}</p>
+          {adminCommunities.length === 0 ? (
+            <p className="text-xs text-muted-foreground" data-testid="grabber-no-admin-communities">
+              {t('channelEmpty')}
+            </p>
+          ) : null}
           {fieldError('targetChannelId') ? (
             <p role="alert" className="text-xs text-destructive">
               {fieldError('targetChannelId')}
@@ -285,7 +325,16 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
             {...register('sourceIdsText')}
           />
           <p className="text-xs text-muted-foreground">
-            {t('sourceIdsHint', { max: MAX_SOURCES_PER_RULE })}
+            {t('sourceIdsHint', { max: MAX_SOURCES_PER_RULE })}{' '}
+            <a
+              className="underline underline-offset-2"
+              href="https://dev.vk.com/ru/reference/objects/group"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="grabber-source-id-help"
+            >
+              {t('sourceIdHelp')}
+            </a>
           </p>
           {fieldError('sourceIdsText') ? (
             <p role="alert" className="text-xs text-destructive">
@@ -374,6 +423,66 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">{t('targetMode')}</label>
+        <Controller
+          control={control}
+          name="targetMode"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger data-testid="grabber-target-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TARGET_MODES.filter((mode) => type === 'grabber' || !isRepostTarget(mode)).map((mode) => {
+                  const available = isTargetModeAvailable(mode, matrix);
+                  return (
+                    <SelectItem key={mode} value={mode} disabled={!available}>
+                      {t(`targetModes.${mode}`)}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <p className="text-xs text-muted-foreground">
+          {isPostponedTarget(targetMode) ? t('targetModePostponedHint') : t('targetModeHint')}
+        </p>
+        {type === 'grabber' && !isTargetModeAvailable('vk_postponed_repost', matrix) ? (
+          <p className="text-xs text-muted-foreground" data-testid="grabber-postponed-repost-unavailable">
+            {t('targetModePostponedRepostUnavailable')}
+          </p>
+        ) : null}
+        {fieldError('targetMode') ? (
+          <p role="alert" className="text-xs text-destructive">
+            {fieldError('targetMode')}
+          </p>
+        ) : null}
+      </div>
+
+      <div
+        className="rounded-md border border-border p-3 text-sm"
+        data-testid="grabber-mode-capabilities"
+        data-action-button={String(caps.actionButton)}
+        data-first-comment={String(caps.firstComment)}
+        data-comment-attachments={String(caps.commentAttachments)}
+        data-scheduled-delete={String(caps.scheduledDelete)}
+        data-interval={String(caps.interval)}
+      >
+        <p className="font-medium">{t('capabilitiesTitle')}</p>
+        <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+          {!caps.interval ? <li>{t('capabilities.interval')}</li> : null}
+          {!caps.actionButton ? <li>{t('capabilities.actionButton')}</li> : null}
+          {!caps.firstComment ? <li>{t('capabilities.firstComment')}</li> : null}
+          {!caps.commentAttachments ? <li>{t('capabilities.commentAttachments')}</li> : null}
+          {!caps.scheduledDelete ? <li>{t('capabilities.scheduledDelete')}</li> : null}
+          {caps.interval && caps.actionButton && caps.firstComment && caps.commentAttachments && caps.scheduledDelete ? (
+            <li>{t('capabilities.allAvailable')}</li>
+          ) : null}
+        </ul>
+      </div>
+
       <AutoModeWarning visible={publishMode === 'auto'} />
 
       <RuleSettingsSections
@@ -382,6 +491,9 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         errors={errors}
         scheduleEnabled={scheduleEnabled}
         firstCommentEnabled={firstCommentEnabled}
+        caps={caps}
+        intervalError={fieldError('minIntervalMinutes')}
+        firstCommentError={fieldError('firstCommentEnabled')}
       />
 
       <p
@@ -396,6 +508,19 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         error={fieldError('attributionTemplate')}
         {...register('attributionTemplate')}
       />
+
+      <label className="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4"
+          data-testid="grabber-notify-on-error"
+          {...register('notifyOnError')}
+        />
+        <span>
+          <span className="font-medium">{t('notifyOnError')}</span>
+          <span className="mt-1 block text-muted-foreground">{t('notifyOnErrorHint')}</span>
+        </span>
+      </label>
 
       <label className="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
         <input
@@ -458,5 +583,60 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
         </Button>
       </div>
     </form>
+  );
+}
+
+function LocalImportControl({
+  siblingRules,
+  onImport,
+}: {
+  siblingRules: GrabberRule[];
+  onImport: (config: NonNullable<GrabberRule['config']>) => void;
+}) {
+  const t = useTranslations('grabber.form.clone');
+  const [sourceRuleId, setSourceRuleId] = useState('');
+  if (!siblingRules.length) {
+    return (
+      <p className="text-xs text-muted-foreground" data-testid="grabber-clone-empty">
+        {t('empty')}
+      </p>
+    );
+  }
+  return (
+    <div
+      className="flex flex-wrap items-end gap-2 rounded-md border border-border p-3"
+      data-testid="grabber-import-config"
+    >
+      <div className="min-w-[220px] flex-1 space-y-1.5">
+        <label className="text-sm font-medium" htmlFor="grabber-import-source">
+          {t('label')}
+        </label>
+        <Select value={sourceRuleId} onValueChange={setSourceRuleId}>
+          <SelectTrigger id="grabber-import-source" data-testid="grabber-import-source">
+            <SelectValue placeholder={t('placeholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            {siblingRules.map((item) => (
+              <SelectItem key={item.id} value={item.id!}>
+                {item.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">{t('createHint')}</p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!sourceRuleId}
+        data-testid="grabber-import-submit"
+        onClick={() => {
+          const selected = siblingRules.find((item) => item.id === sourceRuleId);
+          if (selected?.config) onImport(selected.config);
+        }}
+      >
+        {t('submit')}
+      </Button>
+    </div>
   );
 }

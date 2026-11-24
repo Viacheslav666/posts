@@ -14,6 +14,11 @@ import ru.posts.common.uuid.UuidV7;
 import ru.posts.grabber.ai.GrabberAiRewriteService;
 import ru.posts.grabber.config.GrabberConfigSupport;
 import ru.posts.grabber.config.GrabberProperties;
+import ru.posts.grabber.notify.GrabberSettingReporter;
+import ru.posts.grabber.target.GrabberPublishSchedule;
+import ru.posts.grabber.target.GrabberRepostObject;
+import ru.posts.grabber.target.GrabberTargetMode;
+import ru.posts.grabber.target.PostponedHorizonException;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 import ru.posts.persistence.entity.AutomationRuleEntity;
@@ -43,8 +48,8 @@ public class GrabberPostFactory {
     private final ChannelRepository channelRepository;
     private final OutboxRepository outboxRepository;
     private final GrabberAiRewriteService aiRewriteService;
-    private final GrabberSettingNotifier settingNotifier;
-    private final GrabberProperties properties;
+    private final GrabberSettingReporter settingReporter;
+    private final GrabberProperties grabberProperties;
 
     public GrabberPostFactory(
             PostRepository postRepository,
@@ -53,21 +58,32 @@ public class GrabberPostFactory {
             ChannelRepository channelRepository,
             OutboxRepository outboxRepository,
             GrabberAiRewriteService aiRewriteService,
-            GrabberSettingNotifier settingNotifier,
-            GrabberProperties properties) {
+            GrabberSettingReporter settingReporter,
+            GrabberProperties grabberProperties) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
         this.channelRepository = channelRepository;
         this.outboxRepository = outboxRepository;
         this.aiRewriteService = aiRewriteService;
-        this.settingNotifier = settingNotifier;
-        this.properties = properties;
+        this.settingReporter = settingReporter;
+        this.grabberProperties = grabberProperties;
     }
 
     @Transactional
     public PublishResult publishItem(
             AutomationRuleEntity rule, GrabberItemEntity item, UUID actorId, String overrideText, Instant runAt) {
+        return publishItem(rule, item, actorId, overrideText, runAt, 0);
+    }
+
+    @Transactional
+    public PublishResult publishItem(
+            AutomationRuleEntity rule,
+            GrabberItemEntity item,
+            UUID actorId,
+            String overrideText,
+            Instant runAt,
+            int slotIndex) {
         if (item.getPostId() != null) {
             UUID[] existing = item.getPublicationIds();
             List<UUID> pubs = existing == null ? List.of() : List.of(existing);
@@ -79,6 +95,14 @@ public class GrabberPostFactory {
         if ("reauth_required".equals(channel.getStatus())) {
             throw new ChannelReauthRequiredException("Target channel requires reauth");
         }
+        String targetModeEarly = GrabberConfigSupport.targetMode(rule.getConfig());
+        if (GrabberTargetMode.VK_POSTPONED_REPOST.wire().equals(targetModeEarly)
+                && !grabberProperties.isPostponedRepostEnabled()) {
+            item.setStatus("failed_validation");
+            item.setSkipReason("postponed_repost_unavailable");
+            item.setUpdatedAt(Instant.now());
+            return new PublishResult(null, List.of(), false);
+        }
 
         String sourceText = sourceText(item);
         String signerName = signerName(item);
@@ -88,8 +112,6 @@ public class GrabberPostFactory {
         GrabberAiRewriteService.Attempt ai;
         String finalText;
         if (overrideText != null) {
-            // The moderator already edited the text. Publish that string as final: no second
-            // prepend, append or word replacement.
             ai = GrabberAiRewriteService.Attempt.unchanged(overrideText);
             finalText = finish(rule, item, overrideText, signerName, actor);
         } else {
@@ -116,7 +138,27 @@ public class GrabberPostFactory {
         }
 
         Instant now = Instant.now();
-        Instant scheduledAt = runAt == null ? now : runAt;
+        GrabberPublishSchedule.Plan plan;
+        try {
+            plan = GrabberPublishSchedule.plan(rule.getConfig(), now, runAt, slotIndex);
+        } catch (PostponedHorizonException ex) {
+            item.setStatus("failed_validation");
+            item.setSkipReason("postponed_horizon");
+            item.setUpdatedAt(now);
+            return new PublishResult(null, List.of(), false);
+        }
+        String targetMode = GrabberConfigSupport.targetMode(rule.getConfig());
+        String repostObject = null;
+        if (GrabberTargetMode.isRepost(targetMode)) {
+            repostObject = GrabberRepostObject.from(item.getSourceId(), item.getRemotePostId(), item.getRawPayload());
+            if (repostObject == null) {
+                item.setStatus("failed_validation");
+                item.setSkipReason("repost_object_missing");
+                item.setUpdatedAt(now);
+                return new PublishResult(null, List.of(), false);
+            }
+        }
+        Instant scheduledAt = plan.pipelineRunAt();
         ensurePublicationPartition(scheduledAt);
 
         PostEntity post = new PostEntity();
@@ -128,6 +170,13 @@ public class GrabberPostFactory {
         Map<String, Object> baseContent = new LinkedHashMap<>();
         baseContent.put("text", finalText == null ? "" : finalText);
         baseContent.put("mediaIds", List.of());
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("comment", finalText == null ? "" : finalText);
+            repost.put("network", "vk");
+            baseContent.put("repost", repost);
+        }
         post.setBaseContent(baseContent);
         post.setStatus("scheduled");
         post.setScheduledAt(scheduledAt);
@@ -144,7 +193,7 @@ public class GrabberPostFactory {
         sourceRef.put("contentHash", item.getContentHash());
         post.setSourceRef(sourceRef);
         post.setModerationStatus("approved");
-        post.setTimezone("Europe/Moscow");
+        post.setTimezone(GrabberConfigSupport.scheduleTimezone(rule.getConfig()));
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         postRepository.save(post);
@@ -153,12 +202,21 @@ public class GrabberPostFactory {
                 rule.getConfig(),
                 macroCtx,
                 scheduledAt,
-                properties.getActionButton().isEnabled());
+                grabberProperties.getActionButton().isEnabled());
         for (GrabberPublishOptions.Notice notice : built.notices()) {
-            settingNotifier.notify(
-                    actor, rule.getWorkspaceId(), rule.getId(), notice.setting(), notice.code(), notice.message());
+            settingReporter.reportUserNotice(actor, rule, notice.setting(), notice.code(), notice.message());
         }
         Map<String, Object> options = new LinkedHashMap<>(built.options());
+        options.put("grabberTargetMode", targetMode);
+        if (repostObject != null) {
+            Map<String, Object> repost = new LinkedHashMap<>();
+            repost.put("object", repostObject);
+            repost.put("message", finalText == null ? "" : finalText);
+            options.put("repost", repost);
+        }
+        if (plan.vkPublishDateEpoch() != null) {
+            options.put("vkPublishDate", plan.vkPublishDateEpoch());
+        }
 
         PostVariantEntity variant = new PostVariantEntity();
         variant.setId(UuidV7.generate());
@@ -224,10 +282,9 @@ public class GrabberPostFactory {
             return text == null ? "" : text;
         }
         if (signed(item) && (signerName == null || signerName.isBlank())) {
-            settingNotifier.notify(
+            settingReporter.reportUserNotice(
                     actor,
-                    rule.getWorkspaceId(),
-                    rule.getId(),
+                    rule,
                     "author_signature",
                     "signer_missing",
                     "У поста есть подпись автора, но имя не пришло из VK. Подпись не добавлена.");

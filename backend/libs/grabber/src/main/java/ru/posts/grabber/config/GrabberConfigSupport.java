@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import ru.posts.grabber.target.GrabberModeMatrix;
+import ru.posts.grabber.target.GrabberTargetMode;
 
 /** Defaults and accessors for automation_rules.config jsonb (grabber.md §5.1 + BE-27). */
 public final class GrabberConfigSupport {
@@ -14,8 +16,8 @@ public final class GrabberConfigSupport {
     public static final String PUBLISH_MODE_AUTO = "auto";
     public static final String PUBLISH_MODE_DRAFT = "draft";
 
-    /** BE-27 config schema version. Older configs are migrated on read via {@link #withDefaults}. */
-    public static final int CURRENT_CONFIG_VERSION = 2;
+    /** Config schema version. Older configs are migrated on read via {@link #withDefaults}. */
+    public static final int CURRENT_CONFIG_VERSION = 3;
 
     public static final int MAX_SOURCES_PER_RULE = 20;
 
@@ -35,6 +37,7 @@ public final class GrabberConfigSupport {
         config.putIfAbsent("source_ids", List.of());
         config.putIfAbsent("scan_interval_minutes", 180);
         config.putIfAbsent("publish_mode", PUBLISH_MODE_MODERATE);
+        config.putIfAbsent("target_mode", GrabberTargetMode.DEFAULT);
         config.putIfAbsent("schedule_mode", "immediate");
         config.putIfAbsent("publish_delay_minutes", 0);
 
@@ -61,7 +64,9 @@ public final class GrabberConfigSupport {
         filters.putIfAbsent("only_group_posts", false);
         filters.putIfAbsent("skip_if_missing_attachment_types", List.of());
         filters.putIfAbsent("skip_if_has_attachment_types", List.of());
-        filters.putIfAbsent("max_age_days", null);
+        if (!filters.containsKey("max_age_days")) {
+            filters.put("max_age_days", GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS);
+        }
         config.put("filters", filters);
 
         Map<String, Object> transform = map(config.get("transform"));
@@ -128,6 +133,7 @@ public final class GrabberConfigSupport {
         reliability.putIfAbsent("ignore_edits", true);
         reliability.putIfAbsent("auto_pause_on_errors", true);
         reliability.putIfAbsent("auto_pause_error_threshold", 5);
+        reliability.putIfAbsent("notify_on_error", true);
         config.put("reliability", reliability);
 
         Map<String, Object> schedule = map(config.get("schedule"));
@@ -159,8 +165,16 @@ public final class GrabberConfigSupport {
         if (fromVersion >= CURRENT_CONFIG_VERSION) {
             return;
         }
-        // v1 → v2: introduce schedule / first_comment / similarity defaults (applied by putIfAbsent)
+        // v1 → v3: schedule / first_comment / similarity / target_mode defaults (applied by putIfAbsent)
         config.put("config_version", CURRENT_CONFIG_VERSION);
+    }
+
+    public static String targetMode(Map<String, Object> config) {
+        Object mode = config == null ? null : config.get("target_mode");
+        if (mode == null || mode.toString().isBlank()) {
+            return GrabberTargetMode.DEFAULT;
+        }
+        return mode.toString().trim().toLowerCase(Locale.ROOT);
     }
 
     public static String publishMode(Map<String, Object> config) {
@@ -279,6 +293,39 @@ public final class GrabberConfigSupport {
         return enabled == null || Boolean.TRUE.equals(enabled) || "true".equalsIgnoreCase(String.valueOf(enabled));
     }
 
+    /** When false, setting failures are only logged — no {@code grabber.setting_error} notification. */
+    public static boolean notifyOnError(Map<String, Object> config) {
+        Map<String, Object> reliability = map(config == null ? null : config.get("reliability"));
+        Object enabled = reliability.get("notify_on_error");
+        if (enabled == null) {
+            return true;
+        }
+        if (enabled instanceof Boolean b) {
+            return b;
+        }
+        return !"false".equalsIgnoreCase(enabled.toString());
+    }
+
+    /**
+     * {@code 0} (and an explicit JSON null) means the age filter is off. A missing key defaults to
+     * {@link GrabberModeMatrix#DEFAULT_MAX_AGE_DAYS}.
+     */
+    public static int maxAgeDays(Map<String, Object> config) {
+        Map<String, Object> filters = map(config == null ? null : config.get("filters"));
+        if (!filters.containsKey("max_age_days") || filters.get("max_age_days") == null) {
+            return filters.containsKey("max_age_days") ? 0 : GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS;
+        }
+        Object value = filters.get("max_age_days");
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException ex) {
+            return GrabberModeMatrix.DEFAULT_MAX_AGE_DAYS;
+        }
+    }
+
     public static int rateLimitPerHour(Map<String, Object> config) {
         Map<String, Object> limits = map(config == null ? null : config.get("limits"));
         Object value = limits.get("rate_limit_per_hour");
@@ -297,11 +344,39 @@ public final class GrabberConfigSupport {
         return value instanceof Number n ? n.intValue() : 0;
     }
 
-    public static int minIntervalMinutes(Map<String, Object> config) {
+    /** Stored interval before the 0–120 clamp. Validation uses this so a value above 120 is rejected. */
+    public static int declaredMinIntervalMinutes(Map<String, Object> config) {
         Map<String, Object> limits = map(config == null ? null : config.get("limits"));
         Object value = limits.get("min_interval_minutes");
-        int n = value instanceof Number num ? num.intValue() : 0;
+        if (value instanceof Number num) {
+            return num.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        return 0;
+    }
+
+    public static int minIntervalMinutes(Map<String, Object> config) {
+        int n = declaredMinIntervalMinutes(config);
         return Math.max(0, Math.min(n, 120));
+    }
+
+    /** IANA zone from {@code schedule.timezone}, or {@code Europe/Moscow} when missing or invalid. */
+    public static String scheduleTimezone(Map<String, Object> config) {
+        Object raw = schedule(config).get("timezone");
+        String value = raw == null || raw.toString().isBlank()
+                ? "Europe/Moscow"
+                : raw.toString().trim();
+        try {
+            return java.time.ZoneId.of(value).getId();
+        } catch (java.time.DateTimeException ex) {
+            return "Europe/Moscow";
+        }
     }
 
     @SuppressWarnings("unchecked")

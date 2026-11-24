@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import ru.posts.grabber.config.GrabberConfigSupport;
+import ru.posts.grabber.target.GrabberModeMatrix;
+import ru.posts.grabber.target.GrabberTargetMode;
 import ru.posts.grabber.transform.ContentTransformer;
 import ru.posts.grabber.transform.MacroExpander;
 
@@ -35,10 +37,13 @@ public final class GrabberPublishOptions {
         Map<String, Object> transform = GrabberConfigSupport.transform(config);
         Map<String, Object> firstComment = GrabberConfigSupport.firstComment(config);
         Instant runAt = scheduledAt == null ? Instant.now() : scheduledAt;
+        GrabberTargetMode mode = GrabberTargetMode.fromWire(GrabberConfigSupport.targetMode(config));
+        int interval = GrabberConfigSupport.declaredMinIntervalMinutes(config);
+        String modeLabel = mode.wire();
 
-        Object mode = transform.get("attachments_mode");
-        if (mode != null && !mode.toString().isBlank()) {
-            options.put("primaryAttachmentsMode", mode.toString());
+        Object attachmentsMode = transform.get("attachments_mode");
+        if (attachmentsMode != null && !attachmentsMode.toString().isBlank()) {
+            options.put("primaryAttachmentsMode", attachmentsMode.toString());
         }
         if (GrabberConfigSupport.bool(transform.get("close_comments"), false)) {
             options.put("closeComments", true);
@@ -49,7 +54,7 @@ public final class GrabberPublishOptions {
         String attachmentTemplate = attachmentTemplate(firstComment.get("attachments"));
         boolean commentExpandedEmpty = false;
         if (commentEnabled && !commentTemplate.isBlank()) {
-            if (GrabberModeGate.allows(GrabberModeGate.Feature.FIRST_COMMENT, config)) {
+            if (GrabberModeMatrix.supports(mode, interval, GrabberModeMatrix.Feature.FIRST_COMMENT)) {
                 String text = ContentTransformer.firstCommentDraft(config, ctx);
                 if (text != null && !text.isBlank()) {
                     options.put("firstComment", text);
@@ -64,20 +69,16 @@ public final class GrabberPublishOptions {
                 notices.add(new Notice(
                         "first_comment",
                         "mode_postponed",
-                        "Первый комментарий не публикуется в отложенном режиме ("
-                                + GrabberModeGate.postingMode(config)
-                                + ")."));
+                        "Первый комментарий не публикуется в отложенном режиме (" + modeLabel + ")."));
             }
         }
         if (commentEnabled && !attachmentTemplate.isBlank()) {
-            if (!GrabberModeGate.allows(GrabberModeGate.Feature.COMMENT_ATTACHMENTS, config)) {
-                String why = GrabberModeGate.postponed(config) ? "отложенном режиме" : "режиме с интервалом";
+            if (!GrabberModeMatrix.supports(mode, interval, GrabberModeMatrix.Feature.COMMENT_ATTACHMENTS)) {
+                String why = mode.postponed() ? "отложенном режиме" : "режиме с интервалом";
                 notices.add(new Notice(
                         "comment_attachments",
-                        GrabberModeGate.postponed(config) ? "mode_postponed" : "mode_interval",
-                        "Вложения комментария не отправляются в " + why + " ("
-                                + GrabberModeGate.postingMode(config)
-                                + ")."));
+                        mode.postponed() ? "mode_postponed" : "mode_interval",
+                        "Вложения комментария не отправляются в " + why + " (" + modeLabel + ")."));
             } else if (options.containsKey("firstComment") || commentTemplate.isBlank()) {
                 CommentAttachments.ParseResult parsed = CommentAttachments.parse(attachmentTemplate, config, ctx);
                 if (!parsed.invalid().isEmpty()) {
@@ -118,13 +119,11 @@ public final class GrabberPublishOptions {
             if (!actionButtonEnabled) {
                 notices.add(new Notice(
                         "action_button", "disabled", "Кнопка действия выключена: требуется проверка на VK."));
-            } else if (!GrabberModeGate.allows(GrabberModeGate.Feature.ACTION_BUTTON, config)) {
+            } else if (!GrabberModeMatrix.supports(mode, interval, GrabberModeMatrix.Feature.ACTION_BUTTON)) {
                 notices.add(new Notice(
                         "action_button",
                         "mode_postponed",
-                        "Кнопка действия не ставится в отложенном режиме ("
-                                + GrabberModeGate.postingMode(config)
-                                + ")."));
+                        "Кнопка действия не ставится в отложенном режиме (" + modeLabel + ")."));
             } else {
                 String error = actionButtonError(button);
                 if (error != null) {
@@ -136,13 +135,11 @@ public final class GrabberPublishOptions {
         }
 
         if (GrabberConfigSupport.bool(transform.get("delete_after_enabled"), false)) {
-            if (!GrabberModeGate.allows(GrabberModeGate.Feature.SCHEDULED_DELETE, config)) {
+            if (!GrabberModeMatrix.supports(mode, interval, GrabberModeMatrix.Feature.SCHEDULED_DELETE)) {
                 notices.add(new Notice(
                         "delete_after",
                         "mode_postponed",
-                        "Таймер удаления не работает в отложенном режиме ("
-                                + GrabberModeGate.postingMode(config)
-                                + ")."));
+                        "Таймер удаления не работает в отложенном режиме (" + modeLabel + ")."));
             } else {
                 Duration delay = GrabberConfigSupport.deleteAfter(config);
                 if (delay == null) {
