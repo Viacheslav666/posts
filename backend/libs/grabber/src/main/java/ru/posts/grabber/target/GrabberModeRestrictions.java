@@ -100,7 +100,13 @@ public final class GrabberModeRestrictions {
             return true;
         }
         Map<String, Object> transform = GrabberConfigSupport.transform(config);
-        return deletePayload(transform.get("scheduled_delete")) || positive(transform.get("delete_after_minutes"));
+        if (deletePayload(transform.get("scheduled_delete")) || positive(transform.get("delete_after_minutes"))) {
+            return true;
+        }
+        if (GrabberConfigSupport.bool(transform.get("delete_after_enabled"), false)) {
+            return GrabberConfigSupport.deleteAfter(config) != null;
+        }
+        return false;
     }
 
     private static boolean payloadEnabled(Object raw) {

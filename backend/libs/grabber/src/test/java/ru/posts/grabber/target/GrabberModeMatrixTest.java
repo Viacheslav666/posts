@@ -234,6 +234,25 @@ class GrabberModeMatrixTest {
     }
 
     @Test
+    void deleteAfterAmountInTransformCountsAsScheduledDelete() {
+        Map<String, Object> config = GrabberConfigSupport.withDefaults(Map.of(
+                "target_mode",
+                "vk_postponed_post",
+                "transform",
+                Map.of("delete_after_enabled", true, "delete_after_amount", 2, "delete_after_unit", "hours")));
+        assertThatThrownBy(() -> GrabberModeRestrictions.validate(config, "grabber"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("удал");
+        GrabberModeRestrictions.validate(
+                GrabberConfigSupport.withDefaults(Map.of(
+                        "target_mode",
+                        "wall_now",
+                        "transform",
+                        Map.of("delete_after_enabled", true, "delete_after_amount", 1, "delete_after_unit", "days"))),
+                "grabber");
+    }
+
+    @Test
     void scheduleTimezoneUsesTheRuleZone() {
         Map<String, Object> config =
                 GrabberConfigSupport.withDefaults(Map.of("schedule", Map.of("timezone", "Europe/Samara")));

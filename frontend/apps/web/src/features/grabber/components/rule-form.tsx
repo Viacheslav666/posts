@@ -488,12 +488,20 @@ export function RuleForm({ workspaceId, project, channels, rule }: RuleFormProps
       <RuleSettingsSections
         register={register}
         control={control}
+        errors={errors}
         scheduleEnabled={scheduleEnabled}
         firstCommentEnabled={firstCommentEnabled}
         caps={caps}
         intervalError={fieldError('minIntervalMinutes')}
         firstCommentError={fieldError('firstCommentEnabled')}
       />
+
+      <p
+        data-testid="grabber-copyright-warning"
+        className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+      >
+        {t('copyrightWarning')}
+      </p>
 
       <FormField
         label={t('attributionTemplate')}

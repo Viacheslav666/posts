@@ -11,14 +11,30 @@ import java.util.regex.Pattern;
 /**
  * Expands grabber macros in prepend/append/first-comment text.
  *
- * <p>Supported: {@code [name_of_the_source]}, {@code [id_of_the_source]},
- * {@code [post_id_of_the_source]}, {@code [rand]a|b[/rand]}, {@code [keyText]},
- * {@code [keyTextEntry]}, {@code [keyTextEntryNotFound]}.
+ * <p>Placeholders: {@code [name_of_the_source]}, {@code [id_of_the_source]}, {@code
+ * [post_id_of_the_source]}, {@code [rand]a|b|c[/rand]}.
+ *
+ * <p>Conditional blocks are matched against the source post text:
+ *
+ * <ul>
+ *   <li>{@code [keyText]word1|word2,replacement[/keyText]} — whole words
+ *   <li>{@code [keyTextEntry]needle,replacement[/keyTextEntry]} — substring
+ *   <li>{@code [keyTextEntryNotFound]needle,replacement[/keyTextEntryNotFound]} — substring absent
+ * </ul>
+ *
+ * <p>Bare {@code [keyText]} / {@code [keyTextEntry]} / {@code [keyTextEntryNotFound]} tokens still
+ * expand from {@code config.macros} so older rules keep working.
  */
 public final class MacroExpander {
 
     private static final Pattern RAND =
             Pattern.compile("\\[rand](.*?)\\[/rand]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern KEY_TEXT_BLOCK =
+            Pattern.compile("\\[keyText](.*?)\\[/keyText]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern KEY_ENTRY_BLOCK =
+            Pattern.compile("\\[keyTextEntry](.*?)\\[/keyTextEntry]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern KEY_NOT_FOUND_BLOCK = Pattern.compile(
+            "\\[keyTextEntryNotFound](.*?)\\[/keyTextEntryNotFound]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern KEY_TEXT = Pattern.compile("\\[keyText]", Pattern.CASE_INSENSITIVE);
     private static final Pattern KEY_ENTRY = Pattern.compile("\\[keyTextEntry]", Pattern.CASE_INSENSITIVE);
     private static final Pattern KEY_NOT_FOUND = Pattern.compile("\\[keyTextEntryNotFound]", Pattern.CASE_INSENSITIVE);
@@ -31,9 +47,25 @@ public final class MacroExpander {
             String remotePostId,
             String keyText,
             String keyTextEntry,
-            String keyTextEntryNotFound) {
+            String keyTextEntryNotFound,
+            String sourceText) {
+
+        public Context(
+                String sourceName,
+                String sourceId,
+                String remotePostId,
+                String keyText,
+                String keyTextEntry,
+                String keyTextEntryNotFound) {
+            this(sourceName, sourceId, remotePostId, keyText, keyTextEntry, keyTextEntryNotFound, "");
+        }
+
         public static Context of(String sourceName, String sourceId, String remotePostId) {
-            return new Context(sourceName, sourceId, remotePostId, "", "", "");
+            return new Context(sourceName, sourceId, remotePostId, "", "", "", "");
+        }
+
+        public static Context of(String sourceName, String sourceId, String remotePostId, String sourceText) {
+            return new Context(sourceName, sourceId, remotePostId, "", "", "", sourceText);
         }
     }
 
@@ -47,7 +79,11 @@ public final class MacroExpander {
             return template == null ? "" : template;
         }
         Context safe = ctx == null ? Context.of("", "", "") : ctx;
-        String result = template.replace("[name_of_the_source]", nullToEmpty(safe.sourceName()))
+        String source = nullToEmpty(safe.sourceText());
+        String result = replaceBlocks(KEY_TEXT_BLOCK, template, source, MatchMode.WHOLE_WORD, false);
+        result = replaceBlocks(KEY_ENTRY_BLOCK, result, source, MatchMode.SUBSTRING, false);
+        result = replaceBlocks(KEY_NOT_FOUND_BLOCK, result, source, MatchMode.SUBSTRING, true);
+        result = result.replace("[name_of_the_source]", nullToEmpty(safe.sourceName()))
                 .replace("[id_of_the_source]", nullToEmpty(safe.sourceId()))
                 .replace("[post_id_of_the_source]", nullToEmpty(safe.remotePostId()));
         result = KEY_TEXT.matcher(result).replaceAll(Matcher.quoteReplacement(nullToEmpty(safe.keyText())));
@@ -61,6 +97,59 @@ public final class MacroExpander {
     public static String expand(String template, Map<String, Object> config, Context ctx) {
         Context enriched = enrichFromConfig(ctx, config);
         return expand(template, enriched);
+    }
+
+    private enum MatchMode {
+        WHOLE_WORD,
+        SUBSTRING
+    }
+
+    private static String replaceBlocks(
+            Pattern pattern, String text, String source, MatchMode mode, boolean whenMissing) {
+        Matcher matcher = pattern.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String body = matcher.group(1);
+            String replacement = blockReplacement(body, source, mode, whenMissing);
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+
+    /**
+     * Body is {@code keywords,replacement}. Keywords are separated by {@code |}. The first comma
+     * splits keywords from the text that is inserted when the condition holds.
+     */
+    static String blockReplacement(String body, String source, MatchMode mode, boolean whenMissing) {
+        String raw = body == null ? "" : body;
+        int comma = raw.indexOf(',');
+        String keywordsPart = comma < 0 ? raw : raw.substring(0, comma);
+        String replacement = comma < 0 ? "" : raw.substring(comma + 1);
+        List<String> keywords = splitOptions(keywordsPart).stream()
+                .map(String::trim)
+                .filter(k -> !k.isEmpty())
+                .toList();
+        if (keywords.isEmpty()) {
+            return "";
+        }
+        String haystack = source == null ? "" : source;
+        boolean found = keywords.stream().anyMatch(k -> matches(haystack, k, mode));
+        boolean emit = whenMissing ? !found : found;
+        return emit ? replacement : "";
+    }
+
+    private static boolean matches(String text, String keyword, MatchMode mode) {
+        if (keyword == null || keyword.isEmpty()) {
+            return false;
+        }
+        if (mode == MatchMode.SUBSTRING) {
+            return text.toLowerCase(java.util.Locale.ROOT).contains(keyword.toLowerCase(java.util.Locale.ROOT));
+        }
+        Pattern pattern = Pattern.compile(
+                "(?<![\\p{L}\\p{N}_])" + Pattern.quote(keyword) + "(?![\\p{L}\\p{N}_])",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        return pattern.matcher(text).find();
     }
 
     private static Context enrichFromConfig(Context ctx, Map<String, Object> config) {
@@ -78,12 +167,13 @@ public final class MacroExpander {
                 base.remotePostId(),
                 string(map.get("keyText"), base.keyText()),
                 string(map.get("keyTextEntry"), base.keyTextEntry()),
-                string(map.get("keyTextEntryNotFound"), base.keyTextEntryNotFound()));
+                string(map.get("keyTextEntryNotFound"), base.keyTextEntryNotFound()),
+                base.sourceText());
     }
 
     private static String expandRand(String text, IntUnaryOperator randomIndex) {
         Matcher matcher = RAND.matcher(text);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             String body = matcher.group(1);
             List<String> options = splitOptions(body);
@@ -96,7 +186,7 @@ public final class MacroExpander {
         return sb.toString();
     }
 
-    private static List<String> splitOptions(String body) {
+    public static List<String> splitOptions(String body) {
         List<String> out = new ArrayList<>();
         if (body == null) {
             return out;

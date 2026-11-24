@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.posts.emulator.control.ScenarioConfig;
 import ru.posts.emulator.control.ScenarioService;
+import ru.posts.emulator.store.ModerationStore;
 import ru.posts.emulator.store.Network;
 import ru.posts.emulator.store.PostStore;
 
@@ -32,10 +35,14 @@ class VkApiTest {
     @Autowired
     private ScenarioService scenarioService;
 
+    @Autowired
+    private ModerationStore moderationStore;
+
     @BeforeEach
     void reset() {
         postStore.reset();
         scenarioService.reset();
+        moderationStore.reset();
     }
 
     @Test
@@ -225,5 +232,70 @@ class VkApiTest {
                         .param("hash", "abc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response[0].id").exists());
+    }
+
+    @Test
+    void commentDeleteAndCloseComments() throws Exception {
+        MvcResult created = mockMvc.perform(post("/method/wall.post")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("message", "hello")
+                        .param("guid", "pub-comment")
+                        .param("action_button", "{\"type\":\"open_url\"}")
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.post_id").exists())
+                .andReturn();
+        String postId = jsonNumber(created.getResponse().getContentAsString(), "post_id");
+        assertThat(postStore.findByRemoteId(Network.VK, "-100", postId))
+                .get()
+                .extracting(post -> post.metadata().get("action_button"))
+                .isEqualTo("{\"type\":\"open_url\"}");
+
+        MvcResult comment = mockMvc.perform(post("/method/wall.createComment")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("post_id", postId)
+                        .param("from_group", "100")
+                        .param("message", "первый")
+                        .param("attachments", "photo-100_7,video-100_8")
+                        .param("guid", "action-guid-1")
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.comment_id").exists())
+                .andReturn();
+        String commentId = jsonNumber(comment.getResponse().getContentAsString(), "comment_id");
+        assertThat(moderationStore.commentMeta(commentId))
+                .containsEntry("post_id", postId)
+                .containsEntry("from_group", "100")
+                .containsEntry("attachments", "photo-100_7,video-100_8")
+                .containsEntry("guid", "action-guid-1");
+
+        mockMvc.perform(post("/method/wall.closeComments")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("post_id", postId)
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(1));
+        assertThat(postStore.findByRemoteId(Network.VK, "-100", postId))
+                .get()
+                .extracting(post -> post.metadata().get("comments_closed"))
+                .isEqualTo(true);
+
+        mockMvc.perform(post("/method/wall.delete")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("owner_id", "-100")
+                        .param("post_id", postId)
+                        .param("access_token", "token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(1));
+        assertThat(postStore.findByRemoteId(Network.VK, "-100", postId)).isEmpty();
+    }
+
+    private static String jsonNumber(String body, String field) {
+        Matcher matcher = Pattern.compile("\"" + field + "\"\\s*:\\s*(\\d+)").matcher(body);
+        assertThat(matcher.find()).isTrue();
+        return matcher.group(1);
     }
 }

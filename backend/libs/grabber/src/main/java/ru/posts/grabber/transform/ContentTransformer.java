@@ -121,6 +121,24 @@ public final class ContentTransformer {
         return new TransformResult(result, List.copyOf(atts));
     }
 
+    /**
+     * Appends the source author name as its own line. A second call with the same name does not
+     * duplicate the line (the processor and the publisher both apply it).
+     */
+    public static String appendAuthorSignature(String text, String authorName) {
+        if (authorName == null || authorName.isBlank()) {
+            return text == null ? "" : text;
+        }
+        String name = authorName.trim();
+        String body = text == null ? "" : text;
+        for (String line : body.split("\\R")) {
+            if (line.trim().equals(name)) {
+                return body;
+            }
+        }
+        return body.isBlank() ? name : body + "\n" + name;
+    }
+
     public static String withAttribution(String text, Map<String, Object> config, String sourceName, String sourceUrl) {
         if (!GrabberConfigSupport.attributionEnabled(config)) {
             return text;
@@ -138,7 +156,7 @@ public final class ContentTransformer {
         return text + "\n\n" + footer;
     }
 
-    /** First-comment draft for BE-23 wiring; expands macros, does not touch social adapters. */
+    /** Expands the first-comment template. The publisher posts it from the community after publish. */
     public static String firstCommentDraft(Map<String, Object> config, MacroExpander.Context ctx) {
         Map<String, Object> fc = GrabberConfigSupport.firstComment(config);
         if (!bool(fc.get("enabled"))) {

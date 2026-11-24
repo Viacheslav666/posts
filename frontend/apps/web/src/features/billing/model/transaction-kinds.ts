@@ -1,5 +1,12 @@
 /** Виды ledger-записей (BE-12b). */
-export const TRANSACTION_KINDS = ['payment', 'charge', 'refund', 'promo', 'admin_adjustment'] as const;
+export const TRANSACTION_KINDS = [
+  'payment',
+  'charge',
+  'refund',
+  'promo',
+  'admin_adjustment',
+  'neural',
+] as const;
 
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
 

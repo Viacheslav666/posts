@@ -3,6 +3,10 @@ package ru.posts.publisher.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -74,13 +78,15 @@ public class ScheduledActionsFactory {
 
         String firstComment = textOrNull(options, "firstComment");
         if (firstComment != null && !firstComment.isBlank()) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("remotePostId", remotePostId);
+            payload.put("text", firstComment);
+            List<String> attachments = textList(options.get("firstCommentAttachments"));
+            if (!attachments.isEmpty()) {
+                payload.put("attachments", attachments);
+            }
             actionsJdbc.insertAction(
-                    claim.id(),
-                    claim.runAt(),
-                    claim.workspaceId(),
-                    "first_comment",
-                    now,
-                    "{\"remotePostId\":\"" + escape(remotePostId) + "\",\"text\":\"" + escape(firstComment) + "\"}");
+                    claim.id(), claim.runAt(), claim.workspaceId(), "first_comment", now, writePayload(payload));
         }
     }
 
@@ -106,6 +112,28 @@ public class ScheduledActionsFactory {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private String writePayload(Map<String, Object> payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception ex) {
+            log.warn("Failed to encode scheduled action payload: {}", ex.toString());
+            return "{}";
+        }
+    }
+
+    private static List<String> textList(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        node.forEach(item -> {
+            if (item != null && item.isTextual() && !item.asText().isBlank()) {
+                out.add(item.asText());
+            }
+        });
+        return out;
     }
 
     private static String textOrNull(JsonNode options, String field) {

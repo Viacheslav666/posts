@@ -22,7 +22,8 @@ describe('grabber config helpers', () => {
     expect(config.sourceIds).toEqual(['-1', '-2']);
     expect(config.configVersion).toBe(3);
     expect(config.filters).toMatchObject({ max_age_days: 60 });
-    expect(config.firstComment).toMatchObject({ pending_be23: true, enabled: false });
+    expect(config.firstComment).toMatchObject({ pending_be23: false, enabled: false });
+    expect(config.aiRewriteEnabled).toBe(false);
   });
 
   it('round-trips BE-27 filter/transform/schedule/limits fields without loss', () => {
