@@ -16,7 +16,9 @@ export function useNavBadges(workspaceId: string, enabled: boolean): { suggest?:
   });
   const projectId = projects.data?.items?.[0]?.id;
   const settings = useQuery({
-    queryKey: queryKeys.suggest.settings(workspaceId, projectId ?? ''),
+    // Keep this off the suggest page's infinite-query key. Sharing it makes
+    // useInfiniteQuery read a finite page and the Предложка screen never mounts.
+    queryKey: queryKeys.suggest.all(workspaceId).concat(['nav-settings', projectId ?? '']),
     queryFn: () => listSuggestSettings({ workspaceId, projectId: projectId!, limit: 20 }),
     enabled: enabled && Boolean(projectId),
     staleTime: 60_000,

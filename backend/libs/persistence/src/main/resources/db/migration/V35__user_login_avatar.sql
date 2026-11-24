@@ -6,7 +6,11 @@ ALTER TABLE sessions
 
 ALTER TABLE sessions
     ADD CONSTRAINT sessions_login_provider_check
-        CHECK (login_provider IS NULL OR login_provider IN ('vk', 'email', 'yandex', 'telegram'));
+        CHECK (login_provider IS NULL OR login_provider IN ('vk', 'email', 'yandex', 'telegram'))
+        NOT VALID;
+
+ALTER TABLE sessions
+    VALIDATE CONSTRAINT sessions_login_provider_check;
 
 UPDATE users AS u
 SET avatar_url = src.photo,
