@@ -33,6 +33,9 @@ public class SocialAccountEntity extends BaseUuidEntity {
     @Column(name = "token_expires_at")
     private Instant tokenExpiresAt;
 
+    @Column(name = "device_id")
+    private String deviceId;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false, columnDefinition = "text[]")
     private String[] scopes = new String[0];
@@ -103,6 +106,14 @@ public class SocialAccountEntity extends BaseUuidEntity {
 
     public void setTokenExpiresAt(Instant tokenExpiresAt) {
         this.tokenExpiresAt = tokenExpiresAt;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String[] getScopes() {

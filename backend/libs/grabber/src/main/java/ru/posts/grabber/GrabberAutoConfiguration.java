@@ -1,5 +1,6 @@
 package ru.posts.grabber;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -20,6 +21,7 @@ import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.repository.WorkspaceDataKeyRepository;
 import ru.posts.security.crypto.TokenCryptoService;
+import ru.posts.security.oauth.VkIdUserTokenRefresher;
 
 /**
  * Registers fallback beans only. Concrete {@code @Service}/{@code @Component} classes under {@code
@@ -43,8 +45,10 @@ public class GrabberAutoConfiguration {
             ChannelRepository channels,
             SocialAccountRepository socialAccounts,
             WorkspaceDataKeyRepository keys,
-            TokenCryptoService crypto) {
-        return new VaultGrabberTokenProvider(token, channels, socialAccounts, keys, crypto);
+            TokenCryptoService crypto,
+            ObjectProvider<VkIdUserTokenRefresher> vkTokenRefresher) {
+        return new VaultGrabberTokenProvider(
+                token, channels, socialAccounts, keys, crypto, vkTokenRefresher.getIfAvailable());
     }
 
     @Bean

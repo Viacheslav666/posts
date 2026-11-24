@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -189,6 +190,140 @@ class ChannelConnectIntegrationTest {
         mockMvc.perform(get("/api/v1/workspaces/" + s.workspaceId + "/audit").header("Authorization", bearer(s.token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.action=='channel.connected')]").exists());
+    }
+
+    @Test
+    @DisplayName("TC-CH-01b VK callback resolves workspaceId from state when omitted")
+    void tcCh01b_vkCallbackResolvesWorkspaceFromState() throws Exception {
+        Session s = session();
+        JsonNode start = readJson(mockMvc.perform(post("/api/v1/channels/connect/vk/start")
+                        .with(csrf())
+                        .header("Authorization", bearer(s.token))
+                        .param("workspaceId", s.workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(s.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin", "state", start.get("state").asText()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").value(s.workspaceId.toString()))
+                .andExpect(jsonPath("$.items[0].status").value("active"));
+    }
+
+    @Test
+    @DisplayName("TC-CH-01c VK callback rejects connect state for another user")
+    void tcCh01c_vkCallbackRejectsForeignUser() throws Exception {
+        Session owner = session();
+        Session other = session();
+        JsonNode start = readJson(mockMvc.perform(post("/api/v1/channels/connect/vk/start")
+                        .with(csrf())
+                        .header("Authorization", bearer(owner.token))
+                        .param("workspaceId", owner.workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(other.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin", "state", start.get("state").asText()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_token"));
+    }
+
+    @Test
+    @DisplayName("TC-CH-01d same workspace without channels.manage gets 403 and state stays usable")
+    void tcCh01d_memberWithoutPermissionDoesNotConsumeState() throws Exception {
+        Session owner = session();
+        String adminEmail = "adm-" + UUID.randomUUID() + "@example.com";
+        String adminToken = registerVerifyLogin(adminEmail, "Admin");
+        PlanEntity agency = planRepository.findByCode("agency").orElseThrow();
+        WorkspaceEntity workspace =
+                workspaceRepository.findById(owner.workspaceId).orElseThrow();
+        workspace.setPlanId(agency.getId());
+        workspaceRepository.save(workspace);
+
+        mockMvc.perform(post("/api/v1/workspaces/" + owner.workspaceId + "/invitations")
+                        .with(csrf())
+                        .header("Authorization", bearer(owner.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email",
+                                adminEmail,
+                                "role",
+                                "admin",
+                                "projectIds",
+                                java.util.List.of(owner.projectId.toString())))))
+                .andExpect(status().isCreated());
+        String inviteToken = extractToken(mailSender.messages().stream()
+                .filter(m -> m.to().equalsIgnoreCase(adminEmail))
+                .reduce((a, b) -> b)
+                .orElseThrow()
+                .body());
+        mockMvc.perform(post("/api/v1/invitations/accept")
+                        .with(csrf())
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", inviteToken))))
+                .andExpect(status().isOk());
+
+        JsonNode members = readJson(mockMvc.perform(get("/api/v1/workspaces/" + owner.workspaceId + "/members")
+                        .header("Authorization", bearer(owner.token)))
+                .andExpect(status().isOk())
+                .andReturn());
+        String adminUserId = null;
+        for (JsonNode member : members.get("items")) {
+            if (adminEmail.equalsIgnoreCase(member.get("email").asText())) {
+                adminUserId = member.get("userId").asText();
+            }
+        }
+        assertThat(adminUserId).isNotNull();
+
+        JsonNode start = readJson(mockMvc.perform(post("/api/v1/channels/connect/vk/start")
+                        .with(csrf())
+                        .header("Authorization", bearer(adminToken))
+                        .param("workspaceId", owner.workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(put("/api/v1/workspaces/" + owner.workspaceId + "/members/" + adminUserId)
+                        .with(csrf())
+                        .header("Authorization", bearer(owner.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("role", "editor", "projectIds", java.util.List.of(owner.projectId.toString())))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin", "state", start.get("state").asText()))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("forbidden"));
+
+        mockMvc.perform(put("/api/v1/workspaces/" + owner.workspaceId + "/members/" + adminUserId)
+                        .with(csrf())
+                        .header("Authorization", bearer(owner.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("role", "admin", "projectIds", java.util.List.of()))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin", "state", start.get("state").asText()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status").value("active"));
     }
 
     @Test

@@ -46,6 +46,7 @@ import ru.posts.social.api.SocialApiException;
 import ru.posts.social.api.TokenRefreshRequest;
 import ru.posts.social.api.TokenSet;
 import ru.posts.social.vk.emulator.VkEmulatorReconciliation;
+import ru.posts.social.vk.oauth.VkOAuthState;
 
 /**
  * Production VK API adapter (API 5.199): {@code wall.post} with media/options, uploads, pin,
@@ -62,6 +63,7 @@ public class VkSocialAdapter implements SocialAdapter {
     private final ObjectMapper objectMapper;
     private final String baseUrl;
     private final String tokenUrl;
+    private final String clientId;
     private final String apiVersion;
     private final ReconciliationMode reconciliationMode;
     private final int findExistingScanLimit;
@@ -69,7 +71,8 @@ public class VkSocialAdapter implements SocialAdapter {
 
     public VkSocialAdapter(VkAdapterProperties properties, ObjectMapper objectMapper) {
         this.baseUrl = trimTrailingSlash(properties.baseUrl(), "https://api.vk.com");
-        this.tokenUrl = trimTrailingSlash(properties.tokenUrl(), "https://id.vk.com/oauth2/auth");
+        this.tokenUrl = trimTrailingSlash(properties.tokenUrl(), "https://id.vk.ru/oauth2/auth");
+        this.clientId = properties.clientId() == null ? "" : properties.clientId();
         this.apiVersion =
                 properties.apiVersion() == null || properties.apiVersion().isBlank()
                         ? "5.199"
@@ -598,9 +601,14 @@ public class VkSocialAdapter implements SocialAdapter {
                 || request.refreshToken().isBlank()) {
             return Optional.empty();
         }
+        String state = request.state() == null || request.state().isBlank() ? VkOAuthState.random() : request.state();
+        String client = request.clientId() == null || request.clientId().isBlank() ? clientId : request.clientId();
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "refresh_token");
         form.add("refresh_token", request.refreshToken());
+        form.add("client_id", client == null ? "" : client);
+        form.add("device_id", request.deviceId() == null ? "" : request.deviceId());
+        form.add("state", state);
         try {
             JsonNode body = absoluteClient
                     .post()
@@ -611,6 +619,10 @@ public class VkSocialAdapter implements SocialAdapter {
                     .body(JsonNode.class);
             if (body == null || !body.has("access_token")) {
                 return Optional.empty();
+            }
+            String echoed = body.path("state").asText("");
+            if (!echoed.equals(state)) {
+                throw new SocialApiException(ErrorClass.AUTH, "VK ID refresh state mismatch", null, null, null);
             }
             String access = body.path("access_token").asText(null);
             String refresh = body.path("refresh_token").asText(request.refreshToken());

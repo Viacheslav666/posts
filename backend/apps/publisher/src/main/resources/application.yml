@@ -65,13 +65,19 @@ posts:
     vk:
       native-deferred:
         enabled: false
+  channels:
+    social-base-url: ${POSTS_SOCIAL_BASE_URL:http://127.0.0.1:8090}
+    vk-client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:${POSTS_OAUTH_VK_CLIENT_ID:local-vk-channels}}
+    vk-authorization-uri: ${POSTS_CHANNELS_VK_AUTHORIZATION_URI:}
+    vk-token-uri: ${POSTS_CHANNELS_VK_TOKEN_URI:}
   social:
     telegram:
       base-url: ${POSTS_SOCIAL_TELEGRAM_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
       read-timeout: 15s
     vk:
       base-url: ${POSTS_SOCIAL_VK_BASE_URL:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}}
-      token-url: ${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}/oauth2/auth
+      token-url: ${POSTS_CHANNELS_VK_TOKEN_URI:${POSTS_SOCIAL_EMULATOR_URL:http://localhost:8090}/oauth2/auth}
+      client-id: ${POSTS_CHANNELS_VK_CLIENT_ID:${POSTS_OAUTH_VK_CLIENT_ID:}}
       api-version: "5.199"
       read-timeout: 15s
       reconciliation-mode: ${POSTS_SOCIAL_VK_RECONCILIATION:emulator}
