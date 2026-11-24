@@ -4865,6 +4865,8 @@ export interface components {
              */
             kind?: "image" | "video" | "doc" | "audio" | "clip";
             mime?: string;
+            /** @description Presigned GET URL for the card preview. Null when none applies or presign failed. */
+            previewUrl?: string;
             sha256?: string;
             /** Format: int64 */
             sizeBytes?: number;

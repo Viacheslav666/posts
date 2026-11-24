@@ -14,12 +14,12 @@ export const CROP_PRESETS = {
 export type CropPreset = keyof typeof CROP_PRESETS;
 
 /**
- * MediaAsset plus UI-only fields (preview URL, folder picker id).
- * `usedIn` / filename / tags come from OpenAPI MediaAsset as-is.
+ * MediaAsset plus the folder picker id.
+ * `previewUrl` comes from the API (presigned card thumbnail) and may be a local
+ * object URL while an upload is still only in the editor.
  */
 export type MediaLibraryItem = MediaAsset & {
   folderId?: string | null;
-  /** Object URL / mock-s3 preview — always same-origin, never external CDN at build. */
   previewUrl?: string;
 };
 

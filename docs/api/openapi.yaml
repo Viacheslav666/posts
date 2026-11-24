@@ -18739,6 +18739,10 @@ components:
           - clip
         mime:
           type: string
+        previewUrl:
+          type: string
+          description: Presigned GET URL for the card preview. Null when none applies
+            or presign failed.
         sha256:
           type: string
         sizeBytes:

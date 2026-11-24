@@ -18,6 +18,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
@@ -53,10 +55,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -65,9 +69,17 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Transactional
 public class MediaServiceImpl implements MediaService {
 
+    private static final Logger log = LoggerFactory.getLogger(MediaServiceImpl.class);
+
     private static final int MAX_REDIRECTS = 5;
     private static final String META_UPLOAD_ID = "s3UploadId";
     private static final long MAX_IMPORT_BYTES = 1024L * 1024 * 1024;
+    /**
+     * Card thumbnails are signed locally (no S3 round-trip), so one URL per row stays cheap on
+     * large library pages. One hour covers a browsing session without minting day-long links.
+     */
+    static final Duration PREVIEW_PRESIGN_TTL = Duration.ofHours(1);
+
     static final String IDEMPOTENCY_SCOPE_UPLOAD = "POST /api/v1/media/uploads";
     static final String IDEMPOTENCY_SCOPE_IMPORT = "POST /api/v1/media/import-url";
 
@@ -680,7 +692,7 @@ public class MediaServiceImpl implements MediaService {
         throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "Too many redirects");
     }
 
-    private static MediaDtos.MediaAsset toDto(MediaAssetEntity entity, List<MediaDtos.MediaUsage> usedIn) {
+    MediaDtos.MediaAsset toDto(MediaAssetEntity entity, List<MediaDtos.MediaUsage> usedIn) {
         return new MediaDtos.MediaAsset(
                 entity.getId(),
                 entity.getWorkspaceId(),
@@ -699,7 +711,65 @@ public class MediaServiceImpl implements MediaService {
                 entity.getFolder(),
                 entity.getTags() == null ? List.of() : List.copyOf(entity.getTags()),
                 entity.getErrorMessage(),
-                usedIn);
+                usedIn,
+                presignPreviewUrl(entity));
+    }
+
+    /**
+     * Preview object for a media card. {@code derivatives.preview} wins. Otherwise a video or clip
+     * uses the processor poster at {@code derivatives.thumbnail}. An image with neither falls back
+     * to the original object. Anything else stays null so the card keeps its icon.
+     */
+    static String selectPreviewKey(String kind, String originalKey, Map<String, Object> derivatives) {
+        String preview = derivativeS3Key(derivatives, "preview");
+        if (preview != null) {
+            return preview;
+        }
+        if ("video".equals(kind) || "clip".equals(kind)) {
+            return derivativeS3Key(derivatives, "thumbnail");
+        }
+        if ("image".equals(kind)) {
+            return blankToNull(originalKey);
+        }
+        return null;
+    }
+
+    private String presignPreviewUrl(MediaAssetEntity entity) {
+        String key = selectPreviewKey(entity.getKind(), entity.getS3Key(), entity.getDerivatives());
+        if (key == null) {
+            return null;
+        }
+        try {
+            String signed = s3Presigner
+                    .presignGetObject(GetObjectPresignRequest.builder()
+                            .signatureDuration(PREVIEW_PRESIGN_TTL)
+                            .getObjectRequest(GetObjectRequest.builder()
+                                    .bucket(s3Properties.getBucket())
+                                    .key(key)
+                                    .build())
+                            .build())
+                    .url()
+                    .toString();
+            return S3PresignUrls.toPublicUrl(signed, s3Properties.getPresignPublicBaseUrl());
+        } catch (RuntimeException ex) {
+            log.warn("Failed to presign media preview for {}: {}", entity.getId(), ex.toString());
+            return null;
+        }
+    }
+
+    private static String derivativeS3Key(Map<String, Object> derivatives, String name) {
+        if (derivatives == null || name == null) {
+            return null;
+        }
+        Object node = derivatives.get(name);
+        if (!(node instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Object key = map.get("s3Key");
+        if (!(key instanceof String value)) {
+            return null;
+        }
+        return blankToNull(value);
     }
 
     private static String sanitizeFilename(String filename, ApiEnums.MediaKind kind, String mime) {
