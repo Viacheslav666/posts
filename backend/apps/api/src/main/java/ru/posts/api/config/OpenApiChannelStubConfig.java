@@ -7,17 +7,30 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import ru.posts.api.auth.ClientRequestContext;
+import ru.posts.api.channel.ChannelProperties;
 import ru.posts.api.channel.ChannelService;
 import ru.posts.api.channel.ChannelSetService;
+import ru.posts.api.channel.VkSocialAccountTokenRefreshService;
 import ru.posts.api.error.NotImplementedException;
 import ru.posts.api.web.dto.auth.AuthDtos;
 import ru.posts.api.web.dto.channel.ChannelDtos;
 import ru.posts.api.web.dto.common.ApiEnums;
 import ru.posts.api.web.dto.common.CursorPage;
+import ru.posts.persistence.entity.SocialAccountEntity;
 
 @Configuration
 @Profile("openapi")
 public class OpenApiChannelStubConfig {
+
+    @Bean
+    VkSocialAccountTokenRefreshService vkSocialAccountTokenRefreshService() {
+        return new VkSocialAccountTokenRefreshService(new ChannelProperties(), null, null, null) {
+            @Override
+            public SocialAccountEntity ensureFresh(SocialAccountEntity account) {
+                return account;
+            }
+        };
+    }
 
     @Bean
     ChannelService channelService() {
@@ -30,7 +43,7 @@ public class OpenApiChannelStubConfig {
                     ApiEnums.Network network,
                     ApiEnums.ChannelStatus status,
                     CursorPage.Params page) {
-                return new CursorPage.ChannelPage(List.of(), null, false);
+                return new CursorPage.ChannelPage(List.of(), null, false, null);
             }
 
             @Override
@@ -61,7 +74,7 @@ public class OpenApiChannelStubConfig {
                     ApiEnums.Network network,
                     ChannelDtos.ChannelConnectCallbackRequest request,
                     ClientRequestContext ctx) {
-                return new CursorPage.ChannelPage(List.of(), null, false);
+                return new CursorPage.ChannelPage(List.of(), null, false, null);
             }
 
             @Override
@@ -70,7 +83,7 @@ public class OpenApiChannelStubConfig {
                     ApiEnums.Network network,
                     ChannelDtos.ChannelConnectConfirmRequest request,
                     ClientRequestContext ctx) {
-                return new CursorPage.ChannelPage(List.of(), null, false);
+                return new CursorPage.ChannelPage(List.of(), null, false, null);
             }
 
             @Override

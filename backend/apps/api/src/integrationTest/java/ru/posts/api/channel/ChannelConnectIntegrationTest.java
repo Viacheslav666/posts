@@ -192,6 +192,28 @@ class ChannelConnectIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-CH-01b VK callback resolves workspaceId from state when omitted")
+    void tcCh01b_vkCallbackResolvesWorkspaceFromState() throws Exception {
+        Session s = session();
+        JsonNode start = readJson(mockMvc.perform(post("/api/v1/channels/connect/vk/start")
+                        .with(csrf())
+                        .header("Authorization", bearer(s.token))
+                        .param("workspaceId", s.workspaceId.toString()))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(post("/api/v1/channels/connect/vk/callback")
+                        .with(csrf())
+                        .header("Authorization", bearer(s.token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "vk-admin", "state", start.get("state").asText()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").value(s.workspaceId.toString()))
+                .andExpect(jsonPath("$.items[0].status").value("active"));
+    }
+
+    @Test
     @DisplayName("TC-CH-02 VK no admin → insufficient_permissions")
     void tcCh02_vkNoAdmin() throws Exception {
         Session s = session();

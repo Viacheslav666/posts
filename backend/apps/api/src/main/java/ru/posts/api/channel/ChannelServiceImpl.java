@@ -46,6 +46,7 @@ public class ChannelServiceImpl implements ChannelService {
     private final WorkspaceTokenVault tokenVault;
     private final SocialConnectClient connectClient;
     private final ChannelProperties properties;
+    private final VkSocialAccountTokenRefreshService vkTokenRefresh;
     private final AuditRecorder auditRecorder;
     private final OutboxRepository outboxRepository;
 
@@ -59,6 +60,7 @@ public class ChannelServiceImpl implements ChannelService {
             WorkspaceTokenVault tokenVault,
             SocialConnectClient connectClient,
             ChannelProperties properties,
+            VkSocialAccountTokenRefreshService vkTokenRefresh,
             AuditRecorder auditRecorder,
             OutboxRepository outboxRepository) {
         this.access = access;
@@ -70,6 +72,7 @@ public class ChannelServiceImpl implements ChannelService {
         this.tokenVault = tokenVault;
         this.connectClient = connectClient;
         this.properties = properties;
+        this.vkTokenRefresh = vkTokenRefresh;
         this.auditRecorder = auditRecorder;
         this.outboxRepository = outboxRepository;
     }
@@ -94,7 +97,7 @@ public class ChannelServiceImpl implements ChannelService {
         int limit = page.limitOrDefault();
         List<ChannelDtos.Channel> items =
                 channels.stream().limit(limit).map(this::toDto).toList();
-        return new CursorPage.ChannelPage(items, null, channels.size() > limit);
+        return new CursorPage.ChannelPage(items, null, channels.size() > limit, null);
     }
 
     @Override
@@ -197,7 +200,11 @@ public class ChannelServiceImpl implements ChannelService {
             ApiEnums.Network network,
             ChannelDtos.ChannelConnectCallbackRequest request,
             ClientRequestContext ctx) {
-        access.requirePermission(request.workspaceId(), userId, "channels.manage");
+        if (request.workspaceId() != null) {
+            access.requirePermission(request.workspaceId(), userId, "channels.manage");
+        } else if (network != ApiEnums.Network.vk) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "workspaceId is required");
+        }
         return switch (network) {
             case vk, ok -> finishOAuth(userId, network.name(), request, ctx);
             case tg, max -> finishBot(
@@ -351,7 +358,7 @@ public class ChannelServiceImpl implements ChannelService {
     public ChannelDtos.ChannelCheckResponse check(UUID userId, UUID channelId, ClientRequestContext ctx) {
         ChannelEntity channel = requireChannel(channelId);
         access.requirePermission(channel.getWorkspaceId(), userId, "channels.manage");
-        String token = resolveAccessToken(channel);
+        String token = resolveAccessToken(channel, true);
         Instant checkedAt = Instant.now();
         boolean ok = token != null && connectClient.probeToken(channel.getNetwork(), token, channel.getExternalId());
         if (ok) {
@@ -444,18 +451,36 @@ public class ChannelServiceImpl implements ChannelService {
                 .findById(request.state())
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state"));
+        UUID workspaceId = request.workspaceId() != null ? request.workspaceId() : state.getWorkspaceId();
+        access.requirePermission(workspaceId, userId, "channels.manage");
         if (!state.getUserId().equals(userId)
-                || !state.getWorkspaceId().equals(request.workspaceId())
+                || !state.getWorkspaceId().equals(workspaceId)
                 || !state.getNetwork().equals(network)
                 || state.getExpiresAt().isBefore(Instant.now())) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST, ProblemCodes.INVALID_TOKEN, "Invalid or expired connect state");
         }
+        if ("vk".equals(network) && properties.vkIdMode()) {
+            if (request.deviceId() == null || request.deviceId().isBlank()) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST, ProblemCodes.VALIDATION_FAILED, "device_id is required for VK ID");
+            }
+        }
         connectStateRepository.delete(state);
 
-        SocialConnectClient.OAuthToken token = network.equals("vk")
-                ? connectClient.exchangeVk(request.code(), state.getCodeVerifier(), state.getRedirectUri())
-                : connectClient.exchangeOk(request.code(), state.getRedirectUri());
+        SocialConnectClient.OAuthToken token;
+        try {
+            token = network.equals("vk")
+                    ? connectClient.exchangeVk(
+                            request.code(),
+                            state.getCodeVerifier(),
+                            state.getRedirectUri(),
+                            request.deviceId(),
+                            request.state())
+                    : connectClient.exchangeOk(request.code(), state.getRedirectUri());
+        } catch (IllegalStateException ex) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, ProblemCodes.UNAUTHORIZED, "OAuth token exchange failed");
+        }
 
         List<SocialConnectClient.RemoteChannel> remotes = network.equals("vk")
                 ? connectClient.listVkAdminTargets(token.accessToken())
@@ -473,24 +498,24 @@ public class ChannelServiceImpl implements ChannelService {
         }
 
         UUID projectId = request.projectId() != null ? request.projectId() : state.getProjectId();
-        planLimitService.ensureCanAddChannels(request.workspaceId(), adminRemotes.size());
+        planLimitService.ensureCanAddChannels(workspaceId, adminRemotes.size());
 
-        SocialAccountEntity account =
-                upsertSocialAccount(request.workspaceId(), network, token.externalUserId(), token.displayName(), token);
+        SocialAccountEntity account = upsertSocialAccount(
+                workspaceId, network, token.externalUserId(), token.displayName(), token, request.deviceId());
 
         List<ChannelDtos.Channel> created = new ArrayList<>();
         for (SocialConnectClient.RemoteChannel remote : adminRemotes) {
             ChannelEntity channel = upsertChannel(
-                    request.workspaceId(),
+                    workspaceId,
                     projectId,
                     account.getId(),
                     network,
                     remote,
                     null,
-                    remote.groupToken() == null ? null : tokenVault.seal(request.workspaceId(), remote.groupToken()));
+                    remote.groupToken() == null ? null : tokenVault.seal(workspaceId, remote.groupToken()));
             created.add(toDto(channel));
             auditRecorder.record(
-                    request.workspaceId(),
+                    workspaceId,
                     userId,
                     "channel.connected",
                     "channel",
@@ -498,7 +523,7 @@ public class ChannelServiceImpl implements ChannelService {
                     Map.of("network", network, "externalId", remote.externalId()),
                     ctx.ip());
         }
-        return new CursorPage.ChannelPage(created, null, false);
+        return new CursorPage.ChannelPage(created, null, false, workspaceId);
     }
 
     private CursorPage.ChannelPage finishBot(
@@ -565,7 +590,8 @@ public class ChannelServiceImpl implements ChannelService {
                 network,
                 accountExternalId,
                 accountDisplayName,
-                new SocialConnectClient.OAuthToken(botToken, null, null, "bot", "bot"));
+                new SocialConnectClient.OAuthToken(botToken, null, null, "bot", "bot"),
+                null);
 
         SocialConnectClient.RemoteChannel remote = new SocialConnectClient.RemoteChannel(
                 externalId,
@@ -599,7 +625,7 @@ public class ChannelServiceImpl implements ChannelService {
                         "threadId",
                         channel.getThreadId() == null ? "" : channel.getThreadId()),
                 ctx.ip());
-        return new CursorPage.ChannelPage(List.of(toDto(channel)), null, false);
+        return new CursorPage.ChannelPage(List.of(toDto(channel)), null, false, workspaceId);
     }
 
     private SocialAccountEntity upsertSocialAccount(
@@ -607,7 +633,8 @@ public class ChannelServiceImpl implements ChannelService {
             String network,
             String externalUserId,
             String displayName,
-            SocialConnectClient.OAuthToken token) {
+            SocialConnectClient.OAuthToken token,
+            String deviceId) {
         SocialAccountEntity account = socialAccountRepository.findByWorkspaceId(workspaceId).stream()
                 .filter(a -> network.equals(a.getNetwork()) && externalUserId.equals(a.getExternalUserId()))
                 .findFirst()
@@ -626,6 +653,9 @@ public class ChannelServiceImpl implements ChannelService {
             account.setRefreshTokenEnc(tokenVault.seal(workspaceId, token.refreshToken()));
         }
         account.setTokenExpiresAt(token.expiresAt());
+        if (deviceId != null && !deviceId.isBlank()) {
+            account.setDeviceId(deviceId);
+        }
         account.setStatus("active");
         account.setLastCheckedAt(Instant.now());
         account.setUpdatedAt(Instant.now());
@@ -698,13 +728,16 @@ public class ChannelServiceImpl implements ChannelService {
         return fromEnv;
     }
 
-    private String resolveAccessToken(ChannelEntity channel) {
+    private String resolveAccessToken(ChannelEntity channel, boolean refreshIfStale) {
         if (channel.getSocialAccountId() == null) {
             return null;
         }
         return socialAccountRepository
                 .findById(channel.getSocialAccountId())
-                .map(account -> tokenVault.unseal(channel.getWorkspaceId(), account.getAccessTokenEnc()))
+                .map(account -> {
+                    SocialAccountEntity fresh = refreshIfStale ? vkTokenRefresh.ensureFresh(account) : account;
+                    return tokenVault.unseal(channel.getWorkspaceId(), fresh.getAccessTokenEnc());
+                })
                 .orElse(null);
     }
 

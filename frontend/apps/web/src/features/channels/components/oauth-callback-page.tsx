@@ -1,5 +1,6 @@
 'use client';
 
+import type { ChannelPage } from '@posts/api-client';
 import { Button, EmptyState, Skeleton } from '@posts/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, XCircle } from 'lucide-react';
@@ -18,9 +19,13 @@ import { connectChannelCallback } from '../api/channels-api';
 import { isConnectableNetwork, isOauthNetwork, type ConnectableNetwork } from '../model/types';
 
 type OauthCallbackPageProps = {
-  workspaceId: string;
+  workspaceId?: string;
   network: string;
 };
+
+function resolveWorkspaceId(workspaceId: string | undefined, page?: ChannelPage): string | undefined {
+  return workspaceId ?? page?.workspaceId ?? page?.items?.[0]?.workspaceId;
+}
 
 export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPageProps) {
   const t = useTranslations('channels');
@@ -31,7 +36,10 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
 
   const code = searchParams.get('code') ?? '';
   const state = searchParams.get('state') ?? '';
+  const deviceId = searchParams.get('device_id') ?? undefined;
   const projectId = searchParams.get('projectId') ?? undefined;
+  const oauthError = searchParams.get('error');
+  const oauthErrorDescription = searchParams.get('error_description');
 
   const validNetwork =
     isConnectableNetwork(network) && isOauthNetwork(network)
@@ -44,16 +52,22 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
         throw new Error('Unsupported network');
       }
       return connectChannelCallback(validNetwork, {
-        workspaceId,
+        ...(workspaceId ? { workspaceId } : {}),
         projectId,
         code,
         state,
+        deviceId,
       });
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.channels.all(workspaceId) });
+    onSuccess: async (page) => {
+      const resolvedWorkspace = resolveWorkspaceId(workspaceId, page);
+      if (resolvedWorkspace) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.channels.all(resolvedWorkspace) });
+      }
     },
   });
+
+  const resolvedWorkspaceId = resolveWorkspaceId(workspaceId, mutation.data);
 
   useEffect(() => {
     if (started.current || !validNetwork || !code || !state) {
@@ -64,6 +78,27 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount with callback params
   }, [validNetwork, code, state]);
 
+  const backHref = resolvedWorkspaceId ? `/app/${resolvedWorkspaceId}/channels` : '/login';
+
+  if (oauthError) {
+    return (
+      <EmptyState
+        icon={<XCircle className="h-6 w-6" aria-hidden />}
+        title={t('callback.errorTitle')}
+        description={
+          oauthError === 'access_denied'
+            ? t('callback.accessDenied')
+            : oauthErrorDescription || oauthError
+        }
+        action={
+          <Button asChild>
+            <Link href={backHref}>{t('callback.back')}</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
   if (!validNetwork) {
     return (
       <EmptyState
@@ -72,7 +107,7 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
         description={t('callback.invalidNetworkBody')}
         action={
           <Button asChild>
-            <Link href={`/app/${workspaceId}/channels`}>{t('callback.back')}</Link>
+            <Link href={backHref}>{t('callback.back')}</Link>
           </Button>
         }
       />
@@ -87,7 +122,7 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
         description={t('callback.missingParamsBody')}
         action={
           <Button asChild>
-            <Link href={`/app/${workspaceId}/channels`}>{t('callback.back')}</Link>
+            <Link href={backHref}>{t('callback.back')}</Link>
           </Button>
         }
       />
@@ -114,11 +149,11 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
         action={
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href={`/app/${workspaceId}/channels`}>{t('callback.back')}</Link>
+              <Link href={backHref}>{t('callback.back')}</Link>
             </Button>
-            {planLimit ? (
+            {planLimit && resolvedWorkspaceId ? (
               <Button asChild variant="outline">
-                <Link href={`/app/${workspaceId}/billing`}>{t('planLimit.upgrade')}</Link>
+                <Link href={`/app/${resolvedWorkspaceId}/billing`}>{t('planLimit.upgrade')}</Link>
               </Button>
             ) : null}
           </div>
@@ -135,7 +170,7 @@ export function OauthCallbackPage({ workspaceId, network }: OauthCallbackPagePro
       action={
         <Button
           type="button"
-          onClick={() => router.push(`/app/${workspaceId}/channels`)}
+          onClick={() => router.push(`/app/${resolvedWorkspaceId}/channels`)}
           data-testid="oauth-callback-done"
         >
           {t('callback.back')}

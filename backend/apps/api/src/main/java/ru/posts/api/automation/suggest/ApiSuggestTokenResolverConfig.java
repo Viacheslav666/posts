@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
+import ru.posts.api.channel.VkSocialAccountTokenRefreshService;
 import ru.posts.api.channel.WorkspaceTokenVault;
 import ru.posts.persistence.entity.ChannelEntity;
 import ru.posts.persistence.entity.SocialAccountEntity;
@@ -17,7 +18,9 @@ public class ApiSuggestTokenResolverConfig {
     @Bean
     @Primary
     SuggestTokenResolver apiSuggestTokenResolver(
-            SocialAccountRepository socialAccountRepository, WorkspaceTokenVault tokenVault) {
+            SocialAccountRepository socialAccountRepository,
+            WorkspaceTokenVault tokenVault,
+            VkSocialAccountTokenRefreshService vkTokenRefresh) {
         return (ChannelEntity channel) -> {
             if (channel == null || channel.getSocialAccountId() == null) {
                 return null;
@@ -28,7 +31,8 @@ public class ApiSuggestTokenResolverConfig {
             if (account == null || account.getAccessTokenEnc() == null) {
                 return null;
             }
-            return tokenVault.unseal(channel.getWorkspaceId(), account.getAccessTokenEnc());
+            SocialAccountEntity fresh = vkTokenRefresh.ensureFresh(account);
+            return tokenVault.unseal(channel.getWorkspaceId(), fresh.getAccessTokenEnc());
         };
     }
 }

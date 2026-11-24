@@ -6,8 +6,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -18,15 +21,22 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class SocialConnectClient {
 
-    private final RestClient restClient;
+    private static final Logger log = LoggerFactory.getLogger(SocialConnectClient.class);
+
+    private final RestClient socialClient;
+    private final RestClient vkApiClient;
     private final ChannelProperties properties;
 
     public SocialConnectClient(ChannelProperties properties) {
         this.properties = properties;
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory();
         factory.setReadTimeout(Duration.ofSeconds(15));
-        this.restClient = RestClient.builder()
+        this.socialClient = RestClient.builder()
                 .baseUrl(trimSlash(properties.socialBaseUrl()))
+                .requestFactory(factory)
+                .build();
+        this.vkApiClient = RestClient.builder()
+                .baseUrl(trimSlash(properties.vkApiBaseUrl()))
                 .requestFactory(factory)
                 .build();
     }
@@ -45,71 +55,83 @@ public class SocialConnectClient {
 
     public record BotPermissionCheck(boolean ok, String reason, String title, String type, String username) {}
 
-    public OAuthToken exchangeVk(String code, String codeVerifier, String redirectUri) {
-        JsonNode body = restClient
-                .post()
-                .uri(
-                        properties.vkTokenUri().startsWith("http")
-                                ? properties.vkTokenUri()
-                                : properties.socialBaseUrl() + properties.vkTokenUri())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(form(Map.of(
-                        "grant_type",
-                        "authorization_code",
-                        "code",
-                        code,
-                        "code_verifier",
-                        codeVerifier == null ? "" : codeVerifier,
-                        "redirect_uri",
-                        redirectUri,
-                        "client_id",
-                        properties.vkClientId(),
-                        "client_secret",
-                        properties.vkClientSecret())))
-                .retrieve()
-                .body(JsonNode.class);
-        return parseOAuth(body, "vk");
+    public OAuthToken exchangeVk(String code, String codeVerifier, String redirectUri, String deviceId, String state) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("grant_type", "authorization_code");
+        fields.put("code", code);
+        fields.put("code_verifier", codeVerifier == null ? "" : codeVerifier);
+        fields.put("redirect_uri", redirectUri);
+        fields.put("client_id", properties.vkClientId());
+        if (properties.vkIdMode()) {
+            fields.put("device_id", deviceId == null ? "" : deviceId);
+            fields.put("state", state == null ? "" : state);
+        } else {
+            fields.put("client_secret", properties.vkClientSecret());
+        }
+        JsonNode body = postForm(resolveTokenUri(), fields);
+        if (properties.vkIdMode()) {
+            validateReturnedState(body, state);
+        }
+        OAuthToken token = parseOAuth(body, "vk");
+        if (token.displayName() == null || token.displayName().startsWith("vk-user-")) {
+            String name = fetchVkUserDisplayName(token.accessToken());
+            if (name != null) {
+                return new OAuthToken(
+                        token.accessToken(), token.refreshToken(), token.expiresAt(), token.externalUserId(), name);
+            }
+        }
+        return token;
     }
 
-    public OAuthToken refreshVk(String refreshToken) {
-        JsonNode body = restClient
-                .post()
-                .uri(properties.vkTokenUri())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(form(Map.of(
-                        "grant_type",
-                        "refresh_token",
-                        "refresh_token",
-                        refreshToken,
-                        "client_id",
-                        properties.vkClientId(),
-                        "client_secret",
-                        properties.vkClientSecret())))
-                .retrieve()
-                .body(JsonNode.class);
+    public OAuthToken refreshVk(String refreshToken, String deviceId, String state) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("grant_type", "refresh_token");
+        fields.put("refresh_token", refreshToken);
+        fields.put("client_id", properties.vkClientId());
+        if (properties.vkIdMode()) {
+            if (deviceId != null && !deviceId.isBlank()) {
+                fields.put("device_id", deviceId);
+            }
+            if (state != null && !state.isBlank()) {
+                fields.put("state", state);
+            }
+        } else {
+            fields.put("client_secret", properties.vkClientSecret());
+        }
+        JsonNode body = postForm(resolveTokenUri(), fields);
         return parseOAuth(body, "vk");
     }
 
     public List<RemoteChannel> listVkAdminTargets(String accessToken) {
-        JsonNode body = restClient
-                .get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/method/groups.get")
-                        .queryParam("access_token", accessToken)
-                        .queryParam("extended", "1")
-                        .queryParam("filter", "admin")
-                        .build())
-                .retrieve()
-                .body(JsonNode.class);
-        return parseVkGroups(body);
+        JsonNode body = properties.vkIdMode()
+                ? vkApiForm("/method/groups.get", vkGroupsParams(accessToken))
+                : socialClient
+                        .get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/method/groups.get")
+                                .queryParam("access_token", accessToken)
+                                .queryParam("extended", "1")
+                                .queryParam("filter", "admin")
+                                .build())
+                        .retrieve()
+                        .body(JsonNode.class);
+        List<RemoteChannel> channels = parseVkGroups(body);
+        if (properties.vkIdMode() && channels.stream().noneMatch(c -> "profile".equals(c.type()))) {
+            String profileName = fetchVkUserDisplayName(accessToken);
+            if (profileName != null) {
+                String userId = fetchVkUserId(accessToken);
+                if (userId != null) {
+                    channels.add(new RemoteChannel(userId, "profile", profileName, null, null, true, null));
+                }
+            }
+        }
+        return channels;
     }
 
     public OAuthToken exchangeOk(String code, String redirectUri) {
-        JsonNode body = restClient
-                .post()
-                .uri(properties.okTokenUri())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(form(Map.of(
+        JsonNode body = postForm(
+                properties.okTokenUri(),
+                Map.of(
                         "grant_type",
                         "authorization_code",
                         "code",
@@ -119,14 +141,12 @@ public class SocialConnectClient {
                         "client_id",
                         properties.okClientId(),
                         "client_secret",
-                        properties.okClientSecret())))
-                .retrieve()
-                .body(JsonNode.class);
+                        properties.okClientSecret()));
         return parseOAuth(body, "ok");
     }
 
     public List<RemoteChannel> listOkAdminGroups(String accessToken) {
-        JsonNode body = restClient
+        JsonNode body = socialClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/ok/fb.do")
@@ -140,7 +160,7 @@ public class SocialConnectClient {
 
     public BotPermissionCheck checkTelegram(String botToken, String usernameOrChatId) {
         try {
-            JsonNode body = restClient
+            JsonNode body = socialClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/bot{token}/getChat")
@@ -153,7 +173,7 @@ public class SocialConnectClient {
             }
             JsonNode chat = body.path("result");
             String chatId = chat.path("id").asText(null);
-            JsonNode member = restClient
+            JsonNode member = socialClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/bot{token}/getChatMember")
@@ -188,7 +208,7 @@ public class SocialConnectClient {
 
     public BotPermissionCheck checkMax(String botToken, String usernameOrChatId) {
         try {
-            JsonNode body = restClient
+            JsonNode body = socialClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/max/chats/{chatId}")
@@ -231,20 +251,30 @@ public class SocialConnectClient {
         try {
             return switch (network) {
                 case "vk" -> {
-                    JsonNode body = restClient
-                            .get()
-                            .uri(uriBuilder -> uriBuilder
-                                    .path("/method/groups.getById")
-                                    .queryParam("access_token", accessToken)
-                                    .queryParam("group_id", externalId.replace("-", ""))
-                                    .build())
-                            .retrieve()
-                            .body(JsonNode.class);
+                    JsonNode body = properties.vkIdMode()
+                            ? vkApiForm(
+                                    "/method/groups.getById",
+                                    Map.of(
+                                            "access_token",
+                                            accessToken,
+                                            "v",
+                                            properties.vkApiVersion(),
+                                            "group_id",
+                                            externalId.replace("-", "")))
+                            : socialClient
+                                    .get()
+                                    .uri(uriBuilder -> uriBuilder
+                                            .path("/method/groups.getById")
+                                            .queryParam("access_token", accessToken)
+                                            .queryParam("group_id", externalId.replace("-", ""))
+                                            .build())
+                                    .retrieve()
+                                    .body(JsonNode.class);
                     yield body != null && !body.has("error");
                 }
                 case "tg" -> checkTelegram(accessToken, externalId).ok();
                 case "ok" -> {
-                    JsonNode body = restClient
+                    JsonNode body = socialClient
                             .get()
                             .uri(uriBuilder -> uriBuilder
                                     .path("/ok/fb.do")
@@ -277,7 +307,7 @@ public class SocialConnectClient {
                 + enc(codeChallenge)
                 + "&code_challenge_method=S256"
                 + "&scope="
-                + enc("groups wall offline");
+                + enc(properties.vkScopes());
     }
 
     public String buildOkAuthorizeUrl(String state, String redirectUri) {
@@ -293,9 +323,119 @@ public class SocialConnectClient {
                 + enc("VALUABLE_ACCESS;LONG_ACCESS_TOKEN;GROUP_CONTENT");
     }
 
+    private Map<String, String> vkGroupsParams(String accessToken) {
+        return Map.of(
+                "access_token",
+                accessToken,
+                "v",
+                properties.vkApiVersion(),
+                "extended",
+                "1",
+                "filter",
+                properties.vkIdMode() ? "admin,editor" : "admin");
+    }
+
+    private JsonNode vkApiForm(String path, Map<String, String> fields) {
+        return vkApiClient
+                .post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form(fields))
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    private JsonNode postForm(String uri, Map<String, String> fields) {
+        try {
+            JsonNode body = socialClient
+                    .post()
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form(fields))
+                    .retrieve()
+                    .body(JsonNode.class);
+            if (body != null && (body.has("error") || body.has("error_code"))) {
+                log.warn(
+                        "OAuth vk request failed: error={} description={}",
+                        text(body, "error"),
+                        text(body, "error_description"));
+                throw new IllegalStateException("OAuth token exchange failed for vk");
+            }
+            return body;
+        } catch (RestClientResponseException ex) {
+            log.warn("OAuth vk HTTP {} {}", ex.getStatusCode().value(), ex.getMessage());
+            throw new IllegalStateException("OAuth token exchange failed for vk");
+        }
+    }
+
+    private String resolveTokenUri() {
+        String uri = properties.vkTokenUri();
+        if (uri.startsWith("http")) {
+            return uri;
+        }
+        return trimSlash(properties.socialBaseUrl()) + uri;
+    }
+
+    private void validateReturnedState(JsonNode body, String expectedState) {
+        if (body == null || expectedState == null || expectedState.isBlank()) {
+            return;
+        }
+        String returned = text(body, "state");
+        if (returned != null && !returned.equals(expectedState)) {
+            throw new IllegalStateException("OAuth state mismatch for vk");
+        }
+    }
+
+    private String fetchVkUserDisplayName(String accessToken) {
+        try {
+            JsonNode body = vkApiForm(
+                    "/method/users.get",
+                    Map.of("access_token", accessToken, "v", properties.vkApiVersion(), "fields", "photo_100"));
+            if (body == null || body.has("error")) {
+                return null;
+            }
+            JsonNode user =
+                    body.path("response").isArray() && body.path("response").size() > 0
+                            ? body.path("response").get(0)
+                            : null;
+            if (user == null) {
+                return null;
+            }
+            String first = text(user, "first_name");
+            String last = text(user, "last_name");
+            if (first == null && last == null) {
+                return null;
+            }
+            if (first == null) {
+                return last;
+            }
+            if (last == null) {
+                return first;
+            }
+            return first + " " + last;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String fetchVkUserId(String accessToken) {
+        try {
+            JsonNode body =
+                    vkApiForm("/method/users.get", Map.of("access_token", accessToken, "v", properties.vkApiVersion()));
+            if (body == null || body.has("error") || !body.path("response").isArray()) {
+                return null;
+            }
+            JsonNode user =
+                    body.path("response").size() > 0 ? body.path("response").get(0) : null;
+            return user == null ? null : user.path("id").asText(null);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
     private OAuthToken parseOAuth(JsonNode body, String network) {
         if (body == null || body.has("error") || body.has("error_code")) {
-            throw new IllegalStateException("OAuth token exchange failed for " + network + ": " + body);
+            throw new IllegalStateException("OAuth token exchange failed for " + network);
         }
         String access = text(body, "access_token");
         String refresh = text(body, "refresh_token");
@@ -324,23 +464,23 @@ public class SocialConnectClient {
             boolean admin = item.path("is_admin").asInt(0) == 1
                     || item.path("admin_level").asInt(0) > 0;
             String id = item.path("id").asText();
+            String avatar = firstText(item, "photo_100", "photo_50");
             result.add(new RemoteChannel(
                     "-" + id,
                     "group",
                     text(item, "name"),
-                    text(item, "photo_50"),
+                    avatar,
                     text(item, "screen_name"),
                     admin,
                     text(item, "access_token")));
         }
-        // Profile page
         JsonNode profile = body.path("response").path("profile");
         if (!profile.isMissingNode() && !profile.isNull()) {
             result.add(new RemoteChannel(
                     profile.path("id").asText(),
                     "profile",
                     text(profile, "first_name") + " " + text(profile, "last_name"),
-                    text(profile, "photo_50"),
+                    firstText(profile, "photo_100", "photo_50"),
                     null,
                     true,
                     null));
