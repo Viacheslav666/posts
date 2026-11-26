@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +86,31 @@ class VkSocialAdapterWireMockTest {
 
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
                 .withRequestBody(containing("owner_id=1001"))
+                .withRequestBody(notContaining("from_group=")));
+    }
+
+    @Test
+    void personalProfileCommentDoesNotSendFromGroup() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.createComment"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"response\":{\"comment_id\":3}}")));
+        ChannelContext profile = new ChannelContext(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "1001",
+                "classic-user-token",
+                Network.VK,
+                null,
+                "profile",
+                "active");
+
+        adapter.comment(profile, "9", "hello", List.of());
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.createComment"))
+                .withRequestBody(containing("owner_id=1001"))
+                .withRequestBody(containing("post_id=9"))
                 .withRequestBody(notContaining("from_group=")));
     }
 

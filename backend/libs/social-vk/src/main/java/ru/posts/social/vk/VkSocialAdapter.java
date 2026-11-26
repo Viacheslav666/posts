@@ -571,7 +571,9 @@ public class VkSocialAdapter implements SocialAdapter {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());
         form.add("post_id", remotePostId);
-        form.add("from_group", stripMinus(ctx.externalId()));
+        if (VkWallPostGate.postFromGroup(ctx.externalId(), ctx.channelType())) {
+            form.add("from_group", stripMinus(ctx.externalId()));
+        }
         form.add("message", text == null ? "" : text);
         if (attachments != null && !attachments.isEmpty()) {
             form.add("attachments", String.join(",", attachments));
