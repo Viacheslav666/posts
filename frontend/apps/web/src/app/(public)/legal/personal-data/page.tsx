@@ -11,10 +11,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PersonalDataPage() {
   const t = await getTranslations('legal');
   return (
-    <LegalStub
-      title={t('personalData.title')}
-      body={t('personalData.body')}
-      draftLabel={t('draftBanner')}
-    />
+    <LegalStub title={t('personalData.title')} body={t('personalData.body')} />
   );
 }

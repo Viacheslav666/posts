@@ -4,7 +4,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { PricingTable } from '@/features/pricing/components/pricing-table';
-import { getLegalRequisites, hasLegalValue } from '@/shared/config/legal';
+
+import { PublicFooter } from './public-footer';
 
 const FEATURE_KEYS = [
   'scheduling',
@@ -23,9 +24,6 @@ const FAQ_ITEMS = ['1', '2', '3', '4', '5'] as const;
 export async function LandingPageContent() {
   const t = await getTranslations('landing');
   const common = await getTranslations('common');
-  const legal = await getTranslations('legal');
-  const requisites = getLegalRequisites();
-  const year = new Date().getFullYear();
 
   return (
     <>
@@ -187,56 +185,7 @@ export async function LandingPageContent() {
         </div>
       </section>
 
-      <footer
-        className="border-t border-border/60 bg-background"
-        data-testid="landing-footer"
-      >
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-          <div>
-            <p className="font-display text-xl font-bold text-foreground">{common('brand')}</p>
-            <p className="mt-3 text-sm text-muted-foreground">{t('footer.rights', { year })}</p>
-          </div>
-          <FooterColumn title={t('footer.product')}>
-            <Link href="/pricing" className="hover:text-foreground">
-              {t('footer.pricing')}
-            </Link>
-            <Link href="/login" className="hover:text-foreground">
-              {t('footer.login')}
-            </Link>
-            <Link href="/register" className="hover:text-foreground">
-              {t('footer.register')}
-            </Link>
-          </FooterColumn>
-          <FooterColumn title={t('footer.legal')}>
-            <Link href="/legal/offer" className="hover:text-foreground">
-              {t('footer.offer')}
-            </Link>
-            <Link href="/legal/privacy" className="hover:text-foreground">
-              {t('footer.privacy')}
-            </Link>
-            <Link href="/legal/personal-data" className="hover:text-foreground">
-              {t('footer.personalData')}
-            </Link>
-          </FooterColumn>
-          <FooterColumn title={t('footer.company')}>
-            <Link href="/legal/contacts" className="hover:text-foreground">
-              {t('footer.contacts')}
-            </Link>
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-              <li>
-                {legal('contacts.company')}:{' '}
-                {hasLegalValue(requisites.companyName)
-                  ? requisites.companyName
-                  : legal('contacts.placeholder')}
-              </li>
-              <li>
-                {legal('contacts.inn')}:{' '}
-                {hasLegalValue(requisites.inn) ? requisites.inn : legal('contacts.placeholder')}
-              </li>
-            </ul>
-          </FooterColumn>
-        </div>
-      </footer>
+      <PublicFooter testId="landing-footer" />
     </>
   );
 }
@@ -266,14 +215,5 @@ function Section({
         <div className="mt-10">{children}</div>
       </div>
     </section>
-  );
-}
-
-function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <div className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">{children}</div>
-    </div>
   );
 }

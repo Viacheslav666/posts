@@ -392,6 +392,14 @@ services:
       HOSTNAME: 0.0.0.0
       # Same-origin via gateway on :3000 (no MSW in full stack).
       NEXT_PUBLIC_API_MOCKING: "false"
+      # Runtime legal requisites. Empty OGRN is hidden (self-employed seller).
+      NEXT_PUBLIC_LEGAL_COMPANY_NAME: ${NEXT_PUBLIC_LEGAL_COMPANY_NAME:-}
+      NEXT_PUBLIC_LEGAL_INN: ${NEXT_PUBLIC_LEGAL_INN:-}
+      NEXT_PUBLIC_LEGAL_OGRN: ${NEXT_PUBLIC_LEGAL_OGRN:-}
+      NEXT_PUBLIC_LEGAL_ADDRESS: ${NEXT_PUBLIC_LEGAL_ADDRESS:-}
+      NEXT_PUBLIC_LEGAL_EMAIL: ${NEXT_PUBLIC_LEGAL_EMAIL:-}
+      NEXT_PUBLIC_LEGAL_PHONE: ${NEXT_PUBLIC_LEGAL_PHONE:-}
+      NEXT_PUBLIC_LEGAL_TAX_STATUS: ${NEXT_PUBLIC_LEGAL_TAX_STATUS:-}
     depends_on:
       api:
         condition: service_started

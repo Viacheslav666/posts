@@ -3,6 +3,9 @@ import { getTranslations } from 'next-intl/server';
 
 import { LandingPageContent } from '@/features/landing/components/landing-page';
 
+// Footer requisites are read per request so container env overrides the image.
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');
   return {
