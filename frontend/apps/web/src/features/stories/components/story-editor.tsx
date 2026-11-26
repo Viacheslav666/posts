@@ -10,6 +10,7 @@ import { PlanLimitPaywall } from '@/features/billing/components/plan-limit-paywa
 import { registerPostOrd } from '@/features/editor/api/posts-api';
 import { AdMarkingForm } from '@/features/editor/components/ad-marking-form';
 import { useWorkspaceChannels } from '@/features/channels/hooks/use-workspace-channels';
+import { vkPublishBlockReason } from '@/features/channels/model/vk-publish-block';
 import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
 import {
   type AdFieldErrors,
@@ -139,6 +140,8 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
       : 'missing';
 
   const scheduleBlockedReason = useMemo(() => {
+    const vkBlock = vkPublishBlockReason(channels, draft.selectedChannelIds);
+    if (vkBlock) return vkBlock;
     if (issues.length > 0) {
       return t(issues[0]!.messageKey as Parameters<typeof t>[0]);
     }
@@ -151,7 +154,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
       if (!erid) return t('ad.eridMissingBlock');
     }
     return null;
-  }, [adsSupported, canScheduleAd, draft, erid, hasOrdConnection, issues, t]);
+  }, [adsSupported, canScheduleAd, channels, draft, erid, hasOrdConnection, issues, t]);
 
   const ttlLabel =
     STORY_TTL_OPTIONS.find((item) => item.value === draft.story.ttl)?.label ?? '24 часа';
@@ -245,6 +248,7 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
     }
   };
 
+  const vkPublishBlock = vkPublishBlockReason(channels, draft.selectedChannelIds);
   const scheduleDisabled =
     Boolean(scheduleBlockedReason) || submitting || !canSchedule || !canCreate;
 
@@ -292,6 +296,16 @@ export function StoryEditor({ workspaceId }: StoryEditorProps) {
           </Button>
         </div>
       </header>
+
+      {vkPublishBlock && !(draft.isAd || issues.length > 0) ? (
+        <p
+          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+          role="status"
+          data-testid="vk-publish-block"
+        >
+          {vkPublishBlock}
+        </p>
+      ) : null}
 
       {scheduleBlockedReason && (draft.isAd || issues.length > 0) ? (
         <p

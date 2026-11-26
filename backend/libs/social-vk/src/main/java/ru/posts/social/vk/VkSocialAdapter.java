@@ -127,6 +127,7 @@ public class VkSocialAdapter implements SocialAdapter {
 
     @Override
     public PublishResult publish(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
+        rejectUnpostable(ctx, "wall.post");
         Map<String, Object> options = PostVariantMeta.options(content == null ? Map.of() : content.meta());
         if (options.get("repost") instanceof Map<?, ?> repost && !repost.isEmpty()) {
             return publishRepost(ctx, content, repost);
@@ -149,7 +150,9 @@ public class VkSocialAdapter implements SocialAdapter {
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());
-        form.add("from_group", "1");
+        if (VkWallPostGate.postFromGroup(ctx.externalId(), ctx.channelType())) {
+            form.add("from_group", "1");
+        }
         form.add("message", content == null || content.text() == null ? "" : content.text());
         form.add("guid", idempotencyKey);
         if (!attachments.isEmpty()) {
@@ -189,6 +192,7 @@ public class VkSocialAdapter implements SocialAdapter {
 
     @Override
     public PublishResult publishStory(ChannelContext ctx, PostVariantContent content, String idempotencyKey) {
+        rejectUnpostable(ctx, "stories.save");
         boolean video = content != null && content.isVideo();
         String uploadMethod = video ? "stories.getVideoUploadServer" : "stories.getPhotoUploadServer";
         String saveMethod = "stories.save";
@@ -567,7 +571,9 @@ public class VkSocialAdapter implements SocialAdapter {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("owner_id", ctx.externalId());
         form.add("post_id", remotePostId);
-        form.add("from_group", stripMinus(ctx.externalId()));
+        if (VkWallPostGate.postFromGroup(ctx.externalId(), ctx.channelType())) {
+            form.add("from_group", stripMinus(ctx.externalId()));
+        }
         form.add("message", text == null ? "" : text);
         if (attachments != null && !attachments.isEmpty()) {
             form.add("attachments", String.join(",", attachments));
@@ -1306,7 +1312,7 @@ public class VkSocialAdapter implements SocialAdapter {
     }
 
     private PublishResult parseWallPost(JsonNode body, String ownerId) {
-        assertNoVkError(body);
+        assertNoVkError(body, "wall.post");
         JsonNode response = body.path("response");
         String postId = response.path("post_id").asText(null);
         if (postId == null) {
@@ -1339,6 +1345,10 @@ public class VkSocialAdapter implements SocialAdapter {
     }
 
     private void assertNoVkError(JsonNode body) {
+        assertNoVkError(body, "vk");
+    }
+
+    private void assertNoVkError(JsonNode body, String method) {
         if (body == null) {
             throw new SocialApiException(ErrorClass.RETRYABLE, "VK empty response");
         }
@@ -1349,7 +1359,19 @@ public class VkSocialAdapter implements SocialAdapter {
         int code = error.path("error_code").asInt(0);
         String msg = error.path("error_msg").asText("VK error " + code);
         ErrorClass clazz = classifyVkErrorCode(code);
-        throw new SocialApiException(clazz, msg, null, retryAfterFor(code), null);
+        VkFailureLog.warn(log, method, code, msg);
+        throw new SocialApiException(clazz, msg, null, retryAfterFor(code), null, Integer.toString(code));
+    }
+
+    private void rejectUnpostable(ChannelContext ctx, String method) {
+        if (ctx == null
+                || !VkWallPostGate.blocked(
+                        ctx.accessToken(), ctx.externalId(), ctx.channelType(), ctx.channelStatus())) {
+            return;
+        }
+        VkFailureLog.warn(log, method, VkWallPostGate.PROFILE_TYPE_ERROR, VkWallPostGate.BLOCK_MESSAGE);
+        throw new SocialApiException(
+                ErrorClass.AUTH, VkWallPostGate.BLOCK_MESSAGE, null, null, null, VkWallPostGate.PROFILE_TYPE_ERROR);
     }
 
     private void assertNoVkErrorForClips(JsonNode body) {
@@ -1448,6 +1470,8 @@ public class VkSocialAdapter implements SocialAdapter {
             case 6, 9 -> ErrorClass.RATE_LIMITED;
             case 10, 1 -> ErrorClass.RETRYABLE;
             case 5, 15, 203, 212 -> ErrorClass.AUTH;
+                // 1051: method is not available for this profile type (VK ID token on a profile).
+            case 1051 -> ErrorClass.AUTH;
             case 14 -> ErrorClass.PERMANENT; // captcha
             default -> ErrorClass.PERMANENT;
         };
@@ -1470,8 +1494,14 @@ public class VkSocialAdapter implements SocialAdapter {
         }
         Integer bodyCode = vkErrorCode(ex.getResponseBodyAsString());
         if (bodyCode != null) {
+            VkFailureLog.warn(log, "vk", bodyCode, "VK error");
             return new SocialApiException(
-                    classifyVkErrorCode(bodyCode), "VK error", status, retryAfterFor(bodyCode), ex);
+                    classifyVkErrorCode(bodyCode),
+                    "VK error",
+                    status,
+                    retryAfterFor(bodyCode),
+                    ex,
+                    Integer.toString(bodyCode));
         }
         return new SocialApiException(ErrorClass.PERMANENT, "VK error: " + status, status, null, ex);
     }

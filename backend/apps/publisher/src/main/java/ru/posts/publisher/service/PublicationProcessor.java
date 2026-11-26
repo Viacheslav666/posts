@@ -43,6 +43,8 @@ import ru.posts.social.api.PostVariantContent;
 import ru.posts.social.api.PublishResult;
 import ru.posts.social.api.SocialAdapter;
 import ru.posts.social.api.SocialApiException;
+import ru.posts.social.vk.VkFailureLog;
+import ru.posts.social.vk.VkWallPostGate;
 
 @Service
 public class PublicationProcessor {
@@ -248,7 +250,21 @@ public class PublicationProcessor {
         Integer httpStatus =
                 root instanceof SocialApiException social ? social.httpStatus().orElse(null) : null;
         String errorCode = errorClass.name().toLowerCase(Locale.ROOT);
-        String message = root.getMessage() == null ? root.toString() : root.getMessage();
+        String rawMessage = root.getMessage() == null ? root.toString() : root.getMessage();
+        String providerCode = root instanceof SocialApiException social
+                ? social.providerCode().orElse(null)
+                : null;
+        boolean vkNoPermissions = VkWallPostGate.PROFILE_TYPE_ERROR.equals(providerCode)
+                || (rawMessage != null && rawMessage.contains("VK не разрешает публикацию"));
+        if (vkNoPermissions) {
+            errorCode = "no_permissions";
+        }
+        final String message = vkNoPermissions ? VkWallPostGate.BLOCK_MESSAGE : rawMessage;
+        String human = PublicationFailedEvent.russianMessage(claim.network(), errorCode, message);
+        if ("vk".equals(claim.network())) {
+            String method = "story".equals(claim.contentKind()) ? "stories.save" : "wall.post";
+            VkFailureLog.warn(log, method, vkNoPermissions ? VkWallPostGate.PROFILE_TYPE_ERROR : errorCode, message);
+        }
 
         if (errorClass == ErrorClass.RATE_LIMITED) {
             Duration retryAfter = root instanceof SocialApiException social
@@ -289,14 +305,15 @@ public class PublicationProcessor {
         if (errorClass == ErrorClass.AUTH || errorClass == ErrorClass.PERMANENT) {
             ErrorClass finalClass = errorClass;
             String finalCode = errorCode;
-            boolean storyWaiting = finalClass == ErrorClass.AUTH && "story".equals(claim.contentKind());
+            boolean storyWaiting =
+                    finalClass == ErrorClass.AUTH && "story".equals(claim.contentKind()) && !vkNoPermissions;
             transactionTemplate.executeWithoutResult(status -> {
                 if (storyWaiting) {
                     // BE-16 / TC-STORY-20: revoked stories scope → waiting_for_channel (retry after reconnect).
                     lifecycleJdbc.markWaitingForChannel(claim.id(), claim.runAt(), finalCode, message);
                     lifecycleJdbc.markStoryConnectionRevoked(claim.channelId());
                 } else {
-                    lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), finalCode, message);
+                    lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), finalCode, human);
                 }
                 lifecycleJdbc.recordAttempt(
                         claim.id(),
@@ -307,7 +324,11 @@ public class PublicationProcessor {
                         httpStatus,
                         finalCode,
                         excerpt(message));
-                if (finalClass == ErrorClass.AUTH) {
+                if (vkNoPermissions) {
+                    lifecycleJdbc.markChannelNoPermissions(claim.channelId(), VkWallPostGate.BLOCK_MESSAGE);
+                    outboxJdbc.append(
+                            "channel", claim.channelId(), "channel.no_permissions", channelNoPermissionsPayload(claim));
+                } else if (finalClass == ErrorClass.AUTH) {
                     lifecycleJdbc.markChannelReauthRequired(claim.channelId());
                     outboxJdbc.append(
                             "channel",
@@ -329,13 +350,15 @@ public class PublicationProcessor {
                         "publication",
                         claim.id(),
                         storyWaiting ? "publication.waiting_for_channel" : "publication.failed",
-                        "{\"network\":\""
-                                + claim.network()
-                                + "\",\"result\":\""
-                                + finalCode
-                                + "\",\"workspaceId\":\""
-                                + claim.workspaceId()
-                                + "\"}");
+                        PublicationFailedEvent.payload(
+                                objectMapper,
+                                claim.network(),
+                                finalCode,
+                                claim.workspaceId(),
+                                claim.postId(),
+                                claim.channelId(),
+                                claim.id(),
+                                human));
             });
             metrics.recordFailure(
                     claim.network(),
@@ -349,7 +372,9 @@ public class PublicationProcessor {
         if (PublicationBackoff.exhausted(
                 claim.attempts(), claim.runAt(), now, properties.maxAttempts(), properties.maxAgeAfterRunAt())) {
             transactionTemplate.executeWithoutResult(status -> {
-                lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), "attempts_exhausted", message);
+                String exhaustedHuman =
+                        PublicationFailedEvent.russianMessage(claim.network(), "attempts_exhausted", message);
+                lifecycleJdbc.markFailedPermanent(claim.id(), claim.runAt(), "attempts_exhausted", exhaustedHuman);
                 lifecycleJdbc.recordAttempt(
                         claim.id(),
                         claim.runAt(),
@@ -363,11 +388,15 @@ public class PublicationProcessor {
                         "publication",
                         claim.id(),
                         "publication.failed",
-                        "{\"network\":\""
-                                + claim.network()
-                                + "\",\"result\":\"attempts_exhausted\",\"workspaceId\":\""
-                                + claim.workspaceId()
-                                + "\"}");
+                        PublicationFailedEvent.payload(
+                                objectMapper,
+                                claim.network(),
+                                "attempts_exhausted",
+                                claim.workspaceId(),
+                                claim.postId(),
+                                claim.channelId(),
+                                claim.id(),
+                                exhaustedHuman));
             });
             metrics.recordFailure(claim.network(), "attempts_exhausted");
             return true;
@@ -570,6 +599,18 @@ public class PublicationProcessor {
             current = current.getCause();
         }
         return current;
+    }
+
+    private String channelNoPermissionsPayload(PublicationClaim claim) {
+        return PublicationFailedEvent.payload(
+                objectMapper,
+                claim.network(),
+                "no_permissions",
+                claim.workspaceId(),
+                claim.postId(),
+                claim.channelId(),
+                claim.id(),
+                VkWallPostGate.BLOCK_MESSAGE);
     }
 
     private static String excerpt(String message) {

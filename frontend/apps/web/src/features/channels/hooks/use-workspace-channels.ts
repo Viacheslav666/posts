@@ -18,6 +18,7 @@ export type EditorChannelOption = {
   /** VK stories connect status (BE-16); OK does not require a separate connect. */
   storyConnectionStatus?: Channel['storyConnectionStatus'];
   status?: Channel['status'];
+  statusReason?: string;
 };
 
 function toEditorOption(
@@ -40,6 +41,7 @@ function toEditorOption(
     externalId: channel.externalId,
     storyConnectionStatus: channel.storyConnectionStatus,
     status: channel.status,
+    statusReason: channel.statusReason,
   };
 }
 

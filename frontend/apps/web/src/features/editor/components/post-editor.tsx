@@ -17,6 +17,7 @@ import {
   useWorkspaceChannels,
   type EditorChannelOption,
 } from '@/features/channels/hooks/use-workspace-channels';
+import { vkPublishBlockReason } from '@/features/channels/model/vk-publish-block';
 import { useOrdConnections } from '@/features/ord/hooks/use-ord-queries';
 import {
   type AdFieldErrors,
@@ -311,6 +312,8 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
     if (!draft) return null;
     if (blocked) return t('actions.blockedValidation');
     if (draft.selectedChannelIds.length === 0) return t('actions.blockedChannels');
+    const vkBlock = vkPublishBlockReason(channels, draft.selectedChannelIds);
+    if (vkBlock) return vkBlock;
     if (draft.options.isAd) {
       if (!canScheduleAd) return t('ad.noPermission');
       if (!hasOrdConnection) return t('ad.ordNotConfigured');
@@ -319,7 +322,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       if (!erid) return t('ad.eridMissingBlock');
     }
     return null;
-  }, [blocked, canScheduleAd, draft, erid, hasOrdConnection, t]);
+  }, [blocked, canScheduleAd, channels, draft, erid, hasOrdConnection, t]);
 
   const previewChannel = useMemo(() => {
     if (!draft) {
@@ -519,6 +522,7 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
       : undefined;
 
   const scheduleDisabled = Boolean(publishBlockedReason) || submitting || !canSchedule;
+  const vkPublishBlock = vkPublishBlockReason(channels, draft.selectedChannelIds);
 
   const publishAtForOptions = resolvePublishAtIso(draft.options.publishMode, draft.options.scheduledAt);
   const unpinAtError =
@@ -568,6 +572,16 @@ export function PostEditor({ workspaceId, draftId = 'new' }: PostEditorProps) {
           </Button>
         </div>
       </header>
+
+      {vkPublishBlock && !draft.options.isAd ? (
+        <p
+          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+          role="status"
+          data-testid="vk-publish-block"
+        >
+          {vkPublishBlock}
+        </p>
+      ) : null}
 
       {publishBlockedReason && draft.options.isAd ? (
         <p

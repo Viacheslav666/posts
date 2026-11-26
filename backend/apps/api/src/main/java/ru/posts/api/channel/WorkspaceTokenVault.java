@@ -1,6 +1,7 @@
 package ru.posts.api.channel;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,23 @@ public class WorkspaceTokenVault {
 
     @Transactional(readOnly = true)
     public String unseal(UUID workspaceId, byte[] blob) {
+        return doUnseal(workspaceId, blob);
+    }
+
+    /**
+     * Same as {@link #unseal} but swallows failures. The catch stays inside this transactional
+     * boundary so a missing DEK does not mark the caller's transaction rollback-only.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> tryUnseal(UUID workspaceId, byte[] blob) {
+        try {
+            return Optional.ofNullable(doUnseal(workspaceId, blob));
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+    }
+
+    private String doUnseal(UUID workspaceId, byte[] blob) {
         if (blob == null || blob.length == 0) {
             return null;
         }

@@ -76,6 +76,17 @@ class SocialConnectClientTest {
         assertThat(token.accessToken()).isEqualTo("at");
         assertThat(token.externalUserId()).isEqualTo("42");
         assertThat(token.displayName()).isEqualTo("Ivan P");
+        assertThat(token.scopes()).isNull();
+    }
+
+    @Test
+    void vkTokenResponseScopesAreParsed() {
+        assertThat(SocialConnectClient.parseScopes(new com.fasterxml.jackson.databind.ObjectMapper()
+                        .valueToTree(java.util.Map.of("scope", "wall groups email"))))
+                .containsExactly("wall", "groups", "email");
+        assertThat(SocialConnectClient.parseScopes(new com.fasterxml.jackson.databind.ObjectMapper()
+                        .valueToTree(java.util.Map.of("access_token", "at"))))
+                .isNull();
     }
 
     @Test

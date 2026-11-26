@@ -74,7 +74,15 @@ public class ChannelAccessResolver {
         if ((resolvedExternal == null || resolvedExternal.isBlank()) && row != null) {
             resolvedExternal = row.externalId();
         }
-        return new ChannelContext(workspaceId, channelId, resolvedExternal, token, network, threadId);
+        return new ChannelContext(
+                workspaceId,
+                channelId,
+                resolvedExternal,
+                token,
+                network,
+                threadId,
+                row == null ? null : row.channelType(),
+                row == null ? null : row.channelStatus());
     }
 
     /**
@@ -109,6 +117,8 @@ public class ChannelAccessResolver {
                         """
                         SELECT c.thread_id,
                                c.external_id,
+                               c.type,
+                               c.status,
                                c.bot_token_enc,
                                sa.id AS social_account_id,
                                sa.access_token_enc,
@@ -125,7 +135,9 @@ public class ChannelAccessResolver {
                         rs.getBytes("bot_token_enc"),
                         (UUID) rs.getObject("social_account_id"),
                         rs.getBytes("access_token_enc"),
-                        rs.getBytes("dek_enc")))
+                        rs.getBytes("dek_enc"),
+                        rs.getString("type"),
+                        rs.getString("status")))
                 .optional()
                 .orElse(null);
     }
@@ -192,5 +204,18 @@ public class ChannelAccessResolver {
             byte[] botTokenEnc,
             UUID socialAccountId,
             byte[] accessTokenEnc,
-            byte[] dekEnc) {}
+            byte[] dekEnc,
+            String channelType,
+            String channelStatus) {
+
+        AccessRow(
+                String threadId,
+                String externalId,
+                byte[] botTokenEnc,
+                UUID socialAccountId,
+                byte[] accessTokenEnc,
+                byte[] dekEnc) {
+            this(threadId, externalId, botTokenEnc, socialAccountId, accessTokenEnc, dekEnc, null, null);
+        }
+    }
 }
