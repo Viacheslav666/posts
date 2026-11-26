@@ -250,6 +250,69 @@ public class PublicationLifecycleJdbc {
                 .param("errorCode", errorCode)
                 .param("errorMessage", truncate(errorMessage, 1000))
                 .update();
+        markPostFailedIfAllPublicationsPermanent(id, runAt);
+    }
+
+    /**
+     * When every publication of the post is {@code failed_permanent}, set {@code posts.status} to
+     * {@code failed}. The status enum already allows {@code failed} (V2/V9), so no migration.
+     */
+    @Transactional
+    public void markPostFailedIfAllPublicationsPermanent(UUID publicationId, Instant runAt) {
+        UUID postId = jdbcClient
+                .sql("SELECT post_id FROM publications WHERE id = :id AND run_at = :runAt")
+                .param("id", publicationId)
+                .param("runAt", Timestamp.from(runAt))
+                .query(UUID.class)
+                .optional()
+                .orElse(null);
+        if (postId == null) {
+            return;
+        }
+        List<UUID> locked = jdbcClient
+                .sql("SELECT id FROM posts WHERE id = :postId FOR UPDATE")
+                .param("postId", postId)
+                .query(UUID.class)
+                .list();
+        if (locked.isEmpty()) {
+            return;
+        }
+        List<String> states = jdbcClient
+                .sql("SELECT state FROM publications WHERE post_id = :postId")
+                .param("postId", postId)
+                .query(String.class)
+                .list();
+        if (!PostPublicationRollup.allFailedPermanent(states)) {
+            return;
+        }
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE posts
+                        SET status = 'failed', updated_at = now()
+                        WHERE id = :postId
+                          AND deleted_at IS NULL
+                          AND status IN ('scheduled', 'publishing')
+                        """)
+                .param("postId", postId)
+                .update();
+    }
+
+    /** VK 1051 / profile token that cannot wall.post. */
+    @Transactional
+    public void markChannelNoPermissions(UUID channelId, String reason) {
+        jdbcClient
+                .sql(
+                        """
+                        UPDATE channels
+                        SET status = 'no_permissions',
+                            status_reason = :reason,
+                            updated_at = now()
+                        WHERE id = :channelId
+                        """)
+                .param("channelId", channelId)
+                .param("reason", truncate(reason, 500))
+                .update();
     }
 
     /**

@@ -76,7 +76,13 @@ public class EmailDeliveryService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
             helper.setTo(user.getEmail());
-            helper.setFrom(properties.mail().from(), properties.mail().fromName());
+            MailFromAddress.Parsed from = MailFromAddress.parse(
+                    properties.mail().from(), properties.mail().fromName());
+            if (from.personal() == null) {
+                helper.setFrom(from.address());
+            } else {
+                helper.setFrom(from.address(), from.personal());
+            }
             helper.setSubject(templates.subject(command.eventType()));
             helper.setText(html, true);
             message.setHeader("List-Unsubscribe", "<" + unsubscribeUrl + ">");
@@ -102,7 +108,7 @@ public class EmailDeliveryService {
         return raw;
     }
 
-    private static String bodyText(NotifyDeliveryCommand command) {
+    private String bodyText(NotifyDeliveryCommand command) {
         Object result = command.payload() == null ? null : command.payload().get("result");
         Object network = command.payload() == null ? null : command.payload().get("network");
         StringBuilder sb = new StringBuilder();
@@ -112,6 +118,26 @@ public class EmailDeliveryService {
         }
         if (result != null) {
             sb.append(" Результат: ").append(result).append('.');
+        }
+        Object errorMessage =
+                command.payload() == null ? null : command.payload().get("errorMessage");
+        if (errorMessage != null && !String.valueOf(errorMessage).isBlank()) {
+            sb.append(' ').append(errorMessage);
+        }
+        Object postId = command.payload() == null ? null : command.payload().get("postId");
+        Object workspaceId =
+                command.payload() == null ? null : command.payload().get("workspaceId");
+        if (postId != null
+                && workspaceId != null
+                && !String.valueOf(postId).isBlank()
+                && !String.valueOf(workspaceId).isBlank()) {
+            sb.append(" Пост: ")
+                    .append(properties.appBaseUrl())
+                    .append("/app/")
+                    .append(workspaceId)
+                    .append("/posts/")
+                    .append(postId)
+                    .append('.');
         }
         return sb.toString();
     }

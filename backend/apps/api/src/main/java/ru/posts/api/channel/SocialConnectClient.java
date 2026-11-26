@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +42,20 @@ public class SocialConnectClient {
                 .build();
     }
 
+    @SuppressWarnings("ArrayRecordComponent")
     public record OAuthToken(
-            String accessToken, String refreshToken, Instant expiresAt, String externalUserId, String displayName) {}
+            String accessToken,
+            String refreshToken,
+            Instant expiresAt,
+            String externalUserId,
+            String displayName,
+            String[] scopes) {
+
+        public OAuthToken(
+                String accessToken, String refreshToken, Instant expiresAt, String externalUserId, String displayName) {
+            this(accessToken, refreshToken, expiresAt, externalUserId, displayName, null);
+        }
+    }
 
     public record RemoteChannel(
             String externalId,
@@ -77,7 +90,12 @@ public class SocialConnectClient {
             String name = fetchVkUserDisplayName(token.accessToken());
             if (name != null) {
                 return new OAuthToken(
-                        token.accessToken(), token.refreshToken(), token.expiresAt(), token.externalUserId(), name);
+                        token.accessToken(),
+                        token.refreshToken(),
+                        token.expiresAt(),
+                        token.externalUserId(),
+                        name,
+                        token.scopes());
             }
         }
         return token;
@@ -481,7 +499,35 @@ public class SocialConnectClient {
         if (name == null) {
             name = network + "-user-" + userId;
         }
-        return new OAuthToken(access, refresh, Instant.now().plusSeconds(expiresIn), userId, name);
+        return new OAuthToken(access, refresh, Instant.now().plusSeconds(expiresIn), userId, name, parseScopes(body));
+    }
+
+    static String[] parseScopes(JsonNode body) {
+        if (body == null || !body.has("scope") || body.get("scope").isNull()) {
+            return null;
+        }
+        JsonNode scope = body.get("scope");
+        if (scope.isArray()) {
+            List<String> values = new ArrayList<>();
+            scope.forEach(item -> {
+                String text = item.asText("").trim();
+                if (!text.isEmpty()) {
+                    values.add(text);
+                }
+            });
+            return values.toArray(String[]::new);
+        }
+        if (scope.isNumber()) {
+            return new String[] {scope.asText()};
+        }
+        String raw = scope.asText("").trim();
+        if (raw.isEmpty()) {
+            return new String[0];
+        }
+        return Arrays.stream(raw.split("[,\\s]+"))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .toArray(String[]::new);
     }
 
     private List<RemoteChannel> parseVkGroups(JsonNode body) {

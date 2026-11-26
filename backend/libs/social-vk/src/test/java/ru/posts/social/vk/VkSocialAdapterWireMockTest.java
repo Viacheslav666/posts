@@ -61,7 +61,74 @@ class VkSocialAdapterWireMockTest {
         assertThat(result.remoteUrl()).contains("wall-100_42");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
                 .withRequestBody(containing("guid=guid-1"))
-                .withRequestBody(containing("owner_id=-100")));
+                .withRequestBody(containing("owner_id=-100"))
+                .withRequestBody(containing("from_group=1")));
+    }
+
+    @Test
+    void personalProfileDoesNotSendFromGroup() {
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.post"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"response\":{\"post_id\":9}}")));
+        ChannelContext profile = new ChannelContext(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "1001",
+                "classic-user-token",
+                Network.VK,
+                null,
+                "profile",
+                "active");
+
+        adapter.publish(profile, new PostVariantContent("hello"), "guid-profile");
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/method/wall.post"))
+                .withRequestBody(containing("owner_id=1001"))
+                .withRequestBody(notContaining("from_group=")));
+    }
+
+    @Test
+    void vkIdTokenOnProfileIsBlockedBeforeWallPost() {
+        ChannelContext profile = new ChannelContext(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "1001",
+                "vk2.a.profile-token",
+                Network.VK,
+                null,
+                "profile",
+                "active");
+
+        assertThatThrownBy(() -> adapter.publish(profile, new PostVariantContent("hello"), "guid-blocked"))
+                .isInstanceOf(SocialApiException.class)
+                .satisfies(ex -> {
+                    SocialApiException api = (SocialApiException) ex;
+                    assertThat(api.errorClass()).isEqualTo(ErrorClass.AUTH);
+                    assertThat(api.providerCode()).contains("1051");
+                    assertThat(api.getMessage()).isEqualTo(VkWallPostGate.BLOCK_MESSAGE);
+                });
+        wireMock.verify(exactly(0), postRequestedFor(urlPathEqualTo("/method/wall.post")));
+    }
+
+    @Test
+    void error1051IsAuthNotPermanent() {
+        wireMock.stubFor(
+                com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/method/wall.post"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withBody(
+                                                "{\"error\":{\"error_code\":1051,\"error_msg\":\"Method is not available for this profile type\"}}")));
+
+        assertThatThrownBy(() -> adapter.publish(ctx, new PostVariantContent("x"), "g"))
+                .isInstanceOf(SocialApiException.class)
+                .satisfies(ex -> {
+                    SocialApiException api = (SocialApiException) ex;
+                    assertThat(api.errorClass()).isEqualTo(ErrorClass.AUTH);
+                    assertThat(api.providerCode()).contains("1051");
+                    assertThat(api.errorClass()).isNotEqualTo(ErrorClass.PERMANENT);
+                });
     }
 
     @Test

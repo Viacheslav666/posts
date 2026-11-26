@@ -32,6 +32,7 @@ import ru.posts.persistence.repository.ChannelRepository;
 import ru.posts.persistence.repository.OutboxRepository;
 import ru.posts.persistence.repository.SocialAccountRepository;
 import ru.posts.persistence.repository.TelegramBotRepository;
+import ru.posts.social.vk.VkWallPostGate;
 
 @Service
 @Profile("!openapi")
@@ -512,6 +513,12 @@ public class ChannelServiceImpl implements ChannelService {
                     remote,
                     null,
                     remote.groupToken() == null ? null : tokenVault.seal(workspaceId, remote.groupToken()));
+            if (VkWallPostGate.cannotPost(token.accessToken(), remote.externalId(), remote.type())) {
+                channel.setStatus("no_permissions");
+                channel.setStatusReason(VkWallPostGate.BLOCK_MESSAGE);
+                channel.setUpdatedAt(Instant.now());
+                channel = channelRepository.save(channel);
+            }
             created.add(toDto(channel));
             auditRecorder.record(
                     workspaceId,
@@ -658,7 +665,16 @@ public class ChannelServiceImpl implements ChannelService {
         account.setStatus("active");
         account.setLastCheckedAt(Instant.now());
         account.setUpdatedAt(Instant.now());
+        applyGrantedScopes(account, token);
         return socialAccountRepository.save(account);
+    }
+
+    /** Persist scopes from the token response. A null array means the response omitted {@code scope}. */
+    static void applyGrantedScopes(SocialAccountEntity account, SocialConnectClient.OAuthToken token) {
+        if (account == null || token == null || token.scopes() == null) {
+            return;
+        }
+        account.setScopes(token.scopes());
     }
 
     private ChannelEntity upsertChannel(
@@ -740,6 +756,59 @@ public class ChannelServiceImpl implements ChannelService {
                 .orElse(null);
     }
 
+    /** Fail-open token read for channel list overlay. Does not refresh or write. */
+    private String tryResolveAccessToken(ChannelEntity channel) {
+        if (channel.getSocialAccountId() == null) {
+            return null;
+        }
+        return socialAccountRepository
+                .findById(channel.getSocialAccountId())
+                .flatMap(account -> tokenVault.tryUnseal(channel.getWorkspaceId(), account.getAccessTokenEnc()))
+                .orElse(null);
+    }
+
+    /**
+     * Reject scheduling onto a VK target whose token cannot call {@code wall.post}. Persists
+     * {@code no_permissions} so the channel list keeps showing the reason.
+     */
+    public void assertVkWallPostAllowed(ChannelEntity channel) {
+        if (channel == null || !"vk".equals(channel.getNetwork())) {
+            return;
+        }
+        if (VkWallPostGate.blockedByPriorDenial(channel.getStatus())) {
+            String reason = channel.getStatusReason();
+            if (reason == null || reason.isBlank()) {
+                reason = VkWallPostGate.BLOCK_MESSAGE;
+                channel.setStatusReason(reason);
+                channel.setUpdatedAt(Instant.now());
+                channelRepository.save(channel);
+            }
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, reason);
+        }
+        if (!vkProfileTokenCannotPost(channel)) {
+            return;
+        }
+        channel.setStatus("no_permissions");
+        channel.setStatusReason(VkWallPostGate.BLOCK_MESSAGE);
+        channel.setUpdatedAt(Instant.now());
+        channelRepository.save(channel);
+        throw new ApiException(
+                HttpStatus.UNPROCESSABLE_ENTITY, ProblemCodes.VALIDATION_FAILED, VkWallPostGate.BLOCK_MESSAGE);
+    }
+
+    private boolean vkProfileTokenCannotPost(ChannelEntity channel) {
+        if (channel == null || !"vk".equals(channel.getNetwork())) {
+            return false;
+        }
+        if (!"active".equals(channel.getStatus())) {
+            return false;
+        }
+        if (!VkWallPostGate.isPersonalProfile(channel.getExternalId(), channel.getType())) {
+            return false;
+        }
+        return VkWallPostGate.cannotPost(tryResolveAccessToken(channel), channel.getExternalId(), channel.getType());
+    }
+
     private ChannelEntity requireChannel(UUID channelId) {
         return channelRepository.findByIdAndDeletedAtIsNull(channelId).orElseThrow(WorkspaceAccessService::notFound);
     }
@@ -755,6 +824,12 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     private ChannelDtos.Channel toDto(ChannelEntity channel) {
+        String status = channel.getStatus();
+        String statusReason = channel.getStatusReason();
+        if (vkProfileTokenCannotPost(channel)) {
+            status = "no_permissions";
+            statusReason = VkWallPostGate.BLOCK_MESSAGE;
+        }
         ApiEnums.StoryConnectionStatus storyStatus;
         try {
             storyStatus = ApiEnums.StoryConnectionStatus.valueOf(
@@ -772,8 +847,8 @@ public class ChannelServiceImpl implements ChannelService {
                 channel.getTitle(),
                 channel.getAvatarUrl(),
                 channel.getUsername(),
-                ApiEnums.ChannelStatus.valueOf(channel.getStatus()),
-                channel.getStatusReason(),
+                ApiEnums.ChannelStatus.valueOf(status),
+                statusReason,
                 channel.getTimezone(),
                 channel.getCapabilities(),
                 channel.getCreatedAt(),

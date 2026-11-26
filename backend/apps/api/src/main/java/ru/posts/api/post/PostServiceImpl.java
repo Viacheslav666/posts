@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.posts.api.auth.ClientRequestContext;
+import ru.posts.api.channel.ChannelServiceImpl;
 import ru.posts.api.channel.NetworkCapabilitiesService;
 import ru.posts.api.channel.PlanLimitService;
 import ru.posts.api.error.ApiException;
@@ -89,6 +90,7 @@ public class PostServiceImpl implements PostService {
     private final ObjectMapper objectMapper;
     private final ContentRenderer contentRenderer;
     private final TransactionTemplate writeTx;
+    private final ChannelServiceImpl channelService;
 
     public PostServiceImpl(
             PostRepository postRepository,
@@ -105,7 +107,8 @@ public class PostServiceImpl implements PostService {
             OrdConnectionRepository ordConnectionRepository,
             OrdService ordService,
             ObjectMapper objectMapper,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ChannelServiceImpl channelService) {
         this.postRepository = postRepository;
         this.postVariantRepository = postVariantRepository;
         this.publicationRepository = publicationRepository;
@@ -122,6 +125,7 @@ public class PostServiceImpl implements PostService {
         this.objectMapper = objectMapper;
         this.contentRenderer = new DefaultContentRenderer();
         this.writeTx = new TransactionTemplate(transactionManager);
+        this.channelService = channelService;
     }
 
     @Override
@@ -807,6 +811,7 @@ public class PostServiceImpl implements PostService {
     // --- helpers ---
 
     private void materializePublications(PostEntity post, List<PostVariantEntity> variants, Instant now) {
+        assertVkChannelsCanPublish(variants);
         PostDtos.Recurrence recurrence = PostContentMapper.mapToRecurrence(post.getRecurrence(), objectMapper);
         List<Instant> runAts =
                 RecurrenceMaterializer.materialize(post.getScheduledAt(), recurrence, post.getTimezone(), now);
@@ -851,6 +856,20 @@ public class PostServiceImpl implements PostService {
                 pub.setCreatedAt(now);
                 publicationRepository.save(pub);
             }
+        }
+    }
+
+    private void assertVkChannelsCanPublish(List<PostVariantEntity> variants) {
+        if (variants == null || channelService == null) {
+            return;
+        }
+        for (PostVariantEntity variant : variants) {
+            if (variant == null || !"vk".equals(variant.getNetwork())) {
+                continue;
+            }
+            channelRepository
+                    .findByIdAndDeletedAtIsNull(variant.getChannelId())
+                    .ifPresent(channelService::assertVkWallPostAllowed);
         }
     }
 

@@ -2,6 +2,7 @@ package ru.posts.persistence.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -46,9 +47,14 @@ public class OutboxRelayJdbc {
                         WHERE id = :id AND published_at IS NULL
                         """)
                 .param("id", id)
-                .param("publishedAt", publishedAt)
+                .param("publishedAt", publishedAtParameter(publishedAt))
                 .update();
         return updated > 0;
+    }
+
+    /** PostgreSQL timestamptz rejects a raw {@link Instant} bind (BadSqlGrammarException). */
+    static Timestamp publishedAtParameter(Instant publishedAt) {
+        return Timestamp.from(publishedAt);
     }
 
     private static OutboxRow mapRow(ResultSet rs) throws SQLException {
