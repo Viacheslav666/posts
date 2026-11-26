@@ -9,6 +9,9 @@
  * Never commit real names, INN, phone or email. Empty strings are hidden.
  */
 
+/** Edition date of the public legal documents. Not a personal datum. */
+export const LEGAL_EDITION_DATE = '26 ноября 2026 г.';
+
 export const LEGAL_FIELDS = [
   'companyName',
   'inn',

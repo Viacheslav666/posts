@@ -3,11 +3,11 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { formatRub, PLANS, priceForPeriod, YEARLY_DISCOUNT, type Plan } from '@/features/pricing/model/plans';
-import { hasLegalValue } from '@/shared/config/legal';
+import { hasLegalValue, LEGAL_EDITION_DATE } from '@/shared/config/legal';
 
 import { LegalRequisitesView, loadLegalRequisiteRows } from './legal-requisites';
 
-export const PUBLIC_OFFER_EDITION = '26 ноября 2026 г.';
+export const PUBLIC_OFFER_EDITION = LEGAL_EDITION_DATE;
 
 const linkClass = 'font-medium text-foreground underline underline-offset-4';
 

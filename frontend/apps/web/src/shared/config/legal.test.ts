@@ -125,6 +125,8 @@ describe('legal requisites', () => {
       'src/app/(public)/pricing/page.tsx',
       'src/app/(public)/legal/contacts/page.tsx',
       'src/app/(public)/legal/offer/page.tsx',
+      'src/app/(public)/legal/privacy/page.tsx',
+      'src/app/(public)/legal/personal-data/page.tsx',
     ]) {
       expect(readWeb(page)).toContain("export const dynamic = 'force-dynamic'");
     }
@@ -132,10 +134,22 @@ describe('legal requisites', () => {
 
   it('does not ship draft placeholders or seller secrets in public copy', () => {
     const json = JSON.stringify(messages);
+    const legal = JSON.stringify(messages.legal);
     expect(json).not.toContain('Текст утверждается');
     expect(json).not.toContain('Реквизиты оператора сервиса задаются конфигурацией окружения');
+    expect(legal).not.toMatch(/согласован/i);
+    expect(legal).not.toMatch(/утвержда/i);
+    expect(legal).not.toMatch(/draft/i);
     expect(json).toContain('Тарифы для фрилансеров, команд и агентств. Годовая оплата со скидкой 20%.');
     expect(json).toContain('Услуга оказывается онлайн: доступ к тарифу открывается в личном кабинете сразу после оплаты.');
+    expect(messages.pricing.trialNote).toBe(
+      'Триал Про: 7 дней без карты. При неоплате grace 3 дня, данные хранятся 90 дней.',
+    );
+    expect(messages.pricing.agencyNote).toBe(
+      'Доп. каналы: +250 ₽ за каждые +25. Доп. места: по запросу. Enterprise по отдельному договору.',
+    );
+    expect(messages.pricing.trialNote).not.toContain('—');
+    expect(messages.pricing.agencyNote).not.toContain('—');
 
     const offer = readWeb('src/features/landing/components/public-offer.tsx');
     expect(offer).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
@@ -146,5 +160,22 @@ describe('legal requisites', () => {
     expect(offer).toContain('/pricing');
     expect(offer).toContain('/legal/privacy');
     expect(offer).toContain('/legal/personal-data');
+
+    for (const file of [
+      'src/features/landing/components/privacy-policy.tsx',
+      'src/features/landing/components/personal-data-consent.tsx',
+    ]) {
+      const source = readWeb(file);
+      expect(source).not.toContain('—');
+      expect(source).not.toMatch(/согласован/i);
+      expect(source).not.toMatch(/утвержда/i);
+      expect(source).not.toMatch(/draft/i);
+      expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+      expect(source).not.toMatch(/\+7\d{10}/);
+      expect(source).toContain('152-ФЗ');
+      expect(source).toContain('90 дней');
+      expect(source).toContain('ЮKassa');
+      expect(source).toContain('VK');
+    }
   });
 });
